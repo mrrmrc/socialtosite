@@ -1,0 +1,15 @@
+# Config con credenziali — mai committare
+config/config.php
+
+# Log
+*.log
+
+# Dipendenze
+node_modules/
+vendor/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

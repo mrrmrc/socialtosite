@@ -1,7 +1,19 @@
 <?php
 // api/middleware/response.php
 function cors(): void {
-    header('Access-Control-Allow-Origin: *');
+    // Origine consentita: ALLOWED_ORIGIN da config (default = BASE_URL).
+    // Imposta ALLOWED_ORIGIN a '*' solo in sviluppo locale.
+    $allowed = defined('ALLOWED_ORIGIN') ? ALLOWED_ORIGIN
+             : (defined('BASE_URL') ? BASE_URL : '');
+    $origin  = $_SERVER['HTTP_ORIGIN'] ?? '';
+
+    if ($allowed === '*') {
+        header('Access-Control-Allow-Origin: *');
+    } else {
+        header('Access-Control-Allow-Origin: ' . ($origin === $allowed ? $origin : $allowed));
+        header('Vary: Origin');
+        header('Access-Control-Allow-Credentials: true');
+    }
     header('Access-Control-Allow-Methods: GET, POST, PUT, PATCH, DELETE, OPTIONS');
     header('Access-Control-Allow-Headers: Authorization, Content-Type');
     if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') { http_response_code(204); exit; }
