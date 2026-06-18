@@ -318,14 +318,61 @@ function DashboardScreen({ token, user, onLogout }) {
   const [tab, setTab] = useState('site');
   const [data, setData] = useState(null);
   const [syncing, setSyncing] = useState(false);
+  const [linkUrl, setLinkUrl] = useState('');
+  const [importing, setImporting] = useState(false);
+  const [importMsg, setImportMsg] = useState(null);
+  const [drafts, setDrafts] = useState([]);
+  const [harmonizingId, setHarmonizingId] = useState(0);
 
-  useEffect(() => { loadData(); }, []);
+  useEffect(() => { loadData(); loadDrafts(); }, []);
 
   async function loadData() {
     try {
       const d = await apiFetch('/api/index.php?action=site', {}, token);
       setData(d);
     } catch {}
+  }
+
+  async function loadDrafts() {
+    try {
+      const d = await apiFetch('/api/index.php?action=drafts', {}, token);
+      setDrafts(d || []);
+    } catch {}
+  }
+
+  // AGENTE 1 — Ingestione: importa e trascrive da link
+  async function doImport(e) {
+    e.preventDefault();
+    if (!linkUrl.trim()) return;
+    setImporting(true); setImportMsg(null);
+    try {
+      const r = await apiFetch('/api/index.php?action=ingest-url',
+        { method: 'POST', body: JSON.stringify({ url: linkUrl.trim() }) }, token);
+      if (r.duplicate) {
+        setImportMsg({ ok: true, text: 'Questo contenuto era già stato importato.' });
+      } else {
+        setImportMsg({ ok: true, text: 'Trascrizione completata! Ora puoi armonizzarla.' });
+      }
+      setLinkUrl('');
+      await loadDrafts();
+    } catch (err) {
+      setImportMsg({ ok: false, text: err.message });
+    }
+    setImporting(false);
+  }
+
+  // AGENTE 2 — Armonizzatore: bozza → articolo pubblicato
+  async function doHarmonize(id) {
+    setHarmonizingId(id);
+    try {
+      await apiFetch('/api/index.php?action=harmonize',
+        { method: 'POST', body: JSON.stringify({ id }) }, token);
+      await loadDrafts();
+      await loadData();
+    } catch (err) {
+      setImportMsg({ ok: false, text: err.message });
+    }
+    setHarmonizingId(0);
   }
 
   async function syncNow() {
@@ -376,6 +423,51 @@ function DashboardScreen({ token, user, onLogout }) {
               <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{s.l}</div>
             </div>
           ))}
+        </div>
+
+        {/* Importa da link (Agente 1) */}
+        <div className="card" style={{ marginBottom: '1.25rem' }}>
+          <h3 style={{ marginBottom: '4px' }}>➕ Importa da un link</h3>
+          <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '12px' }}>
+            Incolla il link di un video (YouTube pronto; TikTok/Instagram/Facebook in arrivo). L'AI lo trascrive in automatico.
+          </p>
+          <form onSubmit={doImport} style={{ display: 'flex', gap: '8px' }}>
+            <input type="text" placeholder="https://www.youtube.com/watch?v=..."
+              value={linkUrl} onChange={e => setLinkUrl(e.target.value)} style={{ flex: 1 }} />
+            <button type="submit" className="btn btn-primary" disabled={importing}>
+              {importing ? '⟳ Trascrivo...' : 'Importa'}
+            </button>
+          </form>
+          {importMsg && (
+            <div style={{ marginTop: '10px', padding: '8px 12px', borderRadius: 'var(--radius-sm)', fontSize: '13px',
+              background: importMsg.ok ? 'var(--teal-light)' : 'var(--red-light)',
+              color: importMsg.ok ? '#0F6E56' : 'var(--red)' }}>
+              {importMsg.text}
+            </div>
+          )}
+
+          {drafts.length > 0 && (
+            <div style={{ marginTop: '1rem' }}>
+              <div className="divider" />
+              <div style={{ fontSize: '13px', fontWeight: 600, marginBottom: '8px' }}>Bozze da armonizzare ({drafts.length})</div>
+              {drafts.map(d => (
+                <div key={d.id} style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '12px', padding: '10px 0', borderTop: '1px solid var(--border)' }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '4px' }}>
+                      {SOCIAL[d.platform]?.icon} {SOCIAL[d.platform]?.label}
+                    </div>
+                    <div style={{ fontSize: '13px', color: 'var(--text)', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                      {d.transcript || '(nessuna trascrizione)'}
+                    </div>
+                  </div>
+                  <button className="btn btn-primary" disabled={harmonizingId === d.id}
+                    onClick={() => doHarmonize(d.id)} style={{ whiteSpace: 'nowrap' }}>
+                    {harmonizingId === d.id ? '⟳ Armonizzo...' : '✨ Armonizza'}
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Tabs */}
@@ -568,7 +660,7 @@ function App() {
 
   function handleAuth(t, u) {
     setToken(t); setUser(u);
-    setScreen('connect');
+    setScreen('dashboard');
   }
 
   function logout() {
