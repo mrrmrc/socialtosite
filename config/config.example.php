@@ -22,7 +22,11 @@ define('BASE_URL', 'https://tuodominio.it');
 // Usa '*' solo in sviluppo locale.
 define('ALLOWED_ORIGIN', BASE_URL);
 
-// OpenAI — per Whisper (trascrizione) e GPT (generazione testo)
+// Google Gemini — trascrizione video (anche da link YouTube) + armonizzazione.
+// Le chiavi AI vivono in config/keys.php (repo privato): vedi quel file.
+// GEMINI_API_KEY, GEMINI_MODEL, APIFY_TOKEN sono definiti lì.
+
+// OpenAI — alternativa per Whisper (trascrizione). Opzionale.
 define('OPENAI_API_KEY', 'sk-...');
 
 // Anthropic Claude — per generazione contenuti SEO

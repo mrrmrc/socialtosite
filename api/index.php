@@ -26,9 +26,11 @@ if (!file_exists(__DIR__ . '/../config/config.php')) {
 
 require_once __DIR__ . '/../config/db.php';
 require_once __DIR__ . '/../config/config.php';
+if (file_exists(__DIR__ . '/../config/keys.php')) require_once __DIR__ . '/../config/keys.php';
 require_once __DIR__ . '/middleware/jwt.php';
 require_once __DIR__ . '/middleware/response.php';
 require_once __DIR__ . '/services/sync.php';
+require_once __DIR__ . '/services/ingest.php';
 
 cors();
 
@@ -133,6 +135,30 @@ if ($action === 'site-update' && $method === 'POST') {
     DB::execute('UPDATE sites SET title=COALESCE(?,title), bio=COALESCE(?,bio) WHERE user_id=?',
         [$b['title'] ?? null, $b['bio'] ?? null, $userId]);
     json(['ok' => true]);
+}
+
+// ── AGENTE 1: POST ingest-url  { url } ────────────────────────────────────
+if ($action === 'ingest-url' && $method === 'POST') {
+    $b   = body();
+    $res = Ingest::url($userId, $b['url'] ?? '');
+    json($res);
+}
+
+// ── AGENTE 2: POST harmonize  { id } ──────────────────────────────────────
+if ($action === 'harmonize' && $method === 'POST') {
+    $b   = body();
+    $res = Ingest::harmonize($userId, (int) ($b['id'] ?? 0));
+    json($res);
+}
+
+// ── GET drafts: bozze importate non ancora armonizzate ────────────────────
+if ($action === 'drafts' && $method === 'GET') {
+    $drafts = DB::fetchAll(
+        'SELECT id, platform, media_url, transcript, published_at
+           FROM posts WHERE user_id=? AND published=0 ORDER BY id DESC LIMIT 50',
+        [$userId]
+    );
+    json($drafts);
 }
 
 jsonError('Endpoint non trovato', 404);
