@@ -17,6 +17,28 @@ jobs:
       - name: Installa lftp
         run: sudo apt-get update && sudo apt-get install -y lftp
 
+      - name: Verifica i secret FTP
+        # Diagnostica: non stampa MAI i valori, solo se sono presenti e la loro
+        # lunghezza. Fa fallire subito con messaggio chiaro se manca qualcosa.
+        env:
+          HOST: ${{ secrets.FTP_HOST }}
+          USER: ${{ secrets.FTP_USER }}
+          PASS: ${{ secrets.FTP_PASS }}
+        run: |
+          fail=0
+          [ -z "$HOST" ] && echo "::error::Secret FTP_HOST vuoto o assente" && fail=1
+          [ -z "$USER" ] && echo "::error::Secret FTP_USER vuoto o assente" && fail=1
+          [ -z "$PASS" ] && echo "::error::Secret FTP_PASS vuoto o assente" && fail=1
+          echo "Lunghezze (caratteri): HOST=${#HOST} USER=${#USER} PASS=${#PASS}"
+          if printf '%s' "$HOST" | grep -q '[[:space:]]'; then
+            echo "::warning::FTP_HOST contiene spazi o a-capo: deve essere SOLO l'hostname (es. socialtosite.sviluppo.host)"
+          fi
+          if [ "$fail" = "1" ]; then
+            echo "I secret vanno creati in: Settings -> Secrets and variables -> Actions -> Repository secrets"
+            exit 1
+          fi
+          echo "Secret FTP presenti."
+
       - name: Prepara index.html nella root
         # La dashboard React vive in frontend/index.html ma deve essere servita
         # come / del dominio: la copio nella root così il mirror la carica
