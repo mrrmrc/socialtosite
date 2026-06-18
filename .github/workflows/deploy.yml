@@ -1,8 +1,10 @@
 name: Deploy via SFTP
 
-# Deploy MANUALE: parte solo quando lo avvii tu dal tab "Actions" di GitHub
-# (pulsante "Run workflow"). Niente deploy automatici ad ogni push.
+# Deploy AUTOMATICO: parte ad ogni push su main.
+# Resta disponibile anche l'avvio manuale dal tab "Actions" (Run workflow).
 on:
+  push:
+    branches: [main]
   workflow_dispatch:
 
 jobs:
