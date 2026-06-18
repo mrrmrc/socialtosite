@@ -17,6 +17,13 @@ jobs:
       - name: Installa lftp
         run: sudo apt-get update && sudo apt-get install -y lftp
 
+      - name: Prepara index.html nella root
+        # La dashboard React vive in frontend/index.html ma deve essere servita
+        # come / del dominio: la copio nella root così il mirror la carica
+        # direttamente in /public_html/index.html (sovrascrive la pagina di
+        # cortesia dell'hosting).
+        run: cp frontend/index.html index.html
+
       - name: Carica i file via SFTP
         env:
           HOST: ${{ secrets.FTP_HOST }}
@@ -35,5 +42,4 @@ jobs:
             --exclude db/ \
             --exclude README.md \
             ./ /public_html/;
-          put -O /public_html frontend/index.html -o index.html;
           "
