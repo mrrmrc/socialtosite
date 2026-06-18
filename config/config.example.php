@@ -11,8 +11,16 @@ define('DB_CHARSET', 'utf8mb4');
 // JWT Secret — genera con: php -r "echo bin2hex(random_bytes(32));"
 define('JWT_SECRET', 'cambia_con_stringa_segreta_lunga');
 
+// Chiave di cifratura per i token social (64 caratteri hex = 32 byte)
+// genera con: php -r "echo bin2hex(random_bytes(32));"
+define('ENCRYPTION_KEY', 'cambia_con_64_caratteri_hex');
+
 // URL base del sito (senza slash finale)
 define('BASE_URL', 'https://tuodominio.it');
+
+// Origine consentita per le richieste CORS (default = BASE_URL).
+// Usa '*' solo in sviluppo locale.
+define('ALLOWED_ORIGIN', BASE_URL);
 
 // OpenAI — per Whisper (trascrizione) e GPT (generazione testo)
 define('OPENAI_API_KEY', 'sk-...');

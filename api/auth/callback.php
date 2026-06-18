@@ -3,6 +3,7 @@
 require_once __DIR__ . '/../../config/config.php';
 require_once __DIR__ . '/../../config/db.php';
 require_once __DIR__ . '/../middleware/response.php';
+require_once __DIR__ . '/../middleware/crypto.php';
 
 $platform = $_GET['platform'] ?? '';
 $code     = $_GET['code']     ?? '';
@@ -123,7 +124,10 @@ try {
         ON DUPLICATE KEY UPDATE
           access_token=VALUES(access_token), refresh_token=VALUES(refresh_token),
           handle=VALUES(handle), platform_uid=VALUES(platform_uid), active=1
-    ', [$userId, $platform, $platformUid, $handle, $accessToken, $refreshToken ?: null, $expiresAt ?: null]);
+    ', [$userId, $platform, $platformUid, $handle,
+        Crypto::encrypt($accessToken),
+        $refreshToken ? Crypto::encrypt($refreshToken) : null,
+        $expiresAt ?: null]);
 
     header('Location: ' . BASE_URL . '/dashboard.html?connected=' . $platform);
 

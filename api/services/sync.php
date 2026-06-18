@@ -4,6 +4,7 @@ require_once __DIR__ . '/../../config/db.php';
 require_once __DIR__ . '/../../config/config.php';
 require_once __DIR__ . '/ai.php';
 require_once __DIR__ . '/../middleware/response.php';
+require_once __DIR__ . '/../middleware/crypto.php';
 
 class Sync {
 
@@ -194,11 +195,12 @@ class Sync {
         );
         $results = [];
         foreach ($connections as $conn) {
+            $token  = Crypto::decrypt($conn['access_token']);
             $result = match($conn['platform']) {
-                'instagram' => self::instagram($userId, $conn['access_token']),
-                'tiktok'    => self::tiktok($userId, $conn['access_token']),
-                'youtube'   => self::youtube($userId, $conn['access_token']),
-                'facebook'  => self::facebook($userId, $conn['access_token']),
+                'instagram' => self::instagram($userId, $token),
+                'tiktok'    => self::tiktok($userId, $token),
+                'youtube'   => self::youtube($userId, $token),
+                'facebook'  => self::facebook($userId, $token),
                 default     => null,
             };
             if (!$result) continue;
