@@ -17,6 +17,14 @@ $posts = DB::fetchAll(
     [$user['id']]
 );
 foreach ($posts as &$p) { $p['tags'] = json_decode($p['tags'] ?? '[]', true); }
+unset($p);
+
+// Eventuale pagina singola del contenuto
+$postSlug = $_GET['post'] ?? '';
+$single   = null;
+if ($postSlug) {
+    foreach ($posts as $p) { if (($p['slug'] ?? '') === $postSlug) { $single = $p; break; } }
+}
 
 // ── Sitemap XML ────────────────────────────────────────────────────────────
 if ($action === 'sitemap') {
@@ -42,6 +50,37 @@ $siteUrl  = BASE_URL . '/s/' . $slug;
 $icons = ['instagram' => '📸', 'tiktok' => '🎵', 'youtube' => '▶️', 'facebook' => '📘'];
 
 function h(string $s): string { return htmlspecialchars($s, ENT_QUOTES, 'UTF-8'); }
+
+// Media del contenuto: embed YouTube, <video> o <img>
+function mediaHtml(array $p): string {
+    $u = $p['media_url'] ?? '';
+    if (!$u) return '';
+    $type = strtolower($p['media_type'] ?? '');
+    if (preg_match('~(?:youtube\.com|youtu\.be)~i', $u) &&
+        preg_match('~(?:v=|youtu\.be/|shorts/|embed/)([A-Za-z0-9_-]{11})~', $u, $m)) {
+        return '<div class="media"><iframe src="https://www.youtube.com/embed/' . $m[1] .
+               '" allowfullscreen loading="lazy"></iframe></div>';
+    }
+    if ($type === 'image' || preg_match('~\.(jpg|jpeg|png|webp)(\?|$)~i', $u)) {
+        return '<div class="media"><img src="' . h($u) . '" alt="" loading="lazy"></div>';
+    }
+    if ($type === 'video' || preg_match('~\.(mp4|mov|webm)(\?|$)~i', $u)) {
+        return '<div class="media"><video controls preload="metadata"><source src="' . h($u) . '"></video></div>';
+    }
+    return '';
+}
+
+// Corpo articolo in paragrafi
+function bodyHtml(string $b): string {
+    $b = trim($b);
+    if ($b === '') return '';
+    $out = '';
+    foreach (preg_split('/\n{2,}/', $b) as $para) {
+        $para = trim($para);
+        if ($para !== '') $out .= '<p>' . nl2br(h($para)) . '</p>';
+    }
+    return $out;
+}
 ?>
 <!DOCTYPE html>
 <html lang="it">
@@ -80,6 +119,12 @@ function h(string $s): string { return htmlspecialchars($s, ENT_QUOTES, 'UTF-8')
     .tags{display:flex;flex-wrap:wrap;gap:5px;margin-top:.75rem}
     .tag{font-size:.72rem;background:#f1f0ff;color:#534AB7;padding:3px 9px;border-radius:20px}
     .footer{text-align:center;padding:2rem 1rem;font-size:.8rem;color:#bbb;border-top:1px solid #eee;margin-top:2rem}
+    .media{margin:.75rem 0}
+    .media iframe{width:100%;aspect-ratio:16/9;border:0;border-radius:10px}
+    .media img,.media video{max-width:100%;border-radius:10px;display:block}
+    .body p{margin:.65rem 0;color:#333;font-size:.96rem}
+    .post h2 a{color:inherit}
+    .back{display:inline-block;margin:0 0 1rem;font-size:.9rem}
     @media(max-width:600px){.post{padding:1rem}}
   </style>
 </head>
@@ -91,25 +136,40 @@ function h(string $s): string { return htmlspecialchars($s, ENT_QUOTES, 'UTF-8')
 </header>
 
 <main class="container">
-  <?php foreach ($posts as $p): ?>
+  <?php if ($single): $p = $single; ?>
+  <a class="back" href="<?= $siteUrl ?>">← Tutti i contenuti</a>
   <article class="post" itemscope itemtype="https://schema.org/Article">
     <div class="meta">
       <span><?= $icons[$p['platform']] ?? '📄' ?> <?= h($p['platform']) ?></span>
       <span><?= $p['published_at'] ? date('d/m/Y', strtotime($p['published_at'])) : '' ?></span>
-      <?php if (strtoupper($p['media_type']) === 'VIDEO'): ?>
-        <span class="badge">Video → Testo</span>
-      <?php endif; ?>
+      <?php if (strtoupper($p['media_type']) === 'VIDEO'): ?><span class="badge">Video → Testo</span><?php endif; ?>
     </div>
     <h2 itemprop="headline"><?= h($p['generated_title'] ?: mb_substr($p['raw_content'] ?? '', 0, 80)) ?></h2>
+    <?= mediaHtml($p) ?>
+    <div class="body" itemprop="articleBody">
+      <?= bodyHtml($p['generated_body'] ?: ($p['transcript'] ?: $p['raw_content'] ?? '')) ?>
+    </div>
+    <?php if ($p['tags']): ?>
+    <div class="tags"><?php foreach ($p['tags'] as $tag): ?><span class="tag"><?= h($tag) ?></span><?php endforeach; ?></div>
+    <?php endif; ?>
+    <meta itemprop="datePublished" content="<?= h($p['published_at'] ?? '') ?>">
+  </article>
+
+  <?php else: ?>
+  <?php foreach ($posts as $p): $purl = $siteUrl . '/' . h($p['slug'] ?? ''); ?>
+  <article class="post" itemscope itemtype="https://schema.org/Article">
+    <div class="meta">
+      <span><?= $icons[$p['platform']] ?? '📄' ?> <?= h($p['platform']) ?></span>
+      <span><?= $p['published_at'] ? date('d/m/Y', strtotime($p['published_at'])) : '' ?></span>
+      <?php if (strtoupper($p['media_type']) === 'VIDEO'): ?><span class="badge">Video → Testo</span><?php endif; ?>
+    </div>
+    <?= mediaHtml($p) ?>
+    <h2 itemprop="headline"><a href="<?= $purl ?>"><?= h($p['generated_title'] ?: mb_substr($p['raw_content'] ?? '', 0, 80)) ?></a></h2>
     <p class="excerpt" itemprop="description">
       <?= h($p['generated_excerpt'] ?: mb_substr($p['generated_body'] ?? '', 0, 200)) ?>
     </p>
     <?php if ($p['tags']): ?>
-    <div class="tags">
-      <?php foreach ($p['tags'] as $tag): ?>
-        <span class="tag"><?= h($tag) ?></span>
-      <?php endforeach; ?>
-    </div>
+    <div class="tags"><?php foreach ($p['tags'] as $tag): ?><span class="tag"><?= h($tag) ?></span><?php endforeach; ?></div>
     <?php endif; ?>
     <meta itemprop="datePublished" content="<?= h($p['published_at'] ?? '') ?>">
   </article>
@@ -120,6 +180,7 @@ function h(string $s): string { return htmlspecialchars($s, ENT_QUOTES, 'UTF-8')
     <div style="font-size:3rem;margin-bottom:1rem">📭</div>
     <p>Nessun contenuto ancora pubblicato.</p>
   </div>
+  <?php endif; ?>
   <?php endif; ?>
 </main>
 

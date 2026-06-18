@@ -50,17 +50,35 @@ class Ingest {
             return ['id' => (int) $exists['id'], 'platform' => $platform, 'duplicate' => true];
         }
 
-        // Ricava il testo grezzo
+        // Ricava testo grezzo + media (video/immagine)
         $transcript = '';
         $caption    = '';
+        $mediaUrl   = $url;       // riferimento mostrabile nel contenuto
+        $mediaType  = 'text';
+
         if ($platform === 'youtube') {
-            $transcript = AI::transcribeYouTube($url);   // Gemini, da link diretto
+            // Gemini trascrive direttamente dal link; il video resta su YouTube (embed).
+            $transcript = AI::transcribeYouTube($url);
+            $mediaUrl   = $url;
+            $mediaType  = 'video';
         } else {
-            // TikTok / Instagram / Facebook: Apify recupera il media, Gemini trascrive.
+            // TikTok / Instagram / Facebook: Apify recupera media + didascalia.
             $r       = AI::apifyResolve($platform, $url);
             $caption = $r['caption'] ?? '';
-            if (!empty($r['media'])) {
-                $transcript = AI::transcribeMediaUrl($r['media']);
+
+            if (!empty($r['video'])) {
+                // Conserva il video sul server (così resta nei contenuti dell'utente)
+                $saved = self::saveMedia($r['video'], $platform, $postId, 'mp4');
+                if ($saved) {
+                    $mediaUrl  = $saved['url'];
+                    $mediaType = 'video';
+                    if ($saved['size'] <= 15 * 1024 * 1024) {
+                        $transcript = AI::transcribeFile($saved['path'], 'video/mp4');
+                    }
+                }
+            } elseif (!empty($r['image'])) {
+                $saved = self::saveMedia($r['image'], $platform, $postId, 'jpg');
+                if ($saved) { $mediaUrl = $saved['url']; $mediaType = 'image'; }
             }
         }
 
@@ -77,7 +95,7 @@ class Ingest {
         ', [
             $userId, $platform, $postId,
             $caption, $transcript,
-            $url, 'video', date('Y-m-d H:i:s'),
+            $mediaUrl, $mediaType, date('Y-m-d H:i:s'),
         ]);
 
         return [
@@ -85,8 +103,38 @@ class Ingest {
             'platform'   => $platform,
             'duplicate'  => false,
             'transcript' => $transcript,
-            'preview'    => mb_substr($transcript, 0, 280),
+            'preview'    => mb_substr($transcript ?: $caption, 0, 280),
         ];
+    }
+
+    // ── Scarica e conserva un media nel sito (public/media) ────────────────
+    // Ritorna ['url'=>pubblico, 'path'=>locale, 'size'=>byte] oppure null.
+    private static function saveMedia(string $src, string $platform, string $postId, string $ext): ?array {
+        $dir = __DIR__ . '/../../public/media';
+        if (!is_dir($dir)) @mkdir($dir, 0775, true);
+        if (!is_dir($dir) || !is_writable($dir)) return null;
+
+        $name = $platform . '_' . preg_replace('/[^A-Za-z0-9_-]/', '', $postId) . '.' . $ext;
+        $path = "$dir/$name";
+
+        $fp = fopen($path, 'w');
+        if (!$fp) return null;
+        $ch = curl_init($src);
+        curl_setopt_array($ch, [
+            CURLOPT_FILE           => $fp,
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_TIMEOUT        => 120,
+            CURLOPT_USERAGENT      => 'Mozilla/5.0 (compatible; SocialToSite/1.0)',
+        ]);
+        curl_exec($ch);
+        curl_close($ch);
+        fclose($fp);
+
+        $size = @filesize($path) ?: 0;
+        if (!$size) { @unlink($path); return null; }
+
+        $base = defined('BASE_URL') ? rtrim(BASE_URL, '/') : '';
+        return ['url' => "$base/public/media/$name", 'path' => $path, 'size' => $size];
     }
 
     // ── AGENTE 2 (Armonizzatore): bozza → articolo SEO pubblicato ──────────

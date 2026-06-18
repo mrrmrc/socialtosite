@@ -151,7 +151,28 @@ class AI {
         return '';
     }
 
-    // ── AGENTE 1: risolve un link social via Apify → caption + URL media ───
+    // ── Cerca ricorsivamente il primo URL immagine plausibile ─────────────
+    private static function findImageUrl($node): string {
+        if (is_string($node)) {
+            if (preg_match('~^https?://~', $node) &&
+                preg_match('~\.(jpg|jpeg|png|webp)(\?|$)~i', $node)) return $node;
+            return '';
+        }
+        if (is_array($node)) {
+            foreach (['displayUrl','thumbnailUrl','coverUrl','imageUrl','cover','thumbnail'] as $k) {
+                if (!empty($node[$k]) && is_string($node[$k]) && preg_match('~^https?://~', $node[$k])) {
+                    return $node[$k];
+                }
+            }
+            foreach ($node as $v) {
+                $u = self::findImageUrl($v);
+                if ($u) return $u;
+            }
+        }
+        return '';
+    }
+
+    // ── AGENTE 1: risolve un link social via Apify → caption + media ───────
     public static function apifyResolve(string $platform, string $url): array {
         [$actor, $input] = match ($platform) {
             'tiktok' => [
@@ -177,7 +198,11 @@ class AI {
         foreach (['text','caption','description','title','message'] as $k) {
             if (!empty($it[$k]) && is_string($it[$k])) { $caption = $it[$k]; break; }
         }
-        return ['caption' => $caption, 'media' => self::findMediaUrl($it)];
+        return [
+            'caption' => $caption,
+            'video'   => self::findMediaUrl($it),
+            'image'   => self::findImageUrl($it),
+        ];
     }
 
     // ── Scarica un media e lo trascrive con Gemini (inline) ────────────────
