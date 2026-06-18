@@ -1,6 +1,9 @@
 # Config con credenziali — mai committare
 config/config.php
 
+# index.html nella root: generato in CI da frontend/index.html (non committare)
+/index.html
+
 # Log
 *.log
 
