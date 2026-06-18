@@ -33,4 +33,5 @@ jobs:
             --exclude db/ \
             --exclude README.md \
             ./ /public_html/;
+          put -O /public_html frontend/index.html -o index.html;
           "

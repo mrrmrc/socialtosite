@@ -164,8 +164,13 @@ function ConnectScreen({ token, onDone }) {
     // Controlla parametri URL per callback OAuth
     const params = new URLSearchParams(window.location.search);
     const connected = params.get('connected');
+    const oauthError = params.get('error');
     if (connected) {
       setConnections(prev => ({ ...prev, [connected]: { handle: 'Connesso ✓' } }));
+      window.history.replaceState({}, '', window.location.pathname);
+    } else if (oauthError) {
+      const platform = params.get('platform') || 'il social';
+      alert(`Connessione a ${platform} non riuscita (${oauthError}). Riprova.`);
       window.history.replaceState({}, '', window.location.pathname);
     }
     loadConnections();

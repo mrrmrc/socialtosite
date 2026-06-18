@@ -11,7 +11,7 @@ $state    = $_GET['state']    ?? '';
 $error    = $_GET['error']    ?? '';
 
 if ($error) {
-    header('Location: ' . BASE_URL . '/dashboard.html?error=oauth_denied&platform=' . $platform);
+    header('Location: ' . BASE_URL . '/?error=oauth_denied&platform=' . $platform);
     exit;
 }
 
@@ -129,10 +129,10 @@ try {
         $refreshToken ? Crypto::encrypt($refreshToken) : null,
         $expiresAt ?: null]);
 
-    header('Location: ' . BASE_URL . '/dashboard.html?connected=' . $platform);
+    header('Location: ' . BASE_URL . '/?connected=' . $platform);
 
 } catch (Exception $e) {
     error_log('[OAuth] ' . $e->getMessage());
-    header('Location: ' . BASE_URL . '/dashboard.html?error=oauth_failed&platform=' . $platform);
+    header('Location: ' . BASE_URL . '/?error=oauth_failed&platform=' . $platform);
 }
 exit;
