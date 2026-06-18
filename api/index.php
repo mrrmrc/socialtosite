@@ -1,5 +1,29 @@
 <?php
 // api/index.php — Router principale
+
+// ── Gestione errori: restituisci SEMPRE JSON (mai 500 con corpo vuoto) ───────
+ini_set('display_errors', '0');
+$__emitErr = function (int $code, string $msg): void {
+    if (!headers_sent()) {
+        http_response_code($code);
+        header('Content-Type: application/json; charset=utf-8');
+    }
+    echo json_encode(['error' => $msg], JSON_UNESCAPED_UNICODE);
+    exit;
+};
+set_exception_handler(function (Throwable $e) use ($__emitErr) {
+    $__emitErr(500, 'Eccezione: ' . $e->getMessage());
+});
+register_shutdown_function(function () use ($__emitErr) {
+    $e = error_get_last();
+    if ($e && in_array($e['type'], [E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR], true)) {
+        $__emitErr(500, 'Errore fatale: ' . $e['message']);
+    }
+});
+if (!file_exists(__DIR__ . '/../config/config.php')) {
+    $__emitErr(500, 'config/config.php mancante sul server: copia config.example.php in config.php e compila i dati del database.');
+}
+
 require_once __DIR__ . '/../config/db.php';
 require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/middleware/jwt.php';
