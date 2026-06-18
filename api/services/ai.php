@@ -7,17 +7,16 @@ if (file_exists(__DIR__ . '/../../config/keys.php')) require_once __DIR__ . '/..
 class AI {
 
     // ── Chiamata generica a Gemini (generateContent) ───────────────────────
-    // $parts: array di "part" Gemini (es. ['text'=>...], ['fileData'=>...]).
-    // Se $json=true chiede a Gemini di rispondere in JSON puro.
-    private static function gemini(array $parts, bool $json = false): string {
+    // $parts: array di "part" Gemini. $config: opzioni generationConfig.
+    private static function gemini(array $parts, array $config = []): string {
         if (!defined('GEMINI_API_KEY') || !GEMINI_API_KEY) {
             throw new Exception('GEMINI_API_KEY mancante: aggiungila in config/keys.php');
         }
-        $model = defined('GEMINI_MODEL') ? GEMINI_MODEL : 'gemini-2.0-flash';
+        $model = defined('GEMINI_MODEL') ? GEMINI_MODEL : 'gemini-2.5-flash';
         $url = "https://generativelanguage.googleapis.com/v1beta/models/$model:generateContent?key=" . GEMINI_API_KEY;
 
         $payload = ['contents' => [['parts' => $parts]]];
-        if ($json) $payload['generationConfig'] = ['responseMimeType' => 'application/json'];
+        if ($config) $payload['generationConfig'] = $config;
 
         $ch = curl_init($url);
         curl_setopt_array($ch, [
@@ -25,7 +24,7 @@ class AI {
             CURLOPT_POST           => true,
             CURLOPT_HTTPHEADER     => ['Content-Type: application/json'],
             CURLOPT_POSTFIELDS     => json_encode($payload, JSON_UNESCAPED_UNICODE),
-            CURLOPT_TIMEOUT        => 300, // i video possono richiedere tempo
+            CURLOPT_TIMEOUT        => 600, // i video lunghi richiedono tempo
         ]);
         $res  = curl_exec($ch);
         $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
@@ -46,9 +45,13 @@ class AI {
     public static function transcribeYouTube(string $youtubeUrl): string {
         return trim(self::gemini([
             ['fileData' => ['fileUri' => $youtubeUrl]],
-            ['text' => "Trascrivi VERBATIM, in italiano, tutto il parlato di questo video. "
-                     . "Restituisci SOLO il testo della trascrizione, senza timestamp, "
-                     . "senza commenti e senza introduzioni."],
+            ['text' => "Trascrivi INTEGRALMENTE e VERBATIM, in italiano, TUTTO il parlato di questo video, "
+                     . "dall'inizio alla fine. NON riassumere, NON saltare parti, NON fermarti prima della fine. "
+                     . "Restituisci SOLO il testo della trascrizione, senza timestamp e senza commenti."],
+        ], [
+            'temperature'    => 0,
+            'maxOutputTokens'=> 65536,
+            'thinkingConfig' => ['thinkingBudget' => 0],
         ]));
     }
 
@@ -58,7 +61,12 @@ class AI {
         if ($bytes === false || $bytes === '') return '';
         return trim(self::gemini([
             ['inlineData' => ['mimeType' => $mime, 'data' => base64_encode($bytes)]],
-            ['text' => "Trascrivi VERBATIM, in italiano, tutto il parlato. Solo il testo."],
+            ['text' => "Trascrivi INTEGRALMENTE e VERBATIM, in italiano, tutto il parlato dall'inizio "
+                     . "alla fine. NON riassumere. Solo il testo."],
+        ], [
+            'temperature'    => 0,
+            'maxOutputTokens'=> 65536,
+            'thinkingConfig' => ['thinkingBudget' => 0],
         ]));
     }
 
@@ -75,7 +83,10 @@ class AI {
             . '"excerpt":"Riassunto max 155 caratteri","tags":["tag1","tag2","tag3","tag4","tag5"],'
             . '"meta_description":"Meta description max 155 caratteri","seo_score":75}';
 
-        $text = self::gemini([['text' => $prompt]], true);
+        $text = self::gemini([['text' => $prompt]], [
+            'responseMimeType' => 'application/json',
+            'maxOutputTokens'  => 8192,
+        ]);
         $text = preg_replace('/```json|```/', '', trim($text));
         $result = json_decode($text, true);
         if (!$result) {
