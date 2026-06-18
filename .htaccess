@@ -17,7 +17,7 @@ RewriteRule ^s/([^/]+)/?$ public/site.php?slug=$1 [L,QSA]
 RewriteRule ^s/([^/]+)/([^/]+)/?$ public/site.php?slug=$1&post=$2 [L,QSA]
 
 # ── Sicurezza: blocca accesso diretto a file sensibili ─────────────────────
-<FilesMatch "(?i)(config\.php|.*\.sql|.*\.example\.php)$">
+<FilesMatch "(?i)(config\.php|.*\.env|.*\.sql|.*\.example\.php)$">
   Require all denied
 </FilesMatch>
 

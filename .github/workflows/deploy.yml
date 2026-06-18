@@ -17,50 +17,31 @@ jobs:
       - name: Installa lftp
         run: sudo apt-get update && sudo apt-get install -y lftp
 
-      - name: Verifica i secret FTP
-        # Diagnostica: non stampa MAI i valori, solo se sono presenti e la loro
-        # lunghezza. Fa fallire subito con messaggio chiaro se manca qualcosa.
-        env:
-          HOST: ${{ secrets.FTP_HOST }}
-          USER: ${{ secrets.FTP_USER }}
-          PASS: ${{ secrets.FTP_PASS }}
-        run: |
-          fail=0
-          [ -z "$HOST" ] && echo "::error::Secret FTP_HOST vuoto o assente" && fail=1
-          [ -z "$USER" ] && echo "::error::Secret FTP_USER vuoto o assente" && fail=1
-          [ -z "$PASS" ] && echo "::error::Secret FTP_PASS vuoto o assente" && fail=1
-          echo "Lunghezze (caratteri): HOST=${#HOST} USER=${#USER} PASS=${#PASS}"
-          if printf '%s' "$HOST" | grep -q '[[:space:]]'; then
-            echo "::warning::FTP_HOST contiene spazi o a-capo: deve essere SOLO l'hostname (es. socialtosite.sviluppo.host)"
-          fi
-          if [ "$fail" = "1" ]; then
-            echo "I secret vanno creati in: Settings -> Secrets and variables -> Actions -> Repository secrets"
-            exit 1
-          fi
-          echo "Secret FTP presenti."
-
-      - name: Prepara index.html nella root
-        # La dashboard React vive in frontend/index.html ma deve essere servita
-        # come / del dominio: la copio nella root così il mirror la carica
-        # direttamente in /public_html/index.html (sovrascrive la pagina di
-        # cortesia dell'hosting).
-        run: cp frontend/index.html index.html
-
       - name: Carica i file via SFTP
-        env:
-          HOST: ${{ secrets.FTP_HOST }}
-          USER: ${{ secrets.FTP_USER }}
-          PASS: ${{ secrets.FTP_PASS }}
+        # Le credenziali vivono in config/deploy.env (committato: repo PRIVATO).
+        # Il file viene ESCLUSO dal mirror, così non finisce mai sul server web.
         run: |
+          set -a
+          . ./config/deploy.env
+          set +a
+          : "${FTP_HOST:?manca FTP_HOST in config/deploy.env}"
+          : "${FTP_USER:?manca FTP_USER in config/deploy.env}"
+          : "${FTP_PASS:?manca FTP_PASS in config/deploy.env}"
+          echo "Credenziali lette da config/deploy.env (HOST=$FTP_HOST USER=$FTP_USER)"
+
+          # La dashboard React (frontend/index.html) va servita come / del dominio.
+          cp frontend/index.html index.html
+
           lftp -c "
           set sftp:auto-confirm yes;
           set net:max-retries 3;
           set net:timeout 20;
-          open -u \"$USER\",\"$PASS\" sftp://$HOST;
+          open -u \"$FTP_USER\",\"$FTP_PASS\" sftp://$FTP_HOST;
           mirror -R --verbose \
             --exclude-glob .git* \
             --exclude .github/ \
             --exclude config/config.php \
+            --exclude config/deploy.env \
             --exclude db/ \
             --exclude README.md \
             ./ /public_html/;
