@@ -102,6 +102,110 @@ class AI {
         return $result;
     }
 
+    // ── Apify: esegue un actor in modo sincrono e torna gli item dataset ───
+    private static function apifyRun(string $actorId, array $input): array {
+        if (!defined('APIFY_TOKEN') || !APIFY_TOKEN) {
+            throw new Exception('APIFY_TOKEN mancante in config/keys.php');
+        }
+        $url = "https://api.apify.com/v2/acts/$actorId/run-sync-get-dataset-items?token=" . APIFY_TOKEN;
+        $ch = curl_init($url);
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_POST           => true,
+            CURLOPT_HTTPHEADER     => ['Content-Type: application/json'],
+            CURLOPT_POSTFIELDS     => json_encode($input, JSON_UNESCAPED_UNICODE),
+            CURLOPT_TIMEOUT        => 300,
+        ]);
+        $res  = curl_exec($ch);
+        $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $err  = curl_error($ch);
+        curl_close($ch);
+        if ($res === false) throw new Exception("Apify: errore di rete ($err)");
+        $data = json_decode($res, true);
+        if ($code >= 400) {
+            $msg = $data['error']['message'] ?? (is_string($res) ? substr($res, 0, 200) : 'errore');
+            throw new Exception("Apify ($code): $msg");
+        }
+        return is_array($data) ? $data : [];
+    }
+
+    // ── Cerca ricorsivamente il primo URL video plausibile in un item ──────
+    private static function findMediaUrl($node): string {
+        if (is_string($node)) {
+            if (preg_match('~^https?://~', $node) &&
+                preg_match('~\.(mp4|mov|m4v|webm)(\?|$)~i', $node)) return $node;
+            return '';
+        }
+        if (is_array($node)) {
+            // chiavi "forti" controllate per prime
+            foreach (['videoUrlNoWaterMark','videoUrl','downloadAddr','playAddr','mediaUrl'] as $k) {
+                if (!empty($node[$k]) && is_string($node[$k]) && preg_match('~^https?://~', $node[$k])) {
+                    return $node[$k];
+                }
+            }
+            foreach ($node as $v) {
+                $u = self::findMediaUrl($v);
+                if ($u) return $u;
+            }
+        }
+        return '';
+    }
+
+    // ── AGENTE 1: risolve un link social via Apify → caption + URL media ───
+    public static function apifyResolve(string $platform, string $url): array {
+        [$actor, $input] = match ($platform) {
+            'tiktok' => [
+                defined('APIFY_ACTOR_TIKTOK') ? APIFY_ACTOR_TIKTOK : 'clockworks~tiktok-scraper',
+                ['postURLs' => [$url], 'resultsPerPage' => 1, 'shouldDownloadVideos' => false],
+            ],
+            'instagram' => [
+                defined('APIFY_ACTOR_INSTAGRAM') ? APIFY_ACTOR_INSTAGRAM : 'apify~instagram-scraper',
+                ['directUrls' => [$url], 'resultsType' => 'posts', 'resultsLimit' => 1],
+            ],
+            'facebook' => [
+                defined('APIFY_ACTOR_FACEBOOK') ? APIFY_ACTOR_FACEBOOK : 'apify~facebook-posts-scraper',
+                ['startUrls' => [['url' => $url]], 'resultsLimit' => 1],
+            ],
+            default => throw new Exception('Piattaforma non gestita da Apify'),
+        };
+
+        $items = self::apifyRun($actor, $input);
+        $it = $items[0] ?? null;
+        if (!$it) throw new Exception('Apify non ha restituito contenuti per questo link');
+
+        $caption = '';
+        foreach (['text','caption','description','title','message'] as $k) {
+            if (!empty($it[$k]) && is_string($it[$k])) { $caption = $it[$k]; break; }
+        }
+        return ['caption' => $caption, 'media' => self::findMediaUrl($it)];
+    }
+
+    // ── Scarica un media e lo trascrive con Gemini (inline) ────────────────
+    public static function transcribeMediaUrl(string $mediaUrl): string {
+        $tmp = tempnam(sys_get_temp_dir(), 'sts_') . '.mp4';
+        $fp  = fopen($tmp, 'w');
+        $ch  = curl_init($mediaUrl);
+        curl_setopt_array($ch, [
+            CURLOPT_FILE           => $fp,
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_TIMEOUT        => 120,
+            CURLOPT_USERAGENT      => 'Mozilla/5.0 (compatible; SocialToSite/1.0)',
+        ]);
+        curl_exec($ch);
+        curl_close($ch);
+        fclose($fp);
+
+        $size = @filesize($tmp) ?: 0;
+        if (!$size) { @unlink($tmp); return ''; }
+        if ($size > 15 * 1024 * 1024) { // limite inline Gemini ~20MB col base64
+            @unlink($tmp);
+            throw new Exception('Video troppo grande per la trascrizione diretta (>15MB). Lo gestiremo a breve con upload dedicato.');
+        }
+        $text = self::transcribeFile($tmp, 'video/mp4');
+        @unlink($tmp);
+        return $text;
+    }
+
     // ── Trascrivi URL video con Whisper ────────────────────────────────────
     public static function transcribeUrl(string $videoUrl): string {
         // Scarica video in tmp

@@ -56,16 +56,18 @@ class Ingest {
         if ($platform === 'youtube') {
             $transcript = AI::transcribeYouTube($url);   // Gemini, da link diretto
         } else {
-            // TikTok / Instagram / Facebook: serve scaricare il media (Apify).
-            // In arrivo: per ora messaggio chiaro invece di fallire muto.
-            throw new Exception(
-                ucfirst($platform) . ": la trascrizione da link arriva a breve (richiede il collegamento ad Apify). "
-                . "Per ora è pronto YouTube."
-            );
+            // TikTok / Instagram / Facebook: Apify recupera il media, Gemini trascrive.
+            $r       = AI::apifyResolve($platform, $url);
+            $caption = $r['caption'] ?? '';
+            if (!empty($r['media'])) {
+                $transcript = AI::transcribeMediaUrl($r['media']);
+            }
         }
 
         $raw = $transcript ?: $caption;
-        if (!$raw) throw new Exception('Nessun testo estratto dal contenuto');
+        if (!$raw) {
+            throw new Exception('Nessun testo estratto: il link potrebbe non essere un contenuto pubblico, o senza parlato/didascalia');
+        }
 
         $id = DB::insert('
             INSERT INTO posts

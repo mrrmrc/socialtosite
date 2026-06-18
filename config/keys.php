@@ -9,4 +9,4 @@ if (!defined('GEMINI_API_KEY')) define('GEMINI_API_KEY', 'AQ.Ab8RN6IVK8R4ALnNEUt
 if (!defined('GEMINI_MODEL'))   define('GEMINI_MODEL', 'gemini-2.5-flash');
 
 // Apify (per scaricare i media da TikTok/Instagram/Facebook). Opzionale per ora.
-if (!defined('APIFY_TOKEN'))    define('APIFY_TOKEN', '');
+if (!defined('APIFY_TOKEN'))    define('APIFY_TOKEN', 'apify_api_3LX8nL0nZmdDli7n4YlbyrJiPatuRf1MWkGE');
