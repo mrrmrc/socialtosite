@@ -149,7 +149,12 @@ class Ingest {
             'SELECT platform, label, url, topic_summary FROM social_sources WHERE user_id=? AND active=1 ORDER BY platform, id',
             [$userId]
         );
+        $site = DB::fetch('SELECT profile_summary, bio FROM sites WHERE user_id=?', [$userId]);
+        $profileSummary = trim($site['profile_summary'] ?? ($site['bio'] ?? ''));
         $sourceContext = '';
+        if ($profileSummary !== '') {
+            $sourceContext .= "Profilo utente/brand:\n" . $profileSummary . "\n\n";
+        }
         foreach ($sources as $source) {
             $sourceContext .= '- ' . $source['platform'] . ': ' . ($source['label'] ?: $source['url']);
             if (!empty($source['topic_summary'])) $sourceContext .= ' — ' . $source['topic_summary'];
@@ -173,12 +178,17 @@ class Ingest {
         return ['id' => $postId, 'seo' => $seo];
     }
 
-    public static function scanSources(int $userId, int $limitPerSource = 5): array {
+    public static function scanSources(int $userId, int $limitPerSource = 5, string $profileOverride = ''): array {
         $sources = DB::fetchAll(
             'SELECT * FROM social_sources WHERE user_id=? AND active=1 ORDER BY platform, id',
             [$userId]
         );
         if (!$sources) throw new Exception('Inserisci almeno un link social prima della scansione');
+
+        $profileOverride = trim($profileOverride);
+        if ($profileOverride !== '') {
+            DB::execute('UPDATE sites SET profile_summary=?, bio=COALESCE(NULLIF(bio, ""), ?) WHERE user_id=?', [$profileOverride, $profileOverride, $userId]);
+        }
 
         $report = ['sources' => count($sources), 'found' => 0, 'imported' => 0, 'published' => 0, 'duplicates' => 0, 'errors' => []];
 
@@ -211,7 +221,7 @@ class Ingest {
             'SELECT generated_title, generated_excerpt, raw_content FROM posts WHERE user_id=? ORDER BY imported_at DESC LIMIT 12',
             [$userId]
         );
-        if ($posts) {
+        if ($posts && $profileOverride === '') {
             $summary = AI::profileSummary($sources, $posts);
             DB::execute('UPDATE sites SET profile_summary=?, bio=COALESCE(NULLIF(bio, ""), ?) WHERE user_id=?', [$summary, $summary, $userId]);
         }

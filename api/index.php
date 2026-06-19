@@ -230,7 +230,8 @@ if ($action === 'social-source-delete' && $method === 'POST') {
 if ($action === 'scan-sources' && $method === 'POST') {
     $b = body();
     $limit = max(1, min(10, (int)($b['limit'] ?? 5)));
-    $report = Ingest::scanSources($userId, $limit);
+    $profileSummary = trim($b['profile_summary'] ?? '');
+    $report = Ingest::scanSources($userId, $limit, $profileSummary);
     json(['ok' => true, 'report' => $report]);
 }
 

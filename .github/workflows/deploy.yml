@@ -17,6 +17,22 @@ jobs:
       - name: Installa lftp
         run: sudo apt-get update && sudo apt-get install -y lftp
 
+      - name: Genera info release
+        run: |
+          DEPLOYED_AT="$(TZ=Europe/Rome date '+%Y-%m-%d %H:%M:%S')"
+          DAY_INDEX="$(TZ=Europe/Rome date '+%u')"
+          DAYS=(lunedì martedì mercoledì giovedì venerdì sabato domenica)
+          DEPLOYED_DAY="${DAYS[$((DAY_INDEX - 1))]}"
+          RELEASE="release-${GITHUB_RUN_NUMBER}-${GITHUB_SHA::7}"
+          cat > deploy-info.json <<EOF
+          {
+            "deployed_at": "$DEPLOYED_AT",
+            "deployed_day": "$DEPLOYED_DAY",
+            "timezone": "Europe/Rome",
+            "release": "$RELEASE"
+          }
+          EOF
+
       - name: Carica i file via SFTP
         # Le credenziali vivono in config/deploy.env (committato: repo PRIVATO).
         # Il file viene ESCLUSO dal mirror, così non finisce mai sul server web.

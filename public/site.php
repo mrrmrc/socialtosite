@@ -52,6 +52,11 @@ $bio   = htmlspecialchars($site['profile_summary'] ?: ($site['bio'] ?? ''));
 $seoScore = $site['seo_score'] ?? 0;
 $siteUrl  = BASE_URL . '/s/' . $slug;
 $icons = ['instagram' => '📸', 'tiktok' => '🎵', 'youtube' => '▶️', 'facebook' => '📘'];
+$deployInfo = [];
+$deployInfoPath = __DIR__ . '/../deploy-info.json';
+if (is_file($deployInfoPath)) {
+    $deployInfo = json_decode((string) file_get_contents($deployInfoPath), true) ?: [];
+}
 
 function h(string $s): string { return htmlspecialchars($s, ENT_QUOTES, 'UTF-8'); }
 
@@ -214,6 +219,11 @@ function bodyHtml(string $b): string {
   Creato automaticamente con <a href="<?= BASE_URL ?>">SocialToSite</a>
   · SEO Score <?= $seoScore ?>/100
   · <a href="<?= $siteUrl ?>/sitemap.xml">Sitemap</a>
+  <?php if (!empty($deployInfo['deployed_at']) || !empty($deployInfo['release'])): ?>
+  <br>
+  Deploy <?= h($deployInfo['deployed_day'] ?? '') ?> <?= h($deployInfo['deployed_at'] ?? '') ?>
+  <?php if (!empty($deployInfo['release'])): ?>· <?= h($deployInfo['release']) ?><?php endif; ?>
+  <?php endif; ?>
 </footer>
 </body>
 </html>
