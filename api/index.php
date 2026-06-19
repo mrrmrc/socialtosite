@@ -73,7 +73,7 @@ function detectSocialPlatform(string $url): string {
 }
 
 function validSiteThemes(): array {
-    return ['classic', 'journal', 'authority', 'portfolio', 'magazine', 'minimal', 'studio', 'local', 'academy', 'timeline'];
+    return ['classic', 'journal', 'authority', 'portfolio', 'magazine', 'minimal', 'studio', 'local', 'academy', 'timeline', 'bottega'];
 }
 
 if ($action === 'admin-users' && $method === 'GET') {

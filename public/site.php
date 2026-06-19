@@ -93,6 +93,39 @@ function bodyHtml(string $b): string {
     }
     return $out;
 }
+function renderPostHtml(array $p, string $siteUrl, array $icons): string {
+    $purl = $siteUrl . '/' . h($p['slug'] ?? '');
+    $ptagString = '';
+    if (!empty($p['tags'])) {
+        $ptagString = implode(' ', array_map(function($t) { return 'tag-' . strtolower(trim($t)); }, $p['tags']));
+    }
+    
+    $out = '<article class="post" itemscope itemtype="https://schema.org/Article" data-platform="platform-' . h($p['platform']) . '" data-tags="' . h($ptagString) . '">' . "\n";
+    $out .= '  <div class="meta">' . "\n";
+    $out .= '    <span>' . ($icons[$p['platform']] ?? '📄') . ' ' . h($p['platform']) . '</span>' . "\n";
+    $out .= '    <span>' . ($p['published_at'] ? date('d/m/Y', strtotime($p['published_at'])) : '') . '</span>' . "\n";
+    if (strtoupper($p['media_type'] ?? '') === 'VIDEO') {
+        $out .= '    <span class="badge">Video → Testo</span>' . "\n";
+    }
+    $out .= '  </div>' . "\n";
+    $out .= '  ' . mediaHtml($p) . "\n";
+    $out .= '  <h2 itemprop="headline"><a href="' . $purl . '">' . h($p['generated_title'] ?: mb_substr($p['raw_content'] ?? '', 0, 80)) . '</a></h2>' . "\n";
+    $out .= '  <p class="excerpt" itemprop="description">' . h($p['generated_excerpt'] ?: mb_substr($p['generated_body'] ?? '', 0, 200)) . '</p>' . "\n";
+    
+    if (!empty($p['source_url'])) {
+        $out .= '  <a class="source-link" href="' . h($p['source_url']) . '" target="_blank" rel="noopener">Vedi il contenuto originale su ' . h($p['platform']) . '</a>' . "\n";
+    }
+    if (!empty($p['tags'])) {
+        $out .= '  <div class="tags">';
+        foreach ($p['tags'] as $tag) {
+            $out .= '<span class="tag">' . h($tag) . '</span>';
+        }
+        $out .= '</div>' . "\n";
+    }
+    $out .= '  <meta itemprop="datePublished" content="' . h($p['published_at'] ?? '') . '">' . "\n";
+    $out .= '</article>' . "\n";
+    return $out;
+}
 ?>
 <!DOCTYPE html>
 <html lang="it">
@@ -152,6 +185,7 @@ function bodyHtml(string $b): string {
     body.theme-academy{--bg:#f7f8fb;--container:820px;--accent:#3b5b92;--card-radius:6px;--card-pad:1.6rem}
     body.theme-timeline{--bg:#fbfaf7;--container:760px;--accent:#795548;--card-radius:6px}
     body.theme-timeline .post{border-left:4px solid var(--accent)}
+    body.theme-bottega{--bg:#faf9f6;--container:900px;--accent:#b07d54;--card:#fff;--card-radius:4px;--header:#fdfcfb;--post-grid:repeat(auto-fit,minmax(280px,1fr));--post-margin:0}
     .filters{display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:1.5rem;align-items:center}
     .filter-btn{background:var(--card,#fff);border:1px solid var(--line,#eee);padding:.4rem .8rem;border-radius:20px;font-size:.85rem;cursor:pointer;color:inherit}
     .filter-btn.active{background:var(--accent,#7F77DD);color:#fff;border-color:var(--accent,#7F77DD)}
@@ -228,37 +262,48 @@ function bodyHtml(string $b): string {
   </div>
   <?php endif; ?>
 
-  <section class="post-list" aria-label="Contenuti pubblicati">
-  <?php foreach ($posts as $p): 
-      $purl = $siteUrl . '/' . h($p['slug'] ?? ''); 
-      $ptagString = '';
-      if (!empty($p['tags'])) {
-          $ptagString = implode(' ', array_map(function($t) { return 'tag-' . strtolower(trim($t)); }, $p['tags']));
+  <?php if ($theme === 'bottega'): ?>
+    <?php
+      $processi = [];
+      $opere = [];
+      $procKeywords = ['processo', 'lavorazione', 'bottega', 'dietro le quinte', 'wip', 'making of', 'tecnica', 'laboratorio', 'strumenti'];
+      foreach ($posts as $p) {
+          $isProc = false;
+          if (!empty($p['tags'])) {
+              foreach ($p['tags'] as $t) {
+                  $t = strtolower(trim($t));
+                  foreach ($procKeywords as $kw) {
+                      if (strpos($t, $kw) !== false) { $isProc = true; break 2; }
+                  }
+              }
+          }
+          if ($isProc) $processi[] = $p; else $opere[] = $p;
       }
-  ?>
-  <article class="post" itemscope itemtype="https://schema.org/Article" data-platform="platform-<?= h($p['platform']) ?>" data-tags="<?= h($ptagString) ?>">
-    <div class="meta">
-      <span><?= $icons[$p['platform']] ?? '📄' ?> <?= h($p['platform']) ?></span>
-      <span><?= $p['published_at'] ? date('d/m/Y', strtotime($p['published_at'])) : '' ?></span>
-      <?php if (strtoupper($p['media_type']) === 'VIDEO'): ?><span class="badge">Video → Testo</span><?php endif; ?>
+    ?>
+    <div style="display:flex;flex-direction:column;gap:3rem;">
+      <?php if ($opere): ?>
+      <div>
+        <h2 style="font-size:1.6rem;margin-bottom:1rem;color:var(--accent);text-transform:uppercase;letter-spacing:1px;border-bottom:1px solid var(--line);padding-bottom:0.5rem;">Ultime Opere</h2>
+        <section class="post-list" aria-label="Ultime Opere">
+          <?php foreach ($opere as $p): echo renderPostHtml($p, $siteUrl, $icons); endforeach; ?>
+        </section>
+      </div>
+      <?php endif; ?>
+
+      <?php if ($processi): ?>
+      <div>
+        <h2 style="font-size:1.6rem;margin-bottom:1rem;color:var(--accent);text-transform:uppercase;letter-spacing:1px;border-bottom:1px solid var(--line);padding-bottom:0.5rem;">Processi di Bottega</h2>
+        <section class="post-list" aria-label="Processi di Bottega">
+          <?php foreach ($processi as $p): echo renderPostHtml($p, $siteUrl, $icons); endforeach; ?>
+        </section>
+      </div>
+      <?php endif; ?>
     </div>
-    <?= mediaHtml($p) ?>
-    <h2 itemprop="headline"><a href="<?= $purl ?>"><?= h($p['generated_title'] ?: mb_substr($p['raw_content'] ?? '', 0, 80)) ?></a></h2>
-    <p class="excerpt" itemprop="description">
-      <?= h($p['generated_excerpt'] ?: mb_substr($p['generated_body'] ?? '', 0, 200)) ?>
-    </p>
-    <?php if (!empty($p['source_url'])): ?>
-    <a class="source-link" href="<?= h($p['source_url']) ?>" target="_blank" rel="noopener">
-      Vedi il contenuto originale su <?= h($p['platform']) ?>
-    </a>
-    <?php endif; ?>
-    <?php if ($p['tags']): ?>
-    <div class="tags"><?php foreach ($p['tags'] as $tag): ?><span class="tag"><?= h($tag) ?></span><?php endforeach; ?></div>
-    <?php endif; ?>
-    <meta itemprop="datePublished" content="<?= h($p['published_at'] ?? '') ?>">
-  </article>
-  <?php endforeach; ?>
-  </section>
+  <?php else: ?>
+    <section class="post-list" aria-label="Contenuti pubblicati">
+      <?php foreach ($posts as $p): echo renderPostHtml($p, $siteUrl, $icons); endforeach; ?>
+    </section>
+  <?php endif; ?>
 
   <?php if (!$posts): ?>
   <div style="text-align:center;color:#aaa;padding:3rem">
