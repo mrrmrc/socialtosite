@@ -231,8 +231,6 @@ function renderPostHtml(array $p, string $siteUrl, array $icons): string {
     <?php endif; ?>
     <?php if ($p['tags']): ?>
     <div class="tags"><?php foreach ($p['tags'] as $tag): ?><span class="tag"><?= h($tag) ?></span><?php endforeach; ?></div>
-    <?php if ($p['tags']): ?>
-    <div class="tags"><?php foreach ($p['tags'] as $tag): ?><span class="tag"><?= h($tag) ?></span><?php endforeach; ?></div>
     <?php endif; ?>
     <meta itemprop="datePublished" content="<?= h($p['published_at'] ?? '') ?>">
   </article>
