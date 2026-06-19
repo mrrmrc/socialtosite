@@ -90,12 +90,12 @@ class Ingest {
         $id = DB::insert('
             INSERT INTO posts
               (user_id, platform, platform_post_id, raw_content, transcript,
-               media_url, media_type, published_at, published)
-            VALUES (?,?,?,?,?,?,?,?,0)
+               media_url, media_type, source_url, published_at, published)
+            VALUES (?,?,?,?,?,?,?,?,?,0)
         ', [
             $userId, $platform, $postId,
             $caption, $transcript,
-            $mediaUrl, $mediaType, date('Y-m-d H:i:s'),
+            $mediaUrl, $mediaType, $url, date('Y-m-d H:i:s'),
         ]);
 
         return [
@@ -145,7 +145,18 @@ class Ingest {
         $raw = $post['transcript'] ?: $post['raw_content'];
         if (!$raw) throw new Exception('Nessun testo da armonizzare');
 
-        $seo = AI::harmonize($raw, $post['platform'], $post['raw_content'] ?? '');
+        $sources = DB::fetchAll(
+            'SELECT platform, label, url, topic_summary FROM social_sources WHERE user_id=? AND active=1 ORDER BY platform, id',
+            [$userId]
+        );
+        $sourceContext = '';
+        foreach ($sources as $source) {
+            $sourceContext .= '- ' . $source['platform'] . ': ' . ($source['label'] ?: $source['url']);
+            if (!empty($source['topic_summary'])) $sourceContext .= ' — ' . $source['topic_summary'];
+            $sourceContext .= "\n";
+        }
+
+        $seo = AI::harmonize($raw, $post['platform'], $post['raw_content'] ?? '', $sourceContext);
 
         DB::execute('
             UPDATE posts SET

@@ -323,6 +323,8 @@ function DashboardScreen({ token, user, onLogout }) {
   const [importMsg, setImportMsg] = useState(null);
   const [drafts, setDrafts] = useState([]);
   const [harmonizingId, setHarmonizingId] = useState(0);
+  const [sourceForm, setSourceForm] = useState({ label: '', url: '', platform: '' });
+  const [sourceMsg, setSourceMsg] = useState(null);
 
   useEffect(() => { loadData(); loadDrafts(); }, []);
 
@@ -389,9 +391,34 @@ function DashboardScreen({ token, user, onLogout }) {
     setData(prev => ({ ...prev, posts: prev.posts.filter(p => p.id !== id) }));
   }
 
+  async function addSource(e) {
+    e.preventDefault();
+    setSourceMsg(null);
+    try {
+      await apiFetch('/api/index.php?action=social-source-create', {
+        method: 'POST',
+        body: JSON.stringify(sourceForm)
+      }, token);
+      setSourceForm({ label: '', url: '', platform: '' });
+      setSourceMsg({ ok: true, text: 'Social aggiunto allo spazio utente.' });
+      await loadData();
+    } catch (err) {
+      setSourceMsg({ ok: false, text: err.message });
+    }
+  }
+
+  async function removeSource(id) {
+    await apiFetch('/api/index.php?action=social-source-delete', {
+      method: 'POST',
+      body: JSON.stringify({ id })
+    }, token);
+    await loadData();
+  }
+
   const site = data?.site;
   const posts = data?.posts || [];
   const connections = data?.connections || [];
+  const sources = data?.sources || [];
   const siteUrl = `${API.replace('3001', '3000')}/s/${user.slug}`;
 
   return (
@@ -428,11 +455,51 @@ function DashboardScreen({ token, user, onLogout }) {
           ))}
         </div>
 
+        <div className="card" style={{ marginBottom: '1.25rem' }}>
+          <h3 style={{ marginBottom: '4px' }}>I tuoi social</h3>
+          <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '12px' }}>
+            Inserisci i link dei profili o canali da cui nasceranno i contenuti del sito.
+          </p>
+          <form onSubmit={addSource} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: '8px', marginBottom: '12px' }}>
+            <input type="text" placeholder="Nome visibile, es. Canale YouTube"
+              value={sourceForm.label} onChange={e => setSourceForm({ ...sourceForm, label: e.target.value })} />
+            <input type="text" placeholder="https://..."
+              value={sourceForm.url} onChange={e => setSourceForm({ ...sourceForm, url: e.target.value })} required />
+            <button type="submit" className="btn btn-primary">Aggiungi</button>
+          </form>
+          {sourceMsg && (
+            <div style={{ marginBottom: '10px', padding: '8px 12px', borderRadius: 'var(--radius-sm)', fontSize: '13px',
+              background: sourceMsg.ok ? 'var(--teal-light)' : 'var(--red-light)',
+              color: sourceMsg.ok ? '#0F6E56' : 'var(--red)' }}>
+              {sourceMsg.text}
+            </div>
+          )}
+          {sources.length === 0 ? (
+            <p style={{ color: 'var(--text-muted)', fontSize: '13px' }}>Nessun social inserito.</p>
+          ) : (
+            <div style={{ display: 'grid', gap: '8px' }}>
+              {sources.map(s => (
+                <div key={s.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', background: 'var(--gray-light)', borderRadius: 'var(--radius-sm)', padding: '10px 12px' }}>
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ fontWeight: 600, fontSize: '14px' }}>
+                      {SOCIAL[s.platform]?.icon} {s.label || SOCIAL[s.platform]?.label || s.platform}
+                    </div>
+                    <a href={s.url} target="_blank" rel="noopener" style={{ display: 'block', fontSize: '12px', color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {s.url}
+                    </a>
+                  </div>
+                  <button className="btn btn-outline" onClick={() => removeSource(s.id)} style={{ fontSize: '12px' }}>Rimuovi</button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
         {/* Importa da link (Agente 1) */}
         <div className="card" style={{ marginBottom: '1.25rem' }}>
           <h3 style={{ marginBottom: '4px' }}>➕ Importa da un link</h3>
           <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '12px' }}>
-            Incolla il link di un video (YouTube pronto; TikTok/Instagram/Facebook in arrivo). L'AI lo trascrive in automatico.
+            Incolla il link di un contenuto specifico: video, audio o post. L'AI lo trascrive, lo interpreta e prepara una bozza.
           </p>
           <form onSubmit={doImport} style={{ display: 'flex', gap: '8px' }}>
             <input type="text" placeholder="https://www.youtube.com/watch?v=..."
@@ -459,6 +526,11 @@ function DashboardScreen({ token, user, onLogout }) {
                     <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '4px' }}>
                       {SOCIAL[d.platform]?.icon} {SOCIAL[d.platform]?.label}
                     </div>
+                    {d.source_url && (
+                      <a href={d.source_url} target="_blank" rel="noopener" style={{ display: 'block', fontSize: '12px', color: 'var(--purple)', marginBottom: '4px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        Apri contenuto originale
+                      </a>
+                    )}
                     <div style={{ fontSize: '13px', color: 'var(--text)', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
                       {d.transcript || '(nessuna trascrizione)'}
                     </div>
@@ -528,6 +600,11 @@ function DashboardScreen({ token, user, onLogout }) {
                       <p style={{ fontSize: '13px', color: 'var(--text-muted)', lineHeight: 1.5 }}>
                         {post.generated_excerpt || post.generated_body?.substring(0, 150)}
                       </p>
+                      {post.source_url && (
+                        <a href={post.source_url} target="_blank" rel="noopener" style={{ display: 'inline-block', marginTop: '8px', fontSize: '12px', color: 'var(--purple)' }}>
+                          Vedi su {SOCIAL[post.platform]?.label || post.platform}
+                        </a>
+                      )}
                       {post.tags?.length > 0 && (
                         <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap', marginTop: '8px' }}>
                           {post.tags.map(t => <span key={t} className="badge badge-purple">{t}</span>)}
@@ -586,6 +663,21 @@ function DashboardScreen({ token, user, onLogout }) {
         {/* Tab: Impostazioni */}
         {tab === 'settings' && (
           <div>
+            <div className="card" style={{ marginBottom: '1rem' }}>
+              <h3 style={{ marginBottom: '1rem' }}>Link social inseriti</h3>
+              {sources.length === 0 ? (
+                <p style={{ color: 'var(--text-muted)', fontSize: '13px' }}>Nessun link social inserito.</p>
+              ) : sources.map(s => (
+                <div key={s.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px', gap: '12px' }}>
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ fontWeight: 500, fontSize: '14px' }}>{SOCIAL[s.platform]?.icon} {s.label || SOCIAL[s.platform]?.label || s.platform}</div>
+                    <a href={s.url} target="_blank" rel="noopener" style={{ display: 'block', fontSize: '12px', color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.url}</a>
+                  </div>
+                  <span className="badge badge-green">Attivo</span>
+                </div>
+              ))}
+            </div>
+
             <div className="card" style={{ marginBottom: '1rem' }}>
               <h3 style={{ marginBottom: '1rem' }}>Social connessi</h3>
               {connections.length === 0 ? (

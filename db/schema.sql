@@ -27,6 +27,19 @@ CREATE TABLE IF NOT EXISTS social_connections (
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+CREATE TABLE IF NOT EXISTS social_sources (
+  id            INT AUTO_INCREMENT PRIMARY KEY,
+  user_id       INT NOT NULL,
+  platform      VARCHAR(50) NOT NULL,
+  label         VARCHAR(255),
+  url           TEXT NOT NULL,
+  topic_summary TEXT,
+  active        TINYINT DEFAULT 1,
+  created_at    DATETIME DEFAULT NOW(),
+  UNIQUE KEY unique_user_source (user_id, platform, url(191)),
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 CREATE TABLE IF NOT EXISTS posts (
   id                INT AUTO_INCREMENT PRIMARY KEY,
   user_id           INT NOT NULL,
@@ -41,6 +54,7 @@ CREATE TABLE IF NOT EXISTS posts (
   meta_description  VARCHAR(255),
   media_url         TEXT,
   media_type        VARCHAR(50),
+  source_url        TEXT,
   published_at      DATETIME,
   imported_at       DATETIME DEFAULT NOW(),
   seo_score         INT DEFAULT 0,

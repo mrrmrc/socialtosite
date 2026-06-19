@@ -12,6 +12,10 @@ $user = DB::fetch('SELECT * FROM users WHERE slug=?', [$slug]);
 if (!$user) { http_response_code(404); echo '<h1>Sito non trovato</h1>'; exit; }
 
 $site  = DB::fetch('SELECT * FROM sites WHERE user_id=?', [$user['id']]);
+$sources = DB::fetchAll(
+    'SELECT platform, label, url FROM social_sources WHERE user_id=? AND active=1 ORDER BY platform, id DESC',
+    [$user['id']]
+);
 $posts = DB::fetchAll(
     'SELECT * FROM posts WHERE user_id=? AND published=1 ORDER BY published_at DESC',
     [$user['id']]
@@ -110,6 +114,8 @@ function bodyHtml(string $b): string {
     .avatar{width:80px;height:80px;border-radius:50%;background:#7F77DD;color:#fff;font-size:2rem;font-weight:700;display:flex;align-items:center;justify-content:center;margin:0 auto 1rem}
     h1{font-size:1.8rem;font-weight:700;margin-bottom:.25rem}
     .bio{color:#666;max-width:480px;margin:.5rem auto 0}
+    .socials{display:flex;justify-content:center;gap:.5rem;flex-wrap:wrap;margin:1rem auto 0;max-width:620px}
+    .social-link{border:1px solid #ddd;border-radius:999px;padding:.35rem .75rem;color:#333;background:#fff;font-size:.85rem}
     .container{max-width:700px;margin:2rem auto;padding:0 1rem}
     .post{background:#fff;border:1px solid #eee;border-radius:12px;padding:1.5rem;margin-bottom:1rem}
     .meta{font-size:.8rem;color:#999;display:flex;gap:.75rem;align-items:center;margin-bottom:.5rem;flex-wrap:wrap}
@@ -125,6 +131,7 @@ function bodyHtml(string $b): string {
     .body p{margin:.65rem 0;color:#333;font-size:.96rem}
     .post h2 a{color:inherit}
     .back{display:inline-block;margin:0 0 1rem;font-size:.9rem}
+    .source-link{display:inline-block;margin-top:.75rem;font-size:.86rem}
     @media(max-width:600px){.post{padding:1rem}}
   </style>
 </head>
@@ -133,6 +140,15 @@ function bodyHtml(string $b): string {
   <div class="avatar"><?= mb_strtoupper(mb_substr($title, 0, 1)) ?></div>
   <h1><?= $title ?></h1>
   <?php if ($bio): ?><p class="bio"><?= $bio ?></p><?php endif; ?>
+  <?php if ($sources): ?>
+  <nav class="socials" aria-label="Profili social">
+    <?php foreach ($sources as $source): ?>
+      <a class="social-link" href="<?= h($source['url']) ?>" target="_blank" rel="noopener">
+        <?= $icons[$source['platform']] ?? 'ðŸ”—' ?> <?= h($source['label'] ?: ucfirst($source['platform'])) ?>
+      </a>
+    <?php endforeach; ?>
+  </nav>
+  <?php endif; ?>
 </header>
 
 <main class="container">
@@ -149,6 +165,11 @@ function bodyHtml(string $b): string {
     <div class="body" itemprop="articleBody">
       <?= bodyHtml($p['generated_body'] ?: ($p['transcript'] ?: $p['raw_content'] ?? '')) ?>
     </div>
+    <?php if (!empty($p['source_url'])): ?>
+    <a class="source-link" href="<?= h($p['source_url']) ?>" target="_blank" rel="noopener">
+      Vedi il contenuto originale su <?= h($p['platform']) ?>
+    </a>
+    <?php endif; ?>
     <?php if ($p['tags']): ?>
     <div class="tags"><?php foreach ($p['tags'] as $tag): ?><span class="tag"><?= h($tag) ?></span><?php endforeach; ?></div>
     <?php endif; ?>
@@ -168,6 +189,11 @@ function bodyHtml(string $b): string {
     <p class="excerpt" itemprop="description">
       <?= h($p['generated_excerpt'] ?: mb_substr($p['generated_body'] ?? '', 0, 200)) ?>
     </p>
+    <?php if (!empty($p['source_url'])): ?>
+    <a class="source-link" href="<?= h($p['source_url']) ?>" target="_blank" rel="noopener">
+      Vedi il contenuto originale su <?= h($p['platform']) ?>
+    </a>
+    <?php endif; ?>
     <?php if ($p['tags']): ?>
     <div class="tags"><?php foreach ($p['tags'] as $tag): ?><span class="tag"><?= h($tag) ?></span><?php endforeach; ?></div>
     <?php endif; ?>

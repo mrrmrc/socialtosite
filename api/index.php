@@ -63,6 +63,15 @@ function uniqueUserSlug(string $source): string {
     return $slug;
 }
 
+function detectSocialPlatform(string $url): string {
+    $u = strtolower($url);
+    if (str_contains($u, 'youtube.com') || str_contains($u, 'youtu.be')) return 'youtube';
+    if (str_contains($u, 'tiktok.com')) return 'tiktok';
+    if (str_contains($u, 'instagram.com')) return 'instagram';
+    if (str_contains($u, 'facebook.com') || str_contains($u, 'fb.com')) return 'facebook';
+    return '';
+}
+
 if ($action === 'admin-users' && $method === 'GET') {
     requireAdmin($isAdmin);
     $users = DB::fetchAll(
@@ -131,6 +140,56 @@ if ($action === 'admin-delete-user' && $method === 'POST') {
     if ($targetId === (int)$userId) jsonError('Non puoi eliminare il tuo account amministratore');
 
     DB::execute('DELETE FROM users WHERE id=?', [$targetId]);
+    json(['ok' => true]);
+}
+
+if ($action === 'social-sources' && $method === 'GET') {
+    $sources = DB::fetchAll(
+        'SELECT id, platform, label, url, topic_summary, active, created_at
+           FROM social_sources
+          WHERE user_id=? AND active=1
+          ORDER BY platform, id DESC',
+        [$userId]
+    );
+    json($sources);
+}
+
+if ($action === 'social-source-create' && $method === 'POST') {
+    $b = body();
+    $url = trim($b['url'] ?? '');
+    $label = trim($b['label'] ?? '');
+    $platform = trim($b['platform'] ?? '') ?: detectSocialPlatform($url);
+
+    if (!filter_var($url, FILTER_VALIDATE_URL)) jsonError('Link social non valido');
+    if (!$platform) jsonError('Piattaforma non riconosciuta');
+    if (!in_array($platform, ['instagram', 'facebook', 'tiktok', 'youtube'], true)) {
+        jsonError('Piattaforma non supportata');
+    }
+
+    $topic = 'Profilo/canale ' . $platform . ' indicato dall\'utente';
+    if ($label) $topic .= ': ' . $label;
+
+    try {
+        $id = DB::insert(
+            'INSERT INTO social_sources (user_id, platform, label, url, topic_summary) VALUES (?,?,?,?,?)',
+            [$userId, $platform, $label, $url, $topic]
+        );
+    } catch (Throwable $e) {
+        jsonError('Questo social e gia presente per l\'utente', 409);
+    }
+
+    json(['ok' => true, 'source' => [
+        'id' => $id, 'platform' => $platform, 'label' => $label, 'url' => $url,
+        'topic_summary' => $topic, 'active' => 1,
+    ]], 201);
+}
+
+if ($action === 'social-source-delete' && $method === 'POST') {
+    $b = body();
+    DB::execute(
+        'UPDATE social_sources SET active=0 WHERE id=? AND user_id=?',
+        [(int)($b['id'] ?? 0), $userId]
+    );
     json(['ok' => true]);
 }
 
@@ -203,10 +262,14 @@ if ($action === 'site' && $method === 'GET') {
     $connections = DB::fetchAll(
         'SELECT platform, handle, active FROM social_connections WHERE user_id=?', [$userId]
     );
+    $sources = DB::fetchAll(
+        'SELECT id, platform, label, url, topic_summary, active FROM social_sources WHERE user_id=? AND active=1 ORDER BY platform, id DESC',
+        [$userId]
+    );
     foreach ($posts as &$p) {
         $p['tags'] = json_decode($p['tags'] ?? '[]', true);
     }
-    json(['site' => $site, 'posts' => $posts, 'connections' => $connections]);
+    json(['site' => $site, 'posts' => $posts, 'connections' => $connections, 'sources' => $sources]);
 }
 
 // ── DELETE post ───────────────────────────────────────────────────────────
@@ -241,7 +304,7 @@ if ($action === 'harmonize' && $method === 'POST') {
 // ── GET drafts: bozze importate non ancora armonizzate ────────────────────
 if ($action === 'drafts' && $method === 'GET') {
     $drafts = DB::fetchAll(
-        'SELECT id, platform, media_url, transcript, published_at
+        'SELECT id, platform, media_url, source_url, transcript, published_at
            FROM posts WHERE user_id=? AND published=0 ORDER BY id DESC LIMIT 50',
         [$userId]
     );

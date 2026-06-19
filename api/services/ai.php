@@ -71,13 +71,16 @@ class AI {
     }
 
     // ── AGENTE 2 (Armonizzatore): testo grezzo → articolo SEO (Gemini) ─────
-    public static function harmonize(string $rawText, string $platform = '', string $caption = ''): array {
+    public static function harmonize(string $rawText, string $platform = '', string $caption = '', string $sourceContext = ''): array {
         $source = $caption
             ? "Didascalia social: \"$caption\"\n\nTrascrizione: \"$rawText\""
             : "Contenuto: \"$rawText\"";
+        $context = $sourceContext ? "\n\nContesto dei canali/profili dell'utente:\n$sourceContext\n" : '';
 
         $prompt = "Sei un esperto SEO e copywriter italiano. Da questo contenuto"
-            . ($platform ? " ($platform)" : '') . " genera un articolo pronto per un sito.\n\n$source\n\n"
+            . ($platform ? " ($platform)" : '') . " genera un articolo pronto per un sito.\n"
+            . "Prima interpreta l'argomento del profilo e del contenuto, poi crea un post leggibile, accurato, non inventato e utile per un sito HTML.\n"
+            . "$context\n$source\n\n"
             . "Rispondi SOLO con JSON valido con questa forma:\n"
             . '{"title":"Titolo SEO max 60 caratteri","body":"Articolo 200-400 parole, italiano naturale, paragrafi",'
             . '"excerpt":"Riassunto max 155 caratteri","tags":["tag1","tag2","tag3","tag4","tag5"],'
