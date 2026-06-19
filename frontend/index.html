@@ -556,107 +556,11 @@ function DashboardScreen({ token, user, onLogout }) {
           ))}
         </div>
 
-        <div className="card" style={{ marginBottom: '1.25rem' }}>
-          <h3 style={{ marginBottom: '4px' }}>I tuoi social</h3>
-          <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '12px' }}>
-            Inserisci un link per ogni profilo o canale. Il sistema li userà per capire chi sei e pubblicare i contenuti sul tuo sito.
-          </p>
-          <div style={{ display: 'grid', gap: '10px', marginBottom: '12px' }}>
-            {['instagram', 'tiktok', 'facebook', 'youtube'].map(platform => (
-              <div key={platform} style={{ display: 'grid', gridTemplateColumns: '150px 1fr', gap: '12px', alignItems: 'center' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 600 }}>
-                  <SocialIcon platform={platform} size={22} />
-                  <span>{SOCIAL[platform].label}</span>
-                </div>
-                <input type="text" placeholder={`Link ${SOCIAL[platform].label}`}
-                  defaultValue={sourceByPlatform[platform]?.url || ''}
-                  onBlur={e => savePlatformSource(platform, e.target.value.trim())} />
-              </div>
-            ))}
-          </div>
-          {sourceMsg && (
-            <div style={{ marginBottom: '10px', padding: '8px 12px', borderRadius: 'var(--radius-sm)', fontSize: '13px',
-              background: sourceMsg.ok ? 'var(--teal-light)' : 'var(--red-light)',
-              color: sourceMsg.ok ? '#0F6E56' : 'var(--red)' }}>
-              {sourceMsg.text}
-            </div>
-          )}
-          <div className="divider" />
-          <div style={{ marginBottom: '12px' }}>
-            <label className="label">Profilo generato della persona/brand</label>
-            <textarea value={profileDraft} onChange={e => setProfileDraft(e.target.value)}
-              placeholder="Dopo la scansione comparirà qui un profilo sintetico editabile."
-              style={{ width: '100%', minHeight: '96px', resize: 'vertical', padding: '10px 14px', border: '1px solid var(--border-strong)', borderRadius: 'var(--radius-sm)', background: 'var(--surface)', fontFamily: 'inherit', fontSize: '14px' }} />
-            <button className="btn btn-outline" onClick={saveProfile} disabled={savingProfile} style={{ marginTop: '8px' }}>
-              {savingProfile ? 'Salvo...' : 'Salva profilo'}
-            </button>
-          </div>
-          <button className="btn btn-primary btn-full" onClick={scanSources} disabled={scanning || sources.length === 0}>
-            {scanning ? 'Scansiono, trascrivo e pubblico...' : 'Scansiona social e pubblica automaticamente'}
-          </button>
-          {scanMsg && (
-            <div style={{ marginTop: '10px', padding: '8px 12px', borderRadius: 'var(--radius-sm)', fontSize: '13px',
-              background: scanMsg.ok ? 'var(--teal-light)' : 'var(--red-light)',
-              color: scanMsg.ok ? '#0F6E56' : 'var(--red)' }}>
-              {scanMsg.text}
-            </div>
-          )}
-        </div>
-
-        {/* Importa da link (Agente 1) */}
-        <div className="card" style={{ marginBottom: '1.25rem' }}>
-          <h3 style={{ marginBottom: '4px' }}>➕ Importa da un link</h3>
-          <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '12px' }}>
-            Incolla il link di un contenuto specifico: video, audio o post. L'AI lo trascrive, lo interpreta e prepara una bozza.
-          </p>
-          <form onSubmit={doImport} style={{ display: 'flex', gap: '8px' }}>
-            <input type="text" placeholder="https://www.youtube.com/watch?v=..."
-              value={linkUrl} onChange={e => setLinkUrl(e.target.value)} style={{ flex: 1 }} />
-            <button type="submit" className="btn btn-primary" disabled={importing}>
-              {importing ? '⟳ Trascrivo...' : 'Importa'}
-            </button>
-          </form>
-          {importMsg && (
-            <div style={{ marginTop: '10px', padding: '8px 12px', borderRadius: 'var(--radius-sm)', fontSize: '13px',
-              background: importMsg.ok ? 'var(--teal-light)' : 'var(--red-light)',
-              color: importMsg.ok ? '#0F6E56' : 'var(--red)' }}>
-              {importMsg.text}
-            </div>
-          )}
-
-          {drafts.length > 0 && (
-            <div style={{ marginTop: '1rem' }}>
-              <div className="divider" />
-              <div style={{ fontSize: '13px', fontWeight: 600, marginBottom: '8px' }}>Bozze da armonizzare ({drafts.length})</div>
-              {drafts.map(d => (
-                <div key={d.id} style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '12px', padding: '10px 0', borderTop: '1px solid var(--border)' }}>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '4px' }}>
-                      <SocialIcon platform={d.platform} size={16} /> {SOCIAL[d.platform]?.label}
-                    </div>
-                    {d.source_url && (
-                      <a href={d.source_url} target="_blank" rel="noopener" style={{ display: 'block', fontSize: '12px', color: 'var(--purple)', marginBottom: '4px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        Apri contenuto originale
-                      </a>
-                    )}
-                    <div style={{ fontSize: '13px', color: 'var(--text)', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
-                      {d.transcript || '(nessuna trascrizione)'}
-                    </div>
-                  </div>
-                  <button className="btn btn-primary" disabled={harmonizingId === d.id}
-                    onClick={() => doHarmonize(d.id)} style={{ whiteSpace: 'nowrap' }}>
-                    {harmonizingId === d.id ? '⟳ Armonizzo...' : '✨ Armonizza'}
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
         {/* Tabs */}
         <div style={{ display: 'flex', gap: '4px', marginBottom: '1.25rem', background: 'var(--gray-light)', padding: '4px', borderRadius: 'var(--radius-sm)', width: 'fit-content' }}>
           {[
-            ['site', '📄 Sito'],
+            ['site', '📄 Contenuti'],
+            ['sources', '🔗 Fonti & Import'],
             ['seo', '📈 SEO'],
             ['settings', '⚙️ Impostazioni'],
             ...(user.role === 'admin' ? [['admin', 'Admin']] : [])
@@ -668,6 +572,108 @@ function DashboardScreen({ token, user, onLogout }) {
                 color: tab === t ? 'var(--text)' : 'var(--text-muted)', border: 'none' }}>{l}</button>
           ))}
         </div>
+
+        {/* Tab: Fonti & Import */}
+        {tab === 'sources' && (
+          <div>
+            <div className="card" style={{ marginBottom: '1.25rem' }}>
+              <h3 style={{ marginBottom: '4px' }}>I tuoi social</h3>
+              <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '12px' }}>
+                Inserisci un link per ogni profilo o canale. Il sistema li userà per capire chi sei e pubblicare i contenuti sul tuo sito.
+              </p>
+              <div style={{ display: 'grid', gap: '10px', marginBottom: '12px' }}>
+                {['instagram', 'tiktok', 'facebook', 'youtube'].map(platform => (
+                  <div key={platform} style={{ display: 'grid', gridTemplateColumns: '150px 1fr', gap: '12px', alignItems: 'center' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 600 }}>
+                      <SocialIcon platform={platform} size={22} />
+                      <span>{SOCIAL[platform].label}</span>
+                    </div>
+                    <input type="text" placeholder={`Link ${SOCIAL[platform].label}`}
+                      defaultValue={sourceByPlatform[platform]?.url || ''}
+                      onBlur={e => savePlatformSource(platform, e.target.value.trim())} />
+                  </div>
+                ))}
+              </div>
+              {sourceMsg && (
+                <div style={{ marginBottom: '10px', padding: '8px 12px', borderRadius: 'var(--radius-sm)', fontSize: '13px',
+                  background: sourceMsg.ok ? 'var(--teal-light)' : 'var(--red-light)',
+                  color: sourceMsg.ok ? '#0F6E56' : 'var(--red)' }}>
+                  {sourceMsg.text}
+                </div>
+              )}
+              <div className="divider" />
+              <div style={{ marginBottom: '12px' }}>
+                <label className="label">Profilo generato della persona/brand</label>
+                <textarea value={profileDraft} onChange={e => setProfileDraft(e.target.value)}
+                  placeholder="Dopo la scansione comparirà qui un profilo sintetico editabile."
+                  style={{ width: '100%', minHeight: '96px', resize: 'vertical', padding: '10px 14px', border: '1px solid var(--border-strong)', borderRadius: 'var(--radius-sm)', background: 'var(--surface)', fontFamily: 'inherit', fontSize: '14px' }} />
+                <button className="btn btn-outline" onClick={saveProfile} disabled={savingProfile} style={{ marginTop: '8px' }}>
+                  {savingProfile ? 'Salvo...' : 'Salva profilo'}
+                </button>
+              </div>
+              <button className="btn btn-primary btn-full" onClick={scanSources} disabled={scanning || sources.length === 0}>
+                {scanning ? 'Scansiono, trascrivo e pubblico...' : 'Scansiona social e pubblica automaticamente'}
+              </button>
+              {scanMsg && (
+                <div style={{ marginTop: '10px', padding: '8px 12px', borderRadius: 'var(--radius-sm)', fontSize: '13px',
+                  background: scanMsg.ok ? 'var(--teal-light)' : 'var(--red-light)',
+                  color: scanMsg.ok ? '#0F6E56' : 'var(--red)' }}>
+                  {scanMsg.text}
+                </div>
+              )}
+            </div>
+
+            {/* Importa da link (Agente 1) */}
+            <div className="card" style={{ marginBottom: '1.25rem' }}>
+              <h3 style={{ marginBottom: '4px' }}>➕ Importa da un link</h3>
+              <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '12px' }}>
+                Incolla il link di un contenuto specifico: video, audio o post. L'AI lo trascrive, lo interpreta e prepara una bozza.
+              </p>
+              <form onSubmit={doImport} style={{ display: 'flex', gap: '8px' }}>
+                <input type="text" placeholder="https://www.youtube.com/watch?v=..."
+                  value={linkUrl} onChange={e => setLinkUrl(e.target.value)} style={{ flex: 1 }} />
+                <button type="submit" className="btn btn-primary" disabled={importing}>
+                  {importing ? '⟳ Trascrivo...' : 'Importa'}
+                </button>
+              </form>
+              {importMsg && (
+                <div style={{ marginTop: '10px', padding: '8px 12px', borderRadius: 'var(--radius-sm)', fontSize: '13px',
+                  background: importMsg.ok ? 'var(--teal-light)' : 'var(--red-light)',
+                  color: importMsg.ok ? '#0F6E56' : 'var(--red)' }}>
+                  {importMsg.text}
+                </div>
+              )}
+
+              {drafts.length > 0 && (
+                <div style={{ marginTop: '1rem' }}>
+                  <div className="divider" />
+                  <div style={{ fontSize: '13px', fontWeight: 600, marginBottom: '8px' }}>Bozze da armonizzare ({drafts.length})</div>
+                  {drafts.map(d => (
+                    <div key={d.id} style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '12px', padding: '10px 0', borderTop: '1px solid var(--border)' }}>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '4px' }}>
+                          <SocialIcon platform={d.platform} size={16} /> {SOCIAL[d.platform]?.label}
+                        </div>
+                        {d.source_url && (
+                          <a href={d.source_url} target="_blank" rel="noopener" style={{ display: 'block', fontSize: '12px', color: 'var(--purple)', marginBottom: '4px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            Apri contenuto originale
+                          </a>
+                        )}
+                        <div style={{ fontSize: '13px', color: 'var(--text)', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                          {d.transcript || '(nessuna trascrizione)'}
+                        </div>
+                      </div>
+                      <button className="btn btn-primary" disabled={harmonizingId === d.id}
+                        onClick={() => doHarmonize(d.id)} style={{ whiteSpace: 'nowrap' }}>
+                        {harmonizingId === d.id ? '⟳ Armonizzo...' : '✨ Armonizza'}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Tab: Sito */}
         {tab === 'site' && (() => {
