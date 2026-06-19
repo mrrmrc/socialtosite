@@ -47,8 +47,8 @@ if ($action === 'sitemap') {
 }
 
 // ── Pagina HTML pubblica ───────────────────────────────────────────────────
-$title = htmlspecialchars($site['title'] ?? $user['name']);
-$bio   = htmlspecialchars($site['profile_summary'] ?: ($site['bio'] ?? ''));
+$title = htmlspecialchars((string)($site['title'] ?? $user['name'] ?? ''));
+$bio   = htmlspecialchars((string)($site['profile_summary'] ?: ($site['bio'] ?? '')));
 $seoScore = $site['seo_score'] ?? 0;
 $siteUrl  = BASE_URL . '/s/' . $slug;
 $theme = $site['theme'] ?? 'classic';
@@ -61,7 +61,7 @@ if (is_file($deployInfoPath)) {
     $deployInfo = json_decode((string) file_get_contents($deployInfoPath), true) ?: [];
 }
 
-function h(string $s): string { return htmlspecialchars($s, ENT_QUOTES, 'UTF-8'); }
+function h(?string $s): string { return htmlspecialchars((string)$s, ENT_QUOTES, 'UTF-8'); }
 
 // Media del contenuto: embed YouTube, <video> o <img>
 function mediaHtml(array $p): string {
@@ -83,8 +83,8 @@ function mediaHtml(array $p): string {
 }
 
 // Corpo articolo in paragrafi
-function bodyHtml(string $b): string {
-    $b = trim($b);
+function bodyHtml(?string $b): string {
+    $b = trim((string)$b);
     if ($b === '') return '';
     $out = '';
     foreach (preg_split('/\n{2,}/', $b) as $para) {
