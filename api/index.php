@@ -184,6 +184,40 @@ if ($action === 'social-source-create' && $method === 'POST') {
     ]], 201);
 }
 
+if ($action === 'social-source-upsert' && $method === 'POST') {
+    $b = body();
+    $platform = trim($b['platform'] ?? '');
+    $url = trim($b['url'] ?? '');
+    $label = trim($b['label'] ?? '');
+
+    if (!in_array($platform, ['instagram', 'facebook', 'tiktok', 'youtube'], true)) {
+        jsonError('Piattaforma non supportata');
+    }
+    if ($url === '') {
+        DB::execute('UPDATE social_sources SET active=0 WHERE user_id=? AND platform=?', [$userId, $platform]);
+        json(['ok' => true]);
+    }
+    if (!filter_var($url, FILTER_VALIDATE_URL)) jsonError('Link social non valido');
+
+    $existing = DB::fetch('SELECT id FROM social_sources WHERE user_id=? AND platform=? LIMIT 1', [$userId, $platform]);
+    $topic = 'Profilo/canale ' . $platform . ' indicato dall\'utente';
+    if ($label) $topic .= ': ' . $label;
+
+    if ($existing) {
+        DB::execute(
+            'UPDATE social_sources SET label=?, url=?, topic_summary=?, active=1 WHERE id=? AND user_id=?',
+            [$label, $url, $topic, $existing['id'], $userId]
+        );
+        $id = (int)$existing['id'];
+    } else {
+        $id = DB::insert(
+            'INSERT INTO social_sources (user_id, platform, label, url, topic_summary) VALUES (?,?,?,?,?)',
+            [$userId, $platform, $label, $url, $topic]
+        );
+    }
+    json(['ok' => true, 'source' => ['id' => $id, 'platform' => $platform, 'label' => $label, 'url' => $url, 'topic_summary' => $topic]]);
+}
+
 if ($action === 'social-source-delete' && $method === 'POST') {
     $b = body();
     DB::execute(
@@ -191,6 +225,13 @@ if ($action === 'social-source-delete' && $method === 'POST') {
         [(int)($b['id'] ?? 0), $userId]
     );
     json(['ok' => true]);
+}
+
+if ($action === 'scan-sources' && $method === 'POST') {
+    $b = body();
+    $limit = max(1, min(10, (int)($b['limit'] ?? 5)));
+    $report = Ingest::scanSources($userId, $limit);
+    json(['ok' => true, 'report' => $report]);
 }
 
 // ── GET social/auth-url?platform=xxx ─────────────────────────────────────
@@ -282,8 +323,8 @@ if ($action === 'hide-post' && $method === 'POST') {
 // ── PATCH site settings ───────────────────────────────────────────────────
 if ($action === 'site-update' && $method === 'POST') {
     $b = body();
-    DB::execute('UPDATE sites SET title=COALESCE(?,title), bio=COALESCE(?,bio) WHERE user_id=?',
-        [$b['title'] ?? null, $b['bio'] ?? null, $userId]);
+    DB::execute('UPDATE sites SET title=COALESCE(?,title), bio=COALESCE(?,bio), profile_summary=COALESCE(?,profile_summary) WHERE user_id=?',
+        [$b['title'] ?? null, $b['bio'] ?? null, $b['profile_summary'] ?? null, $userId]);
     json(['ok' => true]);
 }
 

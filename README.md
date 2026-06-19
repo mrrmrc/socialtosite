@@ -162,6 +162,7 @@ Con questo, ogni `git push` deploya automaticamente via FTP. 🚀
 Per database gia esistenti, importa `db/migration_admin_users.sql` in phpMyAdmin dopo aver sostituito `admin@example.com` con l'email dell'account da promuovere ad amministratore.
 
 Per abilitare i link dei canali/profili social e il collegamento al post originale, importa anche `db/migration_social_sources.sql`.
+Per abilitare il profilo generato/editabile dalla scansione, importa anche `db/migration_profile_scan.sql`.
 
 ---
 

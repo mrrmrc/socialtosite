@@ -172,4 +172,51 @@ class Ingest {
 
         return ['id' => $postId, 'seo' => $seo];
     }
+
+    public static function scanSources(int $userId, int $limitPerSource = 5): array {
+        $sources = DB::fetchAll(
+            'SELECT * FROM social_sources WHERE user_id=? AND active=1 ORDER BY platform, id',
+            [$userId]
+        );
+        if (!$sources) throw new Exception('Inserisci almeno un link social prima della scansione');
+
+        $report = ['sources' => count($sources), 'found' => 0, 'imported' => 0, 'published' => 0, 'duplicates' => 0, 'errors' => []];
+
+        foreach ($sources as $source) {
+            try {
+                $items = AI::sourceItems($source['platform'], $source['url'], $limitPerSource);
+                $report['found'] += count($items);
+                foreach ($items as $item) {
+                    $sourceUrl = $item['url'] ?? '';
+                    if (!$sourceUrl) continue;
+                    try {
+                        $ingested = self::url($userId, $sourceUrl);
+                        if (!empty($ingested['duplicate'])) {
+                            $report['duplicates']++;
+                            continue;
+                        }
+                        $report['imported']++;
+                        self::harmonize($userId, (int)$ingested['id']);
+                        $report['published']++;
+                    } catch (Throwable $e) {
+                        $report['errors'][] = $source['platform'] . ': ' . $e->getMessage();
+                    }
+                }
+            } catch (Throwable $e) {
+                $report['errors'][] = $source['platform'] . ': ' . $e->getMessage();
+            }
+        }
+
+        $posts = DB::fetchAll(
+            'SELECT generated_title, generated_excerpt, raw_content FROM posts WHERE user_id=? ORDER BY imported_at DESC LIMIT 12',
+            [$userId]
+        );
+        if ($posts) {
+            $summary = AI::profileSummary($sources, $posts);
+            DB::execute('UPDATE sites SET profile_summary=?, bio=COALESCE(NULLIF(bio, ""), ?) WHERE user_id=?', [$summary, $summary, $userId]);
+        }
+        DB::execute('UPDATE sites SET last_sync=NOW() WHERE user_id=?', [$userId]);
+
+        return $report;
+    }
 }

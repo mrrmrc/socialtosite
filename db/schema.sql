@@ -70,6 +70,7 @@ CREATE TABLE IF NOT EXISTS sites (
   title         VARCHAR(255),
   bio           TEXT,
   avatar_url    TEXT,
+  profile_summary TEXT,
   custom_domain VARCHAR(255),
   theme         VARCHAR(50) DEFAULT 'clean',
   seo_score     INT DEFAULT 0,

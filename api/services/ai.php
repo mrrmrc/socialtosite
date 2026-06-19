@@ -175,6 +175,90 @@ class AI {
         return '';
     }
 
+    private static function findSourceUrl($node): string {
+        if (is_string($node)) {
+            return preg_match('~^https?://~', $node) ? $node : '';
+        }
+        if (is_array($node)) {
+            foreach (['url','postUrl','webVideoUrl','videoWebUrl','shortCodeUrl','permalink','link'] as $k) {
+                if (!empty($node[$k]) && is_string($node[$k]) && preg_match('~^https?://~', $node[$k])) {
+                    return $node[$k];
+                }
+            }
+            foreach ($node as $v) {
+                $u = self::findSourceUrl($v);
+                if ($u) return $u;
+            }
+        }
+        return '';
+    }
+
+    public static function sourceItems(string $platform, string $url, int $limit = 5): array {
+        if ($platform === 'youtube') {
+            if (preg_match('~/channel/([A-Za-z0-9_-]+)~', $url, $m)) {
+                $feed = @simplexml_load_file('https://www.youtube.com/feeds/videos.xml?channel_id=' . $m[1]);
+                $items = [];
+                if ($feed && isset($feed->entry)) {
+                    foreach ($feed->entry as $entry) {
+                        $videoId = (string) $entry->children('yt', true)->videoId;
+                        if ($videoId) $items[] = ['url' => 'https://www.youtube.com/watch?v=' . $videoId];
+                        if (count($items) >= $limit) break;
+                    }
+                }
+                return $items;
+            }
+            return [];
+        }
+
+        [$actor, $input] = match ($platform) {
+            'tiktok' => [
+                defined('APIFY_ACTOR_TIKTOK') ? APIFY_ACTOR_TIKTOK : 'clockworks~tiktok-scraper',
+                ['profiles' => [$url], 'resultsPerPage' => $limit, 'shouldDownloadVideos' => false],
+            ],
+            'instagram' => [
+                defined('APIFY_ACTOR_INSTAGRAM') ? APIFY_ACTOR_INSTAGRAM : 'apify~instagram-scraper',
+                ['directUrls' => [$url], 'resultsType' => 'posts', 'resultsLimit' => $limit],
+            ],
+            'facebook' => [
+                defined('APIFY_ACTOR_FACEBOOK') ? APIFY_ACTOR_FACEBOOK : 'apify~facebook-posts-scraper',
+                ['startUrls' => [['url' => $url]], 'resultsLimit' => $limit],
+            ],
+            default => throw new Exception('Piattaforma non gestita per la scansione'),
+        };
+
+        $items = self::apifyRun($actor, $input);
+        $out = [];
+        foreach ($items as $item) {
+            $sourceUrl = self::findSourceUrl($item);
+            if (!$sourceUrl) continue;
+            $out[] = ['url' => $sourceUrl];
+            if (count($out) >= $limit) break;
+        }
+        return $out;
+    }
+
+    public static function profileSummary(array $sources, array $samplePosts): string {
+        $lines = [];
+        foreach ($sources as $source) {
+            $lines[] = strtoupper($source['platform']) . ': ' . ($source['label'] ?: $source['url']);
+        }
+        $samples = [];
+        foreach ($samplePosts as $post) {
+            $text = trim(($post['generated_title'] ?? '') . ' ' . ($post['generated_excerpt'] ?? '') . ' ' . ($post['raw_content'] ?? ''));
+            if ($text) $samples[] = mb_substr($text, 0, 500);
+        }
+
+        $prompt = "Genera un profilo sintetico, editabile e realistico della persona o brand dietro questi social.\n"
+            . "Non inventare dati biografici: deduci solo temi, tono, competenze, pubblico e argomenti ricorrenti.\n\n"
+            . "Canali:\n- " . implode("\n- ", $lines) . "\n\n"
+            . "Esempi contenuti:\n- " . implode("\n- ", array_slice($samples, 0, 8)) . "\n\n"
+            . "Rispondi in italiano in 5-7 frasi, senza markdown.";
+
+        return trim(self::gemini([['text' => $prompt]], [
+            'maxOutputTokens' => 2048,
+        ]));
+    }
+
     // ── AGENTE 1: risolve un link social via Apify → caption + media ───────
     public static function apifyResolve(string $platform, string $url): array {
         [$actor, $input] = match ($platform) {

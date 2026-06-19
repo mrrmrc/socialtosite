@@ -48,7 +48,7 @@ if ($action === 'sitemap') {
 
 // ── Pagina HTML pubblica ───────────────────────────────────────────────────
 $title = htmlspecialchars($site['title'] ?? $user['name']);
-$bio   = htmlspecialchars($site['bio']   ?? '');
+$bio   = htmlspecialchars($site['profile_summary'] ?: ($site['bio'] ?? ''));
 $seoScore = $site['seo_score'] ?? 0;
 $siteUrl  = BASE_URL . '/s/' . $slug;
 $icons = ['instagram' => '📸', 'tiktok' => '🎵', 'youtube' => '▶️', 'facebook' => '📘'];

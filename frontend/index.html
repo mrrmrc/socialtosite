@@ -71,11 +71,17 @@ async function apiFetch(path, opts = {}, token = null) {
 
 // ── Icons ────────────────────────────────────────────────────────────────────
 const SOCIAL = {
-  instagram: { icon: '📸', label: 'Instagram', color: '#E1306C' },
-  tiktok:    { icon: '🎵', label: 'TikTok',    color: '#010101' },
-  facebook:  { icon: '📘', label: 'Facebook',  color: '#1877F2' },
-  youtube:   { icon: '▶️', label: 'YouTube',   color: '#FF0000' },
+  instagram: { icon: 'https://cdn.simpleicons.org/instagram/E4405F', label: 'Instagram', color: '#E1306C' },
+  tiktok:    { icon: 'https://cdn.simpleicons.org/tiktok/000000', label: 'TikTok',    color: '#010101' },
+  facebook:  { icon: 'https://cdn.simpleicons.org/facebook/1877F2', label: 'Facebook',  color: '#1877F2' },
+  youtube:   { icon: 'https://cdn.simpleicons.org/youtube/FF0000', label: 'YouTube',   color: '#FF0000' },
 };
+
+function SocialIcon({ platform, size = 20 }) {
+  const info = SOCIAL[platform];
+  if (!info) return <span style={{ fontSize: size }}>•</span>;
+  return <img src={info.icon} alt="" style={{ width: size, height: size, objectFit: 'contain', flexShrink: 0 }} />;
+}
 
 // ═══════════════════════════════════════════════════════════════
 // Screen: Login / Register
@@ -325,6 +331,10 @@ function DashboardScreen({ token, user, onLogout }) {
   const [harmonizingId, setHarmonizingId] = useState(0);
   const [sourceForm, setSourceForm] = useState({ label: '', url: '', platform: '' });
   const [sourceMsg, setSourceMsg] = useState(null);
+  const [scanMsg, setScanMsg] = useState(null);
+  const [scanning, setScanning] = useState(false);
+  const [profileDraft, setProfileDraft] = useState('');
+  const [savingProfile, setSavingProfile] = useState(false);
 
   useEffect(() => { loadData(); loadDrafts(); }, []);
 
@@ -332,6 +342,7 @@ function DashboardScreen({ token, user, onLogout }) {
     try {
       const d = await apiFetch('/api/index.php?action=site', {}, token);
       setData(d);
+      setProfileDraft(d.site?.profile_summary || d.site?.bio || '');
     } catch {}
   }
 
@@ -407,6 +418,50 @@ function DashboardScreen({ token, user, onLogout }) {
     }
   }
 
+  async function savePlatformSource(platform, url) {
+    setSourceMsg(null);
+    try {
+      await apiFetch('/api/index.php?action=social-source-upsert', {
+        method: 'POST',
+        body: JSON.stringify({ platform, label: SOCIAL[platform]?.label || platform, url })
+      }, token);
+      await loadData();
+    } catch (err) {
+      setSourceMsg({ ok: false, text: err.message });
+    }
+  }
+
+  async function scanSources() {
+    setScanning(true); setScanMsg(null);
+    try {
+      const res = await apiFetch('/api/index.php?action=scan-sources', {
+        method: 'POST',
+        body: JSON.stringify({ limit: 5 })
+      }, token);
+      const r = res.report;
+      setScanMsg({ ok: true, text: `Scansione completata: ${r.published} post pubblicati, ${r.duplicates} duplicati.` });
+      await loadDrafts();
+      await loadData();
+    } catch (err) {
+      setScanMsg({ ok: false, text: err.message });
+    }
+    setScanning(false);
+  }
+
+  async function saveProfile() {
+    setSavingProfile(true);
+    try {
+      await apiFetch('/api/index.php?action=site-update', {
+        method: 'POST',
+        body: JSON.stringify({ profile_summary: profileDraft, bio: profileDraft })
+      }, token);
+      await loadData();
+    } catch (err) {
+      setScanMsg({ ok: false, text: err.message });
+    }
+    setSavingProfile(false);
+  }
+
   async function removeSource(id) {
     await apiFetch('/api/index.php?action=social-source-delete', {
       method: 'POST',
@@ -419,6 +474,7 @@ function DashboardScreen({ token, user, onLogout }) {
   const posts = data?.posts || [];
   const connections = data?.connections || [];
   const sources = data?.sources || [];
+  const sourceByPlatform = sources.reduce((acc, source) => ({ ...acc, [source.platform]: source }), {});
   const siteUrl = `${API.replace('3001', '3000')}/s/${user.slug}`;
 
   return (
@@ -444,7 +500,7 @@ function DashboardScreen({ token, user, onLogout }) {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '10px', marginBottom: '1.5rem' }}>
           {[
             { n: posts.length, l: 'Contenuti' },
-            { n: connections.filter(c => c.active).length, l: 'Social attivi' },
+            { n: sources.length, l: 'Social attivi' },
             { n: site?.seo_score || 0, l: 'Score SEO' },
             { n: posts.filter(p => p.media_type === 'VIDEO').length, l: 'Video trascritti' },
           ].map((s, i) => (
@@ -458,15 +514,21 @@ function DashboardScreen({ token, user, onLogout }) {
         <div className="card" style={{ marginBottom: '1.25rem' }}>
           <h3 style={{ marginBottom: '4px' }}>I tuoi social</h3>
           <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '12px' }}>
-            Inserisci i link dei profili o canali da cui nasceranno i contenuti del sito.
+            Inserisci un link per ogni profilo o canale. Il sistema li userà per capire chi sei e pubblicare i contenuti sul tuo sito.
           </p>
-          <form onSubmit={addSource} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: '8px', marginBottom: '12px' }}>
-            <input type="text" placeholder="Nome visibile, es. Canale YouTube"
-              value={sourceForm.label} onChange={e => setSourceForm({ ...sourceForm, label: e.target.value })} />
-            <input type="text" placeholder="https://..."
-              value={sourceForm.url} onChange={e => setSourceForm({ ...sourceForm, url: e.target.value })} required />
-            <button type="submit" className="btn btn-primary">Aggiungi</button>
-          </form>
+          <div style={{ display: 'grid', gap: '10px', marginBottom: '12px' }}>
+            {['instagram', 'tiktok', 'facebook', 'youtube'].map(platform => (
+              <div key={platform} style={{ display: 'grid', gridTemplateColumns: '150px 1fr', gap: '12px', alignItems: 'center' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 600 }}>
+                  <SocialIcon platform={platform} size={22} />
+                  <span>{SOCIAL[platform].label}</span>
+                </div>
+                <input type="text" placeholder={`Link ${SOCIAL[platform].label}`}
+                  defaultValue={sourceByPlatform[platform]?.url || ''}
+                  onBlur={e => savePlatformSource(platform, e.target.value.trim())} />
+              </div>
+            ))}
+          </div>
           {sourceMsg && (
             <div style={{ marginBottom: '10px', padding: '8px 12px', borderRadius: 'var(--radius-sm)', fontSize: '13px',
               background: sourceMsg.ok ? 'var(--teal-light)' : 'var(--red-light)',
@@ -474,23 +536,24 @@ function DashboardScreen({ token, user, onLogout }) {
               {sourceMsg.text}
             </div>
           )}
-          {sources.length === 0 ? (
-            <p style={{ color: 'var(--text-muted)', fontSize: '13px' }}>Nessun social inserito.</p>
-          ) : (
-            <div style={{ display: 'grid', gap: '8px' }}>
-              {sources.map(s => (
-                <div key={s.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', background: 'var(--gray-light)', borderRadius: 'var(--radius-sm)', padding: '10px 12px' }}>
-                  <div style={{ minWidth: 0 }}>
-                    <div style={{ fontWeight: 600, fontSize: '14px' }}>
-                      {SOCIAL[s.platform]?.icon} {s.label || SOCIAL[s.platform]?.label || s.platform}
-                    </div>
-                    <a href={s.url} target="_blank" rel="noopener" style={{ display: 'block', fontSize: '12px', color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {s.url}
-                    </a>
-                  </div>
-                  <button className="btn btn-outline" onClick={() => removeSource(s.id)} style={{ fontSize: '12px' }}>Rimuovi</button>
-                </div>
-              ))}
+          <div className="divider" />
+          <div style={{ marginBottom: '12px' }}>
+            <label className="label">Profilo generato della persona/brand</label>
+            <textarea value={profileDraft} onChange={e => setProfileDraft(e.target.value)}
+              placeholder="Dopo la scansione comparirà qui un profilo sintetico editabile."
+              style={{ width: '100%', minHeight: '96px', resize: 'vertical', padding: '10px 14px', border: '1px solid var(--border-strong)', borderRadius: 'var(--radius-sm)', background: 'var(--surface)', fontFamily: 'inherit', fontSize: '14px' }} />
+            <button className="btn btn-outline" onClick={saveProfile} disabled={savingProfile} style={{ marginTop: '8px' }}>
+              {savingProfile ? 'Salvo...' : 'Salva profilo'}
+            </button>
+          </div>
+          <button className="btn btn-primary btn-full" onClick={scanSources} disabled={scanning || sources.length === 0}>
+            {scanning ? 'Scansiono, trascrivo e pubblico...' : 'Scansiona social e pubblica automaticamente'}
+          </button>
+          {scanMsg && (
+            <div style={{ marginTop: '10px', padding: '8px 12px', borderRadius: 'var(--radius-sm)', fontSize: '13px',
+              background: scanMsg.ok ? 'var(--teal-light)' : 'var(--red-light)',
+              color: scanMsg.ok ? '#0F6E56' : 'var(--red)' }}>
+              {scanMsg.text}
             </div>
           )}
         </div>
@@ -524,7 +587,7 @@ function DashboardScreen({ token, user, onLogout }) {
                 <div key={d.id} style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '12px', padding: '10px 0', borderTop: '1px solid var(--border)' }}>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '4px' }}>
-                      {SOCIAL[d.platform]?.icon} {SOCIAL[d.platform]?.label}
+                      <SocialIcon platform={d.platform} size={16} /> {SOCIAL[d.platform]?.label}
                     </div>
                     {d.source_url && (
                       <a href={d.source_url} target="_blank" rel="noopener" style={{ display: 'block', fontSize: '12px', color: 'var(--purple)', marginBottom: '4px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -587,7 +650,7 @@ function DashboardScreen({ token, user, onLogout }) {
                   <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '1rem' }}>
                     <div style={{ flex: 1 }}>
                       <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '6px' }}>
-                        <span>{SOCIAL[post.platform]?.icon}</span>
+                        <SocialIcon platform={post.platform} size={16} />
                         <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{SOCIAL[post.platform]?.label}</span>
                         <span style={{ fontSize: '12px', color: 'var(--text-faint)' }}>·</span>
                         <span style={{ fontSize: '12px', color: 'var(--text-faint)' }}>
@@ -670,7 +733,7 @@ function DashboardScreen({ token, user, onLogout }) {
               ) : sources.map(s => (
                 <div key={s.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px', gap: '12px' }}>
                   <div style={{ minWidth: 0 }}>
-                    <div style={{ fontWeight: 500, fontSize: '14px' }}>{SOCIAL[s.platform]?.icon} {s.label || SOCIAL[s.platform]?.label || s.platform}</div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 500, fontSize: '14px' }}><SocialIcon platform={s.platform} size={16} /> {s.label || SOCIAL[s.platform]?.label || s.platform}</div>
                     <a href={s.url} target="_blank" rel="noopener" style={{ display: 'block', fontSize: '12px', color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.url}</a>
                   </div>
                   <span className="badge badge-green">Attivo</span>
@@ -685,7 +748,7 @@ function DashboardScreen({ token, user, onLogout }) {
               ) : connections.map(c => (
                 <div key={c.platform} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <span>{SOCIAL[c.platform]?.icon}</span>
+                    <SocialIcon platform={c.platform} size={18} />
                     <div>
                       <div style={{ fontWeight: 500, fontSize: '14px' }}>{SOCIAL[c.platform]?.label}</div>
                       {c.handle && <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{c.handle}</div>}
