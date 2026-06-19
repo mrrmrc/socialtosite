@@ -176,13 +176,13 @@ function renderPostHtml(array $p, string $siteUrl, array $icons): string {
     .source-link{display:inline-block;margin-top:.75rem;font-size:.86rem}
     .mission{max-width:760px;margin:1rem auto 0;color:#555;font-size:.92rem}
     body.theme-journal{--bg:#fbfbfa;--container:760px;--accent:#1f4f46;--card-radius:2px;--header-align:left;--avatar-margin:0 0 1rem;--header-pad:2.4rem max(1rem,calc((100vw - 760px)/2)) 1.8rem}
-    body.theme-authority{--bg:#f5f7f8;--container:820px;--accent:#243b53;--header:#eef3f6;--card-radius:6px;--card-pad:1.75rem}
+    body.theme-authority{--bg:#f5f7f8;--container:820px;--post-grid:repeat(auto-fit,minmax(360px,1fr));--accent:#243b53;--header:#eef3f6;--card-radius:6px;--card-pad:1.75rem}
     body.theme-portfolio{--bg:#f8f8f6;--container:980px;--post-grid:repeat(auto-fit,minmax(280px,1fr));--post-margin:0;--accent:#6f5b3e;--avatar-radius:18px}
     body.theme-magazine{--bg:#fff;--container:1060px;--post-grid:repeat(auto-fit,minmax(250px,1fr));--post-margin:0;--card-radius:0;--card-pad:1.25rem;--accent:#9a2f2f}
     body.theme-minimal{--bg:#fff;--container:660px;--accent:#111;--line:#e8e8e8;--card-radius:0;--card-pad:1.25rem;--header-pad:2rem 1rem}
-    body.theme-studio{--bg:#f4f1ed;--container:900px;--accent:#2e6552;--card:#fffdfa;--card-radius:8px;--header:#fffdfa}
-    body.theme-local{--bg:#f7faf7;--container:860px;--accent:#22724d;--header:#edf7ef;--card-radius:8px}
-    body.theme-academy{--bg:#f7f8fb;--container:820px;--accent:#3b5b92;--card-radius:6px;--card-pad:1.6rem}
+    body.theme-studio{--bg:#f4f1ed;--container:960px;--post-grid:repeat(auto-fit,minmax(400px,1fr));--accent:#2e6552;--card:#fffdfa;--card-radius:8px;--header:#fffdfa}
+    body.theme-local{--bg:#f7faf7;--container:860px;--post-grid:repeat(auto-fit,minmax(380px,1fr));--accent:#22724d;--header:#edf7ef;--card-radius:8px}
+    body.theme-academy{--bg:#f7f8fb;--container:880px;--post-grid:repeat(auto-fit,minmax(360px,1fr));--accent:#3b5b92;--card-radius:6px;--card-pad:1.6rem}
     body.theme-timeline{--bg:#fbfaf7;--container:760px;--accent:#795548;--card-radius:6px}
     body.theme-timeline .post{border-left:4px solid var(--accent)}
     body.theme-bottega{--bg:#faf9f6;--container:900px;--accent:#b07d54;--card:#fff;--card-radius:4px;--header:#fdfcfb;--post-grid:repeat(auto-fit,minmax(280px,1fr));--post-margin:0}
