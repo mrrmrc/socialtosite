@@ -51,6 +51,9 @@ $title = htmlspecialchars($site['title'] ?? $user['name']);
 $bio   = htmlspecialchars($site['profile_summary'] ?: ($site['bio'] ?? ''));
 $seoScore = $site['seo_score'] ?? 0;
 $siteUrl  = BASE_URL . '/s/' . $slug;
+$theme = $site['theme'] ?? 'classic';
+$validThemes = ['classic', 'journal', 'authority', 'portfolio', 'magazine', 'minimal', 'studio', 'local', 'academy', 'timeline'];
+if (!in_array($theme, $validThemes, true)) $theme = 'classic';
 $icons = ['instagram' => '📸', 'tiktok' => '🎵', 'youtube' => '▶️', 'facebook' => '📘'];
 $deployInfo = [];
 $deployInfoPath = __DIR__ . '/../deploy-info.json';
@@ -113,16 +116,17 @@ function bodyHtml(string $b): string {
   </script>
   <style>
     *{box-sizing:border-box;margin:0;padding:0}
-    body{font-family:system-ui,-apple-system,sans-serif;background:#f8f8f6;color:#1a1a1a;line-height:1.65}
+    body{font-family:system-ui,-apple-system,sans-serif;background:var(--bg,#f8f8f6);color:var(--text,#1a1a1a);line-height:1.65}
     a{color:#7F77DD;text-decoration:none}
-    .header{background:#fff;border-bottom:1px solid #eee;padding:2.5rem 1rem;text-align:center}
-    .avatar{width:80px;height:80px;border-radius:50%;background:#7F77DD;color:#fff;font-size:2rem;font-weight:700;display:flex;align-items:center;justify-content:center;margin:0 auto 1rem}
+    .header{background:var(--header,#fff);border-bottom:1px solid var(--line,#eee);padding:var(--header-pad,2.5rem 1rem);text-align:var(--header-align,center)}
+    .avatar{width:80px;height:80px;border-radius:var(--avatar-radius,50%);background:var(--accent,#7F77DD);color:#fff;font-size:2rem;font-weight:700;display:flex;align-items:center;justify-content:center;margin:var(--avatar-margin,0 auto 1rem)}
     h1{font-size:1.8rem;font-weight:700;margin-bottom:.25rem}
     .bio{color:#666;max-width:480px;margin:.5rem auto 0}
     .socials{display:flex;justify-content:center;gap:.5rem;flex-wrap:wrap;margin:1rem auto 0;max-width:620px}
     .social-link{border:1px solid #ddd;border-radius:999px;padding:.35rem .75rem;color:#333;background:#fff;font-size:.85rem}
-    .container{max-width:700px;margin:2rem auto;padding:0 1rem}
-    .post{background:#fff;border:1px solid #eee;border-radius:12px;padding:1.5rem;margin-bottom:1rem}
+    .container{max-width:var(--container,700px);margin:2rem auto;padding:0 1rem}
+    .post-list{display:grid;grid-template-columns:var(--post-grid,1fr);gap:var(--post-gap,1rem)}
+    .post{background:var(--card,#fff);border:1px solid var(--line,#eee);border-radius:var(--card-radius,12px);padding:var(--card-pad,1.5rem);margin-bottom:var(--post-margin,1rem)}
     .meta{font-size:.8rem;color:#999;display:flex;gap:.75rem;align-items:center;margin-bottom:.5rem;flex-wrap:wrap}
     .badge{background:#EEEDFE;color:#534AB7;font-size:.7rem;padding:2px 8px;border-radius:20px;font-weight:500}
     h2{font-size:1.1rem;font-weight:600;margin-bottom:.4rem}
@@ -137,14 +141,26 @@ function bodyHtml(string $b): string {
     .post h2 a{color:inherit}
     .back{display:inline-block;margin:0 0 1rem;font-size:.9rem}
     .source-link{display:inline-block;margin-top:.75rem;font-size:.86rem}
+    .mission{max-width:760px;margin:1rem auto 0;color:#555;font-size:.92rem}
+    body.theme-journal{--bg:#fbfbfa;--container:760px;--accent:#1f4f46;--card-radius:2px;--header-align:left;--avatar-margin:0 0 1rem;--header-pad:2.4rem max(1rem,calc((100vw - 760px)/2)) 1.8rem}
+    body.theme-authority{--bg:#f5f7f8;--container:820px;--accent:#243b53;--header:#eef3f6;--card-radius:6px;--card-pad:1.75rem}
+    body.theme-portfolio{--bg:#f8f8f6;--container:980px;--post-grid:repeat(auto-fit,minmax(280px,1fr));--post-margin:0;--accent:#6f5b3e;--avatar-radius:18px}
+    body.theme-magazine{--bg:#fff;--container:1060px;--post-grid:repeat(auto-fit,minmax(250px,1fr));--post-margin:0;--card-radius:0;--card-pad:1.25rem;--accent:#9a2f2f}
+    body.theme-minimal{--bg:#fff;--container:660px;--accent:#111;--line:#e8e8e8;--card-radius:0;--card-pad:1.25rem;--header-pad:2rem 1rem}
+    body.theme-studio{--bg:#f4f1ed;--container:900px;--accent:#2e6552;--card:#fffdfa;--card-radius:8px;--header:#fffdfa}
+    body.theme-local{--bg:#f7faf7;--container:860px;--accent:#22724d;--header:#edf7ef;--card-radius:8px}
+    body.theme-academy{--bg:#f7f8fb;--container:820px;--accent:#3b5b92;--card-radius:6px;--card-pad:1.6rem}
+    body.theme-timeline{--bg:#fbfaf7;--container:760px;--accent:#795548;--card-radius:6px}
+    body.theme-timeline .post{border-left:4px solid var(--accent)}
     @media(max-width:600px){.post{padding:1rem}}
   </style>
 </head>
-<body>
+<body class="theme-<?= h($theme) ?>">
 <header class="header">
   <div class="avatar"><?= mb_strtoupper(mb_substr($title, 0, 1)) ?></div>
   <h1><?= $title ?></h1>
   <?php if ($bio): ?><p class="bio"><?= $bio ?></p><?php endif; ?>
+  <?php if (!empty($site['role_mission'])): ?><p class="mission"><?= h($site['role_mission']) ?></p><?php endif; ?>
   <?php if ($sources): ?>
   <nav class="socials" aria-label="Profili social">
     <?php foreach ($sources as $source): ?>
@@ -182,6 +198,7 @@ function bodyHtml(string $b): string {
   </article>
 
   <?php else: ?>
+  <section class="post-list" aria-label="Contenuti pubblicati">
   <?php foreach ($posts as $p): $purl = $siteUrl . '/' . h($p['slug'] ?? ''); ?>
   <article class="post" itemscope itemtype="https://schema.org/Article">
     <div class="meta">
@@ -205,6 +222,7 @@ function bodyHtml(string $b): string {
     <meta itemprop="datePublished" content="<?= h($p['published_at'] ?? '') ?>">
   </article>
   <?php endforeach; ?>
+  </section>
 
   <?php if (!$posts): ?>
   <div style="text-align:center;color:#aaa;padding:3rem">

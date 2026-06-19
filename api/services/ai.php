@@ -259,6 +259,81 @@ class AI {
         ]));
     }
 
+    public static function editorialProfile(array $sources, array $samplePosts, string $profileOverride = ''): array {
+        $lines = [];
+        foreach ($sources as $source) {
+            $lines[] = strtoupper($source['platform']) . ': ' . ($source['label'] ?: $source['url']);
+        }
+        $samples = [];
+        foreach ($samplePosts as $post) {
+            $text = trim(($post['generated_title'] ?? '') . ' ' . ($post['generated_excerpt'] ?? '') . ' ' . ($post['raw_content'] ?? '') . ' ' . ($post['transcript'] ?? ''));
+            if ($text) $samples[] = mb_substr($text, 0, 700);
+        }
+
+        $prompt = "Agisci come agente editoriale per un sito personale/brand nato da piu' social.\n"
+            . "Obiettivo: capire il ruolo unico impersonificato dalla persona/brand, la missione e cosa va aggregato.\n"
+            . "Non inventare biografia. Deduci solo da canali, profilo indicato e contenuti.\n\n"
+            . "Profilo gia' indicato dall'utente:\n" . ($profileOverride ?: 'Non indicato') . "\n\n"
+            . "Canali:\n- " . implode("\n- ", $lines) . "\n\n"
+            . "Esempi contenuti:\n- " . implode("\n- ", array_slice($samples, 0, 10)) . "\n\n"
+            . "Rispondi SOLO con JSON valido: "
+            . '{"profile_summary":"5-7 frasi sintetiche","role_mission":"ruolo e missione in 2-3 frasi",'
+            . '"content_strategy":"regole editoriali: cosa pubblicare, cosa evitare, tono, temi ricorrenti",'
+            . '"keywords":["keyword1","keyword2","keyword3","keyword4","keyword5"]}';
+
+        $text = self::gemini([['text' => $prompt]], [
+            'responseMimeType' => 'application/json',
+            'maxOutputTokens'  => 4096,
+        ]);
+        $text = preg_replace('/```json|```/', '', trim($text));
+        $result = json_decode($text, true);
+        if (!$result) {
+            return [
+                'profile_summary'  => $profileOverride,
+                'role_mission'     => $profileOverride,
+                'content_strategy' => 'Pubblica solo contenuti coerenti con profilo, competenze, temi ricorrenti e pubblico del brand.',
+                'keywords'         => [],
+            ];
+        }
+        return $result;
+    }
+
+    public static function contentDecision(string $content, string $platform, string $sourceUrl, string $editorialContext, array $recentPosts = []): array {
+        $recent = [];
+        foreach ($recentPosts as $post) {
+            $recent[] = trim(($post['generated_title'] ?? '') . ' ' . ($post['generated_excerpt'] ?? '') . ' ' . ($post['raw_content'] ?? ''));
+        }
+        $prompt = "Sei un agente curatoriale. Decidi se questo contenuto social va pubblicato nel sito.\n"
+            . "Criteri: deve rappresentare ruolo/missione del profilo, evitare doppioni tematici, essere utile a Google e non essere puro rumore.\n"
+            . "Contesto editoriale:\n$editorialContext\n\n"
+            . "Contenuti recenti gia' pubblicati:\n- " . implode("\n- ", array_slice($recent, 0, 10)) . "\n\n"
+            . "Nuovo contenuto ($platform, $sourceUrl):\n" . mb_substr($content, 0, 2500) . "\n\n"
+            . "Rispondi SOLO con JSON valido: "
+            . '{"publish":true,"relevance_score":82,"duplicate_risk":12,"reason":"motivazione breve",'
+            . '"canonical_topic":"tema principale normalizzato","suggested_angle":"taglio editoriale"}';
+
+        $text = self::gemini([['text' => $prompt]], [
+            'responseMimeType' => 'application/json',
+            'maxOutputTokens'  => 2048,
+        ]);
+        $text = preg_replace('/```json|```/', '', trim($text));
+        $result = json_decode($text, true);
+        if (!$result) {
+            return [
+                'publish'          => true,
+                'relevance_score'  => 60,
+                'duplicate_risk'   => 0,
+                'reason'           => 'Valutazione automatica non disponibile: contenuto accettato con priorita media.',
+                'canonical_topic'  => '',
+                'suggested_angle'  => '',
+            ];
+        }
+        $result['relevance_score'] = max(0, min(100, (int)($result['relevance_score'] ?? 0)));
+        $result['duplicate_risk'] = max(0, min(100, (int)($result['duplicate_risk'] ?? 0)));
+        $result['publish'] = (bool)($result['publish'] ?? false);
+        return $result;
+    }
+
     // ── AGENTE 1: risolve un link social via Apify → caption + media ───────
     public static function apifyResolve(string $platform, string $url): array {
         [$actor, $input] = match ($platform) {

@@ -28,6 +28,14 @@ class Ingest {
         return substr(md5($url), 0, 24);
     }
 
+    private static function contentHash(string $text): string {
+        $normalized = mb_strtolower(strip_tags($text));
+        $normalized = preg_replace('/https?:\/\/\S+/', ' ', $normalized);
+        $normalized = preg_replace('/[^\p{L}\p{N}\s]+/u', ' ', $normalized);
+        $normalized = preg_replace('/\s+/', ' ', trim($normalized));
+        return hash('sha256', mb_substr($normalized, 0, 4000));
+    }
+
     // ── Ingestione di un singolo link → bozza nel DB ───────────────────────
     public static function url(int $userId, string $url): array {
         $url = trim($url);
@@ -86,16 +94,21 @@ class Ingest {
         if (!$raw) {
             throw new Exception('Nessun testo estratto: il link potrebbe non essere un contenuto pubblico, o senza parlato/didascalia');
         }
+        $contentHash = self::contentHash($raw);
+        $hashExists = DB::fetch('SELECT id FROM posts WHERE user_id=? AND content_hash=?', [$userId, $contentHash]);
+        if ($hashExists) {
+            return ['id' => (int) $hashExists['id'], 'platform' => $platform, 'duplicate' => true, 'duplicate_reason' => 'contenuto equivalente'];
+        }
 
         $id = DB::insert('
             INSERT INTO posts
               (user_id, platform, platform_post_id, raw_content, transcript,
-               media_url, media_type, source_url, published_at, published)
-            VALUES (?,?,?,?,?,?,?,?,?,0)
+               media_url, media_type, source_url, published_at, content_hash, published)
+            VALUES (?,?,?,?,?,?,?,?,?,?,0)
         ', [
             $userId, $platform, $postId,
             $caption, $transcript,
-            $mediaUrl, $mediaType, $url, date('Y-m-d H:i:s'),
+            $mediaUrl, $mediaType, $url, date('Y-m-d H:i:s'), $contentHash,
         ]);
 
         return [
@@ -178,7 +191,7 @@ class Ingest {
         return ['id' => $postId, 'seo' => $seo];
     }
 
-    public static function scanSources(int $userId, int $limitPerSource = 5, string $profileOverride = ''): array {
+    public static function scanSources(int $userId, int $limitPerSource = 5, string $profileOverride = '', string $roleMission = '', string $contentStrategy = ''): array {
         $sources = DB::fetchAll(
             'SELECT * FROM social_sources WHERE user_id=? AND active=1 ORDER BY platform, id',
             [$userId]
@@ -186,11 +199,17 @@ class Ingest {
         if (!$sources) throw new Exception('Inserisci almeno un link social prima della scansione');
 
         $profileOverride = trim($profileOverride);
-        if ($profileOverride !== '') {
-            DB::execute('UPDATE sites SET profile_summary=?, bio=COALESCE(NULLIF(bio, ""), ?) WHERE user_id=?', [$profileOverride, $profileOverride, $userId]);
+        $roleMission = trim($roleMission);
+        $contentStrategy = trim($contentStrategy);
+        if ($profileOverride !== '' || $roleMission !== '' || $contentStrategy !== '') {
+            DB::execute(
+                'UPDATE sites SET profile_summary=COALESCE(?,profile_summary), bio=COALESCE(NULLIF(bio, ""), ?), role_mission=COALESCE(?,role_mission), content_strategy=COALESCE(?,content_strategy) WHERE user_id=?',
+                [$profileOverride !== '' ? $profileOverride : null, $profileOverride !== '' ? $profileOverride : null, $roleMission !== '' ? $roleMission : null, $contentStrategy !== '' ? $contentStrategy : null, $userId]
+            );
         }
 
-        $report = ['sources' => count($sources), 'found' => 0, 'imported' => 0, 'published' => 0, 'duplicates' => 0, 'errors' => []];
+        $report = ['sources' => count($sources), 'found' => 0, 'imported' => 0, 'published' => 0, 'skipped' => 0, 'duplicates' => 0, 'errors' => []];
+        $seenUrls = [];
 
         foreach ($sources as $source) {
             try {
@@ -199,6 +218,12 @@ class Ingest {
                 foreach ($items as $item) {
                     $sourceUrl = $item['url'] ?? '';
                     if (!$sourceUrl) continue;
+                    $normalizedUrl = strtok($sourceUrl, '?') ?: $sourceUrl;
+                    if (isset($seenUrls[$normalizedUrl])) {
+                        $report['duplicates']++;
+                        continue;
+                    }
+                    $seenUrls[$normalizedUrl] = true;
                     try {
                         $ingested = self::url($userId, $sourceUrl);
                         if (!empty($ingested['duplicate'])) {
@@ -206,6 +231,27 @@ class Ingest {
                             continue;
                         }
                         $report['imported']++;
+                        $post = DB::fetch('SELECT * FROM posts WHERE id=? AND user_id=?', [(int)$ingested['id'], $userId]);
+                        $raw = trim(($post['transcript'] ?? '') ?: ($post['raw_content'] ?? ''));
+                        $site = DB::fetch('SELECT profile_summary, role_mission, content_strategy FROM sites WHERE user_id=?', [$userId]);
+                        $editorialContext = trim(
+                            "Profilo:\n" . ($site['profile_summary'] ?? '') . "\n\n"
+                            . "Ruolo/Missione:\n" . ($site['role_mission'] ?? '') . "\n\n"
+                            . "Strategia:\n" . ($site['content_strategy'] ?? '')
+                        );
+                        $recentPosts = DB::fetchAll(
+                            'SELECT generated_title, generated_excerpt, raw_content FROM posts WHERE user_id=? AND published=1 ORDER BY published_at DESC LIMIT 12',
+                            [$userId]
+                        );
+                        $decision = AI::contentDecision($raw, $source['platform'], $sourceUrl, $editorialContext, $recentPosts);
+                        DB::execute(
+                            'UPDATE posts SET relevance_score=?, agent_notes=? WHERE id=? AND user_id=?',
+                            [$decision['relevance_score'], json_encode($decision, JSON_UNESCAPED_UNICODE), (int)$ingested['id'], $userId]
+                        );
+                        if (!$decision['publish'] || $decision['relevance_score'] < 55 || $decision['duplicate_risk'] >= 75) {
+                            $report['skipped']++;
+                            continue;
+                        }
                         self::harmonize($userId, (int)$ingested['id']);
                         $report['published']++;
                     } catch (Throwable $e) {
@@ -221,9 +267,15 @@ class Ingest {
             'SELECT generated_title, generated_excerpt, raw_content FROM posts WHERE user_id=? ORDER BY imported_at DESC LIMIT 12',
             [$userId]
         );
-        if ($posts && $profileOverride === '') {
-            $summary = AI::profileSummary($sources, $posts);
-            DB::execute('UPDATE sites SET profile_summary=?, bio=COALESCE(NULLIF(bio, ""), ?) WHERE user_id=?', [$summary, $summary, $userId]);
+        if ($posts) {
+            $profile = AI::editorialProfile($sources, $posts, $profileOverride);
+            $summary = $profileOverride !== '' ? $profileOverride : ($profile['profile_summary'] ?? '');
+            $finalRoleMission = $roleMission !== '' ? $roleMission : ($profile['role_mission'] ?? '');
+            $finalContentStrategy = $contentStrategy !== '' ? $contentStrategy : ($profile['content_strategy'] ?? '');
+            DB::execute(
+                'UPDATE sites SET profile_summary=?, bio=COALESCE(NULLIF(bio, ""), ?), role_mission=?, content_strategy=? WHERE user_id=?',
+                [$summary, $summary, $finalRoleMission, $finalContentStrategy, $userId]
+            );
         }
         DB::execute('UPDATE sites SET last_sync=NOW() WHERE user_id=?', [$userId]);
 

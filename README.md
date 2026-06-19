@@ -163,6 +163,7 @@ Per database gia esistenti, importa `db/migration_admin_users.sql` in phpMyAdmin
 
 Per abilitare i link dei canali/profili social e il collegamento al post originale, importa anche `db/migration_social_sources.sql`.
 Per abilitare il profilo generato/editabile dalla scansione, importa anche `db/migration_profile_scan.sql`.
+Per abilitare agente editoriale, deduplica semantica e 10 layout selezionabili, importa anche `db/migration_agentic_layouts.sql`.
 
 ---
 

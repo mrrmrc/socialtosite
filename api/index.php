@@ -72,6 +72,10 @@ function detectSocialPlatform(string $url): string {
     return '';
 }
 
+function validSiteThemes(): array {
+    return ['classic', 'journal', 'authority', 'portfolio', 'magazine', 'minimal', 'studio', 'local', 'academy', 'timeline'];
+}
+
 if ($action === 'admin-users' && $method === 'GET') {
     requireAdmin($isAdmin);
     $users = DB::fetchAll(
@@ -231,7 +235,9 @@ if ($action === 'scan-sources' && $method === 'POST') {
     $b = body();
     $limit = max(1, min(10, (int)($b['limit'] ?? 5)));
     $profileSummary = trim($b['profile_summary'] ?? '');
-    $report = Ingest::scanSources($userId, $limit, $profileSummary);
+    $roleMission = trim($b['role_mission'] ?? '');
+    $contentStrategy = trim($b['content_strategy'] ?? '');
+    $report = Ingest::scanSources($userId, $limit, $profileSummary, $roleMission, $contentStrategy);
     json(['ok' => true, 'report' => $report]);
 }
 
@@ -324,8 +330,14 @@ if ($action === 'hide-post' && $method === 'POST') {
 // ── PATCH site settings ───────────────────────────────────────────────────
 if ($action === 'site-update' && $method === 'POST') {
     $b = body();
-    DB::execute('UPDATE sites SET title=COALESCE(?,title), bio=COALESCE(?,bio), profile_summary=COALESCE(?,profile_summary) WHERE user_id=?',
-        [$b['title'] ?? null, $b['bio'] ?? null, $b['profile_summary'] ?? null, $userId]);
+    $theme = $b['theme'] ?? null;
+    if ($theme !== null && !in_array($theme, validSiteThemes(), true)) {
+        jsonError('Layout non valido');
+    }
+    DB::execute(
+        'UPDATE sites SET title=COALESCE(?,title), bio=COALESCE(?,bio), profile_summary=COALESCE(?,profile_summary), role_mission=COALESCE(?,role_mission), content_strategy=COALESCE(?,content_strategy), theme=COALESCE(?,theme) WHERE user_id=?',
+        [$b['title'] ?? null, $b['bio'] ?? null, $b['profile_summary'] ?? null, $b['role_mission'] ?? null, $b['content_strategy'] ?? null, $theme, $userId]
+    );
     json(['ok' => true]);
 }
 
