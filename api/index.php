@@ -46,6 +46,93 @@ if (in_array($action, ['login', 'register'])) {
 // Tutti gli altri endpoint richiedono JWT
 $me = JWT::require();
 $userId = $me['id'];
+$isAdmin = ($me['role'] ?? 'user') === 'admin';
+
+function requireAdmin(bool $isAdmin): void {
+    if (!$isAdmin) jsonError('Permessi amministratore richiesti', 403);
+}
+
+function uniqueUserSlug(string $source): string {
+    $slug = slugify($source);
+    if (!$slug) $slug = 'utente';
+    $base = $slug;
+    $i = 1;
+    while (DB::fetch('SELECT id FROM users WHERE slug=?', [$slug])) {
+        $slug = $base . '-' . $i++;
+    }
+    return $slug;
+}
+
+if ($action === 'admin-users' && $method === 'GET') {
+    requireAdmin($isAdmin);
+    $users = DB::fetchAll(
+        'SELECT u.id, u.email, u.name, u.slug, u.role, u.plan, u.created_at,
+                s.title AS site_title, s.last_sync,
+                COUNT(DISTINCT sc.id) AS connections_count,
+                COUNT(DISTINCT p.id) AS posts_count
+         FROM users u
+         LEFT JOIN sites s ON s.user_id = u.id
+         LEFT JOIN social_connections sc ON sc.user_id = u.id AND sc.active = 1
+         LEFT JOIN posts p ON p.user_id = u.id AND p.published = 1
+         GROUP BY u.id
+         ORDER BY u.created_at DESC'
+    );
+    json(['users' => $users]);
+}
+
+if ($action === 'admin-create-user' && $method === 'POST') {
+    requireAdmin($isAdmin);
+    $b = body();
+    $email = trim($b['email'] ?? '');
+    $password = $b['password'] ?? '';
+    $name = trim($b['name'] ?? '');
+    $role = ($b['role'] ?? 'user') === 'admin' ? 'admin' : 'user';
+
+    if (!$email || !$password) jsonError('Email e password richiesti');
+    if (!filter_var($email, FILTER_VALIDATE_EMAIL)) jsonError('Email non valida');
+    if (strlen($password) < 8) jsonError('Password minimo 8 caratteri');
+    if (DB::fetch('SELECT id FROM users WHERE email=?', [$email])) jsonError('Email gia registrata', 409);
+
+    $slug = uniqueUserSlug($name ?: explode('@', $email)[0]);
+    $userId = DB::insert(
+        'INSERT INTO users (email, password, name, slug, role) VALUES (?,?,?,?,?)',
+        [$email, password_hash($password, PASSWORD_BCRYPT), $name, $slug, $role]
+    );
+    DB::execute('INSERT INTO sites (user_id, title) VALUES (?,?)', [$userId, $name ?: $email]);
+    json(['ok' => true, 'user' => ['id' => $userId, 'email' => $email, 'name' => $name, 'slug' => $slug, 'role' => $role]], 201);
+}
+
+if ($action === 'admin-update-user' && $method === 'POST') {
+    requireAdmin($isAdmin);
+    $b = body();
+    $targetId = (int)($b['id'] ?? 0);
+    if (!$targetId) jsonError('Utente non valido');
+
+    $target = DB::fetch('SELECT * FROM users WHERE id=?', [$targetId]);
+    if (!$target) jsonError('Utente non trovato', 404);
+
+    $name = array_key_exists('name', $b) ? trim($b['name']) : $target['name'];
+    $plan = array_key_exists('plan', $b) ? trim($b['plan']) : $target['plan'];
+    $role = array_key_exists('role', $b) ? $b['role'] : ($target['role'] ?? 'user');
+    $role = $role === 'admin' ? 'admin' : 'user';
+
+    DB::execute('UPDATE users SET name=?, plan=?, role=? WHERE id=?', [$name, $plan, $role, $targetId]);
+    if (isset($b['password']) && strlen($b['password']) >= 8) {
+        DB::execute('UPDATE users SET password=? WHERE id=?', [password_hash($b['password'], PASSWORD_BCRYPT), $targetId]);
+    }
+    json(['ok' => true]);
+}
+
+if ($action === 'admin-delete-user' && $method === 'POST') {
+    requireAdmin($isAdmin);
+    $b = body();
+    $targetId = (int)($b['id'] ?? 0);
+    if (!$targetId) jsonError('Utente non valido');
+    if ($targetId === (int)$userId) jsonError('Non puoi eliminare il tuo account amministratore');
+
+    DB::execute('DELETE FROM users WHERE id=?', [$targetId]);
+    json(['ok' => true]);
+}
 
 // ── GET social/auth-url?platform=xxx ─────────────────────────────────────
 if ($action === 'social-auth-url' && $method === 'GET') {

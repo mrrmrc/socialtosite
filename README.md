@@ -152,6 +152,15 @@ Con questo, ogni `git push` deploya automaticamente via FTP. 🚀
 - **Sitemap:** `https://tuodominio.it/s/nomeutente/sitemap.xml`
 - **API:** `https://tuodominio.it/api/index.php?action=...`
 
+## Utenti e area amministrativa
+
+- La registrazione pubblica crea nuovi utenti con ruolo `user`.
+- Su un database nuovo, il primo account registrato diventa automaticamente `admin`.
+- Gli amministratori vedono la scheda **Admin** nella dashboard e possono creare utenti, cambiare ruolo/piano, vedere quanti social e contenuti ha ogni utente ed eliminare account.
+- Ogni utente gestisce solo il proprio spazio social, i propri contenuti e il proprio sito pubblico.
+
+Per database gia esistenti, importa `db/migration_admin_users.sql` in phpMyAdmin dopo aver sostituito `admin@example.com` con l'email dell'account da promuovere ad amministratore.
+
 ---
 
 ## Registrazione app OAuth

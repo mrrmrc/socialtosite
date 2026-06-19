@@ -385,7 +385,7 @@ function DashboardScreen({ token, user, onLogout }) {
   }
 
   async function hidePost(id) {
-    await apiFetch('/api/index.php?action=hide-post', { method: 'POST' }, token);
+    await apiFetch('/api/index.php?action=hide-post', { method: 'POST', body: JSON.stringify({ id }) }, token);
     setData(prev => ({ ...prev, posts: prev.posts.filter(p => p.id !== id) }));
   }
 
@@ -404,6 +404,9 @@ function DashboardScreen({ token, user, onLogout }) {
             <button className="btn btn-outline" onClick={syncNow} disabled={syncing}>
               {syncing ? '⟳ Sync...' : '↻ Aggiorna ora'}
             </button>
+            {user.role === 'admin' && (
+              <button className="btn btn-outline" onClick={() => setTab('admin')} style={{ fontSize: '13px' }}>Admin</button>
+            )}
             <button className="btn btn-outline" onClick={onLogout} style={{ fontSize: '13px' }}>Esci</button>
           </div>
         </div>
@@ -472,7 +475,12 @@ function DashboardScreen({ token, user, onLogout }) {
 
         {/* Tabs */}
         <div style={{ display: 'flex', gap: '4px', marginBottom: '1.25rem', background: 'var(--gray-light)', padding: '4px', borderRadius: 'var(--radius-sm)', width: 'fit-content' }}>
-          {[['site', '📄 Sito'], ['seo', '📈 SEO'], ['settings', '⚙️ Impostazioni']].map(([t, l]) => (
+          {[
+            ['site', '📄 Sito'],
+            ['seo', '📈 SEO'],
+            ['settings', '⚙️ Impostazioni'],
+            ...(user.role === 'admin' ? [['admin', 'Admin']] : [])
+          ].map(([t, l]) => (
             <button key={t} onClick={() => setTab(t)}
               style={{ padding: '6px 16px', borderRadius: '5px', fontWeight: tab === t ? 600 : 400,
                 background: tab === t ? 'var(--surface)' : 'transparent',
@@ -623,6 +631,138 @@ function DashboardScreen({ token, user, onLogout }) {
             </div>
           </div>
         )}
+
+        {tab === 'admin' && user.role === 'admin' && (
+          <AdminScreen token={token} currentUser={user} />
+        )}
+      </div>
+    </div>
+  );
+}
+
+function AdminScreen({ token, currentUser }) {
+  const [users, setUsers] = useState([]);
+  const [form, setForm] = useState({ name: '', email: '', password: '', role: 'user' });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  useEffect(() => { loadUsers(); }, []);
+
+  async function loadUsers() {
+    try {
+      const data = await apiFetch('/api/index.php?action=admin-users', {}, token);
+      setUsers(data.users || []);
+    } catch (e) {
+      setError(e.message);
+    }
+  }
+
+  async function createUser(e) {
+    e.preventDefault();
+    setLoading(true); setError('');
+    try {
+      await apiFetch('/api/index.php?action=admin-create-user', {
+        method: 'POST',
+        body: JSON.stringify(form)
+      }, token);
+      setForm({ name: '', email: '', password: '', role: 'user' });
+      await loadUsers();
+    } catch (e) {
+      setError(e.message);
+    }
+    setLoading(false);
+  }
+
+  async function updateUser(id, patch) {
+    setError('');
+    try {
+      await apiFetch('/api/index.php?action=admin-update-user', {
+        method: 'POST',
+        body: JSON.stringify({ id, ...patch })
+      }, token);
+      await loadUsers();
+    } catch (e) {
+      setError(e.message);
+    }
+  }
+
+  async function deleteUser(id) {
+    if (!confirm('Eliminare questo utente e tutti i suoi contenuti?')) return;
+    setError('');
+    try {
+      await apiFetch('/api/index.php?action=admin-delete-user', {
+        method: 'POST',
+        body: JSON.stringify({ id })
+      }, token);
+      await loadUsers();
+    } catch (e) {
+      setError(e.message);
+    }
+  }
+
+  return (
+    <div>
+      <div className="card" style={{ marginBottom: '1rem' }}>
+        <h3 style={{ marginBottom: '1rem' }}>Crea nuovo utente</h3>
+        <form onSubmit={createUser} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+          <div className="form-group" style={{ marginBottom: 0 }}>
+            <label className="label">Nome</label>
+            <input type="text" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} />
+          </div>
+          <div className="form-group" style={{ marginBottom: 0 }}>
+            <label className="label">Email</label>
+            <input type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} required />
+          </div>
+          <div className="form-group" style={{ marginBottom: 0 }}>
+            <label className="label">Password temporanea</label>
+            <input type="password" value={form.password} onChange={e => setForm({ ...form, password: e.target.value })} required />
+          </div>
+          <div className="form-group" style={{ marginBottom: 0 }}>
+            <label className="label">Ruolo</label>
+            <select value={form.role} onChange={e => setForm({ ...form, role: e.target.value })}
+              style={{ width: '100%', padding: '10px 14px', border: '1px solid var(--border-strong)', borderRadius: 'var(--radius-sm)', background: 'var(--surface)' }}>
+              <option value="user">Utente</option>
+              <option value="admin">Admin</option>
+            </select>
+          </div>
+          <button className="btn btn-primary" disabled={loading} style={{ gridColumn: '1 / -1', justifyContent: 'center' }}>
+            {loading ? 'Creazione...' : 'Crea utente'}
+          </button>
+        </form>
+        {error && <div style={{ background: 'var(--red-light)', color: 'var(--red)', padding: '10px 14px', borderRadius: 'var(--radius-sm)', marginTop: '1rem', fontSize: '13px' }}>{error}</div>}
+      </div>
+
+      <div className="card">
+        <h3 style={{ marginBottom: '1rem' }}>Utenti</h3>
+        {users.map(u => {
+          const siteUrl = `${API.replace('3001', '3000')}/s/${u.slug}`;
+          return (
+            <div key={u.id} style={{ display: 'grid', gridTemplateColumns: '1.4fr .8fr .7fr auto', gap: '12px', alignItems: 'center', padding: '12px 0', borderBottom: '1px solid var(--border)' }}>
+              <div>
+                <div style={{ fontWeight: 600 }}>{u.name || u.email}</div>
+                <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{u.email}</div>
+                <a href={siteUrl} target="_blank" rel="noopener" style={{ fontSize: '12px', color: 'var(--purple)', textDecoration: 'none' }}>{siteUrl}</a>
+              </div>
+              <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+                <div>{u.posts_count} contenuti</div>
+                <div>{u.connections_count} social attivi</div>
+              </div>
+              <div style={{ display: 'grid', gap: '6px' }}>
+                <select value={u.role || 'user'} onChange={e => updateUser(u.id, { role: e.target.value })}
+                  style={{ padding: '7px', border: '1px solid var(--border-strong)', borderRadius: 'var(--radius-sm)', background: 'var(--surface)' }}>
+                  <option value="user">Utente</option>
+                  <option value="admin">Admin</option>
+                </select>
+                <input type="text" defaultValue={u.plan || 'free'} onBlur={e => updateUser(u.id, { plan: e.target.value })}
+                  style={{ padding: '7px', fontSize: '12px' }} />
+              </div>
+              <button className="btn btn-outline" onClick={() => deleteUser(u.id)} disabled={u.id === currentUser.id}
+                style={{ color: 'var(--red)', borderColor: 'var(--red-light)' }}>
+                Elimina
+              </button>
+            </div>
+          );
+        })}
       </div>
     </div>
   );

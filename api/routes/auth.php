@@ -31,14 +31,17 @@ if ($method === 'POST' && $path === 'register') {
         $slug = $base . $i++;
     }
 
+    $hasUsers = DB::fetch('SELECT id FROM users LIMIT 1');
+    $role = $hasUsers ? 'user' : 'admin';
+
     $userId = DB::insert(
-        'INSERT INTO users (email, password, name, slug) VALUES (?,?,?,?)',
-        [$email, $hash, $name, $slug]
+        'INSERT INTO users (email, password, name, slug, role) VALUES (?,?,?,?,?)',
+        [$email, $hash, $name, $slug, $role]
     );
     DB::execute('INSERT INTO sites (user_id, title) VALUES (?,?)', [$userId, $name ?: $email]);
 
-    $token = JWT::encode(['id' => $userId, 'email' => $email, 'slug' => $slug]);
-    json(['token' => $token, 'user' => ['id' => $userId, 'email' => $email, 'name' => $name, 'slug' => $slug]]);
+    $token = JWT::encode(['id' => $userId, 'email' => $email, 'slug' => $slug, 'role' => $role]);
+    json(['token' => $token, 'user' => ['id' => $userId, 'email' => $email, 'name' => $name, 'slug' => $slug, 'role' => $role]]);
 }
 
 // POST /api/auth.php?action=login
@@ -52,10 +55,11 @@ if ($method === 'POST' && $path === 'login') {
         jsonError('Credenziali non valide', 401);
     }
 
-    $token = JWT::encode(['id' => $user['id'], 'email' => $user['email'], 'slug' => $user['slug']]);
+    $role = $user['role'] ?? 'user';
+    $token = JWT::encode(['id' => $user['id'], 'email' => $user['email'], 'slug' => $user['slug'], 'role' => $role]);
     json(['token' => $token, 'user' => [
         'id' => $user['id'], 'email' => $user['email'],
-        'name' => $user['name'], 'slug' => $user['slug']
+        'name' => $user['name'], 'slug' => $user['slug'], 'role' => $role
     ]]);
 }
 
