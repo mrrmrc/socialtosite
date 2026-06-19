@@ -80,7 +80,7 @@ if ($action === 'admin-users' && $method === 'GET') {
     requireAdmin($isAdmin);
     $users = DB::fetchAll(
         'SELECT u.id, u.email, u.name, u.slug, u.role, u.plan, u.created_at,
-                s.title AS site_title, s.last_sync,
+                s.title AS site_title, s.last_sync, s.role_mission, s.content_strategy,
                 COUNT(DISTINCT sc.id) AS connections_count,
                 COUNT(DISTINCT p.id) AS posts_count
          FROM users u
@@ -133,11 +133,16 @@ if ($action === 'admin-update-user' && $method === 'POST') {
     if (isset($b['password']) && strlen($b['password']) >= 8) {
         DB::execute('UPDATE users SET password=? WHERE id=?', [password_hash($b['password'], PASSWORD_BCRYPT), $targetId]);
     }
+    
+    if (array_key_exists('role_mission', $b) || array_key_exists('content_strategy', $b)) {
+        DB::execute('UPDATE sites SET role_mission=COALESCE(?,role_mission), content_strategy=COALESCE(?,content_strategy) WHERE user_id=?',
+            [$b['role_mission'] ?? null, $b['content_strategy'] ?? null, $targetId]);
+    }
+    
     json(['ok' => true]);
 }
 
 if ($action === 'admin-delete-user' && $method === 'POST') {
-    requireAdmin($isAdmin);
     $b = body();
     $targetId = (int)($b['id'] ?? 0);
     if (!$targetId) jsonError('Utente non valido');

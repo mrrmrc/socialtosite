@@ -328,6 +328,201 @@ function GeneratingScreen({ token, userId, onDone }) {
       </div>
     </div>
   );
+        <div className="card">
+          <div style={{ display: 'flex', gap: '8px', marginBottom: '1.5rem' }}>
+            {['login', 'register'].map(m => (
+              <button key={m} className={`btn btn-full ${mode === m ? 'btn-primary' : 'btn-outline'}`}
+                onClick={() => setMode(m)}>
+                {m === 'login' ? 'Accedi' : 'Registrati'}
+              </button>
+            ))}
+          </div>
+
+          <form onSubmit={submit}>
+            {mode === 'register' && (
+              <div className="form-group">
+                <label className="label">Nome o nome attività</label>
+                <input type="text" placeholder="Es: Marco Rossi Ceramiche" value={name} onChange={e => setName(e.target.value)} />
+              </div>
+            )}
+            <div className="form-group">
+              <label className="label">Email</label>
+              <input type="email" placeholder="tua@email.it" value={email} onChange={e => setEmail(e.target.value)} required />
+            </div>
+            <div className="form-group">
+              <label className="label">Password</label>
+              <input type="password" placeholder="Minimo 8 caratteri" value={password} onChange={e => setPassword(e.target.value)} required />
+            </div>
+            {error && <div style={{ background: 'var(--red-light)', color: 'var(--red)', padding: '10px 14px', borderRadius: 'var(--radius-sm)', marginBottom: '1rem', fontSize: '13px' }}>{error}</div>}
+            <button type="submit" className="btn btn-primary btn-full" disabled={loading}>
+              {loading ? 'Caricamento...' : mode === 'login' ? 'Entra nella piattaforma →' : 'Crea il mio account →'}
+            </button>
+          </form>
+
+          <div className="divider" />
+          <div style={{ fontSize: '12px', color: 'var(--text-faint)', textAlign: 'center' }}>
+            Piano gratuito · Fino a 3 social · Nessuna carta richiesta
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════
+// Screen: Connetti Social
+// ═══════════════════════════════════════════════════════════════
+function ConnectScreen({ token, onDone }) {
+  const [connections, setConnections] = useState({});
+  const [loading, setLoading] = useState(null);
+
+  useEffect(() => {
+    // Controlla parametri URL per callback OAuth
+    const params = new URLSearchParams(window.location.search);
+    const connected = params.get('connected');
+    const oauthError = params.get('error');
+    if (connected) {
+      setConnections(prev => ({ ...prev, [connected]: { handle: 'Connesso ✓' } }));
+      window.history.replaceState({}, '', window.location.pathname);
+    } else if (oauthError) {
+      const platform = params.get('platform') || 'il social';
+      alert(`Connessione a ${platform} non riuscita (${oauthError}). Riprova.`);
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+    loadConnections();
+  }, []);
+
+  async function loadConnections() {
+    try {
+      const data = await apiFetch('/api/index.php?action=social-connections', {}, token);
+      const map = {};
+      data.forEach(c => { if (c.active) map[c.platform] = c; });
+      setConnections(map);
+    } catch {}
+  }
+
+  async function connect(platform) {
+    setLoading(platform);
+    try {
+      const data = await apiFetch(`/api/index.php?action=social-auth-url&platform=${platform}`, {}, token);
+      window.location.href = data.url;
+    } catch (e) {
+      alert('Errore connessione: ' + e.message);
+      setLoading(null);
+    }
+  }
+
+  const connectedCount = Object.keys(connections).length;
+
+  return (
+    <div style={{ minHeight: '100vh', background: 'var(--bg)', padding: '2rem 1rem' }}>
+      <div style={{ maxWidth: '500px', margin: '0 auto' }}>
+        <ProgressBar step={1} />
+        <h1 style={{ marginBottom: '0.25rem' }}>Connetti i tuoi social</h1>
+        <p style={{ color: 'var(--text-muted)', marginBottom: '1.5rem', fontSize: '14px' }}>
+          Connetti almeno un social. Clicca e verrai reindirizzato alla pagina ufficiale della piattaforma — noi non vediamo mai la tua password.
+        </p>
+
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '1.5rem' }}>
+          {Object.entries(SOCIAL).map(([platform, info]) => {
+            const isConnected = !!connections[platform];
+            return (
+              <div key={platform}
+                onClick={() => !isConnected && connect(platform)}
+                style={{
+                  background: isConnected ? 'var(--teal-light)' : 'var(--surface)',
+                  border: `1.5px solid ${isConnected ? 'var(--teal)' : 'var(--border-strong)'}`,
+                  borderRadius: 'var(--radius)', padding: '1.25rem',
+                  cursor: isConnected ? 'default' : 'pointer',
+                  transition: 'all .15s',
+                  opacity: loading === platform ? 0.6 : 1,
+                }}>
+                <div style={{ fontSize: '28px', marginBottom: '6px' }}>{info.icon}</div>
+                <div style={{ fontWeight: 600, marginBottom: '3px' }}>{info.label}</div>
+                {isConnected ? (
+                  <>
+                    <div style={{ fontSize: '12px', color: 'var(--teal)', fontWeight: 500 }}>✓ Connesso</div>
+                    {connections[platform]?.handle && (
+                      <div style={{ fontSize: '12px', color: '#0F6E56' }}>{connections[platform].handle}</div>
+                    )}
+                  </>
+                ) : (
+                  <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+                    {loading === platform ? 'Apertura...' : 'Tocca per connettere'}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+
+        <button className="btn btn-primary btn-full" disabled={connectedCount === 0} onClick={onDone}
+          style={{ fontSize: '15px', padding: '12px' }}>
+          {connectedCount === 0 ? 'Connetti almeno 1 social per continuare' : `Genera il mio sito con ${connectedCount} social →`}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════
+// Screen: Generazione AI in corso
+// ═══════════════════════════════════════════════════════════════
+function GeneratingScreen({ token, userId, onDone }) {
+  const [logs, setLogs] = useState([
+    { text: 'Connessione ai social...', status: 'pending' },
+    { text: 'Recupero contenuti recenti...', status: 'pending' },
+    { text: 'Trascrizione video con Whisper AI...', status: 'pending' },
+    { text: 'Generazione testo SEO-friendly...', status: 'pending' },
+    { text: 'Estrazione tag e parole chiave...', status: 'pending' },
+    { text: 'Calcolo score SEO...', status: 'pending' },
+    { text: 'Composizione pagina finale...', status: 'pending' },
+  ]);
+  const [done, setDone] = useState(false);
+
+  useEffect(() => {
+    let i = 0;
+    // Anima i log mentre il backend lavora
+    const animate = () => {
+      setLogs(prev => prev.map((l, idx) => idx < i ? { ...l, status: 'done' } : idx === i ? { ...l, status: 'active' } : l));
+      i++;
+      if (i <= logs.length) setTimeout(animate, 900 + Math.random() * 500);
+    };
+    animate();
+
+    // Chiama il backend per sync reale
+    apiFetch('/api/index.php?action=sync', { method: 'POST' }, token)
+      .then(() => { setDone(true); })
+      .catch(() => { setDone(true); }); // Mostra preview anche in caso di errore parziale
+  }, []);
+
+  return (
+    <div style={{ minHeight: '100vh', background: 'var(--bg)', padding: '2rem 1rem' }}>
+      <div style={{ maxWidth: '500px', margin: '0 auto' }}>
+        <ProgressBar step={2} />
+        <h1 style={{ marginBottom: '0.25rem' }}>AI al lavoro...</h1>
+        <p style={{ color: 'var(--text-muted)', marginBottom: '1.5rem', fontSize: '14px' }}>
+          Stiamo analizzando i tuoi contenuti e costruendo il sito. Ci vogliono circa 60 secondi.
+        </p>
+        <div className="card" style={{ fontFamily: 'monospace', fontSize: '13px' }}>
+          {logs.map((log, i) => (
+            <div key={i} style={{ display: 'flex', gap: '10px', alignItems: 'center', marginBottom: '10px',
+              color: log.status === 'done' ? 'var(--teal)' : log.status === 'active' ? 'var(--purple)' : 'var(--text-faint)',
+              transition: 'color .3s' }}>
+              <span>{log.status === 'done' ? '✓' : log.status === 'active' ? '⟳' : '○'}</span>
+              <span>{log.text}</span>
+            </div>
+          ))}
+        </div>
+        {done && (
+          <button className="btn btn-primary btn-full" onClick={onDone}
+            style={{ marginTop: '1rem', fontSize: '15px', padding: '12px' }}>
+            Visualizza il tuo sito →
+          </button>
+        )}
+      </div>
+    </div>
+  );
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -335,6 +530,7 @@ function GeneratingScreen({ token, userId, onDone }) {
 // ═══════════════════════════════════════════════════════════════
 function DashboardScreen({ token, user, onLogout }) {
   const [tab, setTab] = useState('site');
+  const [dashboardFilter, setDashboardFilter] = useState('all');
   const [data, setData] = useState(null);
   const [syncing, setSyncing] = useState(false);
   const [linkUrl, setLinkUrl] = useState('');
@@ -668,8 +864,24 @@ function DashboardScreen({ token, user, onLogout }) {
         </div>
 
         {/* Tab: Sito */}
-        {tab === 'site' && (
+        {tab === 'site' && (() => {
+          const allPlatforms = [...new Set(posts.map(p => p.platform))].sort();
+          const allTags = [...new Set(posts.flatMap(p => p.tags || []).map(t => t.toLowerCase()))].sort();
+          const filteredPosts = posts.filter(p => {
+            if (dashboardFilter === 'all') return true;
+            if (dashboardFilter.startsWith('platform-')) return p.platform === dashboardFilter.replace('platform-', '');
+            if (dashboardFilter.startsWith('tag-')) return (p.tags || []).map(t => t.toLowerCase()).includes(dashboardFilter.replace('tag-', ''));
+            return true;
+          });
+          return (
           <div>
+            <div style={{ marginBottom: '1rem', background: 'var(--surface)', padding: '10px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)' }}>
+              <select onChange={(e) => setDashboardFilter(e.target.value)} value={dashboardFilter} style={{ width: '100%', padding: '6px', fontSize: '13px' }}>
+                <option value="all">Tutti i contenuti</option>
+                {allPlatforms.map(p => <option key={p} value={`platform-${p}`}>{SOCIAL[p]?.label || p}</option>)}
+                {allTags.map(t => <option key={t} value={`tag-${t}`}>Tag: {t}</option>)}
+              </select>
+            </div>
             <div style={{ display: 'flex', gap: '8px', marginBottom: '1rem' }}>
               <a href={siteUrl} target="_blank" rel="noopener"
                 style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '8px 14px', background: 'var(--purple)', color: '#fff', borderRadius: 'var(--radius-sm)', textDecoration: 'none', fontSize: '13px', fontWeight: 500 }}>
@@ -681,14 +893,14 @@ function DashboardScreen({ token, user, onLogout }) {
               </a>
             </div>
 
-            {posts.length === 0 ? (
+            {filteredPosts.length === 0 ? (
               <div className="card" style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '3rem' }}>
                 <div style={{ fontSize: '40px', marginBottom: '1rem' }}>📭</div>
                 <h3>Nessun contenuto ancora</h3>
                 <p style={{ fontSize: '13px', marginTop: '0.5rem' }}>Clicca "Aggiorna ora" per importare i tuoi contenuti social.</p>
               </div>
             ) : (
-              posts.map(post => (
+              filteredPosts.map(post => (
                 <div key={post.id} className="card" style={{ marginBottom: '12px' }}>
                   <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '1rem' }}>
                     <div style={{ flex: 1 }}>
@@ -724,7 +936,7 @@ function DashboardScreen({ token, user, onLogout }) {
               ))
             )}
           </div>
-        )}
+        )})}
 
         {/* Tab: SEO */}
         {tab === 'seo' && (
@@ -848,183 +1060,6 @@ function DashboardScreen({ token, user, onLogout }) {
                 <div key={c.platform} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                     <SocialIcon platform={c.platform} size={18} />
-                    <div>
-                      <div style={{ fontWeight: 500, fontSize: '14px' }}>{SOCIAL[c.platform]?.label}</div>
-                      {c.handle && <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{c.handle}</div>}
-                    </div>
-                  </div>
-                  <span className={`badge ${c.active ? 'badge-green' : 'badge-red'}`}>
-                    {c.active ? 'Attivo' : 'Inattivo'}
-                  </span>
-                </div>
-              ))}
-            </div>
-
-            <div className="card" style={{ marginBottom: '1rem' }}>
-              <h3 style={{ marginBottom: '1rem' }}>Il tuo sito</h3>
-              <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>URL pubblico</div>
-              <div style={{ background: 'var(--gray-light)', padding: '10px 14px', borderRadius: 'var(--radius-sm)', fontFamily: 'monospace', fontSize: '13px', marginBottom: '1rem', wordBreak: 'break-all' }}>
-                {siteUrl}
-              </div>
-              <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>Sitemap per Google</div>
-              <div style={{ background: 'var(--gray-light)', padding: '10px 14px', borderRadius: 'var(--radius-sm)', fontFamily: 'monospace', fontSize: '13px', wordBreak: 'break-all' }}>
-                {siteUrl}/sitemap.xml
-              </div>
-            </div>
-
-            <div className="card">
-              <h3 style={{ marginBottom: '0.5rem' }}>Sincronizzazione automatica</h3>
-              <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '0.75rem' }}>
-                Il tuo sito si aggiorna automaticamente ogni 6 ore quando pubblichi nuovi contenuti sui social.
-              </p>
-              {site?.last_sync && (
-                <p style={{ fontSize: '13px', color: 'var(--text-faint)' }}>
-                  Ultima sincronizzazione: {new Date(site.last_sync).toLocaleString('it-IT')}
-                </p>
-              )}
-            </div>
-          </div>
-        )}
-
-        {tab === 'admin' && user.role === 'admin' && (
-          <AdminScreen token={token} currentUser={user} />
-        )}
-      </div>
-    </div>
-  );
-}
-
-function AdminScreen({ token, currentUser }) {
-  const [users, setUsers] = useState([]);
-  const [form, setForm] = useState({ name: '', email: '', password: '', role: 'user' });
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-
-  useEffect(() => { loadUsers(); }, []);
-
-  async function loadUsers() {
-    try {
-      const data = await apiFetch('/api/index.php?action=admin-users', {}, token);
-      setUsers(data.users || []);
-    } catch (e) {
-      setError(e.message);
-    }
-  }
-
-  async function createUser(e) {
-    e.preventDefault();
-    setLoading(true); setError('');
-    try {
-      await apiFetch('/api/index.php?action=admin-create-user', {
-        method: 'POST',
-        body: JSON.stringify(form)
-      }, token);
-      setForm({ name: '', email: '', password: '', role: 'user' });
-      await loadUsers();
-    } catch (e) {
-      setError(e.message);
-    }
-    setLoading(false);
-  }
-
-  async function updateUser(id, patch) {
-    setError('');
-    try {
-      await apiFetch('/api/index.php?action=admin-update-user', {
-        method: 'POST',
-        body: JSON.stringify({ id, ...patch })
-      }, token);
-      await loadUsers();
-    } catch (e) {
-      setError(e.message);
-    }
-  }
-
-  async function deleteUser(id) {
-    if (!confirm('Eliminare questo utente e tutti i suoi contenuti?')) return;
-    setError('');
-    try {
-      await apiFetch('/api/index.php?action=admin-delete-user', {
-        method: 'POST',
-        body: JSON.stringify({ id })
-      }, token);
-      await loadUsers();
-    } catch (e) {
-      setError(e.message);
-    }
-  }
-
-  return (
-    <div>
-      <div className="card" style={{ marginBottom: '1rem' }}>
-        <h3 style={{ marginBottom: '1rem' }}>Crea nuovo utente</h3>
-        <form onSubmit={createUser} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-          <div className="form-group" style={{ marginBottom: 0 }}>
-            <label className="label">Nome</label>
-            <input type="text" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} />
-          </div>
-          <div className="form-group" style={{ marginBottom: 0 }}>
-            <label className="label">Email</label>
-            <input type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} required />
-          </div>
-          <div className="form-group" style={{ marginBottom: 0 }}>
-            <label className="label">Password temporanea</label>
-            <input type="password" value={form.password} onChange={e => setForm({ ...form, password: e.target.value })} required />
-          </div>
-          <div className="form-group" style={{ marginBottom: 0 }}>
-            <label className="label">Ruolo</label>
-            <select value={form.role} onChange={e => setForm({ ...form, role: e.target.value })}
-              style={{ width: '100%', padding: '10px 14px', border: '1px solid var(--border-strong)', borderRadius: 'var(--radius-sm)', background: 'var(--surface)' }}>
-              <option value="user">Utente</option>
-              <option value="admin">Admin</option>
-            </select>
-          </div>
-          <button className="btn btn-primary" disabled={loading} style={{ gridColumn: '1 / -1', justifyContent: 'center' }}>
-            {loading ? 'Creazione...' : 'Crea utente'}
-          </button>
-        </form>
-        {error && <div style={{ background: 'var(--red-light)', color: 'var(--red)', padding: '10px 14px', borderRadius: 'var(--radius-sm)', marginTop: '1rem', fontSize: '13px' }}>{error}</div>}
-      </div>
-
-      <div className="card">
-        <h3 style={{ marginBottom: '1rem' }}>Utenti</h3>
-        {users.map(u => {
-          const siteUrl = `${API.replace('3001', '3000')}/s/${u.slug}`;
-          return (
-            <div key={u.id} style={{ display: 'grid', gridTemplateColumns: '1.4fr .8fr .7fr auto', gap: '12px', alignItems: 'center', padding: '12px 0', borderBottom: '1px solid var(--border)' }}>
-              <div>
-                <div style={{ fontWeight: 600 }}>{u.name || u.email}</div>
-                <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{u.email}</div>
-                <a href={siteUrl} target="_blank" rel="noopener" style={{ fontSize: '12px', color: 'var(--purple)', textDecoration: 'none' }}>{siteUrl}</a>
-              </div>
-              <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-                <div>{u.posts_count} contenuti</div>
-                <div>{u.connections_count} social attivi</div>
-              </div>
-              <div style={{ display: 'grid', gap: '6px' }}>
-                <select value={u.role || 'user'} onChange={e => updateUser(u.id, { role: e.target.value })}
-                  style={{ padding: '7px', border: '1px solid var(--border-strong)', borderRadius: 'var(--radius-sm)', background: 'var(--surface)' }}>
-                  <option value="user">Utente</option>
-                  <option value="admin">Admin</option>
-                </select>
-                <input type="text" defaultValue={u.plan || 'free'} onBlur={e => updateUser(u.id, { plan: e.target.value })}
-                  style={{ padding: '7px', fontSize: '12px' }} />
-              </div>
-              <button className="btn btn-outline" onClick={() => deleteUser(u.id)} disabled={u.id === currentUser.id}
-                style={{ color: 'var(--red)', borderColor: 'var(--red-light)' }}>
-                Elimina
-              </button>
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-// ── Progress bar step ────────────────────────────────────────────────────────
-function ProgressBar({ step }) {
-  const pct = { 1: 33, 2: 66, 3: 100 }[step] || 0;
   return (
     <div style={{ marginBottom: '1.5rem' }}>
       <div style={{ fontSize: '12px', color: 'var(--text-faint)', marginBottom: '6px' }}>Passo {step} di 3</div>

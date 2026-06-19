@@ -152,6 +152,10 @@ function bodyHtml(string $b): string {
     body.theme-academy{--bg:#f7f8fb;--container:820px;--accent:#3b5b92;--card-radius:6px;--card-pad:1.6rem}
     body.theme-timeline{--bg:#fbfaf7;--container:760px;--accent:#795548;--card-radius:6px}
     body.theme-timeline .post{border-left:4px solid var(--accent)}
+    .filters{display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:1.5rem;align-items:center}
+    .filter-btn{background:var(--card,#fff);border:1px solid var(--line,#eee);padding:.4rem .8rem;border-radius:20px;font-size:.85rem;cursor:pointer;color:inherit}
+    .filter-btn.active{background:var(--accent,#7F77DD);color:#fff;border-color:var(--accent,#7F77DD)}
+    .post.hidden{display:none !important}
     @media(max-width:600px){.post{padding:1rem}}
   </style>
 </head>
@@ -193,14 +197,46 @@ function bodyHtml(string $b): string {
     <?php endif; ?>
     <?php if ($p['tags']): ?>
     <div class="tags"><?php foreach ($p['tags'] as $tag): ?><span class="tag"><?= h($tag) ?></span><?php endforeach; ?></div>
+    <?php if ($p['tags']): ?>
+    <div class="tags"><?php foreach ($p['tags'] as $tag): ?><span class="tag"><?= h($tag) ?></span><?php endforeach; ?></div>
     <?php endif; ?>
     <meta itemprop="datePublished" content="<?= h($p['published_at'] ?? '') ?>">
   </article>
 
   <?php else: ?>
+  <?php
+    $allPlatforms = array_unique(array_column($posts, 'platform'));
+    $allTags = [];
+    foreach ($posts as $p) {
+        if (!empty($p['tags'])) {
+            foreach ($p['tags'] as $t) { $allTags[] = strtolower(trim($t)); }
+        }
+    }
+    $allTags = array_unique($allTags);
+    sort($allPlatforms);
+    sort($allTags);
+  ?>
+  <?php if ($posts): ?>
+  <div class="filters" id="post-filters">
+    <button class="filter-btn active" data-filter="all">Tutti</button>
+    <?php foreach ($allPlatforms as $pf): ?>
+      <button class="filter-btn" data-filter="platform-<?= h($pf) ?>"><?= $icons[$pf] ?? '' ?> <?= h(ucfirst($pf)) ?></button>
+    <?php endforeach; ?>
+    <?php foreach ($allTags as $tag): ?>
+      <button class="filter-btn" data-filter="tag-<?= h($tag) ?>">#<?= h($tag) ?></button>
+    <?php endforeach; ?>
+  </div>
+  <?php endif; ?>
+
   <section class="post-list" aria-label="Contenuti pubblicati">
-  <?php foreach ($posts as $p): $purl = $siteUrl . '/' . h($p['slug'] ?? ''); ?>
-  <article class="post" itemscope itemtype="https://schema.org/Article">
+  <?php foreach ($posts as $p): 
+      $purl = $siteUrl . '/' . h($p['slug'] ?? ''); 
+      $ptagString = '';
+      if (!empty($p['tags'])) {
+          $ptagString = implode(' ', array_map(function($t) { return 'tag-' . strtolower(trim($t)); }, $p['tags']));
+      }
+  ?>
+  <article class="post" itemscope itemtype="https://schema.org/Article" data-platform="platform-<?= h($p['platform']) ?>" data-tags="<?= h($ptagString) ?>">
     <div class="meta">
       <span><?= $icons[$p['platform']] ?? '📄' ?> <?= h($p['platform']) ?></span>
       <span><?= $p['published_at'] ? date('d/m/Y', strtotime($p['published_at'])) : '' ?></span>
@@ -243,5 +279,33 @@ function bodyHtml(string $b): string {
   <?php if (!empty($deployInfo['release'])): ?>· <?= h($deployInfo['release']) ?><?php endif; ?>
   <?php endif; ?>
 </footer>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const filters = document.getElementById('post-filters');
+  if (!filters) return;
+  const btns = filters.querySelectorAll('.filter-btn');
+  const posts = document.querySelectorAll('.post-list .post');
+
+  btns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      btns.forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      const filter = btn.getAttribute('data-filter');
+
+      posts.forEach(post => {
+        if (filter === 'all') {
+          post.classList.remove('hidden');
+        } else if (filter.startsWith('platform-')) {
+          post.classList.toggle('hidden', post.getAttribute('data-platform') !== filter);
+        } else if (filter.startsWith('tag-')) {
+          const tags = post.getAttribute('data-tags').split(' ');
+          post.classList.toggle('hidden', !tags.includes(filter));
+        }
+      });
+    });
+  });
+});
+</script>
 </body>
 </html>
