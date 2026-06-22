@@ -353,6 +353,8 @@ function DashboardScreen({ token, user, onLogout }) {
   const [strategyDraft, setStrategyDraft] = useState('');
   const [selectedTheme, setSelectedTheme] = useState('classic');
   const [savingProfile, setSavingProfile] = useState(false);
+  const [syncLimit, setSyncLimit] = useState(20);
+  const [syncSince, setSyncSince] = useState('');
 
   useEffect(() => { loadData(); loadDrafts(); }, []);
 
@@ -412,7 +414,10 @@ function DashboardScreen({ token, user, onLogout }) {
   async function syncNow() {
     setSyncing(true);
     try {
-      await apiFetch('/api/index.php?action=sync', { method: 'POST' }, token);
+      await apiFetch('/api/index.php?action=sync', { 
+        method: 'POST', 
+        body: JSON.stringify({ limit: parseInt(syncLimit) || 20, since_date: syncSince }) 
+      }, token);
       await loadData();
     } catch {}
     setSyncing(false);
@@ -529,6 +534,8 @@ function DashboardScreen({ token, user, onLogout }) {
         <div style={{ maxWidth: '800px', margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: '56px' }}>
           <div style={{ fontWeight: 700, fontSize: '17px', color: 'var(--purple)' }}>Social<span style={{ color: 'var(--text)' }}>ToSite</span></div>
           <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+            <input type="number" title="Max post da cercare per social" placeholder="Max" min="1" max="500" value={syncLimit} onChange={e => setSyncLimit(e.target.value)} style={{ width: '80px', padding: '6px', fontSize: '13px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)' }} />
+            <input type="date" title="Retroattività: scansiona a partire da questa data (opzionale)" value={syncSince} onChange={e => setSyncSince(e.target.value)} style={{ width: '130px', padding: '6px', fontSize: '13px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)' }} />
             <button className="btn btn-outline" onClick={syncNow} disabled={syncing}>
               {syncing ? '⟳ Sync...' : '↻ Aggiorna ora'}
             </button>

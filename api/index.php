@@ -301,7 +301,10 @@ if ($action === 'social-disconnect' && $method === 'POST') {
 
 // ── POST sync ─────────────────────────────────────────────────────────────
 if ($action === 'sync' && $method === 'POST') {
-    $results = Sync::syncUser($userId);
+    $b = body();
+    $maxPosts = isset($b['limit']) ? (int)$b['limit'] : 20;
+    $sinceDate = !empty($b['since_date']) ? $b['since_date'] : null;
+    $results = Sync::syncUser($userId, $maxPosts, $sinceDate);
     json(['ok' => true, 'results' => $results]);
 }
 

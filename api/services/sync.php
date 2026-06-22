@@ -83,7 +83,7 @@ class Sync {
     }
 
     // ── Instagram ──────────────────────────────────────────────────────────
-    public static function instagram(int $userId, string $token): array {
+    public static function instagram(int $userId, string $token, int $maxPosts = 20, ?string $sinceDate = null): array {
         $log = ['platform' => 'instagram', 'found' => 0, 'new' => 0, 'error' => null];
         try {
             $profile = self::get('https://graph.facebook.com/v18.0/me',
@@ -91,52 +91,100 @@ class Sync {
             $igId = $profile['instagram_business_account']['id'] ?? null;
             if (!$igId) throw new Exception('Nessun account Instagram Business');
 
-            $data = self::get("https://graph.facebook.com/v18.0/$igId/media", '', [
+            $url = "https://graph.facebook.com/v18.0/$igId/media";
+            $params = [
                 'fields'       => 'id,caption,media_type,media_url,thumbnail_url,timestamp',
-                'limit'        => 20,
+                'limit'        => min(50, $maxPosts),
                 'access_token' => $token,
-            ]);
-            $posts = $data['data'] ?? [];
-            $log['found'] = count($posts);
-            foreach ($posts as $p) {
-                $new = self::process($userId, 'instagram', $p['id'],
-                    $p['caption'] ?? '', $p['media_url'] ?? $p['thumbnail_url'] ?? '',
-                    $p['media_type'] ?? 'IMAGE', $p['timestamp'] ?? date('Y-m-d H:i:s'));
-                if ($new) $log['new']++;
+            ];
+
+            while ($url && $log['found'] < $maxPosts) {
+                $data = self::get($url, '', $params);
+                $posts = $data['data'] ?? [];
+                if (empty($posts)) break;
+                
+                foreach ($posts as $p) {
+                    if ($log['found'] >= $maxPosts) break;
+                    
+                    $ts = $p['timestamp'] ?? date('Y-m-d H:i:s');
+                    if ($sinceDate && strtotime($ts) < strtotime($sinceDate)) {
+                        $url = null; // stop pagination
+                        break;
+                    }
+                    
+                    $new = self::process($userId, 'instagram', $p['id'],
+                        $p['caption'] ?? '', $p['media_url'] ?? $p['thumbnail_url'] ?? '',
+                        $p['media_type'] ?? 'IMAGE', $ts);
+                    if ($new) $log['new']++;
+                    $log['found']++;
+                }
+                
+                if ($url && isset($data['paging']['next'])) {
+                    $url = $data['paging']['next'];
+                    $params = []; // The next URL already contains parameters and tokens
+                } else {
+                    break;
+                }
             }
         } catch (Exception $e) { $log['error'] = $e->getMessage(); }
         return $log;
     }
 
     // ── TikTok ─────────────────────────────────────────────────────────────
-    public static function tiktok(int $userId, string $token): array {
+    public static function tiktok(int $userId, string $token, int $maxPosts = 20, ?string $sinceDate = null): array {
         $log = ['platform' => 'tiktok', 'found' => 0, 'new' => 0, 'error' => null];
         try {
-            $ch = curl_init('https://open.tiktokapis.com/v2/video/list/');
-            curl_setopt_array($ch, [
-                CURLOPT_RETURNTRANSFER => true,
-                CURLOPT_POST           => true,
-                CURLOPT_HTTPHEADER     => ["Authorization: Bearer $token", 'Content-Type: application/json'],
-                CURLOPT_POSTFIELDS     => json_encode(['max_count' => 20,
-                    'fields' => ['id','title','video_description','create_time','cover_image_url']]),
-                CURLOPT_TIMEOUT        => 30,
-            ]);
-            $res    = curl_exec($ch); curl_close($ch);
-            $videos = json_decode($res, true)['data']['videos'] ?? [];
-            $log['found'] = count($videos);
-            foreach ($videos as $v) {
-                $new = self::process($userId, 'tiktok', $v['id'],
-                    $v['video_description'] ?? $v['title'] ?? '',
-                    '', 'VIDEO',
-                    date('Y-m-d H:i:s', $v['create_time'] ?? time()));
-                if ($new) $log['new']++;
+            $cursor = 0;
+            $hasMore = true;
+            
+            while ($hasMore && $log['found'] < $maxPosts) {
+                $limit = min(20, $maxPosts - $log['found']);
+                $ch = curl_init('https://open.tiktokapis.com/v2/video/list/');
+                curl_setopt_array($ch, [
+                    CURLOPT_RETURNTRANSFER => true,
+                    CURLOPT_POST           => true,
+                    CURLOPT_HTTPHEADER     => ["Authorization: Bearer $token", 'Content-Type: application/json'],
+                    CURLOPT_POSTFIELDS     => json_encode([
+                        'max_count' => $limit,
+                        'cursor' => $cursor,
+                        'fields' => ['id','title','video_description','create_time','cover_image_url']
+                    ]),
+                    CURLOPT_TIMEOUT        => 30,
+                ]);
+                $res = curl_exec($ch); curl_close($ch);
+                $respData = json_decode($res, true)['data'] ?? [];
+                $videos = $respData['videos'] ?? [];
+                
+                if (empty($videos)) break;
+                
+                foreach ($videos as $v) {
+                    if ($log['found'] >= $maxPosts) break;
+                    
+                    $ts = date('Y-m-d H:i:s', $v['create_time'] ?? time());
+                    if ($sinceDate && strtotime($ts) < strtotime($sinceDate)) {
+                        $hasMore = false;
+                        break;
+                    }
+                    
+                    $new = self::process($userId, 'tiktok', $v['id'],
+                        $v['video_description'] ?? $v['title'] ?? '',
+                        $v['cover_image_url'] ?? '', 'IMAGE', $ts);
+                    if ($new) $log['new']++;
+                    $log['found']++;
+                }
+                
+                if ($hasMore && isset($respData['has_more']) && $respData['has_more']) {
+                    $cursor = $respData['cursor'];
+                } else {
+                    break;
+                }
             }
         } catch (Exception $e) { $log['error'] = $e->getMessage(); }
         return $log;
     }
 
     // ── YouTube ────────────────────────────────────────────────────────────
-    public static function youtube(int $userId, string $token): array {
+    public static function youtube(int $userId, string $token, int $maxPosts = 20, ?string $sinceDate = null): array {
         $log = ['platform' => 'youtube', 'found' => 0, 'new' => 0, 'error' => null];
         try {
             $ch = self::get('https://www.googleapis.com/youtube/v3/channels',
@@ -144,26 +192,47 @@ class Sync {
             $uploadId = $ch['items'][0]['contentDetails']['relatedPlaylists']['uploads'] ?? null;
             if (!$uploadId) throw new Exception('Nessun canale trovato');
 
-            $items = self::get('https://www.googleapis.com/youtube/v3/playlistItems',
-                $token, ['part' => 'snippet', 'playlistId' => $uploadId, 'maxResults' => 20]);
-            $videos = $items['items'] ?? [];
-            $log['found'] = count($videos);
-            foreach ($videos as $item) {
-                $sn  = $item['snippet'] ?? [];
-                $vid = $sn['resourceId']['videoId'] ?? null;
-                if (!$vid) continue;
-                $new = self::process($userId, 'youtube', $vid,
-                    ($sn['description'] ?? '') ?: ($sn['title'] ?? ''),
-                    "https://www.youtube.com/watch?v=$vid", 'VIDEO',
-                    $sn['publishedAt'] ?? date('Y-m-d H:i:s'));
-                if ($new) $log['new']++;
+            $pageToken = '';
+            while ($pageToken !== null && $log['found'] < $maxPosts) {
+                $params = ['part' => 'snippet', 'playlistId' => $uploadId, 'maxResults' => min(50, $maxPosts - $log['found'])];
+                if ($pageToken) $params['pageToken'] = $pageToken;
+                
+                $items = self::get('https://www.googleapis.com/youtube/v3/playlistItems', $token, $params);
+                $videos = $items['items'] ?? [];
+                if (empty($videos)) break;
+
+                foreach ($videos as $item) {
+                    if ($log['found'] >= $maxPosts) break;
+                    
+                    $sn  = $item['snippet'] ?? [];
+                    $vid = $sn['resourceId']['videoId'] ?? null;
+                    if (!$vid) continue;
+                    
+                    $ts = $sn['publishedAt'] ?? date('Y-m-d H:i:s');
+                    if ($sinceDate && strtotime($ts) < strtotime($sinceDate)) {
+                        $pageToken = null;
+                        break;
+                    }
+
+                    $new = self::process($userId, 'youtube', $vid,
+                        ($sn['description'] ?? '') ?: ($sn['title'] ?? ''),
+                        "https://www.youtube.com/watch?v=$vid", 'VIDEO', $ts);
+                    if ($new) $log['new']++;
+                    $log['found']++;
+                }
+
+                if ($pageToken !== null && isset($items['nextPageToken'])) {
+                    $pageToken = $items['nextPageToken'];
+                } else {
+                    break;
+                }
             }
         } catch (Exception $e) { $log['error'] = $e->getMessage(); }
         return $log;
     }
 
     // ── Facebook ───────────────────────────────────────────────────────────
-    public static function facebook(int $userId, string $token): array {
+    public static function facebook(int $userId, string $token, int $maxPosts = 20, ?string $sinceDate = null): array {
         $log = ['platform' => 'facebook', 'found' => 0, 'new' => 0, 'error' => null];
         try {
             $pages = self::get('https://graph.facebook.com/v18.0/me/accounts',
@@ -171,25 +240,50 @@ class Sync {
             $page = $pages['data'][0] ?? null;
             if (!$page) throw new Exception('Nessuna pagina Facebook trovata');
 
-            $data  = self::get("https://graph.facebook.com/v18.0/{$page['id']}/posts", '', [
-                'fields'       => 'id,message,story,created_time',
-                'limit'        => 20,
+            $url = "https://graph.facebook.com/v18.0/{$page['id']}/posts";
+            $params = [
+                'fields'       => 'id,message,story,created_time,full_picture',
+                'limit'        => min(50, $maxPosts),
                 'access_token' => $page['access_token'],
-            ]);
-            $posts = $data['data'] ?? [];
-            $log['found'] = count($posts);
-            foreach ($posts as $p) {
-                $new = self::process($userId, 'facebook', $p['id'],
-                    $p['message'] ?? $p['story'] ?? '',
-                    '', 'text', $p['created_time'] ?? date('Y-m-d H:i:s'));
-                if ($new) $log['new']++;
+            ];
+
+            while ($url && $log['found'] < $maxPosts) {
+                $data = self::get($url, '', $params);
+                $posts = $data['data'] ?? [];
+                if (empty($posts)) break;
+                
+                foreach ($posts as $p) {
+                    if ($log['found'] >= $maxPosts) break;
+                    
+                    $ts = $p['created_time'] ?? date('Y-m-d H:i:s');
+                    if ($sinceDate && strtotime($ts) < strtotime($sinceDate)) {
+                        $url = null;
+                        break;
+                    }
+
+                    $mediaUrl = $p['full_picture'] ?? '';
+                    $mediaType = $mediaUrl ? 'IMAGE' : 'text';
+                    
+                    $new = self::process($userId, 'facebook', $p['id'],
+                        $p['message'] ?? $p['story'] ?? '',
+                        $mediaUrl, $mediaType, $ts);
+                    if ($new) $log['new']++;
+                    $log['found']++;
+                }
+
+                if ($url && isset($data['paging']['next'])) {
+                    $url = $data['paging']['next'];
+                    $params = [];
+                } else {
+                    break;
+                }
             }
         } catch (Exception $e) { $log['error'] = $e->getMessage(); }
         return $log;
     }
 
     // ── Sync completo utente ───────────────────────────────────────────────
-    public static function syncUser(int $userId): array {
+    public static function syncUser(int $userId, int $maxPosts = 20, ?string $sinceDate = null): array {
         $connections = DB::fetchAll(
             'SELECT * FROM social_connections WHERE user_id=? AND active=1', [$userId]
         );
@@ -197,10 +291,10 @@ class Sync {
         foreach ($connections as $conn) {
             $token  = Crypto::decrypt($conn['access_token']);
             $result = match($conn['platform']) {
-                'instagram' => self::instagram($userId, $token),
-                'tiktok'    => self::tiktok($userId, $token),
-                'youtube'   => self::youtube($userId, $token),
-                'facebook'  => self::facebook($userId, $token),
+                'instagram' => self::instagram($userId, $token, $maxPosts, $sinceDate),
+                'tiktok'    => self::tiktok($userId, $token, $maxPosts, $sinceDate),
+                'youtube'   => self::youtube($userId, $token, $maxPosts, $sinceDate),
+                'facebook'  => self::facebook($userId, $token, $maxPosts, $sinceDate),
                 default     => null,
             };
             if (!$result) continue;
