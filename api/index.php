@@ -40,12 +40,10 @@ $action = $_GET['action'] ?? '';
 // ── Auth endpoints (no JWT) ───────────────────────────────────────────────
 if (in_array($action, ['login', 'register', 'site-public', 'debug-site', 'migrate'])) {
     if ($action === 'migrate') {
-        try {
-            DB::execute('ALTER TABLE social_sources ADD COLUMN auto_publish TINYINT DEFAULT 1 AFTER since_date');
-        } catch (Throwable $e) {}
-        try {
-            DB::execute('ALTER TABLE social_connections ADD COLUMN auto_publish TINYINT DEFAULT 1 AFTER since_date');
-        } catch (Throwable $e) {}
+        try { DB::execute('ALTER TABLE social_sources ADD COLUMN since_date DATE NULL'); } catch (Throwable $e) {}
+        try { DB::execute('ALTER TABLE social_sources ADD COLUMN auto_publish TINYINT DEFAULT 1'); } catch (Throwable $e) {}
+        try { DB::execute('ALTER TABLE social_connections ADD COLUMN since_date DATE NULL'); } catch (Throwable $e) {}
+        try { DB::execute('ALTER TABLE social_connections ADD COLUMN auto_publish TINYINT DEFAULT 1'); } catch (Throwable $e) {}
         json(['ok' => true, 'msg' => 'Migration applied']);
     }
     require __DIR__ . '/routes/auth.php';
