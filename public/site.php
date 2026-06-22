@@ -66,6 +66,8 @@ $menuLinks = !empty($site['menu_links']) ? json_decode($site['menu_links'], true
 $headerLayout = $site['header_layout'] ?? 'standard';
 $accentColor = $site['accent_color'] ?? '';
 $logoUrl = $site['logo_url'] ?? '';
+$coverUrl = $site['cover_url'] ?? '';
+$footerText = $site['footer_text'] ?? '';
 $customCss = $site['custom_css'] ?? '';
 
 function h(?string $s): string { return htmlspecialchars((string)$s, ENT_QUOTES, 'UTF-8'); }
@@ -145,6 +147,9 @@ function renderPostHtml(array $p, string $siteUrl, array $icons): string {
   <meta property="og:description" content="<?= $bio ?>">
   <link rel="canonical" href="<?= $siteUrl ?>">
   <link rel="sitemap" type="application/xml" href="<?= $siteUrl ?>/sitemap.xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <script type="application/ld+json">
   {
     "@context": "https://schema.org",
@@ -156,119 +161,211 @@ function renderPostHtml(array $p, string $siteUrl, array $icons): string {
   </script>
   <style>
     :root {
-      <?= $accentColor ? '--accent: ' . htmlspecialchars($accentColor) . ';' : '' ?>
+      --accent: <?= $accentColor ?: '#7F77DD' ?>;
+      --bg: #FAFAFA;
+      --text: #1a1a24;
+      --card-bg: rgba(255, 255, 255, 0.85);
+      --border: rgba(0, 0, 0, 0.05);
+      --font-main: 'Outfit', system-ui, -apple-system, sans-serif;
     }
     <?= $customCss ?>
-    *{box-sizing:border-box;margin:0;padding:0}
-    body{font-family:system-ui,-apple-system,sans-serif;background:var(--bg,#f8f8f6);color:var(--text,#1a1a1a);line-height:1.65}
-    a{color:var(--accent, #7F77DD);text-decoration:none}
-    .header{background:var(--header,#fff);border-bottom:1px solid var(--line,#eee);padding:var(--header-pad,2.5rem 1rem);text-align:var(--header-align,center);transition:all .3s ease}
-    .header.layout-minimal { padding: 1.5rem 1rem; border-bottom: none; text-align: left; }
-    .header.layout-banner { background: var(--accent,#7F77DD); color: #fff; padding: 4rem 1rem; }
-    .header.layout-banner a, .header.layout-banner .bio, .header.layout-banner .mission { color: rgba(255,255,255,0.9); }
-    .header.layout-glassmorphism { background: rgba(255,255,255,0.7); backdrop-filter: blur(10px); position: sticky; top: 0; z-index: 100; border-bottom: 1px solid rgba(0,0,0,0.05); }
-    .header-nav { display: flex; justify-content: center; gap: 1rem; margin-top: 1rem; flex-wrap:wrap; }
-    .header.layout-minimal .header-nav { justify-content: flex-start; }
-    .header-nav a { font-weight: 500; color: var(--text,#1a1a1a); padding: 0.5rem; text-transform: uppercase; font-size: 0.85rem; letter-spacing: 1px; transition: color .2s; }
-    .header-nav a:hover { color: var(--accent,#7F77DD); }
-    .header.layout-banner .header-nav a { color: #fff; }
-    .avatar{width:80px;height:80px;border-radius:var(--avatar-radius,50%);background:var(--accent,#7F77DD);color:#fff;font-size:2rem;font-weight:700;display:flex;align-items:center;justify-content:center;margin:var(--avatar-margin,0 auto 1rem);object-fit:cover}
-    h1{font-size:1.8rem;font-weight:700;margin-bottom:.25rem}
-    .bio{color:#666;max-width:480px;margin:.5rem auto 0}
-    .socials{display:flex;justify-content:center;gap:.5rem;flex-wrap:wrap;margin:1rem auto 0;max-width:620px}
-    .social-link{border:1px solid #ddd;border-radius:999px;padding:.35rem .75rem;color:#333;background:#fff;font-size:.85rem}
-    .container{max-width:var(--container,700px);margin:2rem auto;padding:0 1rem}
-    .post-list{display:grid;grid-template-columns:var(--post-grid,1fr);gap:var(--post-gap,1rem)}
-    .post{background:var(--card,#fff);border:1px solid var(--line,#eee);border-radius:var(--card-radius,12px);padding:var(--card-pad,1.5rem);margin-bottom:var(--post-margin,1rem)}
-    .meta{font-size:.8rem;color:#999;display:flex;gap:.75rem;align-items:center;margin-bottom:.5rem;flex-wrap:wrap}
-    .badge{background:#EEEDFE;color:#534AB7;font-size:.7rem;padding:2px 8px;border-radius:20px;font-weight:500}
-    h2{font-size:1.1rem;font-weight:600;margin-bottom:.4rem}
-    .excerpt{color:#555;font-size:.93rem}
-    .tags{display:flex;flex-wrap:wrap;gap:5px;margin-top:.75rem}
-    .tag{font-size:.72rem;background:#f1f0ff;color:#534AB7;padding:3px 9px;border-radius:20px}
-    .footer{text-align:center;padding:2rem 1rem;font-size:.8rem;color:#bbb;border-top:1px solid #eee;margin-top:2rem}
-    .media{margin:.75rem 0}
-    .media iframe{width:100%;aspect-ratio:16/9;border:0;border-radius:10px}
-    .media img,.media video{max-width:100%;border-radius:10px;display:block}
-    .body p{margin:.65rem 0;color:#333;font-size:.96rem}
-    .post h2 a{color:inherit}
-    .back{display:inline-block;margin:0 0 1rem;font-size:.9rem}
-    .source-link{display:inline-block;margin-top:.75rem;font-size:.86rem}
-    .mission{max-width:760px;margin:1rem auto 0;color:#555;font-size:.92rem}
-    body.theme-journal{--bg:#fbfbfa;--container:760px;--accent:#1f4f46;--card-radius:2px;--header-align:left;--avatar-margin:0 0 1rem;--header-pad:2.4rem max(1rem,calc((100vw - 760px)/2)) 1.8rem}
-    body.theme-authority{--bg:#f5f7f8;--container:820px;--post-grid:repeat(auto-fit,minmax(360px,1fr));--accent:#243b53;--header:#eef3f6;--card-radius:6px;--card-pad:1.75rem}
-    body.theme-portfolio{--bg:#f8f8f6;--container:980px;--post-grid:repeat(auto-fit,minmax(280px,1fr));--post-margin:0;--accent:#6f5b3e;--avatar-radius:18px}
-    body.theme-magazine{--bg:#fff;--container:1060px;--post-grid:repeat(auto-fit,minmax(250px,1fr));--post-margin:0;--card-radius:0;--card-pad:1.25rem;--accent:#9a2f2f}
-    body.theme-minimal{--bg:#fff;--container:660px;--accent:#111;--line:#e8e8e8;--card-radius:0;--card-pad:1.25rem;--header-pad:2rem 1rem}
-    body.theme-studio{--bg:#f4f1ed;--container:960px;--post-grid:repeat(auto-fit,minmax(400px,1fr));--accent:#2e6552;--card:#fffdfa;--card-radius:8px;--header:#fffdfa}
-    body.theme-local{--bg:#f7faf7;--container:860px;--post-grid:repeat(auto-fit,minmax(380px,1fr));--accent:#22724d;--header:#edf7ef;--card-radius:8px}
-    body.theme-academy{--bg:#f7f8fb;--container:880px;--post-grid:repeat(auto-fit,minmax(360px,1fr));--accent:#3b5b92;--card-radius:6px;--card-pad:1.6rem}
-    body.theme-timeline{--bg:#fbfaf7;--container:760px;--accent:#795548;--card-radius:6px}
-    body.theme-timeline .post{border-left:4px solid var(--accent)}
-    body.theme-bottega{--bg:#faf9f6;--container:900px;--accent:#b07d54;--card:#fff;--card-radius:4px;--header:#fdfcfb;--post-grid:repeat(auto-fit,minmax(280px,1fr));--post-margin:0}
-    .filters{display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:1.5rem;align-items:center}
-    .filter-btn{background:var(--card,#fff);border:1px solid var(--line,#eee);padding:.4rem .8rem;border-radius:20px;font-size:.85rem;cursor:pointer;color:inherit}
-    .filter-btn.active{background:var(--accent,#7F77DD);color:#fff;border-color:var(--accent,#7F77DD)}
-    .post.hidden{display:none !important}
-    @media(max-width:600px){.post{padding:1rem}}
+    
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: var(--font-main); background: var(--bg); color: var(--text); line-height: 1.6; overflow-x: hidden; }
+    a { color: var(--accent); text-decoration: none; transition: all 0.3s ease; }
+    
+    /* NAV / HEADER */
+    .navbar { position: sticky; top: 0; z-index: 1000; background: rgba(255, 255, 255, 0.7); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border-bottom: 1px solid var(--border); transition: all 0.3s ease; padding: 1rem 2rem; display: flex; align-items: center; justify-content: space-between; }
+    .nav-brand { display: flex; align-items: center; gap: 1rem; font-weight: 700; font-size: 1.25rem; color: var(--text); letter-spacing: -0.5px;}
+    .nav-brand img { height: 40px; border-radius: 8px; }
+    .nav-avatar { width: 40px; height: 40px; border-radius: 50%; background: var(--accent); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; font-weight: bold; }
+    .nav-links { display: flex; gap: 1.5rem; align-items: center; }
+    .nav-links a { color: var(--text); font-weight: 500; font-size: 0.95rem; }
+    .nav-links a:hover { color: var(--accent); }
+    
+    /* HERO */
+    .hero { position: relative; width: 100%; min-height: 50vh; display: flex; align-items: center; justify-content: center; text-align: center; padding: 4rem 1rem; overflow: hidden; }
+    .hero-bg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: -2; background: linear-gradient(135deg, rgba(127,119,221,0.08) 0%, rgba(250,250,250,1) 100%); }
+    <?php if ($coverUrl): ?>
+    .hero-bg { background: url('<?= h($coverUrl) ?>') center/cover no-repeat; }
+    .hero-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: -1; background: linear-gradient(to bottom, rgba(0,0,0,0.4), rgba(250,250,250,1)); }
+    .hero { color: #fff; }
+    .hero .bio, .hero .mission { color: rgba(255,255,255,0.9); }
+    <?php else: ?>
+    .hero-blob { position: absolute; top: -50%; left: -10%; width: 50vw; height: 50vw; border-radius: 50%; background: var(--accent); opacity: 0.08; filter: blur(80px); z-index: -1; animation: float 10s infinite ease-in-out alternate; }
+    .hero-blob2 { position: absolute; bottom: -50%; right: -10%; width: 40vw; height: 40vw; border-radius: 50%; background: var(--accent); opacity: 0.06; filter: blur(60px); z-index: -1; animation: float 8s infinite ease-in-out alternate-reverse; }
+    <?php endif; ?>
+    @keyframes float { 0% { transform: translate(0, 0) scale(1); } 100% { transform: translate(30px, 50px) scale(1.1); } }
+    
+    .hero-content { max-width: 800px; z-index: 1; animation: fadeInUp 1s cubic-bezier(0.16, 1, 0.3, 1); }
+    .hero h1 { font-size: clamp(2.5rem, 5vw, 4.5rem); font-weight: 700; margin-bottom: 1rem; line-height: 1.1; letter-spacing: -0.02em; }
+    .hero .bio { font-size: 1.25rem; margin-bottom: 1rem; font-weight: 300; opacity: 0.9; }
+    .hero .mission { font-size: 1rem; max-width: 600px; margin: 0 auto; opacity: 0.8; }
+    
+    /* SOCIALS */
+    .socials { display: flex; justify-content: center; gap: 0.75rem; flex-wrap: wrap; margin-top: 2rem; }
+    .social-link { display: flex; align-items: center; gap: 0.5rem; padding: 0.6rem 1.2rem; border-radius: 50px; background: rgba(255,255,255,0.5); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.5); color: var(--text); font-weight: 500; font-size: 0.9rem; transition: all 0.3s ease; box-shadow: 0 4px 15px rgba(0,0,0,0.03); }
+    .social-link:hover { transform: translateY(-3px); box-shadow: 0 8px 25px rgba(0,0,0,0.08); background: #fff; }
+    <?php if ($coverUrl): ?>
+    .social-link { background: rgba(0,0,0,0.3); border-color: rgba(255,255,255,0.2); color: #fff; }
+    .social-link:hover { background: var(--accent); border-color: var(--accent); color: #fff; }
+    <?php endif; ?>
+
+    /* CONTAINER */
+    .container { max-width: 1000px; margin: 0 auto; padding: 4rem 1.5rem; }
+    
+    /* FILTERS */
+    .filters { display: flex; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 3rem; justify-content: center; }
+    .filter-btn { background: transparent; border: 1px solid var(--border); padding: 0.6rem 1.2rem; border-radius: 50px; font-size: 0.9rem; font-weight: 500; cursor: pointer; color: var(--text); transition: all 0.3s ease; font-family: var(--font-main); }
+    .filter-btn:hover { border-color: var(--accent); color: var(--accent); }
+    .filter-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); box-shadow: 0 4px 15px rgba(0,0,0,0.15); }
+    
+    /* GRID */
+    .post-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 2rem; }
+    .theme-journal .post-grid { grid-template-columns: 1fr; max-width: 760px; margin: 0 auto; }
+    
+    /* POST CARD */
+    .post { background: var(--card-bg); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border: 1px solid var(--border); border-radius: 20px; padding: 1.5rem; transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1); opacity: 0; transform: translateY(30px); }
+    .post.visible { opacity: 1; transform: translateY(0); }
+    .post:hover { transform: translateY(-5px); box-shadow: 0 20px 40px rgba(0,0,0,0.06); border-color: rgba(0,0,0,0.1); }
+    .post h2 { font-size: 1.35rem; font-weight: 600; margin-bottom: 0.75rem; line-height: 1.3; }
+    .post h2 a { color: var(--text); }
+    .post h2 a:hover { color: var(--accent); }
+    
+    .meta { display: flex; gap: 1rem; align-items: center; margin-bottom: 1rem; font-size: 0.85rem; color: #777; font-weight: 500; }
+    .badge { background: rgba(127,119,221,0.1); color: var(--accent); padding: 0.2rem 0.8rem; border-radius: 50px; font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+    
+    .excerpt { color: #555; font-size: 0.95rem; line-height: 1.6; margin-bottom: 1.5rem; display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
+    
+    /* MEDIA */
+    .media { margin: -1.5rem -1.5rem 1.5rem -1.5rem; overflow: hidden; border-radius: 20px 20px 0 0; }
+    .theme-journal .media { margin: 1.5rem 0; border-radius: 12px; }
+    .media img, .media video { width: 100%; display: block; object-fit: cover; aspect-ratio: 16/9; transition: transform 0.5s ease; }
+    .post:hover .media img { transform: scale(1.03); }
+    .media iframe { width: 100%; aspect-ratio: 16/9; border: 0; display: block; }
+    
+    /* TAGS */
+    .tags { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: auto; }
+    .tag { font-size: 0.75rem; font-weight: 500; color: #666; background: rgba(0,0,0,0.04); padding: 0.3rem 0.8rem; border-radius: 50px; transition: all 0.2s; }
+    .tag:hover { background: rgba(0,0,0,0.08); }
+    
+    .source-link { display: inline-flex; align-items: center; gap: 0.5rem; margin-top: 1.5rem; font-size: 0.9rem; font-weight: 600; }
+    .source-link::after { content: '→'; transition: transform 0.2s; }
+    .source-link:hover::after { transform: translateX(4px); }
+    
+    /* SINGLE POST */
+    .single-post { max-width: 800px; margin: 0 auto; background: var(--card-bg); backdrop-filter: blur(20px); border: 1px solid var(--border); border-radius: 24px; padding: 3rem; box-shadow: 0 10px 30px rgba(0,0,0,0.03); animation: fadeInUp 0.8s ease forwards; }
+    .single-post .media { margin: -3rem -3rem 2rem -3rem; border-radius: 24px 24px 0 0; }
+    .single-post h1 { font-size: 2.5rem; margin-bottom: 1.5rem; line-height: 1.2; }
+    .body-content { font-size: 1.1rem; color: #444; line-height: 1.8; }
+    .body-content p { margin-bottom: 1.5rem; }
+    .back-btn { display: inline-flex; align-items: center; gap: 0.5rem; margin-bottom: 2rem; font-weight: 600; color: #666; }
+    .back-btn:hover { color: var(--accent); }
+    
+    /* FOOTER */
+    .footer { background: #111; color: #fff; padding: 5rem 1.5rem 3rem; margin-top: 4rem; text-align: center; }
+    .footer-content { max-width: 1000px; margin: 0 auto; display: flex; flex-direction: column; align-items: center; gap: 2rem; }
+    .footer-logo { font-size: 1.5rem; font-weight: 700; color: #fff; }
+    .footer-text { max-width: 500px; color: #999; font-size: 0.95rem; }
+    .footer-socials { display: flex; gap: 1rem; }
+    .footer-socials a { color: #fff; background: rgba(255,255,255,0.1); width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; transition: all 0.3s; text-decoration: none;}
+    .footer-socials a:hover { background: var(--accent); transform: translateY(-3px); }
+    .footer-bottom { margin-top: 4rem; padding-top: 2rem; border-top: 1px solid rgba(255,255,255,0.1); color: #666; font-size: 0.85rem; width: 100%; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; }
+    .footer-bottom a { color: #999; }
+    .footer-bottom a:hover { color: #fff; }
+    
+    /* ANIMATIONS */
+    @keyframes fadeInUp { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
+    .post.hidden { display: none !important; }
+    
+    @media (max-width: 768px) {
+      .hero { min-height: 40vh; padding: 3rem 1rem; }
+      .hero h1 { font-size: 2.2rem; }
+      .single-post { padding: 1.5rem; }
+      .single-post .media { margin: -1.5rem -1.5rem 1.5rem -1.5rem; }
+      .nav-links { display: none; /* simple mobile approach for now */ }
+      .footer-bottom { flex-direction: column; gap: 1rem; text-align: center; }
+    }
   </style>
 </head>
 <body class="theme-<?= h($theme) ?>">
-<header class="header layout-<?= h($headerLayout) ?>">
-  <?php if ($logoUrl): ?>
-    <img src="<?= h($logoUrl) ?>" class="avatar" alt="Logo">
-  <?php else: ?>
-    <div class="avatar"><?= mb_strtoupper(mb_substr($title, 0, 1)) ?></div>
-  <?php endif; ?>
-  <h1><?= $title ?></h1>
-  <?php if ($bio): ?><p class="bio"><?= $bio ?></p><?php endif; ?>
-  <?php if (!empty($site['role_mission'])): ?><p class="mission"><?= h($site['role_mission']) ?></p><?php endif; ?>
-  
+
+<!-- NAVBAR -->
+<nav class="navbar">
+  <a href="<?= $siteUrl ?>" class="nav-brand">
+    <?php if ($logoUrl): ?>
+      <img src="<?= h($logoUrl) ?>" alt="Logo">
+    <?php else: ?>
+      <div class="nav-avatar"><?= mb_strtoupper(mb_substr($title, 0, 1)) ?></div>
+      <?= h($title) ?>
+    <?php endif; ?>
+  </a>
   <?php if ($menuLinks): ?>
-  <nav class="header-nav">
+  <div class="nav-links">
     <?php foreach ($menuLinks as $link): ?>
       <a href="<?= h($link['url']) ?>"><?= h($link['label']) ?></a>
     <?php endforeach; ?>
-  </nav>
+  </div>
   <?php endif; ?>
+</nav>
 
-  <?php if ($sources): ?>
-  <nav class="socials" aria-label="Profili social">
-    <?php foreach ($sources as $source): ?>
-      <a class="social-link" href="<?= h($source['url']) ?>" target="_blank" rel="noopener">
-        <?= $icons[$source['platform']] ?? 'ðŸ”—' ?> <?= h($source['label'] ?: ucfirst($source['platform'])) ?>
-      </a>
-    <?php endforeach; ?>
-  </nav>
+<!-- HERO -->
+<?php if (!$single): ?>
+<header class="hero">
+  <div class="hero-bg"></div>
+  <?php if ($coverUrl): ?><div class="hero-overlay"></div><?php else: ?>
+  <div class="hero-blob"></div><div class="hero-blob2"></div>
   <?php endif; ?>
+  
+  <div class="hero-content">
+    <h1><?= $title ?></h1>
+    <?php if ($bio): ?><p class="bio"><?= $bio ?></p><?php endif; ?>
+    <?php if (!empty($site['role_mission'])): ?><p class="mission"><?= h($site['role_mission']) ?></p><?php endif; ?>
+    
+    <?php if ($sources): ?>
+    <div class="socials">
+      <?php foreach ($sources as $source): ?>
+        <a class="social-link" href="<?= h($source['url']) ?>" target="_blank" rel="noopener">
+          <?= $icons[$source['platform']] ?? '🔗' ?> <?= h($source['label'] ?: ucfirst($source['platform'])) ?>
+        </a>
+      <?php endforeach; ?>
+    </div>
+    <?php endif; ?>
+  </div>
 </header>
+<?php endif; ?>
 
 <main class="container">
   <?php if ($single): $p = $single; ?>
-  <a class="back" href="<?= $siteUrl ?>">← Tutti i contenuti</a>
-  <article class="post" itemscope itemtype="https://schema.org/Article">
+  <a class="back-btn" href="<?= $siteUrl ?>">← Torna ai contenuti</a>
+  <article class="single-post" itemscope itemtype="https://schema.org/Article">
+    <?= mediaHtml($p) ?>
     <div class="meta">
       <span><?= $icons[$p['platform']] ?? '📄' ?> <?= h($p['platform']) ?></span>
       <span><?= $p['published_at'] ? date('d/m/Y', strtotime($p['published_at'])) : '' ?></span>
       <?php if (strtoupper($p['media_type']) === 'VIDEO'): ?><span class="badge">Video → Testo</span><?php endif; ?>
     </div>
-    <h2 itemprop="headline"><?= h($p['generated_title'] ?: mb_substr($p['raw_content'] ?? '', 0, 80)) ?></h2>
-    <?= mediaHtml($p) ?>
-    <div class="body" itemprop="articleBody">
+    <h1 itemprop="headline"><?= h($p['generated_title'] ?: mb_substr($p['raw_content'] ?? '', 0, 80)) ?></h1>
+    
+    <div class="body-content" itemprop="articleBody">
       <?= bodyHtml($p['generated_body'] ?: ($p['transcript'] ?: $p['raw_content'] ?? '')) ?>
     </div>
+    
     <?php if (!empty($p['source_url'])): ?>
     <a class="source-link" href="<?= h($p['source_url']) ?>" target="_blank" rel="noopener">
-      Vedi il contenuto originale su <?= h($p['platform']) ?>
+      Vedi il post originale su <?= h($p['platform']) ?>
     </a>
     <?php endif; ?>
+    
     <?php if ($p['tags']): ?>
-    <div class="tags"><?php foreach ($p['tags'] as $tag): ?><span class="tag"><?= h($tag) ?></span><?php endforeach; ?></div>
+    <div class="tags" style="margin-top:2rem;">
+      <?php foreach ($p['tags'] as $tag): ?><span class="tag">#<?= h($tag) ?></span><?php endforeach; ?>
+    </div>
     <?php endif; ?>
-    <meta itemprop="datePublished" content="<?= h($p['published_at'] ?? '') ?>">
   </article>
 
   <?php else: ?>
+  
   <?php
     $allPlatforms = array_unique(array_column($posts, 'platform'));
     $allTags = [];
@@ -278,9 +375,9 @@ function renderPostHtml(array $p, string $siteUrl, array $icons): string {
         }
     }
     $allTags = array_unique($allTags);
-    sort($allPlatforms);
-    sort($allTags);
+    sort($allPlatforms); sort($allTags);
   ?>
+  
   <?php if ($posts): ?>
   <div class="filters" id="post-filters">
     <button class="filter-btn active" data-filter="all">Tutti</button>
@@ -291,96 +388,98 @@ function renderPostHtml(array $p, string $siteUrl, array $icons): string {
       <button class="filter-btn" data-filter="tag-<?= h($tag) ?>">#<?= h($tag) ?></button>
     <?php endforeach; ?>
   </div>
-  <?php endif; ?>
-
-  <?php if ($theme === 'bottega'): ?>
-    <?php
-      $processi = [];
-      $opere = [];
-      $procKeywords = ['processo', 'lavorazione', 'bottega', 'dietro le quinte', 'wip', 'making of', 'tecnica', 'laboratorio', 'strumenti'];
-      foreach ($posts as $p) {
-          $isProc = false;
-          if (!empty($p['tags'])) {
-              foreach ($p['tags'] as $t) {
-                  $t = strtolower(trim($t));
-                  foreach ($procKeywords as $kw) {
-                      if (strpos($t, $kw) !== false) { $isProc = true; break 2; }
-                  }
-              }
-          }
-          if ($isProc) $processi[] = $p; else $opere[] = $p;
-      }
-    ?>
-    <div style="display:flex;flex-direction:column;gap:3rem;">
-      <?php if ($opere): ?>
-      <div>
-        <h2 style="font-size:1.6rem;margin-bottom:1rem;color:var(--accent);text-transform:uppercase;letter-spacing:1px;border-bottom:1px solid var(--line);padding-bottom:0.5rem;">Ultime Opere</h2>
-        <section class="post-list" aria-label="Ultime Opere">
-          <?php foreach ($opere as $p): echo renderPostHtml($p, $siteUrl, $icons); endforeach; ?>
-        </section>
-      </div>
-      <?php endif; ?>
-
-      <?php if ($processi): ?>
-      <div>
-        <h2 style="font-size:1.6rem;margin-bottom:1rem;color:var(--accent);text-transform:uppercase;letter-spacing:1px;border-bottom:1px solid var(--line);padding-bottom:0.5rem;">Processi di Bottega</h2>
-        <section class="post-list" aria-label="Processi di Bottega">
-          <?php foreach ($processi as $p): echo renderPostHtml($p, $siteUrl, $icons); endforeach; ?>
-        </section>
-      </div>
-      <?php endif; ?>
-    </div>
+  
+  <section class="post-grid" aria-label="Contenuti pubblicati">
+    <?php foreach ($posts as $p): echo renderPostHtml($p, $siteUrl, $icons); endforeach; ?>
+  </section>
   <?php else: ?>
-    <section class="post-list" aria-label="Contenuti pubblicati">
-      <?php foreach ($posts as $p): echo renderPostHtml($p, $siteUrl, $icons); endforeach; ?>
-    </section>
-  <?php endif; ?>
-
-  <?php if (!$posts): ?>
-  <div style="text-align:center;color:#aaa;padding:3rem">
-    <div style="font-size:3rem;margin-bottom:1rem">📭</div>
-    <p>Nessun contenuto ancora pubblicato.</p>
+  <div style="text-align:center;color:#999;padding:5rem 1rem;">
+    <div style="font-size:4rem;margin-bottom:1rem;opacity:0.5;">✨</div>
+    <p style="font-size:1.2rem;">Il sito è pronto. In attesa di pubblicare nuovi contenuti.</p>
   </div>
   <?php endif; ?>
+  
   <?php endif; ?>
 </main>
 
 <footer class="footer">
-  Creato automaticamente con <a href="<?= BASE_URL ?>">SocialToSite</a>
-  · SEO Score <?= $seoScore ?>/100
-  · <a href="<?= $siteUrl ?>/sitemap.xml">Sitemap</a>
-  <?php if (!empty($deployInfo['deployed_at']) || !empty($deployInfo['release'])): ?>
-  <br>
-  Deploy <?= h($deployInfo['deployed_day'] ?? '') ?> <?= h($deployInfo['deployed_at'] ?? '') ?>
-  <?php if (!empty($deployInfo['release'])): ?>· <?= h($deployInfo['release']) ?><?php endif; ?>
-  <?php endif; ?>
+  <div class="footer-content">
+    <div class="footer-logo"><?= $logoUrl ? '<img src="'.h($logoUrl).'" height="40" alt="Logo">' : h($title) ?></div>
+    
+    <?php if ($footerText): ?>
+      <p class="footer-text"><?= h($footerText) ?></p>
+    <?php else: ?>
+      <p class="footer-text"><?= h($site['role_mission'] ?? $bio) ?></p>
+    <?php endif; ?>
+    
+    <?php if ($sources): ?>
+    <div class="footer-socials">
+      <?php foreach ($sources as $source): ?>
+        <a href="<?= h($source['url']) ?>" target="_blank" aria-label="<?= h($source['platform']) ?>" title="<?= h($source['platform']) ?>">
+          <?= $icons[$source['platform']] ?? '🔗' ?>
+        </a>
+      <?php endforeach; ?>
+    </div>
+    <?php endif; ?>
+    
+    <div class="footer-bottom">
+      <div>
+        &copy; <?= date('Y') ?> <?= h($title) ?>. Tutti i diritti riservati. <br>
+        <span style="font-size: 0.8rem; opacity: 0.6; margin-top: 0.5rem; display: block;">
+          Creato magicamente con <a href="<?= BASE_URL ?>" style="color:var(--accent); font-weight:600;">SocialToSite</a>
+        </span>
+      </div>
+      <div>
+        <a href="<?= $siteUrl ?>/sitemap.xml">Sitemap XML</a>
+      </div>
+    </div>
+  </div>
 </footer>
 
 <script>
 document.addEventListener('DOMContentLoaded', () => {
+  // Intersection Observer per animazioni fluide allo scroll
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        entry.target.classList.add('visible');
+        observer.unobserve(entry.target);
+      }
+    });
+  }, { threshold: 0.05, rootMargin: '0px 0px -50px 0px' });
+  
+  document.querySelectorAll('.post').forEach(post => {
+    observer.observe(post);
+  });
+
+  // Filtri
   const filters = document.getElementById('post-filters');
-  if (!filters) return;
-  const btns = filters.querySelectorAll('.filter-btn');
-  const posts = document.querySelectorAll('.post-list .post');
-
-  btns.forEach(btn => {
-    btn.addEventListener('click', () => {
-      btns.forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      const filter = btn.getAttribute('data-filter');
-
-      posts.forEach(post => {
-        if (filter === 'all') {
-          post.classList.remove('hidden');
-        } else if (filter.startsWith('platform-')) {
-          post.classList.toggle('hidden', post.getAttribute('data-platform') !== filter);
-        } else if (filter.startsWith('tag-')) {
-          const tags = post.getAttribute('data-tags').split(' ');
-          post.classList.toggle('hidden', !tags.includes(filter));
-        }
+  if (filters) {
+    const btns = filters.querySelectorAll('.filter-btn');
+    const posts = document.querySelectorAll('.post-grid .post');
+    btns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        btns.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        const filter = btn.getAttribute('data-filter');
+        posts.forEach(post => {
+          if (filter === 'all') {
+            post.classList.remove('hidden');
+          } else if (filter.startsWith('platform-')) {
+            post.classList.toggle('hidden', post.getAttribute('data-platform') !== filter);
+          } else if (filter.startsWith('tag-')) {
+            const tags = post.getAttribute('data-tags').split(' ');
+            post.classList.toggle('hidden', !tags.includes(filter));
+          }
+          // Ritriggera l'animazione se diviene visibile
+          if (!post.classList.contains('hidden')) {
+            post.classList.remove('visible');
+            setTimeout(() => post.classList.add('visible'), 50);
+          }
+        });
       });
     });
-  });
+  }
 });
 </script>
 </body>
