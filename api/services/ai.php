@@ -105,48 +105,7 @@ class AI {
         return $result;
     }
 
-    // ── Apify: esegue un actor in modo sincrono e torna gli item dataset ───
-    private static function apifyRun(string $actorId, array $input): array {
-        if (!defined('APIFY_TOKEN') || !APIFY_TOKEN) {
-            throw new Exception('APIFY_TOKEN mancante in config/keys.php');
-        }
-        $url = "https://api.apify.com/v2/acts/$actorId/run-sync-get-dataset-items?token=" . APIFY_TOKEN;
-        $ch = curl_init($url);
-        curl_setopt_array($ch, [
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_POST           => true,
-            CURLOPT_HTTPHEADER     => ['Content-Type: application/json'],
-            CURLOPT_POSTFIELDS     => json_encode($input, JSON_UNESCAPED_UNICODE),
-            CURLOPT_TIMEOUT        => 300,
-        ]);
-        $res  = curl_exec($ch);
-        $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        $err  = curl_error($ch);
-        curl_close($ch);
-        if ($res === false) throw new Exception("Apify: errore di rete ($err)");
-        $data = json_decode($res, true);
-        if ($code >= 400) {
-            $msg = $data['error']['message'] ?? (is_string($res) ? substr($res, 0, 200) : 'errore');
-            . '"meta_description":"Meta description max 155 caratteri","seo_score":75}';
 
-        $text = self::gemini([['text' => $prompt]], [
-            'responseMimeType' => 'application/json',
-            'maxOutputTokens'  => 8192,
-        ]);
-        $text = preg_replace('/```json|```/', '', trim($text));
-        $result = json_decode($text, true);
-        if (!$result) {
-            return [
-                'title'            => mb_substr($caption ?: $rawText, 0, 60),
-                'body'             => $rawText ?: $caption,
-                'excerpt'          => mb_substr($caption ?: $rawText, 0, 155),
-                'tags'             => [],
-                'meta_description' => mb_substr($caption ?: $rawText, 0, 155),
-                'seo_score'        => 40,
-            ];
-        }
-        return $result;
-    }
 
     // ── Apify: esegue un actor in modo sincrono e torna gli item dataset ───
     private static function apifyRun(string $actorId, array $input): array {
