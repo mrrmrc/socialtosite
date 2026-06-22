@@ -12,7 +12,7 @@ $__emitErr = function (int $code, string $msg): void {
     exit;
 };
 set_exception_handler(function (Throwable $e) use ($__emitErr) {
-    $__emitErr(500, 'Eccezione: ' . $e->getMessage());
+    $__emitErr(500, 'Eccezione in ' . basename($e->getFile()) . ':' . $e->getLine() . ' - ' . $e->getMessage());
 });
 register_shutdown_function(function () use ($__emitErr) {
     $e = error_get_last();
