@@ -334,7 +334,7 @@ if ($action === 'sync' && $method === 'POST') {
 if ($action === 'site' && $method === 'GET') {
     $site  = DB::fetch('SELECT * FROM sites WHERE user_id=?', [$userId]);
     $posts = DB::fetchAll(
-        'SELECT * FROM posts WHERE user_id=? AND published=1 ORDER BY published_at DESC LIMIT 50',
+        'SELECT * FROM posts WHERE user_id=? AND published=1 ORDER BY published_at DESC',
         [$userId]
     );
     $connections = DB::fetchAll(
