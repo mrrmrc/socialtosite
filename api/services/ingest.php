@@ -144,40 +144,6 @@ class Ingest {
         fclose($fp);
 
         $size = @filesize($path) ?: 0;
-
-        return [
-            'id'         => $id,
-            'platform'   => $platform,
-            'duplicate'  => false,
-            'transcript' => $transcript,
-            'preview'    => mb_substr($transcript ?: $caption, 0, 280),
-        ];
-    }
-
-    // ── Scarica e conserva un media nel sito (public/media) ────────────────
-    // Ritorna ['url'=>pubblico, 'path'=>locale, 'size'=>byte] oppure null.
-    private static function saveMedia(string $src, string $platform, string $postId, string $ext): ?array {
-        $dir = __DIR__ . '/../../public/media';
-        if (!is_dir($dir)) @mkdir($dir, 0775, true);
-        if (!is_dir($dir) || !is_writable($dir)) return null;
-
-        $name = $platform . '_' . preg_replace('/[^A-Za-z0-9_-]/', '', $postId) . '.' . $ext;
-        $path = "$dir/$name";
-
-        $fp = fopen($path, 'w');
-        if (!$fp) return null;
-        $ch = curl_init($src);
-        curl_setopt_array($ch, [
-            CURLOPT_FILE           => $fp,
-            CURLOPT_FOLLOWLOCATION => true,
-            CURLOPT_TIMEOUT        => 120,
-            CURLOPT_USERAGENT      => 'Mozilla/5.0 (compatible; SocialToSite/1.0)',
-        ]);
-        curl_exec($ch);
-        curl_close($ch);
-        fclose($fp);
-
-        $size = @filesize($path) ?: 0;
         if (!$size) { @unlink($path); return null; }
 
         $base = defined('BASE_URL') ? rtrim(BASE_URL, '/') : '';
