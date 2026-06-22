@@ -175,13 +175,16 @@ if ($action === 'social-source-create' && $method === 'POST') {
         jsonError('Piattaforma non supportata');
     }
 
+    $sinceDate = trim($b['since_date'] ?? '');
+    if ($sinceDate && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $sinceDate)) $sinceDate = null;
+
     $topic = 'Profilo/canale ' . $platform . ' indicato dall\'utente';
     if ($label) $topic .= ': ' . $label;
 
     try {
         $id = DB::insert(
-            'INSERT INTO social_sources (user_id, platform, label, url, topic_summary) VALUES (?,?,?,?,?)',
-            [$userId, $platform, $label, $url, $topic]
+            'INSERT INTO social_sources (user_id, platform, label, url, topic_summary, since_date) VALUES (?,?,?,?,?,?)',
+            [$userId, $platform, $label, $url, $topic, $sinceDate ?: null]
         );
     } catch (Throwable $e) {
         jsonError('Questo social e gia presente per l\'utente', 409);
@@ -189,7 +192,7 @@ if ($action === 'social-source-create' && $method === 'POST') {
 
     json(['ok' => true, 'source' => [
         'id' => $id, 'platform' => $platform, 'label' => $label, 'url' => $url,
-        'topic_summary' => $topic, 'active' => 1,
+        'topic_summary' => $topic, 'active' => 1, 'since_date' => $sinceDate ?: null
     ]], 201);
 }
 
@@ -198,6 +201,8 @@ if ($action === 'social-source-upsert' && $method === 'POST') {
     $platform = trim($b['platform'] ?? '');
     $url = trim($b['url'] ?? '');
     $label = trim($b['label'] ?? '');
+    $sinceDate = trim($b['since_date'] ?? '');
+    if ($sinceDate && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $sinceDate)) $sinceDate = null;
 
     if (!in_array($platform, ['instagram', 'facebook', 'tiktok', 'youtube'], true)) {
         jsonError('Piattaforma non supportata');
@@ -214,17 +219,34 @@ if ($action === 'social-source-upsert' && $method === 'POST') {
 
     if ($existing) {
         DB::execute(
-            'UPDATE social_sources SET label=?, url=?, topic_summary=?, active=1 WHERE id=? AND user_id=?',
-            [$label, $url, $topic, $existing['id'], $userId]
+            'UPDATE social_sources SET label=?, url=?, topic_summary=?, active=1, since_date=? WHERE id=? AND user_id=?',
+            [$label, $url, $topic, $sinceDate ?: null, $existing['id'], $userId]
         );
         $id = (int)$existing['id'];
     } else {
         $id = DB::insert(
-            'INSERT INTO social_sources (user_id, platform, label, url, topic_summary) VALUES (?,?,?,?,?)',
-            [$userId, $platform, $label, $url, $topic]
+            'INSERT INTO social_sources (user_id, platform, label, url, topic_summary, since_date) VALUES (?,?,?,?,?,?)',
+            [$userId, $platform, $label, $url, $topic, $sinceDate ?: null]
         );
     }
-    json(['ok' => true, 'source' => ['id' => $id, 'platform' => $platform, 'label' => $label, 'url' => $url, 'topic_summary' => $topic]]);
+    json(['ok' => true, 'source' => ['id' => $id, 'platform' => $platform, 'label' => $label, 'url' => $url, 'topic_summary' => $topic, 'since_date' => $sinceDate ?: null]]);
+}
+
+if ($action === 'social-connection-update' && $method === 'POST') {
+    $b = body();
+    $platform = trim($b['platform'] ?? '');
+    $sinceDate = trim($b['since_date'] ?? '');
+    if ($sinceDate && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $sinceDate)) $sinceDate = null;
+
+    if (!in_array($platform, ['instagram', 'facebook', 'tiktok', 'youtube'], true)) {
+        jsonError('Piattaforma non supportata');
+    }
+
+    DB::execute(
+        'UPDATE social_connections SET since_date=? WHERE user_id=? AND platform=?',
+        [$sinceDate ?: null, $userId, $platform]
+    );
+    json(['ok' => true]);
 }
 
 if ($action === 'social-source-delete' && $method === 'POST') {
@@ -316,10 +338,10 @@ if ($action === 'site' && $method === 'GET') {
         [$userId]
     );
     $connections = DB::fetchAll(
-        'SELECT platform, handle, active FROM social_connections WHERE user_id=?', [$userId]
+        'SELECT platform, handle, active, since_date FROM social_connections WHERE user_id=?', [$userId]
     );
     $sources = DB::fetchAll(
-        'SELECT id, platform, label, url, topic_summary, active FROM social_sources WHERE user_id=? AND active=1 ORDER BY platform, id DESC',
+        'SELECT id, platform, label, url, topic_summary, active, since_date FROM social_sources WHERE user_id=? AND active=1 ORDER BY platform, id DESC',
         [$userId]
     );
     foreach ($posts as &$p) {

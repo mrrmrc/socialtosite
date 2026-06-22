@@ -193,7 +193,7 @@ class AI {
         return '';
     }
 
-    public static function sourceItems(string $platform, string $url, int $limit = 5): array {
+    public static function sourceItems(string $platform, string $url, int $limit = 5, ?string $sinceDate = null): array {
         if ($platform === 'youtube') {
             if (preg_match('~/channel/([A-Za-z0-9_-]+)~', $url, $m)) {
                 $feed = @simplexml_load_file('https://www.youtube.com/feeds/videos.xml?channel_id=' . $m[1]);
@@ -217,7 +217,7 @@ class AI {
             ],
             'instagram' => [
                 defined('APIFY_ACTOR_INSTAGRAM') ? APIFY_ACTOR_INSTAGRAM : 'apify~instagram-scraper',
-                ['directUrls' => [$url], 'resultsType' => 'posts', 'resultsLimit' => $limit],
+                array_filter(['directUrls' => [$url], 'resultsType' => 'posts', 'resultsLimit' => $limit, 'oldestPostDate' => $sinceDate ? $sinceDate . 'T00:00:00.000Z' : null]),
             ],
             'facebook' => [
                 defined('APIFY_ACTOR_FACEBOOK') ? APIFY_ACTOR_FACEBOOK : 'apify~facebook-posts-scraper',

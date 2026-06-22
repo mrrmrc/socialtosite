@@ -290,11 +290,12 @@ class Sync {
         $results = [];
         foreach ($connections as $conn) {
             $token  = Crypto::decrypt($conn['access_token']);
+            $connSinceDate = !empty($conn['since_date']) ? $conn['since_date'] : $sinceDate;
             $result = match($conn['platform']) {
-                'instagram' => self::instagram($userId, $token, $maxPosts, $sinceDate),
-                'tiktok'    => self::tiktok($userId, $token, $maxPosts, $sinceDate),
-                'youtube'   => self::youtube($userId, $token, $maxPosts, $sinceDate),
-                'facebook'  => self::facebook($userId, $token, $maxPosts, $sinceDate),
+                'instagram' => self::instagram($userId, $token, $maxPosts, $connSinceDate),
+                'tiktok'    => self::tiktok($userId, $token, $maxPosts, $connSinceDate),
+                'youtube'   => self::youtube($userId, $token, $maxPosts, $connSinceDate),
+                'facebook'  => self::facebook($userId, $token, $maxPosts, $connSinceDate),
                 default     => null,
             };
             if (!$result) continue;

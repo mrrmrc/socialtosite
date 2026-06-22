@@ -23,6 +23,7 @@ CREATE TABLE IF NOT EXISTS social_connections (
   expires_at    DATETIME,
   connected_at  DATETIME DEFAULT NOW(),
   active        TINYINT DEFAULT 1,
+  since_date    DATE NULL,
   UNIQUE KEY unique_user_platform (user_id, platform),
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
@@ -35,6 +36,7 @@ CREATE TABLE IF NOT EXISTS social_sources (
   url           TEXT NOT NULL,
   topic_summary TEXT,
   active        TINYINT DEFAULT 1,
+  since_date    DATE NULL,
   created_at    DATETIME DEFAULT NOW(),
   UNIQUE KEY unique_user_source (user_id, platform, url(191)),
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE

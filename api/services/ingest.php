@@ -213,7 +213,8 @@ class Ingest {
 
         foreach ($sources as $source) {
             try {
-                $items = AI::sourceItems($source['platform'], $source['url'], $limitPerSource);
+                $sinceDate = !empty($source['since_date']) ? $source['since_date'] : null;
+                $items = AI::sourceItems($source['platform'], $source['url'], $limitPerSource, $sinceDate);
                 $report['found'] += count($items);
                 foreach ($items as $item) {
                     $sourceUrl = $item['url'] ?? '';
