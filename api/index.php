@@ -38,7 +38,12 @@ $method = $_SERVER['REQUEST_METHOD'];
 $action = $_GET['action'] ?? '';
 
 // ── Auth endpoints (no JWT) ───────────────────────────────────────────────
-if (in_array($action, ['login', 'register'])) {
+if (in_array($action, ['login', 'register', 'site-public', 'debug-site', 'migrate'])) {
+    if ($action === 'migrate') {
+        DB::execute('ALTER TABLE social_sources ADD COLUMN IF NOT EXISTS auto_publish TINYINT DEFAULT 1 AFTER since_date');
+        DB::execute('ALTER TABLE social_connections ADD COLUMN IF NOT EXISTS auto_publish TINYINT DEFAULT 1 AFTER since_date');
+        json(['ok' => true, 'msg' => 'Migration applied']);
+    }
     require __DIR__ . '/routes/auth.php';
     exit;
 }
