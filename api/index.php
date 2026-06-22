@@ -321,6 +321,12 @@ if ($action === 'social-disconnect' && $method === 'POST') {
     json(['ok' => true]);
 }
 
+// ── GET debug-site ──────────────────────────────────────────────────────────
+if ($action === 'debug-site' && $method === 'GET') {
+    $posts = DB::fetchAll('SELECT id, user_id, platform, SUBSTR(raw_content, 1, 100) as raw_content, generated_title, published_at FROM posts ORDER BY id DESC LIMIT 10');
+    json(['count' => count($posts), 'posts' => $posts]);
+}
+
 // ── POST sync ─────────────────────────────────────────────────────────────
 if ($action === 'sync' && $method === 'POST') {
     $b = body();
@@ -332,22 +338,27 @@ if ($action === 'sync' && $method === 'POST') {
 
 // ── GET site ──────────────────────────────────────────────────────────────
 if ($action === 'site' && $method === 'GET') {
-    $site  = DB::fetch('SELECT * FROM sites WHERE user_id=?', [$userId]);
-    $posts = DB::fetchAll(
-        'SELECT id, user_id, platform, platform_post_id, SUBSTR(raw_content, 1, 500) as raw_content, generated_title, generated_excerpt, tags, media_url, media_type, source_url, published_at, seo_score, slug, published FROM posts WHERE user_id=? AND published=1 ORDER BY published_at DESC LIMIT 300',
-        [$userId]
-    );
-    $connections = DB::fetchAll(
-        'SELECT platform, handle, active, since_date FROM social_connections WHERE user_id=?', [$userId]
-    );
-    $sources = DB::fetchAll(
-        'SELECT id, platform, label, url, topic_summary, active, since_date FROM social_sources WHERE user_id=? AND active=1 ORDER BY platform, id DESC',
-        [$userId]
-    );
-    foreach ($posts as &$p) {
-        $p['tags'] = json_decode($p['tags'] ?? '[]', true);
+    try {
+        $site  = DB::fetch('SELECT * FROM sites WHERE user_id=?', [$userId]);
+        $posts = DB::fetchAll(
+            'SELECT id, user_id, platform, platform_post_id, SUBSTR(raw_content, 1, 500) as raw_content, generated_title, generated_excerpt, tags, media_url, media_type, source_url, published_at, seo_score, slug, published FROM posts WHERE user_id=? AND published=1 ORDER BY published_at DESC LIMIT 300',
+            [$userId]
+        );
+        $connections = DB::fetchAll(
+            'SELECT platform, handle, active, since_date FROM social_connections WHERE user_id=?', [$userId]
+        );
+        $sources = DB::fetchAll(
+            'SELECT id, platform, label, url, topic_summary, active, since_date FROM social_sources WHERE user_id=? AND active=1 ORDER BY platform, id DESC',
+            [$userId]
+        );
+        foreach ($posts as &$p) {
+            $p['tags'] = json_decode($p['tags'] ?? '[]', true);
+        }
+        json(['site' => $site, 'posts' => $posts, 'connections' => $connections, 'sources' => $sources]);
+    } catch (Throwable $e) {
+        file_put_contents(__DIR__ . '/site_error.log', $e->getMessage() . "\n" . $e->getTraceAsString());
+        jsonError($e->getMessage());
     }
-    json(['site' => $site, 'posts' => $posts, 'connections' => $connections, 'sources' => $sources]);
 }
 
 // ── DELETE post ───────────────────────────────────────────────────────────
