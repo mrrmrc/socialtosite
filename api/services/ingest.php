@@ -144,6 +144,40 @@ class Ingest {
         fclose($fp);
 
         $size = @filesize($path) ?: 0;
+
+        return [
+            'id'         => $id,
+            'platform'   => $platform,
+            'duplicate'  => false,
+            'transcript' => $transcript,
+            'preview'    => mb_substr($transcript ?: $caption, 0, 280),
+        ];
+    }
+
+    // ── Scarica e conserva un media nel sito (public/media) ────────────────
+    // Ritorna ['url'=>pubblico, 'path'=>locale, 'size'=>byte] oppure null.
+    private static function saveMedia(string $src, string $platform, string $postId, string $ext): ?array {
+        $dir = __DIR__ . '/../../public/media';
+        if (!is_dir($dir)) @mkdir($dir, 0775, true);
+        if (!is_dir($dir) || !is_writable($dir)) return null;
+
+        $name = $platform . '_' . preg_replace('/[^A-Za-z0-9_-]/', '', $postId) . '.' . $ext;
+        $path = "$dir/$name";
+
+        $fp = fopen($path, 'w');
+        if (!$fp) return null;
+        $ch = curl_init($src);
+        curl_setopt_array($ch, [
+            CURLOPT_FILE           => $fp,
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_TIMEOUT        => 120,
+            CURLOPT_USERAGENT      => 'Mozilla/5.0 (compatible; SocialToSite/1.0)',
+        ]);
+        curl_exec($ch);
+        curl_close($ch);
+        fclose($fp);
+
+        $size = @filesize($path) ?: 0;
         if (!$size) { @unlink($path); return null; }
 
         $base = defined('BASE_URL') ? rtrim(BASE_URL, '/') : '';
@@ -151,7 +185,7 @@ class Ingest {
     }
 
     // ── AGENTE 2 (Armonizzatore): bozza → articolo SEO pubblicato ──────────
-    public static function harmonize(int $userId, int $postId): array {
+    public static function harmonize(int $userId, int $postId, int $autoPublish = 1): array {
         $post = DB::fetch('SELECT * FROM posts WHERE id=? AND user_id=?', [$postId, $userId]);
         if (!$post) throw new Exception('Contenuto non trovato');
 
@@ -179,13 +213,13 @@ class Ingest {
         DB::execute('
             UPDATE posts SET
               generated_title=?, generated_body=?, generated_excerpt=?,
-              tags=?, meta_description=?, seo_score=?, slug=?, published=1
+              tags=?, meta_description=?, seo_score=?, slug=?, published=?
             WHERE id=? AND user_id=?
         ', [
             $seo['title'] ?? '', $seo['body'] ?? '', $seo['excerpt'] ?? '',
             json_encode($seo['tags'] ?? []), $seo['meta_description'] ?? '',
             $seo['seo_score'] ?? 0, slugify($seo['title'] ?? (string) $postId),
-            $postId, $userId,
+            $autoPublish, $postId, $userId,
         ]);
 
         return ['id' => $postId, 'seo' => $seo];
@@ -214,6 +248,7 @@ class Ingest {
         foreach ($sources as $source) {
             try {
                 $sinceDate = !empty($source['since_date']) ? $source['since_date'] : null;
+                $autoPublish = (int)($source['auto_publish'] ?? 1);
                 $items = AI::sourceItems($source['platform'], $source['url'], $limitPerSource, $sinceDate);
                 $report['found'] += count($items);
                 foreach ($items as $item) {
@@ -253,7 +288,7 @@ class Ingest {
                             $report['skipped']++;
                             continue;
                         }
-                        self::harmonize($userId, (int)$ingested['id']);
+                        self::harmonize($userId, (int)$ingested['id'], $autoPublish);
                         $report['published']++;
                     } catch (Throwable $e) {
                         $report['errors'][] = $source['platform'] . ': ' . $e->getMessage();

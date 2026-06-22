@@ -26,7 +26,7 @@ class Sync {
     }
 
     // ── Inserisce post nel DB (salta duplicati) ────────────────────────────
-    private static function upsert(int $userId, string $platform, string $postId, array $d): bool {
+    private static function upsert(int $userId, string $platform, string $postId, array $d, int $autoPublish = 1): bool {
         $exists = DB::fetch(
             'SELECT id FROM posts WHERE user_id=? AND platform=? AND platform_post_id=?',
             [$userId, $platform, $postId]
@@ -37,8 +37,8 @@ class Sync {
             INSERT INTO posts
               (user_id, platform, platform_post_id, raw_content, transcript,
                generated_title, generated_body, generated_excerpt, tags,
-               meta_description, media_url, media_type, published_at, seo_score, slug)
-            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+               meta_description, media_url, media_type, published_at, seo_score, slug, published)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
         ', [
             $userId, $platform, $postId,
             $d['raw_content'] ?? '',
@@ -53,37 +53,37 @@ class Sync {
             $d['published_at'] ?? date('Y-m-d H:i:s'),
             $d['seo_score']   ?? 0,
             slugify($d['title'] ?? $postId),
+            $autoPublish
         ]);
         return true;
     }
 
     // ── Processa un contenuto: trascrive se video, genera SEO ─────────────
-    private static function process(int $userId, string $platform, string $postId,
-                                    string $caption, string $mediaUrl, string $mediaType,
-                                    string $publishedAt): bool {
+    private static function process(int $userId, string $platform, string $postId, string $text, string $mediaUrl, string $mediaType, string $publishedAt, int $autoPublish = 1): bool {
+        if (!trim($text) && !$mediaUrl) return false;
         $transcript = '';
         if ($mediaUrl && strtoupper($mediaType) === 'VIDEO') {
             $transcript = AI::transcribeUrl($mediaUrl);
         }
 
-        $raw  = $transcript ?: $caption;
+        $raw  = $transcript ?: $text;
         $seo  = strlen($raw) > 30
-            ? AI::generateSeo($raw, $platform, $caption)
-            : ['title' => mb_substr($caption, 0, 60), 'body' => $caption,
-               'excerpt' => mb_substr($caption, 0, 155), 'tags' => [],
-               'meta_description' => mb_substr($caption, 0, 155), 'seo_score' => 40];
+            ? AI::generateSeo($raw, $platform, $text)
+            : ['title' => mb_substr($text, 0, 60), 'body' => $text,
+               'excerpt' => mb_substr($text, 0, 155), 'tags' => [],
+               'meta_description' => mb_substr($text, 0, 155), 'seo_score' => 40];
 
-        return self::upsert($userId, $platform, $postId, array_merge($seo, [
-            'raw_content'  => $caption,
-            'transcript'   => $transcript,
-            'media_url'    => $mediaUrl,
-            'media_type'   => $mediaType,
-            'published_at' => $publishedAt,
-        ]));
+        $seo['raw_content'] = $text;
+        $seo['transcript'] = $transcript;
+        $seo['media_url'] = $mediaUrl;
+        $seo['media_type'] = $mediaType;
+        $seo['published_at'] = $publishedAt;
+
+        return self::upsert($userId, $platform, $postId, $seo, $autoPublish);
     }
 
     // ── Instagram ──────────────────────────────────────────────────────────
-    public static function instagram(int $userId, string $token, int $maxPosts = 20, ?string $sinceDate = null): array {
+    public static function instagram(int $userId, string $token, int $maxPosts = 20, ?string $sinceDate = null, int $autoPublish = 1): array {
         $log = ['platform' => 'instagram', 'found' => 0, 'new' => 0, 'error' => null];
         try {
             $profile = self::get('https://graph.facebook.com/v18.0/me',
@@ -114,7 +114,7 @@ class Sync {
                     
                     $new = self::process($userId, 'instagram', $p['id'],
                         $p['caption'] ?? '', $p['media_url'] ?? $p['thumbnail_url'] ?? '',
-                        $p['media_type'] ?? 'IMAGE', $ts);
+                        $p['media_type'] ?? 'IMAGE', $ts, $autoPublish);
                     if ($new) $log['new']++;
                     $log['found']++;
                 }
@@ -131,7 +131,7 @@ class Sync {
     }
 
     // ── TikTok ─────────────────────────────────────────────────────────────
-    public static function tiktok(int $userId, string $token, int $maxPosts = 20, ?string $sinceDate = null): array {
+    public static function tiktok(int $userId, string $token, int $maxPosts = 20, ?string $sinceDate = null, int $autoPublish = 1): array {
         $log = ['platform' => 'tiktok', 'found' => 0, 'new' => 0, 'error' => null];
         try {
             $cursor = 0;
@@ -168,7 +168,7 @@ class Sync {
                     
                     $new = self::process($userId, 'tiktok', $v['id'],
                         $v['video_description'] ?? $v['title'] ?? '',
-                        $v['cover_image_url'] ?? '', 'IMAGE', $ts);
+                        $v['cover_image_url'] ?? '', 'IMAGE', $ts, $autoPublish);
                     if ($new) $log['new']++;
                     $log['found']++;
                 }
@@ -184,7 +184,7 @@ class Sync {
     }
 
     // ── YouTube ────────────────────────────────────────────────────────────
-    public static function youtube(int $userId, string $token, int $maxPosts = 20, ?string $sinceDate = null): array {
+    public static function youtube(int $userId, string $token, int $maxPosts = 20, ?string $sinceDate = null, int $autoPublish = 1): array {
         $log = ['platform' => 'youtube', 'found' => 0, 'new' => 0, 'error' => null];
         try {
             $ch = self::get('https://www.googleapis.com/youtube/v3/channels',
@@ -216,7 +216,7 @@ class Sync {
 
                     $new = self::process($userId, 'youtube', $vid,
                         ($sn['description'] ?? '') ?: ($sn['title'] ?? ''),
-                        "https://www.youtube.com/watch?v=$vid", 'VIDEO', $ts);
+                        "https://www.youtube.com/watch?v=$vid", 'VIDEO', $ts, $autoPublish);
                     if ($new) $log['new']++;
                     $log['found']++;
                 }
@@ -232,7 +232,7 @@ class Sync {
     }
 
     // ── Facebook ───────────────────────────────────────────────────────────
-    public static function facebook(int $userId, string $token, int $maxPosts = 20, ?string $sinceDate = null): array {
+    public static function facebook(int $userId, string $token, int $maxPosts = 20, ?string $sinceDate = null, int $autoPublish = 1): array {
         $log = ['platform' => 'facebook', 'found' => 0, 'new' => 0, 'error' => null];
         try {
             $pages = self::get('https://graph.facebook.com/v18.0/me/accounts',
@@ -266,7 +266,7 @@ class Sync {
                     
                     $new = self::process($userId, 'facebook', $p['id'],
                         $p['message'] ?? $p['story'] ?? '',
-                        $mediaUrl, $mediaType, $ts);
+                        $mediaUrl, $mediaType, $ts, $autoPublish);
                     if ($new) $log['new']++;
                     $log['found']++;
                 }
@@ -291,11 +291,12 @@ class Sync {
         foreach ($connections as $conn) {
             $token  = Crypto::decrypt($conn['access_token']);
             $connSinceDate = !empty($conn['since_date']) ? $conn['since_date'] : $sinceDate;
+            $autoPublish = (int)($conn['auto_publish'] ?? 1);
             $result = match($conn['platform']) {
-                'instagram' => self::instagram($userId, $token, $maxPosts, $connSinceDate),
-                'tiktok'    => self::tiktok($userId, $token, $maxPosts, $connSinceDate),
-                'youtube'   => self::youtube($userId, $token, $maxPosts, $connSinceDate),
-                'facebook'  => self::facebook($userId, $token, $maxPosts, $connSinceDate),
+                'instagram' => self::instagram($userId, $token, $maxPosts, $connSinceDate, $autoPublish),
+                'tiktok'    => self::tiktok($userId, $token, $maxPosts, $connSinceDate, $autoPublish),
+                'youtube'   => self::youtube($userId, $token, $maxPosts, $connSinceDate, $autoPublish),
+                'facebook'  => self::facebook($userId, $token, $maxPosts, $connSinceDate, $autoPublish),
                 default     => null,
             };
             if (!$result) continue;

@@ -192,8 +192,8 @@ if ($action === 'social-source-create' && $method === 'POST') {
 
     try {
         $id = DB::insert(
-            'INSERT INTO social_sources (user_id, platform, label, url, topic_summary, since_date) VALUES (?,?,?,?,?,?)',
-            [$userId, $platform, $label, $url, $topic, $sinceDate ?: null]
+            'INSERT INTO social_sources (user_id, platform, label, url, topic_summary, since_date, auto_publish) VALUES (?,?,?,?,?,?,?)',
+            [$userId, $platform, $label, $url, $topic, $sinceDate ?: null, $autoPublish]
         );
     } catch (Throwable $e) {
         jsonError('Questo social e gia presente per l\'utente', 409);
@@ -201,7 +201,7 @@ if ($action === 'social-source-create' && $method === 'POST') {
 
     json(['ok' => true, 'source' => [
         'id' => $id, 'platform' => $platform, 'label' => $label, 'url' => $url,
-        'topic_summary' => $topic, 'active' => 1, 'since_date' => $sinceDate ?: null
+        'topic_summary' => $topic, 'active' => 1, 'since_date' => $sinceDate ?: null, 'auto_publish' => $autoPublish
     ]], 201);
 }
 
@@ -211,6 +211,7 @@ if ($action === 'social-source-upsert' && $method === 'POST') {
     $url = trim($b['url'] ?? '');
     $label = trim($b['label'] ?? '');
     $sinceDate = trim($b['since_date'] ?? '');
+    $autoPublish = (int)($b['auto_publish'] ?? 1);
     if ($sinceDate && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $sinceDate)) $sinceDate = null;
 
     if (!in_array($platform, ['instagram', 'facebook', 'tiktok', 'youtube'], true)) {
@@ -228,23 +229,24 @@ if ($action === 'social-source-upsert' && $method === 'POST') {
 
     if ($existing) {
         DB::execute(
-            'UPDATE social_sources SET label=?, url=?, topic_summary=?, active=1, since_date=? WHERE id=? AND user_id=?',
-            [$label, $url, $topic, $sinceDate ?: null, $existing['id'], $userId]
+            'UPDATE social_sources SET label=?, url=?, topic_summary=?, active=1, since_date=?, auto_publish=? WHERE id=? AND user_id=?',
+            [$label, $url, $topic, $sinceDate ?: null, $autoPublish, $existing['id'], $userId]
         );
         $id = (int)$existing['id'];
     } else {
         $id = DB::insert(
-            'INSERT INTO social_sources (user_id, platform, label, url, topic_summary, since_date) VALUES (?,?,?,?,?,?)',
-            [$userId, $platform, $label, $url, $topic, $sinceDate ?: null]
+            'INSERT INTO social_sources (user_id, platform, label, url, topic_summary, since_date, auto_publish) VALUES (?,?,?,?,?,?,?)',
+            [$userId, $platform, $label, $url, $topic, $sinceDate ?: null, $autoPublish]
         );
     }
-    json(['ok' => true, 'source' => ['id' => $id, 'platform' => $platform, 'label' => $label, 'url' => $url, 'topic_summary' => $topic, 'since_date' => $sinceDate ?: null]]);
+    json(['ok' => true, 'source' => ['id' => $id, 'platform' => $platform, 'label' => $label, 'url' => $url, 'topic_summary' => $topic, 'since_date' => $sinceDate ?: null, 'auto_publish' => $autoPublish]]);
 }
 
 if ($action === 'social-connection-update' && $method === 'POST') {
     $b = body();
     $platform = trim($b['platform'] ?? '');
     $sinceDate = trim($b['since_date'] ?? '');
+    $autoPublish = (int)($b['auto_publish'] ?? 1);
     if ($sinceDate && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $sinceDate)) $sinceDate = null;
 
     if (!in_array($platform, ['instagram', 'facebook', 'tiktok', 'youtube'], true)) {
@@ -252,8 +254,8 @@ if ($action === 'social-connection-update' && $method === 'POST') {
     }
 
     DB::execute(
-        'UPDATE social_connections SET since_date=? WHERE user_id=? AND platform=?',
-        [$sinceDate ?: null, $userId, $platform]
+        'UPDATE social_connections SET since_date=?, auto_publish=? WHERE user_id=? AND platform=?',
+        [$sinceDate ?: null, $autoPublish, $userId, $platform]
     );
     json(['ok' => true]);
 }
@@ -350,7 +352,7 @@ if ($action === 'site' && $method === 'GET') {
     try {
         $site  = DB::fetch('SELECT * FROM sites WHERE user_id=?', [$userId]);
         $posts = DB::fetchAll(
-            'SELECT id, user_id, platform, platform_post_id, SUBSTR(raw_content, 1, 500) as raw_content, generated_title, generated_excerpt, tags, media_url, media_type, source_url, published_at, seo_score, slug, published FROM posts WHERE user_id=? AND published=1 ORDER BY published_at DESC LIMIT 300',
+            'SELECT id, user_id, platform, platform_post_id, SUBSTR(raw_content, 1, 500) as raw_content, generated_title, generated_excerpt, tags, media_url, media_type, source_url, published_at, seo_score, slug, published FROM posts WHERE user_id=? ORDER BY published_at DESC LIMIT 300',
             [$userId]
         );
         $connections = DB::fetchAll(
@@ -370,7 +372,23 @@ if ($action === 'site' && $method === 'GET') {
     }
 }
 
-// ── DELETE post ───────────────────────────────────────────────────────────
+// ── DELETE post (Hard delete) ─────────────────────────────────────────────
+if ($action === 'delete-post' && $method === 'POST') {
+    $b = body();
+    DB::execute('DELETE FROM posts WHERE id=? AND user_id=?', [$b['id'] ?? 0, $userId]);
+    json(['ok' => true]);
+}
+
+// ── TOGGLE PUBLISH post ───────────────────────────────────────────────────
+if ($action === 'toggle-publish-post' && $method === 'POST') {
+    $b = body();
+    $id = (int)($b['id'] ?? 0);
+    $published = (int)($b['published'] ?? 0);
+    DB::execute('UPDATE posts SET published=? WHERE id=? AND user_id=?', [$published, $id, $userId]);
+    json(['ok' => true]);
+}
+
+// ── DELETE post (legacy hide) ─────────────────────────────────────────────
 if ($action === 'hide-post' && $method === 'POST') {
     $b = body();
     DB::execute('UPDATE posts SET published=0 WHERE id=? AND user_id=?', [$b['id'] ?? 0, $userId]);

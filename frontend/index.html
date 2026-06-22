@@ -365,7 +365,9 @@ function DashboardScreen({ token, user, onLogout }) {
       setRoleMissionDraft(d.site?.role_mission || '');
       setStrategyDraft(d.site?.content_strategy || '');
       setSelectedTheme(d.site?.theme || 'classic');
-    } catch {}
+    } catch (err) {
+      alert("ERRORE CARICAMENTO DASHBOARD: " + err.message);
+    }
   }
 
   async function loadDrafts() {
@@ -422,8 +424,18 @@ function DashboardScreen({ token, user, onLogout }) {
     setSyncing(false);
   }
 
-  async function hidePost(id) {
-    await apiFetch('/api/index.php?action=hide-post', { method: 'POST', body: JSON.stringify({ id }) }, token);
+  async function togglePublishPost(id, currentStatus) {
+    const newStatus = currentStatus ? 0 : 1;
+    await apiFetch('/api/index.php?action=toggle-publish-post', { method: 'POST', body: JSON.stringify({ id, published: newStatus }) }, token);
+    setData(prev => ({
+      ...prev,
+      posts: prev.posts.map(p => p.id === id ? { ...p, published: newStatus } : p)
+    }));
+  }
+
+  async function deletePost(id) {
+    if (!window.confirm("Sei sicuro di voler eliminare definitivamente questo post? Verrà rimosso anche dal sito pubblico.")) return;
+    await apiFetch('/api/index.php?action=delete-post', { method: 'POST', body: JSON.stringify({ id }) }, token);
     setData(prev => ({ ...prev, posts: prev.posts.filter(p => p.id !== id) }));
   }
 
@@ -443,12 +455,12 @@ function DashboardScreen({ token, user, onLogout }) {
     }
   }
 
-  async function savePlatformSource(platform, url, since_date = null) {
+  async function savePlatformSource(platform, url, since_date = null, auto_publish = 1) {
     setSourceMsg(null);
     try {
       await apiFetch('/api/index.php?action=social-source-upsert', {
         method: 'POST',
-        body: JSON.stringify({ platform, label: SOCIAL[platform]?.label || platform, url, since_date })
+        body: JSON.stringify({ platform, label: SOCIAL[platform]?.label || platform, url, since_date, auto_publish })
       }, token);
       await loadData();
     } catch (err) {
@@ -456,11 +468,11 @@ function DashboardScreen({ token, user, onLogout }) {
     }
   }
 
-  async function saveConnectionSinceDate(platform, since_date) {
+  async function saveConnectionSettings(platform, since_date, auto_publish) {
     try {
       await apiFetch('/api/index.php?action=social-connection-update', {
         method: 'POST',
-        body: JSON.stringify({ platform, since_date })
+        body: JSON.stringify({ platform, since_date, auto_publish })
       }, token);
       await loadData();
     } catch (err) {
@@ -600,18 +612,24 @@ function DashboardScreen({ token, user, onLogout }) {
               </p>
               <div style={{ display: 'grid', gap: '10px', marginBottom: '12px' }}>
                 {['instagram', 'tiktok', 'facebook', 'youtube'].map(platform => (
-                  <div key={platform} style={{ display: 'grid', gridTemplateColumns: '150px 1fr 130px', gap: '12px', alignItems: 'center' }}>
+                  <div key={platform} style={{ display: 'grid', gridTemplateColumns: '150px 1fr 130px 120px', gap: '12px', alignItems: 'center' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 600 }}>
                       <SocialIcon platform={platform} size={22} />
                       <span>{SOCIAL[platform].label}</span>
                     </div>
                     <input type="text" placeholder={`Link ${SOCIAL[platform].label}`}
                       defaultValue={sourceByPlatform[platform]?.url || ''}
-                      onBlur={e => savePlatformSource(platform, e.target.value.trim(), sourceByPlatform[platform]?.since_date)} />
+                      onBlur={e => savePlatformSource(platform, e.target.value.trim(), sourceByPlatform[platform]?.since_date, sourceByPlatform[platform]?.auto_publish ?? 1)} />
                     <input type="date" title="Retroattività (Da questa data in poi)" 
                       defaultValue={sourceByPlatform[platform]?.since_date || ''}
-                      onBlur={e => savePlatformSource(platform, sourceByPlatform[platform]?.url || '', e.target.value)}
+                      onBlur={e => savePlatformSource(platform, sourceByPlatform[platform]?.url || '', e.target.value, sourceByPlatform[platform]?.auto_publish ?? 1)}
                       style={{ padding: '6px', fontSize: '13px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)' }} />
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', cursor: 'pointer' }}>
+                      <input type="checkbox" 
+                        defaultChecked={(sourceByPlatform[platform]?.auto_publish ?? 1) === 1}
+                        onChange={e => savePlatformSource(platform, sourceByPlatform[platform]?.url || '', sourceByPlatform[platform]?.since_date, e.target.checked ? 1 : 0)} />
+                      Auto-Pubblica
+                    </label>
                   </div>
                 ))}
               </div>
@@ -776,7 +794,13 @@ function DashboardScreen({ token, user, onLogout }) {
                           <span className="badge badge-green">SEO {post.seo_score}/100</span>
                         </td>
                         <td style={{ padding: '12px 16px', textAlign: 'right', verticalAlign: 'top' }}>
-                          <button onClick={() => hidePost(post.id)} style={{ background: 'none', border: 'none', color: 'var(--red)', fontSize: '18px', cursor: 'pointer', padding: '4px' }} title="Nascondi">×</button>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'flex-end' }}>
+                            <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontSize: '12px' }}>
+                              <input type="checkbox" checked={post.published == 1} onChange={() => togglePublishPost(post.id, post.published)} />
+                              {post.published == 1 ? 'Pubblicato' : 'Bozza'}
+                            </label>
+                            <button onClick={() => deletePost(post.id)} style={{ background: 'none', border: 'none', color: 'var(--red)', fontSize: '16px', cursor: 'pointer', padding: '4px' }} title="Elimina definitivamente">🗑️ Elimina</button>
+                          </div>
                         </td>
                       </tr>
                     ))}
