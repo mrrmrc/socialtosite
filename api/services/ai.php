@@ -149,7 +149,11 @@ class AI {
                 }
             }
             foreach ($node as $k => $v) {
-                if (in_array(strtolower((string)$k), $ignoreKeys)) continue;
+                $skip = false;
+                foreach ($ignoreKeys as $ik) {
+                    if (stripos((string)$k, $ik) !== false) { $skip = true; break; }
+                }
+                if ($skip) continue;
                 $u = self::findMediaUrl($v, $ignoreKeys);
                 if ($u) return $u;
             }
@@ -158,20 +162,24 @@ class AI {
     }
 
     // ── Cerca ricorsivamente il primo URL immagine plausibile ─────────────
-    private static function findImageUrl($node, $ignoreKeys = ['author', 'owner', 'user', 'profile']): string {
+    private static function findImageUrl($node, $ignoreKeys = ['author', 'owner', 'user', 'profile', 'avatar']): string {
         if (is_string($node)) {
             if (preg_match('~^https?://~', $node) &&
                 preg_match('~\.(jpg|jpeg|png|webp)(\?|$)~i', $node)) return $node;
             return '';
         }
         if (is_array($node)) {
-            foreach (['displayUrl','thumbnailUrl','coverUrl','imageUrl','cover','thumbnail'] as $k) {
+            foreach (['displayUrl','thumbnailUrl','coverUrl','imageUrl','cover','thumbnail','image'] as $k) {
                 if (!empty($node[$k]) && is_string($node[$k]) && preg_match('~^https?://~', $node[$k])) {
                     return $node[$k];
                 }
             }
             foreach ($node as $k => $v) {
-                if (in_array(strtolower((string)$k), $ignoreKeys)) continue;
+                $skip = false;
+                foreach ($ignoreKeys as $ik) {
+                    if (stripos((string)$k, $ik) !== false) { $skip = true; break; }
+                }
+                if ($skip) continue;
                 $u = self::findImageUrl($v, $ignoreKeys);
                 if ($u) return $u;
             }
@@ -361,11 +369,32 @@ class AI {
         if (!$it) throw new Exception('Apify non ha restituito contenuti per questo link');
 
         $captionParts = [];
-        foreach (['title','description','caption','text','message'] as $k) {
-            if (!empty($it[$k]) && is_string($it[$k])) {
-                $captionParts[] = trim($it[$k]);
+        // Ricerca testuale più estesa
+        foreach (['title','description','caption','text','message','fullText','video_description'] as $k) {
+            if (!empty($it[$k])) {
+                if (is_string($it[$k])) {
+                    $captionParts[] = trim($it[$k]);
+                } elseif (is_array($it[$k])) {
+                    $captionParts[] = json_encode($it[$k], JSON_UNESCAPED_UNICODE);
+                }
             }
         }
+        // Se non troviamo nulla, prendiamo la stringa più lunga nell'oggetto ignorando metadata
+        if (empty(array_filter($captionParts))) {
+            $longest = '';
+            array_walk_recursive($it, function($v, $k) use (&$longest) {
+                if (is_string($v) && mb_strlen($v) > mb_strlen($longest)) {
+                    // ignora url, id, date, etc
+                    if (!preg_match('~^https?://~', $v) && mb_strlen($v) > 20) {
+                        if (stripos((string)$k, 'author') === false && stripos((string)$k, 'owner') === false && stripos((string)$k, 'user') === false) {
+                            $longest = $v;
+                        }
+                    }
+                }
+            });
+            if ($longest) $captionParts[] = trim($longest);
+        }
+        
         $caption = trim(implode("\n\n", array_unique(array_filter($captionParts))));
         return [
             'caption' => $caption,
