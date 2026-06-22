@@ -15,7 +15,7 @@ class Ingest {
         if (str_contains($u, 'tiktok.com'))    return 'tiktok';
         if (str_contains($u, 'instagram.com')) return 'instagram';
         if (str_contains($u, 'facebook.com') || str_contains($u, 'fb.watch')) return 'facebook';
-        return '';
+        return 'website';
     }
 
     // ── ID univoco del contenuto (per evitare duplicati) ───────────────────
@@ -44,7 +44,7 @@ class Ingest {
         }
         $platform = self::platform($url);
         if (!$platform) {
-            throw new Exception('Piattaforma non riconosciuta (supportate: YouTube, TikTok, Instagram, Facebook)');
+            throw new Exception('Piattaforma non riconosciuta');
         }
 
         $postId = self::postId($platform, $url);
@@ -69,6 +69,21 @@ class Ingest {
             $transcript = AI::transcribeYouTube($url);
             $mediaUrl   = $url;
             $mediaType  = 'video';
+        } elseif ($platform === 'website') {
+            $ch = curl_init($url);
+            curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER => true, CURLOPT_FOLLOWLOCATION => true, CURLOPT_USERAGENT => 'Mozilla/5.0']);
+            $html = curl_exec($ch);
+            curl_close($ch);
+            
+            if ($html) {
+                preg_match('/<title[^>]*>(.*?)<\/title>/is', $html, $mTitle);
+                $title = $mTitle[1] ?? '';
+                preg_match('/<meta[^>]*name=["\']description["\'][^>]*content=["\'](.*?)["\']/is', $html, $mDesc);
+                $desc = $mDesc[1] ?? '';
+                $text = strip_tags(preg_replace('/<(script|style)[^>]*>.*?<\/\1>/is', '', $html));
+                $text = preg_replace('/\s+/', ' ', $text);
+                $caption = trim($title . "\n\n" . $desc . "\n\n" . mb_substr($text, 0, 5000));
+            }
         } else {
             // TikTok / Instagram / Facebook: Apify recupera media + didascalia.
             $r       = AI::apifyResolve($platform, $url);
@@ -80,7 +95,23 @@ class Ingest {
                 if ($saved) {
                     $mediaUrl  = $saved['url'];
                     $mediaType = 'video';
-                    if ($saved['size'] <= 15 * 1024 * 1024) {
+                    
+                    // Use Whisper for all video transcriptions
+                    $ch = curl_init('https://api.openai.com/v1/audio/transcriptions');
+                    $cfile = new CURLFile($saved['path'], 'video/mp4', 'audio.mp4');
+                    curl_setopt_array($ch, [
+                        CURLOPT_RETURNTRANSFER => true,
+                        CURLOPT_POST           => true,
+                        CURLOPT_HTTPHEADER     => ['Authorization: Bearer ' . OPENAI_API_KEY],
+                        CURLOPT_POSTFIELDS     => ['file' => $cfile, 'model' => 'whisper-1', 'language' => 'it'],
+                        CURLOPT_TIMEOUT        => 120,
+                    ]);
+                    $res = curl_exec($ch);
+                    curl_close($ch);
+                    $data = json_decode((string)$res, true);
+                    $transcript = $data['text'] ?? '';
+                    
+                    if (!$transcript && $saved['size'] <= 15 * 1024 * 1024) {
                         $transcript = AI::transcribeFile($saved['path'], 'video/mp4');
                     }
                 }

@@ -44,6 +44,11 @@ if (in_array($action, ['login', 'register', 'site-public', 'debug-site', 'migrat
         try { DB::execute('ALTER TABLE social_sources ADD COLUMN auto_publish TINYINT DEFAULT 1'); } catch (Throwable $e) {}
         try { DB::execute('ALTER TABLE social_connections ADD COLUMN since_date DATE NULL'); } catch (Throwable $e) {}
         try { DB::execute('ALTER TABLE social_connections ADD COLUMN auto_publish TINYINT DEFAULT 1'); } catch (Throwable $e) {}
+        try { DB::execute('ALTER TABLE sites ADD COLUMN menu_links TEXT NULL'); } catch (Throwable $e) {}
+        try { DB::execute('ALTER TABLE sites ADD COLUMN accent_color VARCHAR(50) NULL'); } catch (Throwable $e) {}
+        try { DB::execute('ALTER TABLE sites ADD COLUMN header_layout VARCHAR(50) NULL'); } catch (Throwable $e) {}
+        try { DB::execute('ALTER TABLE sites ADD COLUMN logo_url TEXT NULL'); } catch (Throwable $e) {}
+        try { DB::execute('ALTER TABLE sites ADD COLUMN custom_css TEXT NULL'); } catch (Throwable $e) {}
         json(['ok' => true, 'msg' => 'Migration applied']);
     }
     require __DIR__ . '/routes/auth.php';
@@ -396,14 +401,29 @@ if ($action === 'hide-post' && $method === 'POST') {
 // ── PATCH site settings ───────────────────────────────────────────────────
 if ($action === 'site-update' && $method === 'POST') {
     $b = body();
-    $theme = $b['theme'] ?? null;
-    if ($theme !== null && !in_array($theme, validSiteThemes(), true)) {
+    if (array_key_exists('theme', $b) && $b['theme'] !== null && !in_array($b['theme'], validSiteThemes(), true)) {
         jsonError('Layout non valido');
     }
-    DB::execute(
-        'UPDATE sites SET title=COALESCE(?,title), bio=COALESCE(?,bio), profile_summary=COALESCE(?,profile_summary), role_mission=COALESCE(?,role_mission), content_strategy=COALESCE(?,content_strategy), theme=COALESCE(?,theme) WHERE user_id=?',
-        [$b['title'] ?? null, $b['bio'] ?? null, $b['profile_summary'] ?? null, $b['role_mission'] ?? null, $b['content_strategy'] ?? null, $theme, $userId]
-    );
+    
+    $fields = [];
+    $params = [];
+    if (array_key_exists('title', $b)) { $fields[] = 'title = ?'; $params[] = $b['title']; }
+    if (array_key_exists('bio', $b)) { $fields[] = 'bio = ?'; $params[] = $b['bio']; }
+    if (array_key_exists('profile_summary', $b)) { $fields[] = 'profile_summary = ?'; $params[] = $b['profile_summary']; }
+    if (array_key_exists('role_mission', $b)) { $fields[] = 'role_mission = ?'; $params[] = $b['role_mission']; }
+    if (array_key_exists('content_strategy', $b)) { $fields[] = 'content_strategy = ?'; $params[] = $b['content_strategy']; }
+    if (array_key_exists('theme', $b)) { $fields[] = 'theme = ?'; $params[] = $b['theme']; }
+    
+    if (array_key_exists('menu_links', $b)) { $fields[] = 'menu_links = ?'; $params[] = is_array($b['menu_links']) ? json_encode($b['menu_links'], JSON_UNESCAPED_UNICODE) : $b['menu_links']; }
+    if (array_key_exists('accent_color', $b)) { $fields[] = 'accent_color = ?'; $params[] = $b['accent_color']; }
+    if (array_key_exists('header_layout', $b)) { $fields[] = 'header_layout = ?'; $params[] = $b['header_layout']; }
+    if (array_key_exists('logo_url', $b)) { $fields[] = 'logo_url = ?'; $params[] = $b['logo_url']; }
+    if (array_key_exists('custom_css', $b)) { $fields[] = 'custom_css = ?'; $params[] = $b['custom_css']; }
+
+    if (!empty($fields)) {
+        $params[] = $userId;
+        DB::execute('UPDATE sites SET ' . implode(', ', $fields) . ' WHERE user_id = ?', $params);
+    }
     json(['ok' => true]);
 }
 

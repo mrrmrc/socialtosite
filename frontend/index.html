@@ -75,6 +75,7 @@ const SOCIAL = {
   tiktok:    { icon: 'https://cdn.simpleicons.org/tiktok/000000', label: 'TikTok',    color: '#010101' },
   facebook:  { icon: 'https://cdn.simpleicons.org/facebook/1877F2', label: 'Facebook',  color: '#1877F2' },
   youtube:   { icon: 'https://cdn.simpleicons.org/youtube/FF0000', label: 'YouTube',   color: '#FF0000' },
+  website:   { icon: 'https://cdn.simpleicons.org/googleearth/000000', label: 'Sito Web', color: '#888780' },
 };
 
 const SITE_LAYOUTS = [
@@ -354,6 +355,12 @@ function DashboardScreen({ token, user, onLogout }) {
   const [selectedTheme, setSelectedTheme] = useState('classic');
   const [savingProfile, setSavingProfile] = useState(false);
   const [syncLimit, setSyncLimit] = useState(20);
+  
+  const [headerLayout, setHeaderLayout] = useState('standard');
+  const [accentColor, setAccentColor] = useState('');
+  const [logoUrl, setLogoUrl] = useState('');
+  const [customCss, setCustomCss] = useState('');
+  const [menuLinksStr, setMenuLinksStr] = useState('');
 
   useEffect(() => { loadData(); loadDrafts(); }, []);
 
@@ -365,6 +372,17 @@ function DashboardScreen({ token, user, onLogout }) {
       setRoleMissionDraft(d.site?.role_mission || '');
       setStrategyDraft(d.site?.content_strategy || '');
       setSelectedTheme(d.site?.theme || 'classic');
+      
+      setHeaderLayout(d.site?.header_layout || 'standard');
+      setAccentColor(d.site?.accent_color || '');
+      setLogoUrl(d.site?.logo_url || '');
+      setCustomCss(d.site?.custom_css || '');
+      if (d.site?.menu_links) {
+        try {
+           const arr = JSON.parse(d.site.menu_links);
+           setMenuLinksStr(arr.map(x => `${x.label}|${x.url}`).join('\n'));
+        } catch { setMenuLinksStr(d.site.menu_links); }
+      }
     } catch (err) {
       alert("ERRORE CARICAMENTO DASHBOARD: " + err.message);
     }
@@ -512,7 +530,15 @@ function DashboardScreen({ token, user, onLogout }) {
           bio: profileDraft,
           role_mission: roleMissionDraft,
           content_strategy: strategyDraft,
-          theme: selectedTheme
+          theme: selectedTheme,
+          header_layout: headerLayout,
+          accent_color: accentColor,
+          logo_url: logoUrl,
+          custom_css: customCss,
+          menu_links: menuLinksStr.split('\n').filter(x => x.trim()).map(x => {
+             const parts = x.split('|');
+             return { label: parts[0].trim(), url: parts[1] ? parts[1].trim() : '' };
+          }),
         })
       }, token);
       await loadData();
@@ -908,6 +934,42 @@ function DashboardScreen({ token, user, onLogout }) {
               </div>
               <button className="btn btn-outline" onClick={saveProfile} disabled={savingProfile}>
                 {savingProfile ? 'Salvo...' : 'Salva agente editoriale'}
+              </button>
+            </div>
+            
+            <div className="card" style={{ marginBottom: '1rem' }}>
+              <h3 style={{ marginBottom: '0.75rem' }}>Personalizzazione Layout Avanzata</h3>
+              <div className="form-group">
+                <label className="label">Stile Header</label>
+                <select value={headerLayout} onChange={e => setHeaderLayout(e.target.value)} style={{ width: '100%', padding: '10px 14px', borderRadius: 'var(--radius-sm)' }}>
+                  <option value="standard">Standard</option>
+                  <option value="minimal">Minimal</option>
+                  <option value="banner">Banner Image</option>
+                  <option value="glassmorphism">Glassmorphism</option>
+                </select>
+              </div>
+              <div className="form-group">
+                <label className="label">Colore Accento (es: #E24B4A o red)</label>
+                <input type="text" value={accentColor} onChange={e => setAccentColor(e.target.value)} placeholder="#7F77DD" />
+              </div>
+              <div className="form-group">
+                <label className="label">URL Logo Immagine</label>
+                <input type="text" value={logoUrl} onChange={e => setLogoUrl(e.target.value)} placeholder="https://..." />
+              </div>
+              <div className="form-group">
+                <label className="label">Link Menu di Navigazione (Etichetta|URL, uno per riga)</label>
+                <textarea value={menuLinksStr} onChange={e => setMenuLinksStr(e.target.value)}
+                  placeholder="Home|/&#10;Contatti|/contatti"
+                  style={{ width: '100%', minHeight: '60px', padding: '10px 14px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-strong)', background: 'var(--surface)' }} />
+              </div>
+              <div className="form-group">
+                <label className="label">CSS Personalizzato</label>
+                <textarea value={customCss} onChange={e => setCustomCss(e.target.value)}
+                  placeholder=".my-class { color: red; }"
+                  style={{ width: '100%', minHeight: '80px', padding: '10px 14px', borderRadius: 'var(--radius-sm)', fontFamily: 'monospace', border: '1px solid var(--border-strong)', background: 'var(--surface)' }} />
+              </div>
+              <button className="btn btn-outline" onClick={saveProfile} disabled={savingProfile}>
+                {savingProfile ? 'Salvo...' : 'Salva Impostazioni Layout'}
               </button>
             </div>
 

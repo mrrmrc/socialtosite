@@ -127,13 +127,56 @@ class AI {
         $data = json_decode($res, true);
         if ($code >= 400) {
             $msg = $data['error']['message'] ?? (is_string($res) ? substr($res, 0, 200) : 'errore');
+            . '"meta_description":"Meta description max 155 caratteri","seo_score":75}';
+
+        $text = self::gemini([['text' => $prompt]], [
+            'responseMimeType' => 'application/json',
+            'maxOutputTokens'  => 8192,
+        ]);
+        $text = preg_replace('/```json|```/', '', trim($text));
+        $result = json_decode($text, true);
+        if (!$result) {
+            return [
+                'title'            => mb_substr($caption ?: $rawText, 0, 60),
+                'body'             => $rawText ?: $caption,
+                'excerpt'          => mb_substr($caption ?: $rawText, 0, 155),
+                'tags'             => [],
+                'meta_description' => mb_substr($caption ?: $rawText, 0, 155),
+                'seo_score'        => 40,
+            ];
+        }
+        return $result;
+    }
+
+    // ── Apify: esegue un actor in modo sincrono e torna gli item dataset ───
+    private static function apifyRun(string $actorId, array $input): array {
+        if (!defined('APIFY_TOKEN') || !APIFY_TOKEN) {
+            throw new Exception('APIFY_TOKEN mancante in config/keys.php');
+        }
+        $url = "https://api.apify.com/v2/acts/$actorId/run-sync-get-dataset-items?token=" . APIFY_TOKEN;
+        $ch = curl_init($url);
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_POST           => true,
+            CURLOPT_HTTPHEADER     => ['Content-Type: application/json'],
+            CURLOPT_POSTFIELDS     => json_encode($input, JSON_UNESCAPED_UNICODE),
+            CURLOPT_TIMEOUT        => 300,
+        ]);
+        $res  = curl_exec($ch);
+        $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $err  = curl_error($ch);
+        curl_close($ch);
+        if ($res === false) throw new Exception("Apify: errore di rete ($err)");
+        $data = json_decode($res, true);
+        if ($code >= 400) {
+            $msg = $data['error']['message'] ?? (is_string($res) ? substr($res, 0, 200) : 'errore');
             throw new Exception("Apify ($code): $msg");
         }
         return is_array($data) ? $data : [];
     }
 
     // ── Cerca ricorsivamente il primo URL video plausibile in un item ──────
-    private static function findMediaUrl($node): string {
+    private static function findMediaUrl($node, $ignoreKeys = ['author', 'owner', 'user', 'profile']): string {
         if (is_string($node)) {
             if (preg_match('~^https?://~', $node) &&
                 preg_match('~\.(mp4|mov|m4v|webm)(\?|$)~i', $node)) return $node;
@@ -146,8 +189,9 @@ class AI {
                     return $node[$k];
                 }
             }
-            foreach ($node as $v) {
-                $u = self::findMediaUrl($v);
+            foreach ($node as $k => $v) {
+                if (in_array(strtolower((string)$k), $ignoreKeys)) continue;
+                $u = self::findMediaUrl($v, $ignoreKeys);
                 if ($u) return $u;
             }
         }
@@ -155,7 +199,7 @@ class AI {
     }
 
     // ── Cerca ricorsivamente il primo URL immagine plausibile ─────────────
-    private static function findImageUrl($node): string {
+    private static function findImageUrl($node, $ignoreKeys = ['author', 'owner', 'user', 'profile']): string {
         if (is_string($node)) {
             if (preg_match('~^https?://~', $node) &&
                 preg_match('~\.(jpg|jpeg|png|webp)(\?|$)~i', $node)) return $node;
@@ -167,8 +211,9 @@ class AI {
                     return $node[$k];
                 }
             }
-            foreach ($node as $v) {
-                $u = self::findImageUrl($v);
+            foreach ($node as $k => $v) {
+                if (in_array(strtolower((string)$k), $ignoreKeys)) continue;
+                $u = self::findImageUrl($v, $ignoreKeys);
                 if ($u) return $u;
             }
         }
@@ -356,10 +401,13 @@ class AI {
         $it = $items[0] ?? null;
         if (!$it) throw new Exception('Apify non ha restituito contenuti per questo link');
 
-        $caption = '';
-        foreach (['text','caption','description','title','message'] as $k) {
-            if (!empty($it[$k]) && is_string($it[$k])) { $caption = $it[$k]; break; }
+        $captionParts = [];
+        foreach (['title','description','caption','text','message'] as $k) {
+            if (!empty($it[$k]) && is_string($it[$k])) {
+                $captionParts[] = trim($it[$k]);
+            }
         }
+        $caption = trim(implode("\n\n", array_unique(array_filter($captionParts))));
         return [
             'caption' => $caption,
             'video'   => self::findMediaUrl($it),

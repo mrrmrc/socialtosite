@@ -52,14 +52,21 @@ $bio   = htmlspecialchars((string)($site['profile_summary'] ?: ($site['bio'] ?? 
 $seoScore = $site['seo_score'] ?? 0;
 $siteUrl  = BASE_URL . '/s/' . $slug;
 $theme = $site['theme'] ?? 'classic';
-$validThemes = ['classic', 'journal', 'authority', 'portfolio', 'magazine', 'minimal', 'studio', 'local', 'academy', 'timeline'];
+$validThemes = ['classic', 'journal', 'authority', 'portfolio', 'magazine', 'minimal', 'studio', 'local', 'academy', 'timeline', 'bottega'];
 if (!in_array($theme, $validThemes, true)) $theme = 'classic';
-$icons = ['instagram' => '📸', 'tiktok' => '🎵', 'youtube' => '▶️', 'facebook' => '📘'];
+$icons = ['instagram' => '📸', 'tiktok' => '🎵', 'youtube' => '▶️', 'facebook' => '📘', 'website' => '🌐'];
 $deployInfo = [];
 $deployInfoPath = __DIR__ . '/../deploy-info.json';
 if (is_file($deployInfoPath)) {
     $deployInfo = json_decode((string) file_get_contents($deployInfoPath), true) ?: [];
 }
+
+// Layout Advanced
+$menuLinks = !empty($site['menu_links']) ? json_decode($site['menu_links'], true) : [];
+$headerLayout = $site['header_layout'] ?? 'standard';
+$accentColor = $site['accent_color'] ?? '';
+$logoUrl = $site['logo_url'] ?? '';
+$customCss = $site['custom_css'] ?? '';
 
 function h(?string $s): string { return htmlspecialchars((string)$s, ENT_QUOTES, 'UTF-8'); }
 
@@ -148,11 +155,24 @@ function renderPostHtml(array $p, string $siteUrl, array $icons): string {
   }
   </script>
   <style>
+    :root {
+      <?= $accentColor ? '--accent: ' . htmlspecialchars($accentColor) . ';' : '' ?>
+    }
+    <?= $customCss ?>
     *{box-sizing:border-box;margin:0;padding:0}
     body{font-family:system-ui,-apple-system,sans-serif;background:var(--bg,#f8f8f6);color:var(--text,#1a1a1a);line-height:1.65}
-    a{color:#7F77DD;text-decoration:none}
-    .header{background:var(--header,#fff);border-bottom:1px solid var(--line,#eee);padding:var(--header-pad,2.5rem 1rem);text-align:var(--header-align,center)}
-    .avatar{width:80px;height:80px;border-radius:var(--avatar-radius,50%);background:var(--accent,#7F77DD);color:#fff;font-size:2rem;font-weight:700;display:flex;align-items:center;justify-content:center;margin:var(--avatar-margin,0 auto 1rem)}
+    a{color:var(--accent, #7F77DD);text-decoration:none}
+    .header{background:var(--header,#fff);border-bottom:1px solid var(--line,#eee);padding:var(--header-pad,2.5rem 1rem);text-align:var(--header-align,center);transition:all .3s ease}
+    .header.layout-minimal { padding: 1.5rem 1rem; border-bottom: none; text-align: left; }
+    .header.layout-banner { background: var(--accent,#7F77DD); color: #fff; padding: 4rem 1rem; }
+    .header.layout-banner a, .header.layout-banner .bio, .header.layout-banner .mission { color: rgba(255,255,255,0.9); }
+    .header.layout-glassmorphism { background: rgba(255,255,255,0.7); backdrop-filter: blur(10px); position: sticky; top: 0; z-index: 100; border-bottom: 1px solid rgba(0,0,0,0.05); }
+    .header-nav { display: flex; justify-content: center; gap: 1rem; margin-top: 1rem; flex-wrap:wrap; }
+    .header.layout-minimal .header-nav { justify-content: flex-start; }
+    .header-nav a { font-weight: 500; color: var(--text,#1a1a1a); padding: 0.5rem; text-transform: uppercase; font-size: 0.85rem; letter-spacing: 1px; transition: color .2s; }
+    .header-nav a:hover { color: var(--accent,#7F77DD); }
+    .header.layout-banner .header-nav a { color: #fff; }
+    .avatar{width:80px;height:80px;border-radius:var(--avatar-radius,50%);background:var(--accent,#7F77DD);color:#fff;font-size:2rem;font-weight:700;display:flex;align-items:center;justify-content:center;margin:var(--avatar-margin,0 auto 1rem);object-fit:cover}
     h1{font-size:1.8rem;font-weight:700;margin-bottom:.25rem}
     .bio{color:#666;max-width:480px;margin:.5rem auto 0}
     .socials{display:flex;justify-content:center;gap:.5rem;flex-wrap:wrap;margin:1rem auto 0;max-width:620px}
@@ -194,11 +214,24 @@ function renderPostHtml(array $p, string $siteUrl, array $icons): string {
   </style>
 </head>
 <body class="theme-<?= h($theme) ?>">
-<header class="header">
-  <div class="avatar"><?= mb_strtoupper(mb_substr($title, 0, 1)) ?></div>
+<header class="header layout-<?= h($headerLayout) ?>">
+  <?php if ($logoUrl): ?>
+    <img src="<?= h($logoUrl) ?>" class="avatar" alt="Logo">
+  <?php else: ?>
+    <div class="avatar"><?= mb_strtoupper(mb_substr($title, 0, 1)) ?></div>
+  <?php endif; ?>
   <h1><?= $title ?></h1>
   <?php if ($bio): ?><p class="bio"><?= $bio ?></p><?php endif; ?>
   <?php if (!empty($site['role_mission'])): ?><p class="mission"><?= h($site['role_mission']) ?></p><?php endif; ?>
+  
+  <?php if ($menuLinks): ?>
+  <nav class="header-nav">
+    <?php foreach ($menuLinks as $link): ?>
+      <a href="<?= h($link['url']) ?>"><?= h($link['label']) ?></a>
+    <?php endforeach; ?>
+  </nav>
+  <?php endif; ?>
+
   <?php if ($sources): ?>
   <nav class="socials" aria-label="Profili social">
     <?php foreach ($sources as $source): ?>
