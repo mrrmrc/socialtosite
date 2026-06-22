@@ -334,7 +334,7 @@ if ($action === 'sync' && $method === 'POST') {
 if ($action === 'site' && $method === 'GET') {
     $site  = DB::fetch('SELECT * FROM sites WHERE user_id=?', [$userId]);
     $posts = DB::fetchAll(
-        'SELECT * FROM posts WHERE user_id=? AND published=1 ORDER BY published_at DESC',
+        'SELECT id, user_id, platform, platform_post_id, SUBSTR(raw_content, 1, 500) as raw_content, generated_title, generated_excerpt, tags, media_url, media_type, source_url, published_at, seo_score, slug, published FROM posts WHERE user_id=? AND published=1 ORDER BY published_at DESC LIMIT 300',
         [$userId]
     );
     $connections = DB::fetchAll(
