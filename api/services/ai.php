@@ -184,7 +184,7 @@ class AI {
         }
         if (is_array($node)) {
             // chiavi "forti" controllate per prime
-            foreach (['videoUrlNoWaterMark','videoUrl','downloadAddr','playAddr','mediaUrl'] as $k) {
+            foreach (['videoUrlNoWaterMark','videoUrl','downloadAddr','playAddr','mediaUrl','video','playable_url','source'] as $k) {
                 if (!empty($node[$k]) && is_string($node[$k]) && preg_match('~^https?://~', $node[$k])) {
                     return $node[$k];
                 }
@@ -206,7 +206,9 @@ class AI {
             return '';
         }
         if (is_array($node)) {
-            foreach (['displayUrl','thumbnailUrl','coverUrl','imageUrl','cover','thumbnail'] as $k) {
+            // Chiavi forti per le immagini (specialmente utili per Facebook)
+            $strongKeys = ['displayUrl','thumbnailUrl','coverUrl','imageUrl','cover','thumbnail','image','picture','full_picture','src','media_url','photo'];
+            foreach ($strongKeys as $k) {
                 if (!empty($node[$k]) && is_string($node[$k]) && preg_match('~^https?://~', $node[$k])) {
                     return $node[$k];
                 }
