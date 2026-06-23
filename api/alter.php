@@ -12,3 +12,9 @@ try {
 } catch (Exception $e) {
     echo "Error site_ai_data: " . $e->getMessage() . "\n";
 }
+try {
+    DB::execute('ALTER TABLE posts ADD COLUMN featured TINYINT DEFAULT 0');
+    echo "Column featured added.\n";
+} catch (Exception $e) {
+    echo "Error featured: " . $e->getMessage() . "\n";
+}

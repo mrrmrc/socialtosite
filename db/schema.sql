@@ -65,6 +65,7 @@ CREATE TABLE IF NOT EXISTS posts (
   seo_score         INT DEFAULT 0,
   slug              VARCHAR(255),
   published         TINYINT DEFAULT 1,
+  featured          TINYINT DEFAULT 0,
   UNIQUE KEY unique_post (user_id, platform, platform_post_id),
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
