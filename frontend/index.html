@@ -1049,29 +1049,43 @@ function DashboardScreen({ token, user, onLogout }) {
                 </button>
               </div>
 
-              {data?.site?.generated_layouts && (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px' }}>
-                  {JSON.parse(data.site.generated_layouts).map((layout, i) => (
-                    <div key={i} style={{ background: 'var(--surface)', border: '1px solid var(--border-strong)', borderRadius: 'var(--radius)', padding: '1rem', textAlign: 'center' }}>
-                      <div style={{ fontWeight: 600, fontSize: '14px', marginBottom: '5px' }}>Proposta {i + 1}</div>
-                      <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '8px' }}>
-                        Tema: <b>{layout.theme}</b><br/>Layout: <b>{layout.header_layout}</b>
+              {(() => {
+                let layouts = null;
+                try {
+                  if (data?.site?.generated_layouts) {
+                    let raw = data.site.generated_layouts.trim();
+                    if (raw.startsWith('```json')) raw = raw.replace(/```json/g, '').replace(/```/g, '');
+                    else if (raw.startsWith('```')) raw = raw.replace(/```/g, '');
+                    layouts = JSON.parse(raw);
+                  }
+                } catch(e) { console.error('Errore parse generated_layouts:', e); }
+                
+                if (!Array.isArray(layouts) || layouts.length === 0) return null;
+                
+                return (
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px' }}>
+                    {layouts.map((layout, i) => (
+                      <div key={i} style={{ background: 'var(--surface)', border: '1px solid var(--border-strong)', borderRadius: 'var(--radius)', padding: '1rem', textAlign: 'center' }}>
+                        <div style={{ fontWeight: 600, fontSize: '14px', marginBottom: '5px' }}>Proposta {i + 1}</div>
+                        <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '8px' }}>
+                          Tema: <b>{layout.theme}</b><br/>Layout: <b>{layout.header_layout}</b>
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'center', gap: '5px', marginBottom: '12px' }}>
+                          <div style={{ width: '20px', height: '20px', borderRadius: '50%', background: layout.accent_color, border: '1px solid rgba(0,0,0,0.1)' }} title={layout.accent_color} />
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                          <button className="btn btn-outline btn-full" onClick={() => setActivePreviewUrl(`${siteUrl}?preview_index=${i}`)} style={{ fontSize: '12px', padding: '6px' }}>
+                            👁️ Anteprima Reale
+                          </button>
+                          <button className="btn btn-primary btn-full" onClick={() => applyLayout(i)} style={{ fontSize: '12px', padding: '6px' }}>
+                            ✓ Applica
+                          </button>
+                        </div>
                       </div>
-                      <div style={{ display: 'flex', justifyContent: 'center', gap: '5px', marginBottom: '12px' }}>
-                        <div style={{ width: '20px', height: '20px', borderRadius: '50%', background: layout.accent_color, border: '1px solid rgba(0,0,0,0.1)' }} title={layout.accent_color} />
-                      </div>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                        <button className="btn btn-outline btn-full" onClick={() => setActivePreviewUrl(`${siteUrl}?preview_index=${i}`)} style={{ fontSize: '12px', padding: '6px' }}>
-                          👁️ Anteprima Reale
-                        </button>
-                        <button className="btn btn-primary btn-full" onClick={() => applyLayout(i)} style={{ fontSize: '12px', padding: '6px' }}>
-                          ✓ Applica
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
+                    ))}
+                  </div>
+                );
+              })()}
             </div>
 
             {/* Iframe Anteprima Modale */}
