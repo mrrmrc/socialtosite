@@ -417,7 +417,11 @@ if ($action === 'site' && $method === 'GET') {
             [$userId]
         );
         foreach ($posts as &$p) {
-            $p['tags'] = json_decode($p['tags'] ?? '[]', true);
+            $decoded = json_decode($p['tags'] ?? '[]', true);
+            if (!is_array($decoded)) {
+                $decoded = is_string($p['tags']) ? explode(',', $p['tags']) : [];
+            }
+            $p['tags'] = array_filter(array_map('trim', $decoded));
         }
         json(['site' => $site, 'posts' => $posts, 'connections' => $connections, 'sources' => $sources]);
     } catch (Throwable $e) {
