@@ -5,6 +5,12 @@ error_reporting(E_ALL);
 
 require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/../config/db.php';
+try {
+    require_once __DIR__ . '/services/ai.php';
+    echo "AI caricato.\n";
+} catch (Throwable $e) {
+    echo "AI Error: " . $e->getMessage() . " on line " . $e->getLine() . "\n";
+}
 
 echo "Test DB connection:\n";
 try {
