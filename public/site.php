@@ -20,7 +20,13 @@ $posts = DB::fetchAll(
     'SELECT * FROM posts WHERE user_id=? AND published=1 ORDER BY featured DESC, published_at DESC',
     [$user['id']]
 );
-foreach ($posts as &$p) { $p['tags'] = json_decode($p['tags'] ?? '[]', true); }
+foreach ($posts as &$p) {
+    $decoded = json_decode($p['tags'] ?? '[]', true);
+    if (!is_array($decoded)) {
+        $decoded = is_string($p['tags']) ? explode(',', $p['tags']) : [];
+    }
+    $p['tags'] = array_filter(array_map('trim', $decoded));
+}
 unset($p);
 
 $postSlug = $_GET['post'] ?? '';
