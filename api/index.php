@@ -529,7 +529,7 @@ if ($action === 'design-site' && $method === 'POST') {
         DB::execute(
             'UPDATE sites SET title=?, bio=?, menu_links=?, footer_text=?,
                 theme=?, accent_color=?, header_layout=?, custom_css=?,
-                generated_layouts=?
+                generated_layouts=?, hero_tagline=?, cover_url=COALESCE(NULLIF(?,\'\'), cover_url)
              WHERE user_id=?',
             [
                 $seo['title'] ?? '', $seo['bio'] ?? '',
@@ -538,6 +538,8 @@ if ($action === 'design-site' && $method === 'POST') {
                 $g['theme'] ?? 'classic', $g['accent_color'] ?? '',
                 $g['header_layout'] ?? 'standard', $g['custom_css'] ?? '',
                 json_encode($proposals, JSON_UNESCAPED_UNICODE),
+                $seo['hero_tagline'] ?? '',
+                $seo['cover_url'] ?? '',
                 $userId
             ]
         );

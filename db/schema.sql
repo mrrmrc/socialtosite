@@ -83,6 +83,7 @@ CREATE TABLE IF NOT EXISTS sites (
   accent_color  VARCHAR(50),
   header_layout VARCHAR(50) DEFAULT 'standard',
   custom_css    TEXT,
+  hero_tagline  TEXT,
   profile_summary TEXT,
   role_mission  TEXT,
   content_strategy TEXT,

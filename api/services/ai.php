@@ -527,13 +527,18 @@ class AI {
 
     // ── AGENTE 3 (SEO/GEO Specialist) ─────────────────────────────────────
     public static function seoSpecialistSetup(string $profileSummary, string $roleMission, string $contentStrategy): array {
-        $fallback = "Sei un agente SEO/GEO Specialist esperto. Il tuo compito è ottimizzare i metadati di un sito web in base al profilo dell'utente.\n\n"
+        $fallback = "Sei un SEO Specialist ed esperto di Comunicazione.\n\n"
             . "Profilo:\n{profileSummary}\n\n"
             . "Ruolo e Missione:\n{roleMission}\n\n"
-            . "Strategia Editoriale:\n{contentStrategy}\n\n"
-            . "Genera un JSON valido con questa struttura:\n"
-            . '{"title":"Titolo SEO max 60 caratteri (es. Nome Cognome | Mestiere a Città)","bio":"Biografia SEO friendly, max 160 caratteri","menu_links":[{"label":"Voce Menu","url":"#ancora"}],"footer_text":"Testo SEO per il footer, max 100 caratteri"}'
-            . "\nCrea 3 o 4 voci di menu pertinenti al mestiere (es. per un ristorante: Menu, Chi Siamo, Prenota). Usa hash URLs (#) poichè la pagina potrebbe essere single page.";
+            . "Strategia:\n{contentStrategy}\n\n"
+            . "Devi estrarre e generare un array JSON per la configurazione base del sito, con queste chiavi:\n"
+            . "1. 'title': Nome o Brand (max 60 char).\n"
+            . "2. 'bio': Una meta description SEO (max 160 char).\n"
+            . "3. 'hero_tagline': Un breve slogan d'impatto o sottotitolo (max 80 char).\n"
+            . "4. 'cover_url': Fornisci un URL per un'immagine di copertina adatta al settore usando Unsplash (es. https://images.unsplash.com/photo-... usa immagini reali, non source.unsplash.com obsoleto) oppure lascia vuoto se non trovi un URL preciso.\n"
+            . "5. 'menu_links': Un array di 3-4 voci di menu (es. [{'label':'Chi Sono', 'url':'#chi-sono'}]).\n"
+            . "6. 'footer_text': Una frase conclusiva o disclaimer per il footer.\n\n"
+            . "Rispondi SOLO con il JSON.";
 
         $prompt = self::getAgentPrompt('seo_specialist', $fallback);
         $prompt = str_replace(['{profileSummary}', '{roleMission}', '{contentStrategy}'], [$profileSummary, $roleMission, $contentStrategy], $prompt);

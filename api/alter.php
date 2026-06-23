@@ -42,3 +42,9 @@ try {
 } catch (Exception $e) {
     echo "Error custom_css: " . $e->getMessage() . "\n";
 }
+try {
+    DB::execute('ALTER TABLE sites ADD COLUMN hero_tagline TEXT');
+    echo "Column hero_tagline added.\n";
+} catch (Exception $e) {
+    echo "Error hero_tagline: " . $e->getMessage() . "\n";
+}

@@ -373,12 +373,13 @@ $activeCss = str_replace('#$accent', $accent, $activeCss);
     .body-content p { margin-bottom: 1.5rem; }
     .back-btn { display: inline-flex; align-items: center; gap: 0.5rem; margin-bottom: 2rem; font-weight: 600; color: var(--accent, #7F77DD); }
     /* Footer */
-    .footer { margin-top: 5rem; padding: 4rem 1.5rem 2.5rem; background: var(--text, #0D1117); color: #fff; text-align: center; }
-    .footer-logo { font-size: 1.4rem; font-weight: 700; margin-bottom: 1rem; color: #fff; }
-    .footer-text { color: rgba(255,255,255,0.6); font-size: 0.9rem; max-width: 500px; margin: 0 auto 1.5rem; }
-    .footer-socials { display: flex; justify-content: center; gap: 1rem; margin-bottom: 2rem; flex-wrap: wrap; }
-    .footer-socials a { color: #fff; background: rgba(255,255,255,0.1); width: 44px; height: 44px; border-radius: 50%; display: flex; align-items: center; justify-content: center; transition: background 0.2s, transform 0.2s; text-decoration: none; }
-    .footer-socials a:hover { background: var(--accent, #7F77DD); transform: translateY(-3px); }
+    /* Footer Premium */
+    .footer { margin-top: 5rem; padding: 5rem 2rem 3rem; background: var(--text, #0D1117); color: #fff; text-align: center; border-radius: 40px 40px 0 0; }
+    .footer-logo { font-size: 1.8rem; font-weight: 800; margin-bottom: 1.5rem; color: #fff; letter-spacing: -0.02em; }
+    .footer-text { color: rgba(255,255,255,0.7); font-size: 1rem; max-width: 600px; margin: 0 auto 2rem; line-height: 1.6; }
+    .footer-socials { display: flex; justify-content: center; gap: 1rem; margin-bottom: 3rem; flex-wrap: wrap; }
+    .footer-socials a { color: #fff; background: rgba(255,255,255,0.08); width: 48px; height: 48px; border-radius: 50%; display: flex; align-items: center; justify-content: center; transition: all 0.3s; text-decoration: none; border: 1px solid rgba(255,255,255,0.1); }
+    .footer-socials a:hover { background: var(--accent, #7F77DD); border-color: var(--accent, #7F77DD); transform: translateY(-4px) scale(1.05); }
     .footer-bottom { border-top: 1px solid rgba(255,255,255,0.1); padding-top: 1.5rem; font-size: 0.8rem; color: rgba(255,255,255,0.4); margin-top: 1.5rem; }
     .footer-bottom a { color: rgba(255,255,255,0.5); }
     /* Custom CSS iniettato dall'AI */
@@ -409,10 +410,16 @@ $activeCss = str_replace('#$accent', $accent, $activeCss);
 
 <?php if (!$single): ?>
 <!-- HERO -->
-<header class="hero">
-  <h1><?= $title ?></h1>
-  <?php if ($bio): ?><p class="bio"><?= $bio ?></p><?php endif; ?>
-  <?php if ($heroTagline): ?><p style="font-size:1rem;opacity:0.6;margin-top:0.5rem;"><?= $heroTagline ?></p><?php endif; ?>
+<?php 
+$heroStyle = '';
+if ($coverUrl) {
+    $heroStyle = 'background: linear-gradient(rgba(0,0,0,0.6), rgba(0,0,0,0.8)), url(' . h($coverUrl) . ') center/cover no-repeat; color: #fff; padding: 8rem 2rem; border-radius: 0 0 40px 40px;';
+}
+?>
+<header class="hero" style="<?= $heroStyle ?>">
+  <h1 style="<?= $coverUrl ? 'color:#fff;' : '' ?>"><?= $title ?></h1>
+  <?php if ($heroTagline): ?><p class="hero-tagline" style="font-size: clamp(1.2rem, 3vw, 1.6rem); font-weight: 600; margin-bottom: 1rem; <?= $coverUrl ? 'color:rgba(255,255,255,0.9);' : 'color:var(--accent);' ?>"><?= $heroTagline ?></p><?php endif; ?>
+  <?php if ($bio): ?><p class="bio" style="<?= $coverUrl ? 'color:rgba(255,255,255,0.7);' : '' ?>"><?= $bio ?></p><?php endif; ?>
 
   <?php if ($sources): ?>
   <div class="socials">

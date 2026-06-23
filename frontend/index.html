@@ -368,6 +368,8 @@ function DashboardScreen({ token, user, onLogout }) {
   const [headerLayout, setHeaderLayout] = useState('standard');
   const [accentColor, setAccentColor] = useState('');
   const [logoUrl, setLogoUrl] = useState('');
+  const [coverUrl, setCoverUrl] = useState('');
+  const [heroTagline, setHeroTagline] = useState('');
   const [customCss, setCustomCss] = useState('');
   const [menuLinksStr, setMenuLinksStr] = useState('');
 
@@ -385,6 +387,8 @@ function DashboardScreen({ token, user, onLogout }) {
       setHeaderLayout(d.site?.header_layout || 'standard');
       setAccentColor(d.site?.accent_color || '');
       setLogoUrl(d.site?.logo_url || '');
+      setCoverUrl(d.site?.cover_url || '');
+      setHeroTagline(d.site?.hero_tagline || '');
       setCustomCss(d.site?.custom_css || '');
       if (d.site?.menu_links) {
         try {
@@ -543,6 +547,8 @@ function DashboardScreen({ token, user, onLogout }) {
           header_layout: headerLayout,
           accent_color: accentColor,
           logo_url: logoUrl,
+          cover_url: coverUrl,
+          hero_tagline: heroTagline,
           custom_css: customCss,
           menu_links: menuLinksStr.split('\n').filter(x => x.trim()).map(x => {
              const parts = x.split('|');
@@ -1173,6 +1179,14 @@ function DashboardScreen({ token, user, onLogout }) {
               <div className="form-group">
                 <label className="label">URL Logo Immagine</label>
                 <input type="text" value={logoUrl} onChange={e => setLogoUrl(e.target.value)} placeholder="https://..." />
+              </div>
+              <div className="form-group">
+                <label className="label">URL Immagine Header (Copertina)</label>
+                <input type="text" value={coverUrl} onChange={e => setCoverUrl(e.target.value)} placeholder="https://images.unsplash.com/..." />
+              </div>
+              <div className="form-group">
+                <label className="label">Breve Slogan (Sottotitolo)</label>
+                <input type="text" value={heroTagline} onChange={e => setHeroTagline(e.target.value)} placeholder="La mia missione in poche parole..." />
               </div>
               <div className="form-group">
                 <label className="label">Link Menu di Navigazione (Etichetta|URL, uno per riga)</label>
