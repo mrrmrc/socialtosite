@@ -1,8 +1,16 @@
 <?php
-require 'api/config/db.php';
+ini_set('display_errors', 1);
+ini_set('display_startup_errors', 1);
+error_reporting(E_ALL);
+
+require_once __DIR__ . '/../config/config.php';
+require_once __DIR__ . '/../config/db.php';
+require_once __DIR__ . '/services/ai.php';
+
+echo "Test DB connection:\n";
 try {
-    $posts = DB::fetchAll('SELECT id, user_id, platform, SUBSTR(raw_content, 1, 100) as c, published_at FROM posts ORDER BY id DESC LIMIT 10');
-    echo json_encode(["status" => "ok", "count" => count($posts), "posts" => $posts], JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE);
+    $site = DB::fetch('SELECT profile_summary, role_mission, content_strategy FROM sites LIMIT 1');
+    print_r($site);
 } catch (Exception $e) {
-    echo json_encode(["status" => "error", "message" => $e->getMessage()]);
+    echo "DB Error: " . $e->getMessage() . "\n";
 }
