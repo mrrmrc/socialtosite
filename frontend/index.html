@@ -1223,6 +1223,12 @@ function DashboardScreen({ token, user, onLogout }) {
               </p>
               {site?.last_sync && (
                 <p style={{ fontSize: '13px', color: 'var(--text-faint)' }}>
+                  Ultima sincronizzazione: {new Date(site.last_sync).toLocaleString('it-IT')}
+                </p>
+              )}
+            </div>
+
+            <div className="card">
               <h3 style={{ marginBottom: '0.75rem' }}>🌍 Il tuo sito pubblico</h3>
               <div style={{ background: 'var(--gray-light)', padding: '10px 14px', borderRadius: 'var(--radius-sm)', fontFamily: 'monospace', fontSize: '13px', marginBottom: '10px', wordBreak: 'break-all' }}>{siteUrl}</div>
               <div style={{ display: 'flex', gap: '10px' }}>
