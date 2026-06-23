@@ -305,9 +305,64 @@ class Ingest {
             $summary = $profileOverride !== '' ? $profileOverride : ($profile['profile_summary'] ?? '');
             $finalRoleMission = $roleMission !== '' ? $roleMission : ($profile['role_mission'] ?? '');
             $finalContentStrategy = $contentStrategy !== '' ? $contentStrategy : ($profile['content_strategy'] ?? '');
+
+            // Eseguiamo gli agenti in background setup solo se i dati del sito sono vuoti o per la prima volta
+            // Per forzare, useremo l'endpoint apposito
+            $site = DB::fetch('SELECT title, theme FROM sites WHERE user_id=?', [$userId]);
+            
+            $seoTitle = '';
+            $seoBio = '';
+            $seoMenu = '';
+            $seoFooter = '';
+            $gTheme = '';
+            $gColor = '';
+            $gLayout = '';
+            $gCss = '';
+
+            // Chiamiamo gli agenti solo se manca qualcosa di essenziale
+            $layoutsJson = '';
+            if (empty($site['title']) || $site['title'] === 'Sito Personale' || empty($site['theme']) || $site['theme'] === 'classic') {
+                $seo = AI::seoSpecialistSetup($summary, $finalRoleMission, $finalContentStrategy);
+                $graphicProposals = AI::graphicDesignerSetup($summary, $finalRoleMission, $finalContentStrategy);
+                
+                $seoTitle = $seo['title'] ?? '';
+                $seoBio = $seo['bio'] ?? '';
+                $seoMenu = isset($seo['menu_links']) ? json_encode($seo['menu_links'], JSON_UNESCAPED_UNICODE) : '';
+                $seoFooter = $seo['footer_text'] ?? '';
+                
+                // Prendiamo la prima proposta come default
+                $gTheme = $graphicProposals[0]['theme'] ?? '';
+                $gColor = $graphicProposals[0]['accent_color'] ?? '';
+                $gLayout = $graphicProposals[0]['header_layout'] ?? '';
+                $gCss = $graphicProposals[0]['custom_css'] ?? '';
+                
+                $layoutsJson = json_encode($graphicProposals, JSON_UNESCAPED_UNICODE);
+            }
+
             DB::execute(
-                'UPDATE sites SET profile_summary=?, bio=COALESCE(NULLIF(bio, ""), ?), role_mission=?, content_strategy=? WHERE user_id=?',
-                [$summary, $summary, $finalRoleMission, $finalContentStrategy, $userId]
+                'UPDATE sites SET 
+                    profile_summary=?, 
+                    role_mission=?, 
+                    content_strategy=?,
+                    title=COALESCE(NULLIF(title, ""), NULLIF(?, "")),
+                    bio=COALESCE(NULLIF(bio, ""), NULLIF(?, "")),
+                    menu_links=COALESCE(NULLIF(menu_links, ""), NULLIF(?, "")),
+                    footer_text=COALESCE(NULLIF(footer_text, ""), NULLIF(?, "")),
+                    theme=COALESCE(NULLIF(theme, ""), NULLIF(?, "")),
+                    accent_color=COALESCE(NULLIF(accent_color, ""), NULLIF(?, "")),
+                    header_layout=COALESCE(NULLIF(header_layout, ""), NULLIF(?, "")),
+                    custom_css=COALESCE(NULLIF(custom_css, ""), NULLIF(?, "")),
+                    generated_layouts=COALESCE(NULLIF(?, ""), generated_layouts)
+                 WHERE user_id=?',
+                [
+                    $summary, 
+                    $finalRoleMission, 
+                    $finalContentStrategy,
+                    $seoTitle, $seoBio, $seoMenu, $seoFooter,
+                    $gTheme, $gColor, $gLayout, $gCss,
+                    $layoutsJson,
+                    $userId
+                ]
             );
         }
         DB::execute('UPDATE sites SET last_sync=NOW() WHERE user_id=?', [$userId]);

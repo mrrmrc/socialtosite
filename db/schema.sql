@@ -88,9 +88,16 @@ CREATE TABLE IF NOT EXISTS sites (
   custom_domain VARCHAR(255),
   theme         VARCHAR(50) DEFAULT 'classic',
   seo_score     INT DEFAULT 0,
+  generated_layouts LONGTEXT,
   last_sync     DATETIME,
   created_at    DATETIME DEFAULT NOW(),
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS agent_prompts (
+  id             INT AUTO_INCREMENT PRIMARY KEY,
+  agent_name     VARCHAR(50) UNIQUE NOT NULL,
+  instructions   TEXT NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS sync_log (

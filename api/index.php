@@ -49,7 +49,42 @@ if (in_array($action, ['login', 'register', 'site-public', 'debug-site', 'migrat
         try { DB::execute('ALTER TABLE sites ADD COLUMN header_layout VARCHAR(50) NULL'); } catch (Throwable $e) {}
         try { DB::execute('ALTER TABLE sites ADD COLUMN logo_url TEXT NULL'); } catch (Throwable $e) {}
         try { DB::execute('ALTER TABLE sites ADD COLUMN custom_css TEXT NULL'); } catch (Throwable $e) {}
-        json(['ok' => true, 'msg' => 'Migration applied']);
+        try { DB::execute('ALTER TABLE sites ADD COLUMN generated_layouts LONGTEXT NULL'); } catch (Throwable $e) {}
+        try { DB::execute('ALTER TABLE sites ADD COLUMN site_ai_data LONGTEXT NULL'); } catch (Throwable $e) {}
+        try { DB::execute('ALTER TABLE posts ADD COLUMN featured TINYINT DEFAULT 0'); } catch (Throwable $e) {}
+        try { DB::execute('ALTER TABLE posts ADD COLUMN edited_title VARCHAR(255) NULL'); } catch (Throwable $e) {}
+        try { DB::execute('ALTER TABLE posts ADD COLUMN edited_body LONGTEXT NULL'); } catch (Throwable $e) {}
+        try { DB::execute('ALTER TABLE posts ADD COLUMN edited_excerpt TEXT NULL'); } catch (Throwable $e) {}
+        try {
+            DB::execute('CREATE TABLE IF NOT EXISTS agent_prompts (
+              id INT AUTO_INCREMENT PRIMARY KEY,
+              agent_name VARCHAR(50) UNIQUE NOT NULL,
+              label VARCHAR(100) NOT NULL DEFAULT "",
+              description TEXT NULL,
+              instructions TEXT NOT NULL
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4');
+            try { DB::execute('ALTER TABLE agent_prompts ADD COLUMN label VARCHAR(100) NOT NULL DEFAULT ""'); } catch (Throwable $e) {}
+            try { DB::execute('ALTER TABLE agent_prompts ADD COLUMN description TEXT NULL'); } catch (Throwable $e) {}
+            $c = DB::fetch('SELECT COUNT(*) as c FROM agent_prompts')['c'] ?? 0;
+            if ($c == 0) {
+                DB::execute('INSERT INTO agent_prompts (agent_name, label, description, instructions) VALUES
+                    (?, ?, ?, ?),
+                    (?, ?, ?, ?),
+                    (?, ?, ?, ?),
+                    (?, ?, ?, ?)',
+                [
+                    'content_editor', 'Content Editor', 'Filtra e riscrive i post social in articoli SEO-friendly.',
+                    "Sei un editor editoriale esperto. Riscrivi questo contenuto in un articolo web.\n\nContenuto:\n{content}\n\nProfilo:\n{profileSummary}\n\nGenera JSON: {\"generated_title\":\"Titolo H1 max 70 caratteri\",\"generated_body\":\"Corpo articolo in paragrafi, min 300 parole\",\"generated_excerpt\":\"Sommario max 155 caratteri\",\"tags\":[\"tag1\"],\"meta_description\":\"Meta max 155 caratteri\",\"relevance_score\":80,\"seo_score\":85}",
+                    'seo_specialist', 'SEO Specialist', 'Ottimizza titolo, bio e navigazione del sito in chiave Google.',
+                    "Sei un SEO/GEO Specialist. Ottimizza i metadati del sito.\n\nProfilo:\n{profileSummary}\n\nRuolo:\n{roleMission}\n\nStrategia:\n{contentStrategy}\n\nGenera JSON: {\"title\":\"Titolo SEO max 60 caratteri\",\"bio\":\"Bio max 160 caratteri\",\"menu_links\":[{\"label\":\"Label\",\"url\":\"#ancora\"}],\"footer_text\":\"Footer max 100 caratteri\"}",
+                    'graphic_designer', 'Graphic Designer', 'Genera 3 proposte di design visivo con CSS per ogni profilo.',
+                    "Sei un Graphic Designer UI/UX. Crea 3 design distinti per questo profilo.\n\nProfilo:\n{profileSummary}\n\nRuolo:\n{roleMission}\n\nGenera JSON {\"proposals\":[{\"theme\":\"classic\",\"accent_color\":\"#hex\",\"header_layout\":\"standard\",\"custom_css\":\"CSS completo premium\"}]}. Temi: classic, journal, authority, portfolio, magazine, minimal, studio, local, academy, bottega.",
+                    'site_ai', 'Sito AI', 'Genera un sito completo su misura: design, testi, CSS, tutto personalizzato al profilo.',
+                    "Sei un team AI: SEO Specialist + Graphic Designer + Content Strategist. Genera TUTTO per un sito professionale su misura.\n\nProfilo:\n{profileSummary}\n\nRuolo:\n{roleMission}\n\nStrategia:\n{contentStrategy}\n\nPost recenti:\n{recentPosts}\n\nGenera JSON: {\"title\":\"Titolo sito max 60 caratteri\",\"bio\":\"Bio ottimizzata max 200 caratteri\",\"role_mission\":\"Missione max 150 caratteri\",\"theme\":\"classic\",\"accent_color\":\"#hex\",\"accent_secondary\":\"#hex\",\"header_layout\":\"standard\",\"menu_links\":[{\"label\":\"Label\",\"url\":\"#ancora\"}],\"footer_text\":\"Footer\",\"custom_css\":\"Blocco CSS completo e creativo. Usa custom properties, gradienti, animazioni. Min 300 caratteri.\",\"hero_tagline\":\"Frase ad impatto max 80 caratteri\",\"cta_text\":\"Call to action\"}"
+                ]);
+            }
+        } catch (Throwable $e) {}
+        json(['ok' => true, 'msg' => 'Migration v4 OK']);
     }
     require __DIR__ . '/routes/auth.php';
     exit;
@@ -161,6 +196,22 @@ if ($action === 'admin-delete-user' && $method === 'POST') {
     if ($targetId === (int)$userId) jsonError('Non puoi eliminare il tuo account amministratore');
 
     DB::execute('DELETE FROM users WHERE id=?', [$targetId]);
+    json(['ok' => true]);
+}
+
+if ($action === 'admin-prompts' && $method === 'GET') {
+    requireAdmin($isAdmin);
+    $prompts = DB::fetchAll('SELECT * FROM agent_prompts');
+    json(['prompts' => $prompts]);
+}
+
+if ($action === 'admin-update-prompt' && $method === 'POST') {
+    requireAdmin($isAdmin);
+    $b = body();
+    $agentName = $b['agent_name'] ?? '';
+    $instructions = $b['instructions'] ?? '';
+    if (!$agentName || !$instructions) jsonError('Dati mancanti');
+    DB::execute('UPDATE agent_prompts SET instructions=? WHERE agent_name=?', [$instructions, $agentName]);
     json(['ok' => true]);
 }
 
@@ -391,6 +442,35 @@ if ($action === 'toggle-publish-post' && $method === 'POST') {
     json(['ok' => true]);
 }
 
+// ── FEATURE post (metti in evidenza) ─────────────────────────────────────
+if ($action === 'post-feature' && $method === 'POST') {
+    $b = body();
+    $id = (int)($b['id'] ?? 0);
+    $featured = (int)($b['featured'] ?? 0);
+    // Solo 1 post in evidenza alla volta
+    if ($featured) DB::execute('UPDATE posts SET featured=0 WHERE user_id=?', [$userId]);
+    DB::execute('UPDATE posts SET featured=? WHERE id=? AND user_id=?', [$featured, $id, $userId]);
+    json(['ok' => true]);
+}
+
+// ── EDIT post (CMS editoriale) ────────────────────────────────────────────
+if ($action === 'post-update' && $method === 'POST') {
+    $b = body();
+    $id = (int)($b['id'] ?? 0);
+    if (!$id) jsonError('ID post mancante');
+    $fields = [];
+    $params = [];
+    if (array_key_exists('edited_title', $b)) { $fields[] = 'edited_title=?'; $params[] = $b['edited_title']; }
+    if (array_key_exists('edited_body', $b))  { $fields[] = 'edited_body=?';  $params[] = $b['edited_body']; }
+    if (array_key_exists('edited_excerpt', $b)){ $fields[] = 'edited_excerpt=?'; $params[] = $b['edited_excerpt']; }
+    if (array_key_exists('tags', $b))         { $fields[] = 'tags=?'; $params[] = is_array($b['tags']) ? json_encode($b['tags']) : $b['tags']; }
+    if (array_key_exists('published', $b))    { $fields[] = 'published=?';    $params[] = (int)$b['published']; }
+    if (empty($fields)) json(['ok' => true]);
+    $params[] = $id; $params[] = $userId;
+    DB::execute('UPDATE posts SET ' . implode(',', $fields) . ' WHERE id=? AND user_id=?', $params);
+    json(['ok' => true]);
+}
+
 // ── DELETE post (legacy hide) ─────────────────────────────────────────────
 if ($action === 'hide-post' && $method === 'POST') {
     $b = body();
@@ -425,6 +505,77 @@ if ($action === 'site-update' && $method === 'POST') {
         DB::execute('UPDATE sites SET ' . implode(', ', $fields) . ' WHERE user_id = ?', $params);
     }
     json(['ok' => true]);
+}
+
+// ── POST design-site (3 proposte Graphic Designer) ───────────────────────
+if ($action === 'design-site' && $method === 'POST') {
+    require_once __DIR__ . '/services/ai.php';
+    $site = DB::fetch('SELECT profile_summary, role_mission, content_strategy FROM sites WHERE user_id=?', [$userId]);
+    $summary = trim($site['profile_summary'] ?? '');
+    $role    = trim($site['role_mission'] ?? '');
+    $strategy = trim($site['content_strategy'] ?? '');
+    if (!$summary) jsonError('Il profilo è vuoto. Fai prima una scansione dei social.');
+
+    $seo      = AI::seoSpecialistSetup($summary, $role, $strategy);
+    $proposals = AI::graphicDesignerSetup($summary, $role, $strategy);
+
+    // Prima proposta come default attivo
+    $g = $proposals[0] ?? [];
+    DB::execute(
+        'UPDATE sites SET title=?, bio=?, menu_links=?, footer_text=?,
+            theme=?, accent_color=?, header_layout=?, custom_css=?,
+            generated_layouts=?
+         WHERE user_id=?',
+        [
+            $seo['title'] ?? '', $seo['bio'] ?? '',
+            isset($seo['menu_links']) ? json_encode($seo['menu_links'], JSON_UNESCAPED_UNICODE) : '',
+            $seo['footer_text'] ?? '',
+            $g['theme'] ?? 'classic', $g['accent_color'] ?? '',
+            $g['header_layout'] ?? 'standard', $g['custom_css'] ?? '',
+            json_encode($proposals, JSON_UNESCAPED_UNICODE),
+            $userId
+        ]
+    );
+    json(['ok' => true, 'proposals' => $proposals]);
+}
+
+// ── POST site-ai (Generazione completa SITO AI) ───────────────────────────
+if ($action === 'site-ai' && $method === 'POST') {
+    require_once __DIR__ . '/services/ai.php';
+    $site  = DB::fetch('SELECT * FROM sites WHERE user_id=?', [$userId]);
+    $summary  = trim($site['profile_summary'] ?? $site['bio'] ?? '');
+    $role     = trim($site['role_mission'] ?? '');
+    $strategy = trim($site['content_strategy'] ?? '');
+    if (!$summary) jsonError('Il profilo è vuoto. Prima esegui una scansione dei social.');
+
+    // Prendi i 5 post più recenti pubblicati come contesto
+    $recentRaw = DB::fetchAll('SELECT generated_title, generated_excerpt, platform FROM posts WHERE user_id=? AND published=1 ORDER BY published_at DESC LIMIT 5', [$userId]);
+    $recentPosts = implode("\n", array_map(fn($p) => "[{$p['platform']}] {$p['generated_title']}: {$p['generated_excerpt']}", $recentRaw));
+
+    $result = AI::siteAiGenerate($summary, $role, $strategy, $recentPosts);
+
+    DB::execute(
+        'UPDATE sites SET
+            title=?, bio=?, role_mission=?,
+            theme=?, accent_color=?, header_layout=?,
+            menu_links=?, footer_text=?, custom_css=?,
+            site_ai_data=?
+         WHERE user_id=?',
+        [
+            $result['title'] ?? '',
+            $result['bio'] ?? '',
+            $result['role_mission'] ?? $role,
+            $result['theme'] ?? 'classic',
+            $result['accent_color'] ?? '',
+            $result['header_layout'] ?? 'standard',
+            isset($result['menu_links']) ? json_encode($result['menu_links'], JSON_UNESCAPED_UNICODE) : '',
+            $result['footer_text'] ?? '',
+            $result['custom_css'] ?? '',
+            json_encode($result, JSON_UNESCAPED_UNICODE),
+            $userId
+        ]
+    );
+    json(['ok' => true, 'result' => $result]);
 }
 
 // ── AGENTE 1: POST ingest-url  { url } ────────────────────────────────────

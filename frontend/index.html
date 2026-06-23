@@ -55,7 +55,7 @@
 <body>
 <div id="root"></div>
 <script type="text/babel">
-const { useState, useEffect, useCallback } = React;
+const { useState, useEffect, useCallback, useRef } = React;
 
 // ── Config API ──────────────────────────────────────────────────────────────
 const API = window.API_BASE || '';
@@ -65,7 +65,14 @@ async function apiFetch(path, opts = {}, token = null) {
   if (token) headers['Authorization'] = `Bearer ${token}`;
   const r = await fetch(`${API}${path}`, { ...opts, headers: { ...headers, ...opts.headers } });
   const data = await r.json();
-  if (!r.ok) throw new Error(data.error || 'Errore server');
+  if (r.status === 401) {
+    // Token scaduto o invalido: pulisci la sessione e ricarica
+    localStorage.removeItem('sts_token');
+    localStorage.removeItem('sts_user');
+    window.location.reload();
+    return;
+  }
+  if (!r.ok) throw new Error(data.error || `Errore server (${r.status})`);
   return data;
 }
 
@@ -78,18 +85,18 @@ const SOCIAL = {
   website:   { icon: 'https://cdn.simpleicons.org/googleearth/000000', label: 'Sito Web', color: '#888780' },
 };
 
+// 10 Temi con anteprima visiva e descrizione
 const SITE_LAYOUTS = [
-  { id: 'classic', name: 'Classico SEO', desc: 'Profilo, lista contenuti, pagina articolo pulita.', bars: ['70%', '92%', '84%'] },
-  { id: 'journal', name: 'Journal', desc: 'Editoriale sobrio per contenuti frequenti.', bars: ['92%', '74%', '68%'] },
-  { id: 'authority', name: 'Authority', desc: 'Missione forte e contenuti organizzati per autorevolezza.', bars: ['82%', '82%', '82%'] },
-  { id: 'portfolio', name: 'Portfolio', desc: 'Visuale, adatto a creator e professionisti.', bars: ['55%', '90%', '62%'] },
-  { id: 'magazine', name: 'Magazine', desc: 'Griglia ordinata per molti argomenti.', bars: ['48%', '48%', '48%', '48%'] },
-  { id: 'minimal', name: 'Minimal', desc: 'Testo essenziale, massima leggibilita.', bars: ['96%', '96%', '72%'] },
-  { id: 'studio', name: 'Studio', desc: 'Professionale, con profilo e casi/contenuti.', bars: ['64%', '76%', '88%'] },
-  { id: 'local', name: 'Local SEO', desc: 'Pensato per attivita locali e servizi.', bars: ['80%', '52%', '92%'] },
-  { id: 'academy', name: 'Academy', desc: 'Ideale per guide, tutorial e contenuti educativi.', bars: ['88%', '66%', '66%'] },
-  { id: 'timeline', name: 'Timeline', desc: 'Racconto cronologico dai social al sito.', bars: ['36%', '62%', '86%'] },
-  { id: 'bottega', name: 'Bottega', desc: 'Evidenzia processi di lavorazione artigianale e ultime opere.', bars: ['60%', '80%', '60%'] },
+  { id: 'classic',   name: 'Classic',   desc: 'Pulito, professionale, massima leggibilità.',     emoji: '🏛️', colors: ['#7F77DD','#FAFAFA','#fff'] },
+  { id: 'journal',   name: 'Journal',   desc: 'Editoriale serio, tipografia serif elegante.',      emoji: '📰', colors: ['#8B4513','#FDF6EE','#fff'] },
+  { id: 'authority', name: 'Authority', desc: 'Dark premium, per chi vuole imporsi.',             emoji: '🔮', colors: ['#7F77DD','#0D1117','#161B22'] },
+  { id: 'portfolio', name: 'Portfolio', desc: 'Layout a due colonne, visivo e moderno.',          emoji: '🎨', colors: ['#FF6B6B','#F5F0EB','#fff'] },
+  { id: 'magazine',  name: 'Magazine',  desc: 'Griglia a 3 colonne, stile testata online.',       emoji: '📱', colors: ['#E63946','#fff','#fff'] },
+  { id: 'minimal',   name: 'Minimal',   desc: 'Solo testo, zero distrazioni, massima eleganza.',  emoji: '⬜', colors: ['#000','#fff','#fff'] },
+  { id: 'studio',    name: 'Studio',    desc: 'Header scuro e bold, per agenzie e studi.',        emoji: '🏢', colors: ['#2D2D2D','#F7F5F2','#fff'] },
+  { id: 'local',     name: 'Local SEO', desc: 'Caldo, accogliente, per attività di quartiere.',   emoji: '🏪', colors: ['#F4A261','#FFFDF5','#fff'] },
+  { id: 'academy',   name: 'Academy',   desc: 'Serio e strutturato, per guide e formazione.',     emoji: '🎓', colors: ['#1D3557','#F0F4FF','#fff'] },
+  { id: 'bottega',   name: 'Bottega',   desc: 'Artigianale, caldo, per mestieri e creativi.',     emoji: '🧵', colors: ['#8B6914','#FAF7F2','#FFF8EF'] },
 ];
 
 function SocialIcon({ platform, size = 20 }) {
@@ -569,6 +576,128 @@ function DashboardScreen({ token, user, onLogout }) {
     await loadData();
   }
 
+  // --- Funzioni Layout Proposti ---
+  const [designingSite, setDesigningSite] = useState(false);
+  const [activePreviewUrl, setActivePreviewUrl] = useState(null);
+  const [previewThemeId, setPreviewThemeId] = useState('classic');
+
+  async function forceDesignSite() {
+    setDesigningSite(true);
+    try {
+      await apiFetch('/api/index.php?action=design-site', { method: 'POST' }, token);
+      await loadData();
+      alert("Nuovi layout generati con successo!");
+    } catch (err) {
+      alert("Errore generazione: " + err.message);
+    }
+    setDesigningSite(false);
+  }
+
+  async function applyLayout(index) {
+    if (!data?.site?.generated_layouts) return;
+    try {
+      const layouts = JSON.parse(data.site.generated_layouts);
+      const layout = layouts[index];
+      if (!layout) return;
+      await apiFetch('/api/index.php?action=site-update', {
+        method: 'POST',
+        body: JSON.stringify({
+          theme: layout.theme,
+          accent_color: layout.accent_color,
+          header_layout: layout.header_layout,
+          custom_css: layout.custom_css
+        })
+      }, token);
+      await loadData();
+      setActivePreviewUrl(null);
+      alert("Layout applicato con successo!");
+    } catch (err) {
+      alert(err.message);
+    }
+  }
+
+  // --- Funzioni Admin Prompts ---
+  const [adminPrompts, setAdminPrompts] = useState([]);
+  
+  async function loadAdminPrompts() {
+    try {
+      const res = await apiFetch('/api/index.php?action=admin-prompts', {}, token);
+      setAdminPrompts(res.prompts || []);
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
+  async function updatePrompt(agentName, instructions) {
+    try {
+      await apiFetch('/api/index.php?action=admin-update-prompt', {
+        method: 'POST',
+        body: JSON.stringify({ agent_name: agentName, instructions })
+      }, token);
+      alert("Istruzioni aggiornate con successo!");
+    } catch (err) {
+      alert("Errore: " + err.message);
+    }
+  }
+
+  useEffect(() => {
+    if (tab === 'admin' && user?.role === 'admin') loadAdminPrompts();
+  }, [tab]);
+
+  // ── SITO AI ──────────────────────────────────────────────────────────────
+  const [siteAiLoading, setSiteAiLoading] = useState(false);
+  const [siteAiResult, setSiteAiResult] = useState(null);
+
+  async function runSiteAi() {
+    if (!data?.site?.profile_summary && !data?.site?.bio) {
+      alert('Prima esegui una scansione dei social per generare il profilo. Vai in "Fonti" → Scansiona social.');
+      return;
+    }
+    if (!confirm('L\'AI genererà un sito completamente personalizzato al tuo profilo (tema, colori, testi, CSS). Sovrascriverà le impostazioni attuali. Procedere?')) return;
+    setSiteAiLoading(true);
+    try {
+      const res = await apiFetch('/api/index.php?action=site-ai', { method: 'POST' }, token);
+      setSiteAiResult(res.result);
+      await loadData();
+    } catch (err) {
+      alert('Errore SITO AI: ' + err.message);
+    }
+    setSiteAiLoading(false);
+  }
+
+  // ── CMS Editoriale ───────────────────────────────────────────────────────
+  const [editingPost, setEditingPost] = useState(null); // {id, title, body, excerpt, tags}
+  const [cmsSaving, setCmsSaving] = useState(false);
+  const [cmsFilter, setCmsFilter] = useState('all');
+
+  async function savePostEdit() {
+    if (!editingPost) return;
+    setCmsSaving(true);
+    try {
+      await apiFetch('/api/index.php?action=post-update', {
+        method: 'POST',
+        body: JSON.stringify({
+          id: editingPost.id,
+          edited_title: editingPost.title,
+          edited_body: editingPost.body,
+          edited_excerpt: editingPost.excerpt,
+          tags: editingPost.tags.split(',').map(t => t.trim()).filter(Boolean),
+        })
+      }, token);
+      setEditingPost(null);
+      await loadData();
+    } catch (err) { alert(err.message); }
+    setCmsSaving(false);
+  }
+
+  async function toggleFeatured(postId, currentFeatured) {
+    await apiFetch('/api/index.php?action=post-feature', {
+      method: 'POST',
+      body: JSON.stringify({ id: postId, featured: currentFeatured ? 0 : 1 })
+    }, token);
+    await loadData();
+  }
+
   const site = data?.site;
   const posts = data?.posts || [];
   const connections = data?.connections || [];
@@ -580,22 +709,45 @@ function DashboardScreen({ token, user, onLogout }) {
     <div style={{ minHeight: '100vh', background: 'var(--bg)' }}>
       {/* Topbar */}
       <div style={{ background: 'var(--surface)', borderBottom: '1px solid var(--border)', padding: '0 1rem' }}>
-        <div style={{ maxWidth: '800px', margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: '56px' }}>
+        <div style={{ maxWidth: '900px', margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: '56px' }}>
           <div style={{ fontWeight: 700, fontSize: '17px', color: 'var(--purple)' }}>Social<span style={{ color: 'var(--text)' }}>ToSite</span></div>
           <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-            <input type="number" title="Max post da cercare per social" placeholder="Max" min="1" max="500" value={syncLimit} onChange={e => setSyncLimit(e.target.value)} style={{ width: '80px', padding: '6px', fontSize: '13px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)' }} />
+            {/* Pulsante SITO AI - principale feature */}
+            <button
+              className="btn btn-primary"
+              onClick={runSiteAi}
+              disabled={siteAiLoading}
+              style={{ background: siteAiLoading ? 'var(--purple-dark)' : 'linear-gradient(135deg, #7F77DD, #534AB7)', fontSize: '13px', fontWeight: 600, boxShadow: '0 2px 8px rgba(127,119,221,0.4)' }}
+              title="L'AI genera il tuo sito personalizzato al 100% in base al tuo profilo"
+            >
+              {siteAiLoading ? '✨ Generando...' : '✨ SITO AI'}
+            </button>
+            <input type="number" title="Max post da cercare per social" placeholder="Max" min="1" max="500" value={syncLimit} onChange={e => setSyncLimit(e.target.value)} style={{ width: '70px', padding: '6px', fontSize: '13px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)' }} />
             <button className="btn btn-outline" onClick={syncNow} disabled={syncing}>
-              {syncing ? '⟳ Sync...' : '↻ Aggiorna ora'}
+              {syncing ? '⟳ Sync...' : '↻ Sync'}
             </button>
             {user.role === 'admin' && (
-              <button className="btn btn-outline" onClick={() => setTab('admin')} style={{ fontSize: '13px' }}>Admin</button>
+              <button className="btn btn-outline" onClick={() => setTab('admin')} style={{ fontSize: '13px' }}>🛠 Admin</button>
             )}
             <button className="btn btn-outline" onClick={onLogout} style={{ fontSize: '13px' }}>Esci</button>
           </div>
         </div>
       </div>
 
-      <div style={{ maxWidth: '800px', margin: '0 auto', padding: '1.5rem 1rem' }}>
+      <div style={{ maxWidth: '900px', margin: '0 auto', padding: '1.5rem 1rem' }}>
+        {/* Banner SITO AI */}
+        {siteAiResult && (
+          <div style={{ background: 'linear-gradient(135deg,#534AB7,#7F77DD)', color: '#fff', borderRadius: 'var(--radius)', padding: '1.25rem 1.5rem', marginBottom: '1.25rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap' }}>
+            <div>
+              <div style={{ fontWeight: 700, fontSize: '15px', marginBottom: '4px' }}>✨ Sito AI generato con successo!</div>
+              <div style={{ fontSize: '13px', opacity: 0.85 }}>Tema: <b>{siteAiResult.theme}</b> · Colore: <b>{siteAiResult.accent_color}</b> · Tagline: "{siteAiResult.hero_tagline}"</div>
+            </div>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <a href={siteUrl} target="_blank" rel="noopener" style={{ background: 'rgba(255,255,255,0.2)', color: '#fff', padding: '7px 16px', borderRadius: 'var(--radius-sm)', fontSize: '13px', fontWeight: 600, textDecoration: 'none' }}>🌍 Vedi sito</a>
+              <button onClick={() => setSiteAiResult(null)} style={{ background: 'transparent', color: 'rgba(255,255,255,0.6)', border: 'none', cursor: 'pointer', fontSize: '18px' }}>✕</button>
+            </div>
+          </div>
+        )}
         {/* Stats */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '10px', marginBottom: '1.5rem' }}>
           {[
@@ -612,13 +764,14 @@ function DashboardScreen({ token, user, onLogout }) {
         </div>
 
         {/* Tabs */}
-        <div style={{ display: 'flex', gap: '4px', marginBottom: '1.25rem', background: 'var(--gray-light)', padding: '4px', borderRadius: 'var(--radius-sm)', width: 'fit-content' }}>
+        <div style={{ display: 'flex', gap: '4px', marginBottom: '1.25rem', background: 'var(--gray-light)', padding: '4px', borderRadius: 'var(--radius-sm)', width: 'fit-content', flexWrap: 'wrap' }}>
           {[
             ['site', '📄 Contenuti'],
-            ['sources', '🔗 Fonti & Import'],
+            ['cms', '✏️ CMS'],
+            ['sources', '🔗 Fonti'],
             ['seo', '📈 SEO'],
-            ['settings', '⚙️ Impostazioni'],
-            ...(user.role === 'admin' ? [['admin', 'Admin']] : [])
+            ['settings', '⚙️ Tema'],
+            ...(user.role === 'admin' ? [['admin', '🛠 Admin']] : [])
           ].map(([t, l]) => (
             <button key={t} onClick={() => setTab(t)}
               style={{ padding: '6px 16px', borderRadius: '5px', fontWeight: tab === t ? 600 : 400,
@@ -881,10 +1034,59 @@ function DashboardScreen({ token, user, onLogout }) {
         {/* Tab: Impostazioni */}
         {tab === 'settings' && (
           <div>
+            <div className="card" style={{ marginBottom: '1rem', background: 'linear-gradient(135deg, var(--purple-light), #fff)', border: '1px solid var(--purple)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                <div>
+                  <h3 style={{ marginBottom: '0.25rem', color: 'var(--purple-dark)' }}>✨ Layout generati dall'AI</h3>
+                  <p style={{ color: 'var(--text-muted)', fontSize: '13px', margin: 0 }}>
+                    Lascia che il Graphic Designer crei proposte su misura in base al tuo profilo.
+                  </p>
+                </div>
+                <button className="btn btn-primary" onClick={forceDesignSite} disabled={designingSite}>
+                  {designingSite ? '⟳ Generazione in corso...' : 'Rigenera Proposte Layout'}
+                </button>
+              </div>
+
+              {data?.site?.generated_layouts && (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px' }}>
+                  {JSON.parse(data.site.generated_layouts).map((layout, i) => (
+                    <div key={i} style={{ background: 'var(--surface)', border: '1px solid var(--border-strong)', borderRadius: 'var(--radius)', padding: '1rem', textAlign: 'center' }}>
+                      <div style={{ fontWeight: 600, fontSize: '14px', marginBottom: '5px' }}>Proposta {i + 1}</div>
+                      <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '8px' }}>
+                        Tema: <b>{layout.theme}</b><br/>Layout: <b>{layout.header_layout}</b>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'center', gap: '5px', marginBottom: '12px' }}>
+                        <div style={{ width: '20px', height: '20px', borderRadius: '50%', background: layout.accent_color, border: '1px solid rgba(0,0,0,0.1)' }} title={layout.accent_color} />
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                        <button className="btn btn-outline btn-full" onClick={() => setActivePreviewUrl(`${siteUrl}?preview_index=${i}`)} style={{ fontSize: '12px', padding: '6px' }}>
+                          👁️ Anteprima Reale
+                        </button>
+                        <button className="btn btn-primary btn-full" onClick={() => applyLayout(i)} style={{ fontSize: '12px', padding: '6px' }}>
+                          ✓ Applica
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Iframe Anteprima Modale */}
+            {activePreviewUrl && (
+              <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.8)', zIndex: 9999, display: 'flex', flexDirection: 'column', padding: '20px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', background: '#222', color: '#fff', padding: '10px 20px', borderRadius: '10px 10px 0 0' }}>
+                  <span style={{ fontWeight: 600 }}>Anteprima Reale Proposta AI</span>
+                  <button onClick={() => setActivePreviewUrl(null)} style={{ background: 'transparent', color: '#fff', fontSize: '18px' }}>✕ Chiudi</button>
+                </div>
+                <iframe src={activePreviewUrl} style={{ width: '100%', flex: 1, background: '#fff', border: 'none', borderRadius: '0 0 10px 10px' }} />
+              </div>
+            )}
+
             <div className="card" style={{ marginBottom: '1rem' }}>
-              <h3 style={{ marginBottom: '0.35rem' }}>Layout del sito</h3>
+              <h3 style={{ marginBottom: '0.35rem' }}>Layout base manuale</h3>
               <p style={{ color: 'var(--text-muted)', fontSize: '13px', marginBottom: '1rem' }}>
-                Scegli il modello HTML pubblico. Tutti i layout mantengono markup semantico, sitemap e pagine articolo indicizzabili.
+                Oltre ai design AI, puoi selezionare manualmente un modello base.
               </p>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(148px, 1fr))', gap: '10px' }}>
                 {SITE_LAYOUTS.map(layout => {
@@ -1015,40 +1217,31 @@ function DashboardScreen({ token, user, onLogout }) {
             </div>
 
             <div className="card" style={{ marginBottom: '1rem' }}>
-              <h3 style={{ marginBottom: '1rem' }}>Il tuo sito</h3>
-              <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>URL pubblico</div>
-              <div style={{ background: 'var(--gray-light)', padding: '10px 14px', borderRadius: 'var(--radius-sm)', fontFamily: 'monospace', fontSize: '13px', marginBottom: '1rem', wordBreak: 'break-all' }}>
-                {siteUrl}
-              </div>
-              <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>Sitemap per Google</div>
-              <div style={{ background: 'var(--gray-light)', padding: '10px 14px', borderRadius: 'var(--radius-sm)', fontFamily: 'monospace', fontSize: '13px', wordBreak: 'break-all' }}>
-                {siteUrl}/sitemap.xml
-              </div>
-            </div>
-
-            <div className="card">
               <h3 style={{ marginBottom: '0.5rem' }}>Sincronizzazione automatica</h3>
               <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '0.75rem' }}>
                 Il tuo sito si aggiorna automaticamente ogni 6 ore quando pubblichi nuovi contenuti sui social.
               </p>
               {site?.last_sync && (
                 <p style={{ fontSize: '13px', color: 'var(--text-faint)' }}>
-                  Ultima sincronizzazione: {new Date(site.last_sync).toLocaleString('it-IT')}
-                </p>
-              )}
+              <h3 style={{ marginBottom: '0.75rem' }}>🌍 Il tuo sito pubblico</h3>
+              <div style={{ background: 'var(--gray-light)', padding: '10px 14px', borderRadius: 'var(--radius-sm)', fontFamily: 'monospace', fontSize: '13px', marginBottom: '10px', wordBreak: 'break-all' }}>{siteUrl}</div>
+              <div style={{ display: 'flex', gap: '10px' }}>
+                <a href={siteUrl} target="_blank" rel="noopener" className="btn btn-primary" style={{ textDecoration: 'none' }}>🌍 Apri sito</a>
+                <a href={`${siteUrl}/sitemap.xml`} target="_blank" className="btn btn-outline" style={{ textDecoration: 'none', fontSize: '13px' }}>Sitemap</a>
+              </div>
             </div>
           </div>
         )}
 
         {tab === 'admin' && user.role === 'admin' && (
-          <AdminScreen token={token} currentUser={user} />
+          <AdminScreen token={token} currentUser={user} adminPrompts={adminPrompts} updatePrompt={updatePrompt} />
         )}
       </div>
     </div>
   );
 }
 
-function AdminScreen({ token, currentUser }) {
+function AdminScreen({ token, currentUser, adminPrompts, updatePrompt }) {
   const [adminTab, setAdminTab] = useState('users');
   const [users, setUsers] = useState([]);
   const [form, setForm] = useState({ name: '', email: '', password: '', role: 'user' });
@@ -1111,26 +1304,33 @@ function AdminScreen({ token, currentUser }) {
 
   return (
     <div>
-      <div className="card" style={{ marginBottom: '1rem' }}>
-        <h3 style={{ marginBottom: '1rem' }}>Crea nuovo utente</h3>
-        <form onSubmit={createUser} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-          <div className="form-group" style={{ marginBottom: 0 }}>
-            <label className="label">Nome</label>
-            <input type="text" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} />
-          </div>
-          <div className="form-group" style={{ marginBottom: 0 }}>
-            <label className="label">Email</label>
-            <input type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} required />
-          </div>
-          <div className="form-group" style={{ marginBottom: 0 }}>
-            <label className="label">Password temporanea</label>
-            <input type="password" value={form.password} onChange={e => setForm({ ...form, password: e.target.value })} required />
-          </div>
-          <div className="form-group" style={{ marginBottom: 0 }}>
-            <label className="label">Ruolo</label>
-            <select value={form.role} onChange={e => setForm({ ...form, role: e.target.value })}
-              style={{ width: '100%', padding: '10px 14px', border: '1px solid var(--border-strong)', borderRadius: 'var(--radius-sm)', background: 'var(--surface)' }}>
-              <option value="user">Utente</option>
+      <div style={{ display: 'flex', gap: '8px', marginBottom: '1rem' }}>
+        <button className={`btn ${adminTab === 'users' ? 'btn-primary' : 'btn-outline'}`} onClick={() => setAdminTab('users')}>Utenti</button>
+        <button className={`btn ${adminTab === 'prompts' ? 'btn-primary' : 'btn-outline'}`} onClick={() => setAdminTab('prompts')}>Agenti AI (Prompt)</button>
+      </div>
+
+      {adminTab === 'users' && (
+      <>
+        <div className="card" style={{ marginBottom: '1rem' }}>
+          <h3 style={{ marginBottom: '1rem' }}>Crea nuovo utente</h3>
+          <form onSubmit={createUser} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+            <div className="form-group" style={{ marginBottom: 0 }}>
+              <label className="label">Nome</label>
+              <input type="text" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} />
+            </div>
+            <div className="form-group" style={{ marginBottom: 0 }}>
+              <label className="label">Email</label>
+              <input type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} required />
+            </div>
+            <div className="form-group" style={{ marginBottom: 0 }}>
+              <label className="label">Password temporanea</label>
+              <input type="password" value={form.password} onChange={e => setForm({ ...form, password: e.target.value })} required />
+            </div>
+            <div className="form-group" style={{ marginBottom: 0 }}>
+              <label className="label">Ruolo</label>
+              <select value={form.role} onChange={e => setForm({ ...form, role: e.target.value })}
+                style={{ width: '100%', padding: '10px 14px', border: '1px solid var(--border-strong)', borderRadius: 'var(--radius-sm)', background: 'var(--surface)' }}>
+                <option value="user">Utente</option>
               <option value="admin">Admin</option>
             </select>
           </div>
@@ -1204,6 +1404,32 @@ function AdminScreen({ token, currentUser }) {
             </div>
           </div>
         ))}
+      </div>
+      )}
+
+      {adminTab === 'prompts' && (
+      <div className="card">
+        <h3 style={{ marginBottom: '0.5rem' }}>🤖 Istruzioni Sistema Agenti AI</h3>
+        <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '1.25rem', lineHeight: 1.6 }}>
+          Ogni agente ha il suo prompt di sistema. Modificalo per cambiare come l'AI genera i contenuti.
+          Le variabili <code style={{ background: 'var(--gray-light)', padding: '1px 5px', borderRadius: '4px' }}>{'{'+'profileSummary{'+'}'}</code>, <code style={{ background: 'var(--gray-light)', padding: '1px 5px', borderRadius: '4px' }}>{'{'+'roleMission{'+'}'}</code> etc. vengono sostituite automaticamente con i dati del profilo.
+        </p>
+        {adminPrompts.map(p => (
+          <div key={p.id} style={{ marginBottom: '1.75rem', paddingBottom: '1.75rem', borderBottom: '1px solid var(--border)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
+              <span style={{ background: 'var(--purple-light)', color: 'var(--purple-dark)', fontWeight: 700, fontSize: '13px', padding: '3px 12px', borderRadius: '20px' }}>
+                {p.label || p.agent_name}
+              </span>
+              {p.description && <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{p.description}</span>}
+            </div>
+            <textarea key={`${p.id}-${p.instructions}`} defaultValue={p.instructions}
+              onBlur={e => updatePrompt(p.agent_name, e.target.value)}
+              style={{ width: '100%', minHeight: '180px', padding: '12px', fontSize: '12px', fontFamily: 'monospace', border: '1px solid var(--border-strong)', borderRadius: 'var(--radius-sm)', background: 'var(--surface)', lineHeight: 1.6 }} />
+          </div>
+        ))}
+        {adminPrompts.length === 0 && (
+          <p style={{ color: 'var(--text-muted)', fontSize: '13px' }}>Nessun agente trovato. Visita <code>/api/index.php?action=migrate</code> per inizializzare.</p>
+        )}
       </div>
       )}
     </div>

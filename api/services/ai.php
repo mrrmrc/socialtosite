@@ -515,4 +515,130 @@ class AI {
         }
         return $result;
     }
+
+    // ── Lettura Prompt da DB ──────────────────────────────────────────────
+    private static function getAgentPrompt(string $agentName, string $defaultFallback): string {
+        try {
+            $row = DB::fetch('SELECT instructions FROM agent_prompts WHERE agent_name=?', [$agentName]);
+            if ($row && !empty($row['instructions'])) return $row['instructions'];
+        } catch (Throwable $e) {}
+        return $defaultFallback;
+    }
+
+    // ── AGENTE 3 (SEO/GEO Specialist) ─────────────────────────────────────
+    public static function seoSpecialistSetup(string $profileSummary, string $roleMission, string $contentStrategy): array {
+        $fallback = "Sei un agente SEO/GEO Specialist esperto. Il tuo compito è ottimizzare i metadati di un sito web in base al profilo dell'utente.\n\n"
+            . "Profilo:\n{profileSummary}\n\n"
+            . "Ruolo e Missione:\n{roleMission}\n\n"
+            . "Strategia Editoriale:\n{contentStrategy}\n\n"
+            . "Genera un JSON valido con questa struttura:\n"
+            . '{"title":"Titolo SEO max 60 caratteri (es. Nome Cognome | Mestiere a Città)","bio":"Biografia SEO friendly, max 160 caratteri","menu_links":[{"label":"Voce Menu","url":"#ancora"}],"footer_text":"Testo SEO per il footer, max 100 caratteri"}'
+            . "\nCrea 3 o 4 voci di menu pertinenti al mestiere (es. per un ristorante: Menu, Chi Siamo, Prenota). Usa hash URLs (#) poichè la pagina potrebbe essere single page.";
+
+        $prompt = self::getAgentPrompt('seo_specialist', $fallback);
+        $prompt = str_replace(['{profileSummary}', '{roleMission}', '{contentStrategy}'], [$profileSummary, $roleMission, $contentStrategy], $prompt);
+
+        $text = self::gemini([['text' => $prompt]], [
+            'responseMimeType' => 'application/json',
+            'maxOutputTokens'  => 1024,
+        ]);
+        $text = preg_replace('/```json|```/', '', trim($text));
+        $result = json_decode($text, true);
+        if (!$result) {
+            return [
+                'title'       => '',
+                'bio'         => '',
+                'menu_links'  => [],
+                'footer_text' => '',
+            ];
+        }
+        return $result;
+    }
+
+    // ── AGENTE 4 (Graphic Designer - Generazione di 3 proposte) ───────────
+    public static function graphicDesignerSetup(string $profileSummary, string $roleMission, string $contentStrategy): array {
+        $fallback = "Sei un agente Graphic Designer esperto in UI/UX web moderna. Devi creare 3 proposte di design premium e distinte per questo profilo.\n\n"
+            . "Profilo:\n{profileSummary}\n\n"
+            . "Ruolo e Missione:\n{roleMission}\n\n"
+            . "Istruzioni:\n"
+            . "Genera un array JSON con ESATTAMENTE 3 oggetti. Ogni oggetto rappresenta una proposta e deve avere questa struttura:\n"
+            . "1. 'theme' scelto tra: classic, journal, authority, portfolio, magazine, minimal, studio, local, academy, timeline, bottega.\n"
+            . "2. 'accent_color' esadecimale (es. #FF0000) super accattivante e adatto al mestiere.\n"
+            . "3. 'header_layout' scelto tra: standard, centered, split.\n"
+            . "4. 'custom_css' un blocco di CSS creativo per abbellire il sito in modo drastico (sfumature, ombreggiature moderne, border-radius). Il CSS verrà iniettato globalmente.\n\n"
+            . "Esempio output:\n"
+            . '{"proposals": [{"theme":"classic","accent_color":"#000000","header_layout":"standard","custom_css":":root { --dynamic-radius: 12px; } body { background: linear-gradient(...); }"}]}';
+
+        $prompt = self::getAgentPrompt('graphic_designer', $fallback);
+        $prompt = str_replace(['{profileSummary}', '{roleMission}', '{contentStrategy}'], [$profileSummary, $roleMission, $contentStrategy], $prompt);
+
+        $text = self::gemini([['text' => $prompt]], [
+            'responseMimeType' => 'application/json',
+            'maxOutputTokens'  => 4096,
+        ]);
+        $text = preg_replace('/```json|```/', '', trim($text));
+        $result = json_decode($text, true);
+        if (!$result || empty($result['proposals'])) {
+            return [
+                ['theme' => 'classic', 'accent_color' => '', 'header_layout' => 'standard', 'custom_css' => ''],
+            ];
+        }
+        
+        $validThemes = ['classic', 'journal', 'authority', 'portfolio', 'magazine', 'minimal', 'studio', 'local', 'academy', 'timeline', 'bottega'];
+        foreach ($result['proposals'] as &$prop) {
+            if (!in_array($prop['theme'] ?? '', $validThemes)) {
+                $prop['theme'] = 'classic';
+            }
+        }
+        return $result['proposals'];
+    }
+
+    // ── AGENTE SITO AI (Generazione completa su misura) ────────────────────
+    // Prende tutto il profilo + post recenti e genera titolo, bio, tema, CSS custom
+    // in un'unica chiamata: un vero art director digitale.
+    public static function siteAiGenerate(string $profileSummary, string $roleMission, string $contentStrategy, string $recentPosts = ''): array {
+        $fallback = "Sei un team AI completo: SEO Specialist + Graphic Designer + Content Strategist.\n"
+            . "Il tuo compito: generare TUTTO il necessario per un sito web professionale su misura per questo profilo.\n\n"
+            . "Profilo:\n{profileSummary}\n\n"
+            . "Ruolo e Missione:\n{roleMission}\n\n"
+            . "Strategia contenuti:\n{contentStrategy}\n\n"
+            . "Post recenti pubblicati:\n{recentPosts}\n\n"
+            . "Genera JSON con questa struttura:\n"
+            . '{"title":"Titolo H1 sito max 60 caratteri","bio":"Bio ottimizzata max 200 caratteri","role_mission":"Missione aggiornata max 150 caratteri","theme":"classic","accent_color":"#hex colore primario","accent_secondary":"#hex colore secondario","header_layout":"standard","menu_links":[{"label":"Label","url":"#ancora"}],"footer_text":"Testo footer","custom_css":"CSS completo e creativo. Usa :root variables, gradienti, font Google @import, animazioni keyframe. Min 300 caratteri.","hero_tagline":"Frase impatto max 80 caratteri","cta_text":"Call to action"}';
+
+        $prompt = self::getAgentPrompt('site_ai', $fallback);
+        $prompt = str_replace(
+            ['{profileSummary}', '{roleMission}', '{contentStrategy}', '{recentPosts}'],
+            [$profileSummary, $roleMission, $contentStrategy, $recentPosts ?: 'Nessun post ancora disponibile'],
+            $prompt
+        );
+
+        $text = self::gemini([['text' => $prompt]], [
+            'responseMimeType' => 'application/json',
+            'maxOutputTokens'  => 8192,
+        ]);
+        $text = preg_replace('/```json|```/', '', trim($text));
+        $result = json_decode($text, true);
+        if (!$result) {
+            return [
+                'title'         => '',
+                'bio'           => '',
+                'role_mission'  => '',
+                'theme'         => 'classic',
+                'accent_color'  => '#7F77DD',
+                'header_layout' => 'standard',
+                'menu_links'    => [],
+                'footer_text'   => '',
+                'custom_css'    => '',
+                'hero_tagline'  => '',
+                'cta_text'      => 'Scopri i miei contenuti',
+            ];
+        }
+        $validThemes = ['classic', 'journal', 'authority', 'portfolio', 'magazine', 'minimal', 'studio', 'local', 'academy', 'timeline', 'bottega'];
+        if (!in_array($result['theme'] ?? '', $validThemes)) {
+            $result['theme'] = 'classic';
+        }
+        return $result;
+    }
 }
+
