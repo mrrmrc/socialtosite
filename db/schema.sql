@@ -89,6 +89,7 @@ CREATE TABLE IF NOT EXISTS sites (
   theme         VARCHAR(50) DEFAULT 'classic',
   seo_score     INT DEFAULT 0,
   generated_layouts LONGTEXT,
+  site_ai_data  LONGTEXT,
   last_sync     DATETIME,
   created_at    DATETIME DEFAULT NOW(),
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE

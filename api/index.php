@@ -509,73 +509,81 @@ if ($action === 'site-update' && $method === 'POST') {
 
 // ── POST design-site (3 proposte Graphic Designer) ───────────────────────
 if ($action === 'design-site' && $method === 'POST') {
-    require_once __DIR__ . '/services/ai.php';
-    $site = DB::fetch('SELECT profile_summary, role_mission, content_strategy FROM sites WHERE user_id=?', [$userId]);
-    $summary = trim($site['profile_summary'] ?? '');
-    $role    = trim($site['role_mission'] ?? '');
-    $strategy = trim($site['content_strategy'] ?? '');
-    if (!$summary) jsonError('Il profilo è vuoto. Fai prima una scansione dei social.');
+    try {
+        require_once __DIR__ . '/services/ai.php';
+        $site = DB::fetch('SELECT profile_summary, role_mission, content_strategy FROM sites WHERE user_id=?', [$userId]);
+        $summary = trim($site['profile_summary'] ?? '');
+        $role    = trim($site['role_mission'] ?? '');
+        $strategy = trim($site['content_strategy'] ?? '');
+        if (!$summary) jsonError('Il profilo è vuoto. Fai prima una scansione dei social.');
 
-    $seo      = AI::seoSpecialistSetup($summary, $role, $strategy);
-    $proposals = AI::graphicDesignerSetup($summary, $role, $strategy);
+        $seo      = AI::seoSpecialistSetup($summary, $role, $strategy);
+        $proposals = AI::graphicDesignerSetup($summary, $role, $strategy);
 
-    // Prima proposta come default attivo
-    $g = $proposals[0] ?? [];
-    DB::execute(
-        'UPDATE sites SET title=?, bio=?, menu_links=?, footer_text=?,
-            theme=?, accent_color=?, header_layout=?, custom_css=?,
-            generated_layouts=?
-         WHERE user_id=?',
-        [
-            $seo['title'] ?? '', $seo['bio'] ?? '',
-            isset($seo['menu_links']) ? json_encode($seo['menu_links'], JSON_UNESCAPED_UNICODE) : '',
-            $seo['footer_text'] ?? '',
-            $g['theme'] ?? 'classic', $g['accent_color'] ?? '',
-            $g['header_layout'] ?? 'standard', $g['custom_css'] ?? '',
-            json_encode($proposals, JSON_UNESCAPED_UNICODE),
-            $userId
-        ]
-    );
-    json(['ok' => true, 'proposals' => $proposals]);
+        // Prima proposta come default attivo
+        $g = $proposals[0] ?? [];
+        DB::execute(
+            'UPDATE sites SET title=?, bio=?, menu_links=?, footer_text=?,
+                theme=?, accent_color=?, header_layout=?, custom_css=?,
+                generated_layouts=?
+             WHERE user_id=?',
+            [
+                $seo['title'] ?? '', $seo['bio'] ?? '',
+                isset($seo['menu_links']) ? json_encode($seo['menu_links'], JSON_UNESCAPED_UNICODE) : '',
+                $seo['footer_text'] ?? '',
+                $g['theme'] ?? 'classic', $g['accent_color'] ?? '',
+                $g['header_layout'] ?? 'standard', $g['custom_css'] ?? '',
+                json_encode($proposals, JSON_UNESCAPED_UNICODE),
+                $userId
+            ]
+        );
+        json(['ok' => true, 'proposals' => $proposals]);
+    } catch (Throwable $e) {
+        jsonError('Errore Design Site: ' . $e->getMessage());
+    }
 }
 
 // ── POST site-ai (Generazione completa SITO AI) ───────────────────────────
 if ($action === 'site-ai' && $method === 'POST') {
-    require_once __DIR__ . '/services/ai.php';
-    $site  = DB::fetch('SELECT * FROM sites WHERE user_id=?', [$userId]);
-    $summary  = trim($site['profile_summary'] ?? $site['bio'] ?? '');
-    $role     = trim($site['role_mission'] ?? '');
-    $strategy = trim($site['content_strategy'] ?? '');
-    if (!$summary) jsonError('Il profilo è vuoto. Prima esegui una scansione dei social.');
+    try {
+        require_once __DIR__ . '/services/ai.php';
+        $site  = DB::fetch('SELECT * FROM sites WHERE user_id=?', [$userId]);
+        $summary  = trim($site['profile_summary'] ?? $site['bio'] ?? '');
+        $role     = trim($site['role_mission'] ?? '');
+        $strategy = trim($site['content_strategy'] ?? '');
+        if (!$summary) jsonError('Il profilo è vuoto. Prima esegui una scansione dei social.');
 
-    // Prendi i 5 post più recenti pubblicati come contesto
-    $recentRaw = DB::fetchAll('SELECT generated_title, generated_excerpt, platform FROM posts WHERE user_id=? AND published=1 ORDER BY published_at DESC LIMIT 5', [$userId]);
-    $recentPosts = implode("\n", array_map(fn($p) => "[{$p['platform']}] {$p['generated_title']}: {$p['generated_excerpt']}", $recentRaw));
+        // Prendi i 5 post più recenti pubblicati come contesto
+        $recentRaw = DB::fetchAll('SELECT generated_title, generated_excerpt, platform FROM posts WHERE user_id=? AND published=1 ORDER BY published_at DESC LIMIT 5', [$userId]);
+        $recentPosts = implode("\n", array_map(fn($p) => "[{$p['platform']}] {$p['generated_title']}: {$p['generated_excerpt']}", $recentRaw));
 
-    $result = AI::siteAiGenerate($summary, $role, $strategy, $recentPosts);
+        $result = AI::siteAiGenerate($summary, $role, $strategy, $recentPosts);
 
-    DB::execute(
-        'UPDATE sites SET
-            title=?, bio=?, role_mission=?,
-            theme=?, accent_color=?, header_layout=?,
-            menu_links=?, footer_text=?, custom_css=?,
-            site_ai_data=?
-         WHERE user_id=?',
-        [
-            $result['title'] ?? '',
-            $result['bio'] ?? '',
-            $result['role_mission'] ?? $role,
-            $result['theme'] ?? 'classic',
-            $result['accent_color'] ?? '',
-            $result['header_layout'] ?? 'standard',
-            isset($result['menu_links']) ? json_encode($result['menu_links'], JSON_UNESCAPED_UNICODE) : '',
-            $result['footer_text'] ?? '',
-            $result['custom_css'] ?? '',
-            json_encode($result, JSON_UNESCAPED_UNICODE),
-            $userId
-        ]
-    );
-    json(['ok' => true, 'result' => $result]);
+        DB::execute(
+            'UPDATE sites SET
+                title=?, bio=?, role_mission=?,
+                theme=?, accent_color=?, header_layout=?,
+                menu_links=?, footer_text=?, custom_css=?,
+                site_ai_data=?
+             WHERE user_id=?',
+            [
+                $result['title'] ?? '',
+                $result['bio'] ?? '',
+                $result['role_mission'] ?? $role,
+                $result['theme'] ?? 'classic',
+                $result['accent_color'] ?? '',
+                $result['header_layout'] ?? 'standard',
+                isset($result['menu_links']) ? json_encode($result['menu_links'], JSON_UNESCAPED_UNICODE) : '',
+                $result['footer_text'] ?? '',
+                $result['custom_css'] ?? '',
+                json_encode($result, JSON_UNESCAPED_UNICODE),
+                $userId
+            ]
+        );
+        json(['ok' => true, 'result' => $result]);
+    } catch (Throwable $e) {
+        jsonError('Errore Site AI: ' . $e->getMessage());
+    }
 }
 
 // ── AGENTE 1: POST ingest-url  { url } ────────────────────────────────────
