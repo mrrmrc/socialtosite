@@ -320,10 +320,21 @@ class Ingest {
             $gLayout = '';
             $gCss = '';
 
+            // Raccogli i tag reali per passarli all'agente SEO
+            $allTagsForMenu = [];
+            $tagsRawForMenu = DB::fetchAll('SELECT tags FROM posts WHERE user_id=? AND published=1', [$userId]);
+            foreach ($tagsRawForMenu as $tr) {
+                $dec = json_decode($tr['tags'] ?? '[]', true);
+                if (is_array($dec)) {
+                    foreach ($dec as $t) $allTagsForMenu[] = strtolower(trim($t));
+                }
+            }
+            $tagsContextForMenu = implode(', ', array_unique($allTagsForMenu));
+
             // Chiamiamo gli agenti solo se manca qualcosa di essenziale
             $layoutsJson = '';
             if (empty($site['title']) || $site['title'] === 'Sito Personale' || empty($site['theme']) || $site['theme'] === 'classic') {
-                $seo = AI::seoSpecialistSetup($summary, $finalRoleMission, $finalContentStrategy);
+                $seo = AI::seoSpecialistSetup($summary, $finalRoleMission, $finalContentStrategy, $tagsContextForMenu);
                 $graphicProposals = AI::graphicDesignerSetup($summary, $finalRoleMission, $finalContentStrategy);
                 
                 $seoTitle = $seo['title'] ?? '';

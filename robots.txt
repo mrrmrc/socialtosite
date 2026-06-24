@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://socialtosite.sviluppo.host/s/duemmemail/sitemap.xml

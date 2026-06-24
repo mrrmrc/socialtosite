@@ -9,6 +9,9 @@ RewriteCond %{HTTP:Authorization} ^(.+)$
 RewriteRule .* - [E=HTTP_AUTHORIZATION:%1]
 SetEnvIf Authorization "(.*)" HTTP_AUTHORIZATION=$1
 
+# ── robots.txt per SEO ──────────────────────────────────────────────────────
+RewriteRule ^robots\.txt$ robots.txt [L]
+
 # ── Sito pubblico ───────────────────────────────────────────────────────────
 # Sitemap:  /s/<slug>/sitemap.xml
 RewriteRule ^s/([^/]+)/sitemap\.xml$ public/site.php?slug=$1&action=sitemap [L,QSA]

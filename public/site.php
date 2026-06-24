@@ -76,6 +76,44 @@ $icons      = ['instagram' => '📸', 'tiktok' => '🎵', 'youtube' => '▶️',
 $menuLinks    = !empty($site['menu_links']) ? json_decode($site['menu_links'], true) : [];
 $accentColor  = $site['accent_color'] ?? '';
 $accentSecondary = $site['accent_secondary'] ?? '';
+
+// ── Sicurezza Menu: rimuovi link rotti che non puntano a nulla ──────────
+// Raccogli tutti i tag reali dei post pubblicati
+$validMenuTags = [];
+foreach ($posts as $p) {
+    foreach ($p['tags'] ?? [] as $t) {
+        $validMenuTags[] = strtolower(trim($t));
+    }
+}
+$validMenuTags = array_unique($validMenuTags);
+
+// Filtra: tieni solo Home (/) e link a tag reali (/?tag=...)
+$safeMenuLinks = [];
+if (is_array($menuLinks)) {
+    foreach ($menuLinks as $link) {
+        $url = trim($link['url'] ?? '');
+        // Home è sempre valida
+        if ($url === '/' || $url === '') {
+            $safeMenuLinks[] = $link;
+            continue;
+        }
+        // Link a tag: verifica che il tag esista davvero nei post
+        if (preg_match('/[?&]tag=([^&]+)/i', $url, $m)) {
+            $tagVal = strtolower(trim(urldecode($m[1])));
+            if (in_array($tagVal, $validMenuTags, true)) {
+                $safeMenuLinks[] = $link;
+            }
+            continue;
+        }
+        // Link esterni (http/https) sono ok
+        if (preg_match('/^https?:\/\//i', $url)) {
+            $safeMenuLinks[] = $link;
+            continue;
+        }
+        // Tutto il resto (ancore #, link interni inventati /chi-siamo ecc) → IGNORATO
+    }
+}
+$menuLinks = $safeMenuLinks;
 $logoUrl      = $site['logo_url'] ?? '';
 $coverUrl     = $site['cover_url'] ?? '';
 $footerText   = $site['footer_text'] ?? '';
