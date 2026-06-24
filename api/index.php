@@ -522,7 +522,19 @@ if ($action === 'design-site' && $method === 'POST') {
         $strategy = trim($site['content_strategy'] ?? '');
         if (!$summary) jsonError('Il profilo è vuoto. Fai prima una scansione dei social.');
 
-        $seo      = AI::seoSpecialistSetup($summary, $role, $strategy);
+        // Estrai tutti i tag esistenti usati nei post
+        $allTags = [];
+        $tagsRaw = DB::fetchAll('SELECT tags FROM posts WHERE user_id=? AND published=1', [$userId]);
+        foreach ($tagsRaw as $tr) {
+            $dec = json_decode($tr['tags'] ?? '[]', true);
+            if (is_array($dec)) {
+                foreach ($dec as $t) $allTags[] = strtolower(trim($t));
+            }
+        }
+        $availableTags = array_unique($allTags);
+        $tagsContext = implode(', ', $availableTags);
+
+        $seo      = AI::seoSpecialistSetup($summary, $role, $strategy, $tagsContext);
         $proposals = AI::graphicDesignerSetup($summary, $role, $strategy);
 
         // Prima proposta come default attivo
@@ -561,10 +573,22 @@ if ($action === 'site-ai' && $method === 'POST') {
         if (!$summary) jsonError('Il profilo è vuoto. Prima esegui una scansione dei social.');
 
         // Prendi i 5 post più recenti pubblicati come contesto
-        $recentRaw = DB::fetchAll('SELECT generated_title, generated_excerpt, platform FROM posts WHERE user_id=? AND published=1 ORDER BY published_at DESC LIMIT 5', [$userId]);
+        $recentRaw = DB::fetchAll('SELECT generated_title, generated_excerpt, platform, tags FROM posts WHERE user_id=? AND published=1 ORDER BY published_at DESC LIMIT 10', [$userId]);
         $recentPosts = implode("\n", array_map(fn($p) => "[{$p['platform']}] {$p['generated_title']}: {$p['generated_excerpt']}", $recentRaw));
 
-        $result = AI::siteAiGenerate($summary, $role, $strategy, $recentPosts);
+        // Estrai tutti i tag esistenti usati nei post
+        $allTags = [];
+        $tagsRaw = DB::fetchAll('SELECT tags FROM posts WHERE user_id=? AND published=1', [$userId]);
+        foreach ($tagsRaw as $tr) {
+            $dec = json_decode($tr['tags'] ?? '[]', true);
+            if (is_array($dec)) {
+                foreach ($dec as $t) $allTags[] = strtolower(trim($t));
+            }
+        }
+        $availableTags = array_unique($allTags);
+        $tagsContext = implode(', ', $availableTags);
+
+        $result = AI::siteAiGenerate($summary, $role, $strategy, $recentPosts, $tagsContext);
 
         DB::execute(
             'UPDATE sites SET

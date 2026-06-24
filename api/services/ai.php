@@ -526,7 +526,7 @@ class AI {
     }
 
     // ── AGENTE 3 (SEO/GEO Specialist) ─────────────────────────────────────
-    public static function seoSpecialistSetup(string $profileSummary, string $roleMission, string $contentStrategy): array {
+    public static function seoSpecialistSetup(string $profileSummary, string $roleMission, string $contentStrategy, string $tagsContext = ''): array {
         $fallback = "Sei un SEO Specialist ed esperto di Comunicazione.\n\n"
             . "Profilo:\n{profileSummary}\n\n"
             . "Ruolo e Missione:\n{roleMission}\n\n"
@@ -536,12 +536,12 @@ class AI {
             . "2. 'bio': Una meta description SEO (max 160 char).\n"
             . "3. 'hero_tagline': Un breve slogan d'impatto o sottotitolo (max 80 char).\n"
             . "4. 'cover_url': Fornisci un URL per un'immagine di copertina adatta al settore usando Unsplash (es. https://images.unsplash.com/photo-... usa immagini reali, non source.unsplash.com obsoleto) oppure lascia vuoto se non trovi un URL preciso.\n"
-            . "5. 'menu_links': Un array di 3-4 voci di menu. Includi una Home (url: '/') e 2-3 categorie basate sugli argomenti principali per filtrare i post (es. [{'label':'Lifestyle', 'url':'/?tag=lifestyle'}, {'label':'Tech', 'url':'/?tag=tech'}]).\n"
+            . "5. 'menu_links': Un array di 3-4 voci di menu. Includi una Home (url: '/') e 2-3 categorie basate RIGOROSAMENTE sui tag reali per filtrare i post (es. [{'label':'Lifestyle', 'url':'/?tag=lifestyle'}]). I tag reali disponibili nel DB sono: [{tagsContext}]. NON INVENTARE TAG CHE NON SONO NELLA LISTA.\n"
             . "6. 'footer_text': Una frase conclusiva o disclaimer per il footer.\n\n"
             . "Rispondi SOLO con il JSON.";
 
         $prompt = self::getAgentPrompt('seo_specialist', $fallback);
-        $prompt = str_replace(['{profileSummary}', '{roleMission}', '{contentStrategy}'], [$profileSummary, $roleMission, $contentStrategy], $prompt);
+        $prompt = str_replace(['{profileSummary}', '{roleMission}', '{contentStrategy}', '{tagsContext}'], [$profileSummary, $roleMission, $contentStrategy, $tagsContext ?: 'Nessun tag disponibile'], $prompt);
 
         $text = self::gemini([['text' => $prompt]], [
             'responseMimeType' => 'application/json',
@@ -601,20 +601,21 @@ class AI {
     // ── AGENTE SITO AI (Generazione completa su misura) ────────────────────
     // Prende tutto il profilo + post recenti e genera titolo, bio, tema, CSS custom
     // in un'unica chiamata: un vero art director digitale.
-    public static function siteAiGenerate(string $profileSummary, string $roleMission, string $contentStrategy, string $recentPosts = ''): array {
-        $fallback = "Sei un team AI completo: SEO Specialist + Graphic Designer + Content Strategist.\n"
-            . "Il tuo compito: generare TUTTO il necessario per un sito web professionale su misura per questo profilo.\n\n"
+    public static function siteAiGenerate(string $profileSummary, string $roleMission, string $contentStrategy, string $recentPosts = '', string $tagsContext = ''): array {
+        $fallback = "Sei un team AI completo, ma soprattutto sei il CAPOREDATTORE del sito.\n"
+            . "Il tuo compito: generare TUTTO il necessario per un sito web professionale su misura per questo profilo creando una vera organicità dei contenuti.\n\n"
             . "Profilo:\n{profileSummary}\n\n"
             . "Ruolo e Missione:\n{roleMission}\n\n"
             . "Strategia contenuti:\n{contentStrategy}\n\n"
             . "Post recenti pubblicati:\n{recentPosts}\n\n"
+            . "Tag REALI attualmente assegnati ai contenuti nel database:\n[{tagsContext}]\n\n"
             . "Genera JSON con questa struttura:\n"
-            . '{"title":"Titolo H1 sito max 60 caratteri","bio":"Bio ottimizzata max 200 caratteri","role_mission":"Missione aggiornata max 150 caratteri","theme":"classic","accent_color":"#hex colore primario","accent_secondary":"#hex colore secondario","header_layout":"standard","menu_links":[{"label":"Home","url":"/"},{"label":"Categoria","url":"/?tag=nome-tag"}],"footer_text":"Testo footer","custom_css":"CSS completo e creativo. Usa :root variables, gradienti, font Google @import, animazioni keyframe. Min 300 caratteri.","hero_tagline":"Frase impatto max 80 caratteri","cta_text":"Call to action"}';
+            . '{"title":"Titolo H1 sito max 60 caratteri","bio":"Bio ottimizzata max 200 caratteri","role_mission":"Missione aggiornata max 150 caratteri","theme":"classic","accent_color":"#hex colore primario","accent_secondary":"#hex colore secondario","header_layout":"standard","menu_links":[{"label":"Home","url":"/"},{"label":"Nome Categoria Esistente","url":"/?tag=tag_esatto_dalla_lista_reale"}],"footer_text":"Testo footer","custom_css":"CSS completo e creativo. Usa :root variables, gradienti, font Google @import, animazioni keyframe. Min 300 caratteri.","hero_tagline":"Frase impatto max 80 caratteri","cta_text":"Call to action"}';
 
         $prompt = self::getAgentPrompt('site_ai', $fallback);
         $prompt = str_replace(
-            ['{profileSummary}', '{roleMission}', '{contentStrategy}', '{recentPosts}'],
-            [$profileSummary, $roleMission, $contentStrategy, $recentPosts ?: 'Nessun post ancora disponibile'],
+            ['{profileSummary}', '{roleMission}', '{contentStrategy}', '{recentPosts}', '{tagsContext}'],
+            [$profileSummary, $roleMission, $contentStrategy, $recentPosts ?: 'Nessun post ancora disponibile', $tagsContext ?: 'Nessun tag disponibile'],
             $prompt
         );
 
