@@ -308,13 +308,48 @@ class Sync {
                 $result['found'], $result['new'], $result['error'],
             ]);
         }
+        $totalNew = 0;
+        foreach ($results as $res) {
+            $totalNew += $res['new'] ?? 0;
+        }
+
+        // Aggiorna cover_url se vuoto
+        $site = DB::fetch('SELECT cover_url FROM sites WHERE user_id=?', [$userId]);
+        if (empty($site['cover_url'])) {
+            $latestImage = DB::fetch("SELECT media_url FROM posts WHERE user_id=? AND UPPER(media_type)='IMAGE' AND media_url!='' ORDER BY published_at DESC LIMIT 1", [$userId]);
+            if ($latestImage) {
+                DB::execute('UPDATE sites SET cover_url=? WHERE user_id=?', [$latestImage['media_url'], $userId]);
+            }
+        }
+
         // Aggiorna score SEO sito
         $scores = DB::fetchAll('SELECT seo_score FROM posts WHERE user_id=? AND published=1', [$userId]);
         if ($scores) {
             $avg = array_sum(array_column($scores, 'seo_score')) / count($scores);
             DB::execute('UPDATE sites SET last_sync=NOW(), seo_score=? WHERE user_id=?',
                 [round($avg), $userId]);
+        } else {
+            DB::execute('UPDATE sites SET last_sync=NOW() WHERE user_id=?', [$userId]);
         }
+
+        // Ping Google Sitemap se ci sono nuovi contenuti
+        if ($totalNew > 0) {
+            self::pingGoogle($userId);
+        }
+
         return $results;
+    }
+
+    public static function pingGoogle(int $userId): void {
+        $user = DB::fetch('SELECT slug FROM users WHERE id=?', [$userId]);
+        if ($user && !empty($user['slug'])) {
+            $sitemapUrl = BASE_URL . "/s/" . $user['slug'] . "/sitemap.xml";
+            $pingUrl = "http://www.google.com/ping?sitemap=" . urlencode($sitemapUrl);
+            $ch = curl_init($pingUrl);
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_TIMEOUT, 5);
+            curl_exec($ch);
+            curl_close($ch);
+        }
     }
 }

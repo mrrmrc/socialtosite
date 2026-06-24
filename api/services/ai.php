@@ -536,7 +536,7 @@ class AI {
             . "2. 'bio': Una meta description SEO (max 160 char).\n"
             . "3. 'hero_tagline': Un breve slogan d'impatto o sottotitolo (max 80 char).\n"
             . "4. 'cover_url': Fornisci un URL per un'immagine di copertina adatta al settore usando Unsplash (es. https://images.unsplash.com/photo-... usa immagini reali, non source.unsplash.com obsoleto) oppure lascia vuoto se non trovi un URL preciso.\n"
-            . "5. 'menu_links': Un array di 3-4 voci di menu (es. [{'label':'Chi Sono', 'url':'#chi-sono'}]).\n"
+            . "5. 'menu_links': Un array di 3-4 voci di menu. Includi una Home (url: '/') e 2-3 categorie basate sugli argomenti principali per filtrare i post (es. [{'label':'Lifestyle', 'url':'/?tag=lifestyle'}, {'label':'Tech', 'url':'/?tag=tech'}]).\n"
             . "6. 'footer_text': Una frase conclusiva o disclaimer per il footer.\n\n"
             . "Rispondi SOLO con il JSON.";
 
@@ -609,7 +609,7 @@ class AI {
             . "Strategia contenuti:\n{contentStrategy}\n\n"
             . "Post recenti pubblicati:\n{recentPosts}\n\n"
             . "Genera JSON con questa struttura:\n"
-            . '{"title":"Titolo H1 sito max 60 caratteri","bio":"Bio ottimizzata max 200 caratteri","role_mission":"Missione aggiornata max 150 caratteri","theme":"classic","accent_color":"#hex colore primario","accent_secondary":"#hex colore secondario","header_layout":"standard","menu_links":[{"label":"Label","url":"#ancora"}],"footer_text":"Testo footer","custom_css":"CSS completo e creativo. Usa :root variables, gradienti, font Google @import, animazioni keyframe. Min 300 caratteri.","hero_tagline":"Frase impatto max 80 caratteri","cta_text":"Call to action"}';
+            . '{"title":"Titolo H1 sito max 60 caratteri","bio":"Bio ottimizzata max 200 caratteri","role_mission":"Missione aggiornata max 150 caratteri","theme":"classic","accent_color":"#hex colore primario","accent_secondary":"#hex colore secondario","header_layout":"standard","menu_links":[{"label":"Home","url":"/"},{"label":"Categoria","url":"/?tag=nome-tag"}],"footer_text":"Testo footer","custom_css":"CSS completo e creativo. Usa :root variables, gradienti, font Google @import, animazioni keyframe. Min 300 caratteri.","hero_tagline":"Frase impatto max 80 caratteri","cta_text":"Call to action"}';
 
         $prompt = self::getAgentPrompt('site_ai', $fallback);
         $prompt = str_replace(

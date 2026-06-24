@@ -29,6 +29,18 @@ foreach ($posts as &$p) {
 }
 unset($p);
 
+$activeTag = strtolower(trim($_GET['tag'] ?? ''));
+if ($activeTag) {
+    $filtered = [];
+    foreach ($posts as $p) {
+        $pTags = array_map('strtolower', $p['tags'] ?? []);
+        if (in_array($activeTag, $pTags, true)) {
+            $filtered[] = $p;
+        }
+    }
+    $posts = $filtered;
+}
+
 $postSlug = $_GET['post'] ?? '';
 $single   = null;
 if ($postSlug) {
@@ -322,7 +334,19 @@ $activeCss = str_replace('#$accent', $accent, $activeCss);
     "@type": "ProfilePage",
     "name": "<?= addslashes($site['title'] ?? $user['name'] ?? '') ?>",
     "description": "<?= addslashes($site['bio'] ?? '') ?>",
-    "url": "<?= $siteUrl ?>"
+    "url": "<?= $siteUrl ?>",
+    "mainEntity": {
+      "@type": "ItemList",
+      "itemListElement": [
+        <?php foreach ($posts as $i => $p): ?>
+        {
+          "@type": "ListItem",
+          "position": <?= $i + 1 ?>,
+          "url": "<?= $siteUrl . '/' . h($p['slug'] ?? '') ?>"
+        }<?= $i < count($posts) - 1 ? ',' : '' ?>
+        <?php endforeach; ?>
+      ]
+    }
   }
   </script>
   <style>
@@ -457,6 +481,12 @@ if ($coverUrl) {
 
 <?php else: ?>
 
+  <?php if ($activeTag): ?>
+  <div style="margin-bottom: 2rem; padding: 1.5rem; background: var(--card-bg); border-radius: var(--radius); border-left: 4px solid var(--accent);">
+    <h2 style="margin:0;">Stai visualizzando la categoria: <strong><?= h(ucfirst($activeTag)) ?></strong></h2>
+    <p style="margin-top: 0.5rem; color: var(--text-muted);"><a href="<?= $siteUrl ?>">← Torna a tutti i contenuti</a></p>
+  </div>
+  <?php else: ?>
   <!-- POST IN EVIDENZA -->
   <?php if ($featuredPost): $fp = $featuredPost; $fpUrl = $siteUrl . '/' . h($fp['slug'] ?? ''); ?>
   <div class="featured-post">
@@ -468,6 +498,7 @@ if ($coverUrl) {
     </div>
     <?= mediaHtml($fp) ?>
   </div>
+  <?php endif; ?>
   <?php endif; ?>
 
   <!-- FILTRI -->
