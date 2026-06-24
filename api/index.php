@@ -3,6 +3,7 @@
 
 // ── Gestione errori: restituisci SEMPRE JSON (mai 500 con corpo vuoto) ───────
 ini_set('display_errors', '0');
+set_time_limit(0);
 $__emitErr = function (int $code, string $msg): void {
     if (!headers_sent()) {
         http_response_code($code);

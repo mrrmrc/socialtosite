@@ -1,0 +1,1450 @@
+const { useState, useEffect, useCallback, useRef } = React;
+
+// ── Config API ──────────────────────────────────────────────────────────────
+const API = window.API_BASE || '';
+
+async function apiFetch(path, opts = {}, token = null) {
+  const headers = { 'Content-Type': 'application/json' };
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+  const r = await fetch(`${API}${path}`, { ...opts, headers: { ...headers, ...opts.headers } });
+  const data = await r.json();
+  if (r.status === 401) {
+    // Token scaduto o invalido: pulisci la sessione e ricarica
+    localStorage.removeItem('sts_token');
+    localStorage.removeItem('sts_user');
+    window.location.reload();
+    return;
+  }
+  if (!r.ok) throw new Error(data.error || `Errore server (${r.status})`);
+  return data;
+}
+
+// ── Icons ────────────────────────────────────────────────────────────────────
+const SOCIAL = {
+  instagram: { icon: 'https://cdn.simpleicons.org/instagram/E4405F', label: 'Instagram', color: '#E1306C' },
+  tiktok:    { icon: 'https://cdn.simpleicons.org/tiktok/000000', label: 'TikTok',    color: '#010101' },
+  facebook:  { icon: 'https://cdn.simpleicons.org/facebook/1877F2', label: 'Facebook',  color: '#1877F2' },
+  youtube:   { icon: 'https://cdn.simpleicons.org/youtube/FF0000', label: 'YouTube',   color: '#FF0000' },
+  website:   { icon: 'https://cdn.simpleicons.org/googleearth/000000', label: 'Sito Web', color: '#888780' },
+};
+
+// 10 Temi con anteprima visiva e descrizione
+const SITE_LAYOUTS = [
+  { id: 'classic',   name: 'Classic',   desc: 'Pulito, professionale, massima leggibilità.',     emoji: '🏛️', colors: ['#7F77DD','#FAFAFA','#fff'] },
+  { id: 'journal',   name: 'Journal',   desc: 'Editoriale serio, tipografia serif elegante.',      emoji: '📰', colors: ['#8B4513','#FDF6EE','#fff'] },
+  { id: 'authority', name: 'Authority', desc: 'Dark premium, per chi vuole imporsi.',             emoji: '🔮', colors: ['#7F77DD','#0D1117','#161B22'] },
+  { id: 'portfolio', name: 'Portfolio', desc: 'Layout a due colonne, visivo e moderno.',          emoji: '🎨', colors: ['#FF6B6B','#F5F0EB','#fff'] },
+  { id: 'magazine',  name: 'Magazine',  desc: 'Griglia a 3 colonne, stile testata online.',       emoji: '📱', colors: ['#E63946','#fff','#fff'] },
+  { id: 'minimal',   name: 'Minimal',   desc: 'Solo testo, zero distrazioni, massima eleganza.',  emoji: '⬜', colors: ['#000','#fff','#fff'] },
+  { id: 'studio',    name: 'Studio',    desc: 'Header scuro e bold, per agenzie e studi.',        emoji: '🏢', colors: ['#2D2D2D','#F7F5F2','#fff'] },
+  { id: 'local',     name: 'Local SEO', desc: 'Caldo, accogliente, per attività di quartiere.',   emoji: '🏪', colors: ['#F4A261','#FFFDF5','#fff'] },
+  { id: 'academy',   name: 'Academy',   desc: 'Serio e strutturato, per guide e formazione.',     emoji: '🎓', colors: ['#1D3557','#F0F4FF','#fff'] },
+  { id: 'bottega',   name: 'Bottega',   desc: 'Artigianale, caldo, per mestieri e creativi.',     emoji: '🧵', colors: ['#8B6914','#FAF7F2','#FFF8EF'] },
+];
+
+function SocialIcon({ platform, size = 20 }) {
+  const info = SOCIAL[platform];
+  if (!info) return <span style={{ fontSize: size }}>•</span>;
+  return <img src={info.icon} alt="" style={{ width: size, height: size, objectFit: 'contain', flexShrink: 0 }} />;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// Screen: Login / Register
+// ═══════════════════════════════════════════════════════════════
+function AuthScreen({ onAuth }) {
+  const [mode, setMode] = useState('login');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [name, setName] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  async function submit(e) {
+    e.preventDefault();
+    setLoading(true); setError('');
+    try {
+      const endpoint = mode === 'login' ? '/api/index.php?action=login' : '/api/index.php?action=register';
+      const body = mode === 'login' ? { email, password } : { email, password, name };
+      const data = await apiFetch(endpoint, { method: 'POST', body: JSON.stringify(body) });
+      localStorage.setItem('sts_token', data.token);
+      localStorage.setItem('sts_user', JSON.stringify(data.user));
+      onAuth(data.token, data.user);
+    } catch (e) { setError(e.message); }
+    setLoading(false);
+  }
+
+  return (
+    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
+      <div style={{ width: '100%', maxWidth: '400px' }}>
+        <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
+          <div style={{ fontSize: '28px', fontWeight: 700, color: 'var(--purple)', marginBottom: '0.25rem' }}>
+            Social<span style={{ color: 'var(--text)' }}>ToSite</span>
+          </div>
+          <div style={{ color: 'var(--text-muted)', fontSize: '14px' }}>
+            Il tuo sito si aggiorna automaticamente dai social
+          </div>
+        </div>
+
+        <div className="card">
+          <div style={{ display: 'flex', gap: '8px', marginBottom: '1.5rem' }}>
+            {['login', 'register'].map(m => (
+              <button key={m} className={`btn btn-full ${mode === m ? 'btn-primary' : 'btn-outline'}`}
+                onClick={() => setMode(m)}>
+                {m === 'login' ? 'Accedi' : 'Registrati'}
+              </button>
+            ))}
+          </div>
+
+          <form onSubmit={submit}>
+            {mode === 'register' && (
+              <div className="form-group">
+                <label className="label">Nome o nome attività</label>
+                <input type="text" placeholder="Es: Marco Rossi Ceramiche" value={name} onChange={e => setName(e.target.value)} />
+              </div>
+            )}
+            <div className="form-group">
+              <label className="label">Email</label>
+              <input type="email" placeholder="tua@email.it" value={email} onChange={e => setEmail(e.target.value)} required />
+            </div>
+            <div className="form-group">
+              <label className="label">Password</label>
+              <input type="password" placeholder="Minimo 8 caratteri" value={password} onChange={e => setPassword(e.target.value)} required />
+            </div>
+            {error && <div style={{ background: 'var(--red-light)', color: 'var(--red)', padding: '10px 14px', borderRadius: 'var(--radius-sm)', marginBottom: '1rem', fontSize: '13px' }}>{error}</div>}
+            <button type="submit" className="btn btn-primary btn-full" disabled={loading}>
+              {loading ? 'Caricamento...' : mode === 'login' ? 'Entra nella piattaforma →' : 'Crea il mio account →'}
+            </button>
+          </form>
+
+          <div className="divider" />
+          <div style={{ fontSize: '12px', color: 'var(--text-faint)', textAlign: 'center' }}>
+            Piano gratuito · Fino a 3 social · Nessuna carta richiesta
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════
+// Screen: Connetti Social
+// ═══════════════════════════════════════════════════════════════
+function ConnectScreen({ token, onDone }) {
+  const [connections, setConnections] = useState({});
+  const [loading, setLoading] = useState(null);
+
+  useEffect(() => {
+    // Controlla parametri URL per callback OAuth
+    const params = new URLSearchParams(window.location.search);
+    const connected = params.get('connected');
+    const oauthError = params.get('error');
+    if (connected) {
+      setConnections(prev => ({ ...prev, [connected]: { handle: 'Connesso ✓' } }));
+      window.history.replaceState({}, '', window.location.pathname);
+    } else if (oauthError) {
+      const platform = params.get('platform') || 'il social';
+      alert(`Connessione a ${platform} non riuscita (${oauthError}). Riprova.`);
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+    loadConnections();
+  }, []);
+
+  async function loadConnections() {
+    try {
+      const data = await apiFetch('/api/index.php?action=social-connections', {}, token);
+      const map = {};
+      data.forEach(c => { if (c.active) map[c.platform] = c; });
+      setConnections(map);
+    } catch {}
+  }
+
+  async function connect(platform) {
+    setLoading(platform);
+    try {
+      const data = await apiFetch(`/api/index.php?action=social-auth-url&platform=${platform}`, {}, token);
+      window.location.href = data.url;
+    } catch (e) {
+      alert('Errore connessione: ' + e.message);
+      setLoading(null);
+    }
+  }
+
+  const connectedCount = Object.keys(connections).length;
+
+  return (
+    <div style={{ minHeight: '100vh', background: 'var(--bg)', padding: '2rem 1rem' }}>
+      <div style={{ maxWidth: '500px', margin: '0 auto' }}>
+        <ProgressBar step={1} />
+        <h1 style={{ marginBottom: '0.25rem' }}>Connetti i tuoi social</h1>
+        <p style={{ color: 'var(--text-muted)', marginBottom: '1.5rem', fontSize: '14px' }}>
+          Connetti almeno un social. Clicca e verrai reindirizzato alla pagina ufficiale della piattaforma — noi non vediamo mai la tua password.
+        </p>
+
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '1.5rem' }}>
+          {Object.entries(SOCIAL).map(([platform, info]) => {
+            const isConnected = !!connections[platform];
+            return (
+              <div key={platform}
+                onClick={() => !isConnected && connect(platform)}
+                style={{
+                  background: isConnected ? 'var(--teal-light)' : 'var(--surface)',
+                  border: `1.5px solid ${isConnected ? 'var(--teal)' : 'var(--border-strong)'}`,
+                  borderRadius: 'var(--radius)', padding: '1.25rem',
+                  cursor: isConnected ? 'default' : 'pointer',
+                  transition: 'all .15s',
+                  opacity: loading === platform ? 0.6 : 1,
+                }}>
+                <div style={{ fontSize: '28px', marginBottom: '6px' }}>{info.icon}</div>
+                <div style={{ fontWeight: 600, marginBottom: '3px' }}>{info.label}</div>
+                {isConnected ? (
+                  <>
+                    <div style={{ fontSize: '12px', color: 'var(--teal)', fontWeight: 500 }}>✓ Connesso</div>
+                    {connections[platform]?.handle && (
+                      <div style={{ fontSize: '12px', color: '#0F6E56' }}>{connections[platform].handle}</div>
+                    )}
+                  </>
+                ) : (
+                  <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+                    {loading === platform ? 'Apertura...' : 'Tocca per connettere'}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+
+        <button className="btn btn-primary btn-full" disabled={connectedCount === 0} onClick={onDone}
+          style={{ fontSize: '15px', padding: '12px' }}>
+          {connectedCount === 0 ? 'Connetti almeno 1 social per continuare' : `Genera il mio sito con ${connectedCount} social →`}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════
+// Screen: Generazione AI in corso
+// ═══════════════════════════════════════════════════════════════
+function GeneratingScreen({ token, userId, onDone }) {
+  const [logs, setLogs] = useState([
+    { text: 'Connessione ai social...', status: 'pending' },
+    { text: 'Recupero contenuti recenti...', status: 'pending' },
+    { text: 'Trascrizione video con Whisper AI...', status: 'pending' },
+    { text: 'Generazione testo SEO-friendly...', status: 'pending' },
+    { text: 'Estrazione tag e parole chiave...', status: 'pending' },
+    { text: 'Calcolo score SEO...', status: 'pending' },
+    { text: 'Composizione pagina finale...', status: 'pending' },
+  ]);
+  const [done, setDone] = useState(false);
+
+  useEffect(() => {
+    let i = 0;
+    // Anima i log mentre il backend lavora
+    const animate = () => {
+      setLogs(prev => prev.map((l, idx) => idx < i ? { ...l, status: 'done' } : idx === i ? { ...l, status: 'active' } : l));
+      i++;
+      if (i <= logs.length) setTimeout(animate, 900 + Math.random() * 500);
+    };
+    animate();
+
+    // Chiama il backend per sync reale
+    apiFetch('/api/index.php?action=sync', { method: 'POST' }, token)
+      .then(() => { setDone(true); })
+      .catch(() => { setDone(true); }); // Mostra preview anche in caso di errore parziale
+  }, []);
+
+  return (
+    <div style={{ minHeight: '100vh', background: 'var(--bg)', padding: '2rem 1rem' }}>
+      <div style={{ maxWidth: '500px', margin: '0 auto' }}>
+        <ProgressBar step={2} />
+        <h1 style={{ marginBottom: '0.25rem' }}>AI al lavoro...</h1>
+        <p style={{ color: 'var(--text-muted)', marginBottom: '1.5rem', fontSize: '14px' }}>
+          Stiamo analizzando i tuoi contenuti e costruendo il sito. Ci vogliono circa 60 secondi.
+        </p>
+        <div className="card" style={{ fontFamily: 'monospace', fontSize: '13px' }}>
+          {logs.map((log, i) => (
+            <div key={i} style={{ display: 'flex', gap: '10px', alignItems: 'center', marginBottom: '10px',
+              color: log.status === 'done' ? 'var(--teal)' : log.status === 'active' ? 'var(--purple)' : 'var(--text-faint)',
+              transition: 'color .3s' }}>
+              <span>{log.status === 'done' ? '✓' : log.status === 'active' ? '⟳' : '○'}</span>
+              <span>{log.text}</span>
+            </div>
+          ))}
+        </div>
+        {done && (
+          <button className="btn btn-primary btn-full" onClick={onDone}
+            style={{ marginTop: '1rem', fontSize: '15px', padding: '12px' }}>
+            Visualizza il tuo sito →
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════
+// Screen: Dashboard — anteprima sito + SEO + impostazioni
+// ═══════════════════════════════════════════════════════════════
+function DashboardScreen({ token, user, onLogout }) {
+  const [tab, setTab] = useState('site');
+  const [dashboardFilter, setDashboardFilter] = useState('all');
+  const [data, setData] = useState(null);
+  const [syncing, setSyncing] = useState(false);
+  const [linkUrl, setLinkUrl] = useState('');
+  const [importing, setImporting] = useState(false);
+  const [importMsg, setImportMsg] = useState(null);
+  const [drafts, setDrafts] = useState([]);
+  const [harmonizingId, setHarmonizingId] = useState(0);
+  const [sourceForm, setSourceForm] = useState({ label: '', url: '', platform: '' });
+  const [sourceMsg, setSourceMsg] = useState(null);
+  const [scanMsg, setScanMsg] = useState(null);
+  const [scanning, setScanning] = useState(false);
+  const [profileDraft, setProfileDraft] = useState('');
+  const [roleMissionDraft, setRoleMissionDraft] = useState('');
+  const [strategyDraft, setStrategyDraft] = useState('');
+  const [selectedTheme, setSelectedTheme] = useState('classic');
+  const [savingProfile, setSavingProfile] = useState(false);
+  const [syncLimit, setSyncLimit] = useState(20);
+  
+  const [headerLayout, setHeaderLayout] = useState('standard');
+  const [accentColor, setAccentColor] = useState('');
+  const [logoUrl, setLogoUrl] = useState('');
+  const [customCss, setCustomCss] = useState('');
+  const [menuLinksStr, setMenuLinksStr] = useState('');
+
+  useEffect(() => { loadData(); loadDrafts(); }, []);
+
+  async function loadData() {
+    try {
+      const d = await apiFetch('/api/index.php?action=site', {}, token);
+      setData(d);
+      setProfileDraft(d.site?.profile_summary || d.site?.bio || '');
+      setRoleMissionDraft(d.site?.role_mission || '');
+      setStrategyDraft(d.site?.content_strategy || '');
+      setSelectedTheme(d.site?.theme || 'classic');
+      
+      setHeaderLayout(d.site?.header_layout || 'standard');
+      setAccentColor(d.site?.accent_color || '');
+      setLogoUrl(d.site?.logo_url || '');
+      setCustomCss(d.site?.custom_css || '');
+      if (d.site?.menu_links) {
+        try {
+           const arr = JSON.parse(d.site.menu_links);
+           setMenuLinksStr(arr.map(x => `${x.label}|${x.url}`).join('\n'));
+        } catch { setMenuLinksStr(d.site.menu_links); }
+      }
+    } catch (err) {
+      alert("ERRORE CARICAMENTO DASHBOARD: " + err.message);
+    }
+  }
+
+  async function loadDrafts() {
+    try {
+      const d = await apiFetch('/api/index.php?action=drafts', {}, token);
+      setDrafts(d || []);
+    } catch {}
+  }
+
+  // AGENTE 1 — Ingestione: importa e trascrive da link
+  async function doImport(e) {
+    e.preventDefault();
+    if (!linkUrl.trim()) return;
+    setImporting(true); setImportMsg(null);
+    try {
+      const r = await apiFetch('/api/index.php?action=ingest-url',
+        { method: 'POST', body: JSON.stringify({ url: linkUrl.trim() }) }, token);
+      if (r.duplicate) {
+        setImportMsg({ ok: true, text: 'Questo contenuto era già stato importato.' });
+      } else {
+        setImportMsg({ ok: true, text: 'Trascrizione completata! Ora puoi armonizzarla.' });
+      }
+      setLinkUrl('');
+      await loadDrafts();
+    } catch (err) {
+      setImportMsg({ ok: false, text: err.message });
+    }
+    setImporting(false);
+  }
+
+  // AGENTE 2 — Armonizzatore: bozza → articolo pubblicato
+  async function doHarmonize(id) {
+    setHarmonizingId(id);
+    try {
+      await apiFetch('/api/index.php?action=harmonize',
+        { method: 'POST', body: JSON.stringify({ id }) }, token);
+      await loadDrafts();
+      await loadData();
+    } catch (err) {
+      setImportMsg({ ok: false, text: err.message });
+    }
+    setHarmonizingId(0);
+  }
+
+  async function syncNow() {
+    setSyncing(true);
+    try {
+      await apiFetch('/api/index.php?action=sync', { 
+        method: 'POST', 
+        body: JSON.stringify({ limit: parseInt(syncLimit) || 20 }) 
+      }, token);
+      await loadData();
+    } catch {}
+    setSyncing(false);
+  }
+
+  async function togglePublishPost(id, currentStatus) {
+    const newStatus = currentStatus ? 0 : 1;
+    await apiFetch('/api/index.php?action=toggle-publish-post', { method: 'POST', body: JSON.stringify({ id, published: newStatus }) }, token);
+    setData(prev => ({
+      ...prev,
+      posts: prev.posts.map(p => p.id === id ? { ...p, published: newStatus } : p)
+    }));
+  }
+
+  async function deletePost(id) {
+    if (!window.confirm("Sei sicuro di voler eliminare definitivamente questo post? Verrà rimosso anche dal sito pubblico.")) return;
+    await apiFetch('/api/index.php?action=delete-post', { method: 'POST', body: JSON.stringify({ id }) }, token);
+    setData(prev => ({ ...prev, posts: prev.posts.filter(p => p.id !== id) }));
+  }
+
+  async function addSource(e) {
+    e.preventDefault();
+    setSourceMsg(null);
+    try {
+      await apiFetch('/api/index.php?action=social-source-create', {
+        method: 'POST',
+        body: JSON.stringify(sourceForm)
+      }, token);
+      setSourceForm({ label: '', url: '', platform: '' });
+      setSourceMsg({ ok: true, text: 'Social aggiunto allo spazio utente.' });
+      await loadData();
+    } catch (err) {
+      setSourceMsg({ ok: false, text: err.message });
+    }
+  }
+
+  async function savePlatformSource(platform, url, since_date = null, auto_publish = 1) {
+    setSourceMsg(null);
+    try {
+      await apiFetch('/api/index.php?action=social-source-upsert', {
+        method: 'POST',
+        body: JSON.stringify({ platform, label: SOCIAL[platform]?.label || platform, url, since_date, auto_publish })
+      }, token);
+      await loadData();
+    } catch (err) {
+      setSourceMsg({ ok: false, text: err.message });
+    }
+  }
+
+  async function saveConnectionSettings(platform, since_date, auto_publish) {
+    try {
+      await apiFetch('/api/index.php?action=social-connection-update', {
+        method: 'POST',
+        body: JSON.stringify({ platform, since_date, auto_publish })
+      }, token);
+      await loadData();
+    } catch (err) {
+      alert(err.message);
+    }
+  }
+
+  async function scanSources() {
+    setScanning(true); setScanMsg(null);
+    try {
+      const res = await apiFetch('/api/index.php?action=scan-sources', {
+        method: 'POST',
+        body: JSON.stringify({
+          limit: 5,
+          profile_summary: profileDraft,
+          role_mission: roleMissionDraft,
+          content_strategy: strategyDraft
+        })
+      }, token);
+      const r = res.report;
+      setScanMsg({ ok: true, text: `Scansione completata: ${r.published} post pubblicati, ${r.skipped || 0} scartati dall'agente, ${r.duplicates} duplicati.` });
+      await loadDrafts();
+      await loadData();
+    } catch (err) {
+      setScanMsg({ ok: false, text: err.message });
+    }
+    setScanning(false);
+  }
+
+  async function saveProfile() {
+    setSavingProfile(true);
+    try {
+      await apiFetch('/api/index.php?action=site-update', {
+        method: 'POST',
+        body: JSON.stringify({
+          profile_summary: profileDraft,
+          bio: profileDraft,
+          role_mission: roleMissionDraft,
+          content_strategy: strategyDraft,
+          theme: selectedTheme,
+          header_layout: headerLayout,
+          accent_color: accentColor,
+          logo_url: logoUrl,
+          custom_css: customCss,
+          menu_links: menuLinksStr.split('\n').filter(x => x.trim()).map(x => {
+             const parts = x.split('|');
+             return { label: parts[0].trim(), url: parts[1] ? parts[1].trim() : '' };
+          }),
+        })
+      }, token);
+      await loadData();
+    } catch (err) {
+      setScanMsg({ ok: false, text: err.message });
+    }
+    setSavingProfile(false);
+  }
+
+  async function chooseTheme(theme) {
+    setSelectedTheme(theme);
+    try {
+      await apiFetch('/api/index.php?action=site-update', {
+        method: 'POST',
+        body: JSON.stringify({ theme })
+      }, token);
+      await loadData();
+    } catch (err) {
+      setScanMsg({ ok: false, text: err.message });
+    }
+  }
+
+  async function removeSource(id) {
+    await apiFetch('/api/index.php?action=social-source-delete', {
+      method: 'POST',
+      body: JSON.stringify({ id })
+    }, token);
+    await loadData();
+  }
+
+  // --- Funzioni Layout Proposti ---
+  const [designingSite, setDesigningSite] = useState(false);
+  const [activePreviewUrl, setActivePreviewUrl] = useState(null);
+  const [previewThemeId, setPreviewThemeId] = useState('classic');
+
+  async function forceDesignSite() {
+    setDesigningSite(true);
+    try {
+      await apiFetch('/api/index.php?action=design-site', { method: 'POST' }, token);
+      await loadData();
+      alert("Nuovi layout generati con successo!");
+    } catch (err) {
+      alert("Errore generazione: " + err.message);
+    }
+    setDesigningSite(false);
+  }
+
+  async function applyLayout(index) {
+    if (!data?.site?.generated_layouts) return;
+    try {
+      const layouts = JSON.parse(data.site.generated_layouts);
+      const layout = layouts[index];
+      if (!layout) return;
+      await apiFetch('/api/index.php?action=site-update', {
+        method: 'POST',
+        body: JSON.stringify({
+          theme: layout.theme,
+          accent_color: layout.accent_color,
+          header_layout: layout.header_layout,
+          custom_css: layout.custom_css
+        })
+      }, token);
+      await loadData();
+      setActivePreviewUrl(null);
+      alert("Layout applicato con successo!");
+    } catch (err) {
+      alert(err.message);
+    }
+  }
+
+  // --- Funzioni Admin Prompts ---
+  const [adminPrompts, setAdminPrompts] = useState([]);
+  
+  async function loadAdminPrompts() {
+    try {
+      const res = await apiFetch('/api/index.php?action=admin-prompts', {}, token);
+      setAdminPrompts(res.prompts || []);
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
+  async function updatePrompt(agentName, instructions) {
+    try {
+      await apiFetch('/api/index.php?action=admin-update-prompt', {
+        method: 'POST',
+        body: JSON.stringify({ agent_name: agentName, instructions })
+      }, token);
+      alert("Istruzioni aggiornate con successo!");
+    } catch (err) {
+      alert("Errore: " + err.message);
+    }
+  }
+
+  useEffect(() => {
+    if (tab === 'admin' && user?.role === 'admin') loadAdminPrompts();
+  }, [tab]);
+
+  // ── SITO AI ──────────────────────────────────────────────────────────────
+  const [siteAiLoading, setSiteAiLoading] = useState(false);
+  const [siteAiResult, setSiteAiResult] = useState(null);
+
+  async function runSiteAi() {
+    if (!data?.site?.profile_summary && !data?.site?.bio) {
+      alert('Prima esegui una scansione dei social per generare il profilo. Vai in "Fonti" → Scansiona social.');
+      return;
+    }
+    if (!confirm('L\'AI genererà un sito completamente personalizzato al tuo profilo (tema, colori, testi, CSS). Sovrascriverà le impostazioni attuali. Procedere?')) return;
+    setSiteAiLoading(true);
+    try {
+      const res = await apiFetch('/api/index.php?action=site-ai', { method: 'POST' }, token);
+      setSiteAiResult(res.result);
+      await loadData();
+    } catch (err) {
+      alert('Errore SITO AI: ' + err.message);
+    }
+    setSiteAiLoading(false);
+  }
+
+  // ── CMS Editoriale ───────────────────────────────────────────────────────
+  const [editingPost, setEditingPost] = useState(null); // {id, title, body, excerpt, tags}
+  const [cmsSaving, setCmsSaving] = useState(false);
+  const [cmsFilter, setCmsFilter] = useState('all');
+
+  async function savePostEdit() {
+    if (!editingPost) return;
+    setCmsSaving(true);
+    try {
+      await apiFetch('/api/index.php?action=post-update', {
+        method: 'POST',
+        body: JSON.stringify({
+          id: editingPost.id,
+          edited_title: editingPost.title,
+          edited_body: editingPost.body,
+          edited_excerpt: editingPost.excerpt,
+          tags: editingPost.tags.split(',').map(t => t.trim()).filter(Boolean),
+        })
+      }, token);
+      setEditingPost(null);
+      await loadData();
+    } catch (err) { alert(err.message); }
+    setCmsSaving(false);
+  }
+
+  async function toggleFeatured(postId, currentFeatured) {
+    await apiFetch('/api/index.php?action=post-feature', {
+      method: 'POST',
+      body: JSON.stringify({ id: postId, featured: currentFeatured ? 0 : 1 })
+    }, token);
+    await loadData();
+  }
+
+  const site = data?.site;
+  const posts = data?.posts || [];
+  const connections = data?.connections || [];
+  const sources = data?.sources || [];
+  const sourceByPlatform = sources.reduce((acc, source) => ({ ...acc, [source.platform]: source }), {});
+  const siteUrl = `${API.replace('3001', '3000')}/s/${user.slug}`;
+
+  return (
+    <div style={{ minHeight: '100vh', background: 'var(--bg)' }}>
+      {/* Topbar */}
+      <div style={{ background: 'var(--surface)', borderBottom: '1px solid var(--border)', padding: '0 1rem' }}>
+        <div style={{ maxWidth: '900px', margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: '56px' }}>
+          <div style={{ fontWeight: 700, fontSize: '17px', color: 'var(--purple)' }}>Social<span style={{ color: 'var(--text)' }}>ToSite</span></div>
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+            {/* Pulsante SITO AI - principale feature */}
+            <button
+              className="btn btn-primary"
+              onClick={runSiteAi}
+              disabled={siteAiLoading}
+              style={{ background: siteAiLoading ? 'var(--purple-dark)' : 'linear-gradient(135deg, #7F77DD, #534AB7)', fontSize: '13px', fontWeight: 600, boxShadow: '0 2px 8px rgba(127,119,221,0.4)' }}
+              title="L'AI genera il tuo sito personalizzato al 100% in base al tuo profilo"
+            >
+              {siteAiLoading ? '✨ Generando...' : '✨ SITO AI'}
+            </button>
+            <input type="number" title="Max post da cercare per social" placeholder="Max" min="1" max="500" value={syncLimit} onChange={e => setSyncLimit(e.target.value)} style={{ width: '70px', padding: '6px', fontSize: '13px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)' }} />
+            <button className="btn btn-outline" onClick={syncNow} disabled={syncing}>
+              {syncing ? '⟳ Sync...' : '↻ Sync'}
+            </button>
+            {user.role === 'admin' && (
+              <button className="btn btn-outline" onClick={() => setTab('admin')} style={{ fontSize: '13px' }}>🛠 Admin</button>
+            )}
+            <button className="btn btn-outline" onClick={onLogout} style={{ fontSize: '13px' }}>Esci</button>
+          </div>
+        </div>
+      </div>
+
+      <div style={{ maxWidth: '900px', margin: '0 auto', padding: '1.5rem 1rem' }}>
+        {/* Banner SITO AI */}
+        {siteAiResult && (
+          <div style={{ background: 'linear-gradient(135deg,#534AB7,#7F77DD)', color: '#fff', borderRadius: 'var(--radius)', padding: '1.25rem 1.5rem', marginBottom: '1.25rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap' }}>
+            <div>
+              <div style={{ fontWeight: 700, fontSize: '15px', marginBottom: '4px' }}>✨ Sito AI generato con successo!</div>
+              <div style={{ fontSize: '13px', opacity: 0.85 }}>Tema: <b>{siteAiResult.theme}</b> · Colore: <b>{siteAiResult.accent_color}</b> · Tagline: "{siteAiResult.hero_tagline}"</div>
+            </div>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <a href={siteUrl} target="_blank" rel="noopener" style={{ background: 'rgba(255,255,255,0.2)', color: '#fff', padding: '7px 16px', borderRadius: 'var(--radius-sm)', fontSize: '13px', fontWeight: 600, textDecoration: 'none' }}>🌍 Vedi sito</a>
+              <button onClick={() => setSiteAiResult(null)} style={{ background: 'transparent', color: 'rgba(255,255,255,0.6)', border: 'none', cursor: 'pointer', fontSize: '18px' }}>✕</button>
+            </div>
+          </div>
+        )}
+        {/* Stats */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '10px', marginBottom: '1.5rem' }}>
+          {[
+            { n: posts.length, l: 'Contenuti' },
+            { n: sources.length, l: 'Social attivi' },
+            { n: site?.seo_score || 0, l: 'Score SEO' },
+            { n: posts.filter(p => p.media_type === 'VIDEO').length, l: 'Video trascritti' },
+          ].map((s, i) => (
+            <div key={i} style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '1rem', textAlign: 'center' }}>
+              <div style={{ fontSize: '24px', fontWeight: 600, color: 'var(--purple)' }}>{s.n}</div>
+              <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{s.l}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* Tabs */}
+        <div style={{ display: 'flex', gap: '4px', marginBottom: '1.25rem', background: 'var(--gray-light)', padding: '4px', borderRadius: 'var(--radius-sm)', width: 'fit-content', flexWrap: 'wrap' }}>
+          {[
+            ['site', '📄 Contenuti'],
+            ['cms', '✏️ CMS'],
+            ['sources', '🔗 Fonti'],
+            ['seo', '📈 SEO'],
+            ['settings', '⚙️ Tema'],
+            ...(user.role === 'admin' ? [['admin', '🛠 Admin']] : [])
+          ].map(([t, l]) => (
+            <button key={t} onClick={() => setTab(t)}
+              style={{ padding: '6px 16px', borderRadius: '5px', fontWeight: tab === t ? 600 : 400,
+                background: tab === t ? 'var(--surface)' : 'transparent',
+                boxShadow: tab === t ? '0 1px 3px rgba(0,0,0,.1)' : 'none',
+                color: tab === t ? 'var(--text)' : 'var(--text-muted)', border: 'none' }}>{l}</button>
+          ))}
+        </div>
+
+        {/* Tab: Fonti & Import */}
+        {tab === 'sources' && (
+          <div>
+            <div className="card" style={{ marginBottom: '1.25rem' }}>
+              <h3 style={{ marginBottom: '4px' }}>I tuoi social</h3>
+              <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '12px' }}>
+                Inserisci un link per ogni profilo o canale. Il sistema li userà per capire chi sei e pubblicare i contenuti sul tuo sito.
+              </p>
+              <div style={{ display: 'grid', gap: '10px', marginBottom: '12px' }}>
+                {['instagram', 'tiktok', 'facebook', 'youtube'].map(platform => (
+                  <div key={platform} style={{ display: 'grid', gridTemplateColumns: '150px 1fr 130px 120px', gap: '12px', alignItems: 'center' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 600 }}>
+                      <SocialIcon platform={platform} size={22} />
+                      <span>{SOCIAL[platform].label}</span>
+                    </div>
+                    <input type="text" placeholder={`Link ${SOCIAL[platform].label}`}
+                      defaultValue={sourceByPlatform[platform]?.url || ''}
+                      onBlur={e => savePlatformSource(platform, e.target.value.trim(), sourceByPlatform[platform]?.since_date, sourceByPlatform[platform]?.auto_publish ?? 1)} />
+                    <input type="date" title="Retroattività (Da questa data in poi)" 
+                      defaultValue={sourceByPlatform[platform]?.since_date || ''}
+                      onBlur={e => savePlatformSource(platform, sourceByPlatform[platform]?.url || '', e.target.value, sourceByPlatform[platform]?.auto_publish ?? 1)}
+                      style={{ padding: '6px', fontSize: '13px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)' }} />
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', cursor: 'pointer' }}>
+                      <input type="checkbox" 
+                        defaultChecked={(sourceByPlatform[platform]?.auto_publish ?? 1) === 1}
+                        onChange={e => savePlatformSource(platform, sourceByPlatform[platform]?.url || '', sourceByPlatform[platform]?.since_date, e.target.checked ? 1 : 0)} />
+                      Auto-Pubblica
+                    </label>
+                  </div>
+                ))}
+              </div>
+              {sourceMsg && (
+                <div style={{ marginBottom: '10px', padding: '8px 12px', borderRadius: 'var(--radius-sm)', fontSize: '13px',
+                  background: sourceMsg.ok ? 'var(--teal-light)' : 'var(--red-light)',
+                  color: sourceMsg.ok ? '#0F6E56' : 'var(--red)' }}>
+                  {sourceMsg.text}
+                </div>
+              )}
+              <div className="divider" />
+              <div style={{ marginBottom: '12px' }}>
+                <label className="label">Profilo generato della persona/brand</label>
+                <textarea value={profileDraft} onChange={e => setProfileDraft(e.target.value)}
+                  placeholder="Dopo la scansione comparirà qui un profilo sintetico editabile."
+                  style={{ width: '100%', minHeight: '96px', resize: 'vertical', padding: '10px 14px', border: '1px solid var(--border-strong)', borderRadius: 'var(--radius-sm)', background: 'var(--surface)', fontFamily: 'inherit', fontSize: '14px' }} />
+                <button className="btn btn-outline" onClick={saveProfile} disabled={savingProfile} style={{ marginTop: '8px' }}>
+                  {savingProfile ? 'Salvo...' : 'Salva profilo'}
+                </button>
+              </div>
+              <button className="btn btn-primary btn-full" onClick={scanSources} disabled={scanning || sources.length === 0}>
+                {scanning ? 'Scansiono, trascrivo e pubblico...' : 'Scansiona social e pubblica automaticamente'}
+              </button>
+              {scanMsg && (
+                <div style={{ marginTop: '10px', padding: '8px 12px', borderRadius: 'var(--radius-sm)', fontSize: '13px',
+                  background: scanMsg.ok ? 'var(--teal-light)' : 'var(--red-light)',
+                  color: scanMsg.ok ? '#0F6E56' : 'var(--red)' }}>
+                  {scanMsg.text}
+                </div>
+              )}
+            </div>
+
+            {/* Importa da link (Agente 1) */}
+            <div className="card" style={{ marginBottom: '1.25rem' }}>
+              <h3 style={{ marginBottom: '4px' }}>➕ Importa da un link</h3>
+              <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '12px' }}>
+                Incolla il link di un contenuto specifico: video, audio o post. L'AI lo trascrive, lo interpreta e prepara una bozza.
+              </p>
+              <form onSubmit={doImport} style={{ display: 'flex', gap: '8px' }}>
+                <input type="text" placeholder="https://www.youtube.com/watch?v=..."
+                  value={linkUrl} onChange={e => setLinkUrl(e.target.value)} style={{ flex: 1 }} />
+                <button type="submit" className="btn btn-primary" disabled={importing}>
+                  {importing ? '⟳ Trascrivo...' : 'Importa'}
+                </button>
+              </form>
+              {importMsg && (
+                <div style={{ marginTop: '10px', padding: '8px 12px', borderRadius: 'var(--radius-sm)', fontSize: '13px',
+                  background: importMsg.ok ? 'var(--teal-light)' : 'var(--red-light)',
+                  color: importMsg.ok ? '#0F6E56' : 'var(--red)' }}>
+                  {importMsg.text}
+                </div>
+              )}
+
+              {drafts.length > 0 && (
+                <div style={{ marginTop: '1rem' }}>
+                  <div className="divider" />
+                  <div style={{ fontSize: '13px', fontWeight: 600, marginBottom: '8px' }}>Bozze da armonizzare ({drafts.length})</div>
+                  {drafts.map(d => (
+                    <div key={d.id} style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '12px', padding: '10px 0', borderTop: '1px solid var(--border)' }}>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '4px' }}>
+                          <SocialIcon platform={d.platform} size={16} /> {SOCIAL[d.platform]?.label}
+                        </div>
+                        {d.source_url && (
+                          <a href={d.source_url} target="_blank" rel="noopener" style={{ display: 'block', fontSize: '12px', color: 'var(--purple)', marginBottom: '4px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            Apri contenuto originale
+                          </a>
+                        )}
+                        <div style={{ fontSize: '13px', color: 'var(--text)', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                          {d.transcript || '(nessuna trascrizione)'}
+                        </div>
+                      </div>
+                      <button className="btn btn-primary" disabled={harmonizingId === d.id}
+                        onClick={() => doHarmonize(d.id)} style={{ whiteSpace: 'nowrap' }}>
+                        {harmonizingId === d.id ? '⟳ Armonizzo...' : '✨ Armonizza'}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Tab: Sito */}
+        {tab === 'site' && (() => {
+          const allPlatforms = [...new Set(posts.map(p => p.platform))].sort();
+          const allTags = [...new Set(posts.flatMap(p => p.tags || []).map(t => t.toLowerCase()))].sort();
+          const filteredPosts = posts.filter(p => {
+            if (dashboardFilter === 'all') return true;
+            if (dashboardFilter.startsWith('platform-')) return p.platform === dashboardFilter.replace('platform-', '');
+            if (dashboardFilter.startsWith('tag-')) return (p.tags || []).map(t => t.toLowerCase()).includes(dashboardFilter.replace('tag-', ''));
+            return true;
+          });
+          return (
+          <div>
+            <div style={{ marginBottom: '1rem', background: 'var(--surface)', padding: '10px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)' }}>
+              <select onChange={(e) => setDashboardFilter(e.target.value)} value={dashboardFilter} style={{ width: '100%', padding: '6px', fontSize: '13px' }}>
+                <option value="all">Tutti i contenuti</option>
+                {allPlatforms.map(p => <option key={p} value={`platform-${p}`}>{SOCIAL[p]?.label || p}</option>)}
+                {allTags.map(t => <option key={t} value={`tag-${t}`}>Tag: {t}</option>)}
+              </select>
+            </div>
+            <div style={{ display: 'flex', gap: '8px', marginBottom: '1rem' }}>
+              <a href={siteUrl} target="_blank" rel="noopener"
+                style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '8px 14px', background: 'var(--purple)', color: '#fff', borderRadius: 'var(--radius-sm)', textDecoration: 'none', fontSize: '13px', fontWeight: 500 }}>
+                🌍 Apri sito pubblico
+              </a>
+              <a href={`${siteUrl}/sitemap.xml`} target="_blank" rel="noopener"
+                style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '8px 14px', background: 'var(--surface)', border: '1px solid var(--border-strong)', color: 'var(--text)', borderRadius: 'var(--radius-sm)', textDecoration: 'none', fontSize: '13px' }}>
+                🗺 Sitemap XML
+              </a>
+            </div>
+
+            {filteredPosts.length === 0 ? (
+              <div className="card" style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '3rem' }}>
+                <div style={{ fontSize: '40px', marginBottom: '1rem' }}>📭</div>
+                <h3>Nessun contenuto ancora</h3>
+                <p style={{ fontSize: '13px', marginTop: '0.5rem' }}>Clicca "Aggiorna ora" per importare i tuoi contenuti social.</p>
+              </div>
+            ) : (
+              <div className="card" style={{ padding: 0, overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
+                  <thead>
+                    <tr style={{ borderBottom: '1px solid var(--border)', background: 'var(--gray-light)' }}>
+                      <th style={{ padding: '12px 16px', fontWeight: 600 }}>Contenuto</th>
+                      <th style={{ padding: '12px 16px', fontWeight: 600 }}>Social</th>
+                      <th style={{ padding: '12px 16px', fontWeight: 600 }}>Dettagli</th>
+                      <th style={{ padding: '12px 16px', fontWeight: 600, textAlign: 'right' }}>Azione</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredPosts.map(post => (
+                      <tr key={post.id} style={{ borderBottom: '1px solid var(--border)' }}>
+                        <td style={{ padding: '12px 16px' }}>
+                          <div style={{ fontWeight: 600, marginBottom: '4px' }}>{post.generated_title || post.raw_content?.substring(0, 80)}</div>
+                          <div style={{ color: 'var(--text-muted)', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                            {post.generated_excerpt || post.generated_body?.substring(0, 150)}
+                          </div>
+                          {post.tags?.length > 0 && (
+                            <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap', marginTop: '8px' }}>
+                              {post.tags.map(t => <span key={t} className="badge badge-purple">{t}</span>)}
+                            </div>
+                          )}
+                        </td>
+                        <td style={{ padding: '12px 16px', whiteSpace: 'nowrap', verticalAlign: 'top' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <SocialIcon platform={post.platform} size={16} />
+                            {SOCIAL[post.platform]?.label}
+                          </div>
+                          {post.source_url && (
+                            <a href={post.source_url} target="_blank" rel="noopener" style={{ display: 'block', marginTop: '4px', fontSize: '12px', color: 'var(--purple)' }}>
+                              Vedi su {SOCIAL[post.platform]?.label}
+                            </a>
+                          )}
+                        </td>
+                        <td style={{ padding: '12px 16px', whiteSpace: 'nowrap', verticalAlign: 'top' }}>
+                          <div style={{ marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            {post.published_at ? new Date(post.published_at).toLocaleDateString('it-IT') : ''}
+                            {post.media_type === 'VIDEO' && <span className="badge badge-purple">Video</span>}
+                          </div>
+                          <span className="badge badge-green">SEO {post.seo_score}/100</span>
+                        </td>
+                        <td style={{ padding: '12px 16px', textAlign: 'right', verticalAlign: 'top' }}>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'flex-end' }}>
+                            <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontSize: '12px' }}>
+                              <input type="checkbox" checked={post.published == 1} onChange={() => togglePublishPost(post.id, post.published)} />
+                              {post.published == 1 ? 'Pubblicato' : 'Bozza'}
+                            </label>
+                            <button onClick={() => deletePost(post.id)} style={{ background: 'none', border: 'none', color: 'var(--red)', fontSize: '16px', cursor: 'pointer', padding: '4px' }} title="Elimina definitivamente">🗑️ Elimina</button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        );
+        })()}
+
+        {/* Tab: SEO */}
+        {tab === 'seo' && (
+          <div>
+            <div className="card" style={{ marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: '48px', fontWeight: 700, color: site?.seo_score >= 70 ? 'var(--teal)' : 'var(--amber)' }}>
+                  {site?.seo_score || 0}
+                </div>
+                <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Score SEO</div>
+              </div>
+              <div>
+                <h3 style={{ marginBottom: '4px' }}>
+                  {(site?.seo_score || 0) >= 80 ? '🟢 Ottimo' : (site?.seo_score || 0) >= 60 ? '🟡 Buono' : '🔴 Da migliorare'}
+                </h3>
+                <p style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
+                  Basato su {posts.length} contenuti importati. Google potrà trovare il tuo sito.
+                </p>
+              </div>
+            </div>
+
+            <div className="card">
+              <h3 style={{ marginBottom: '1rem' }}>Cosa l'AI ha fatto per il tuo SEO</h3>
+              {[
+                ['✓', 'Trascrizione audio/video con Whisper — i tuoi video ora sono testo leggibile da Google', 'var(--teal)'],
+                ['✓', 'Titoli H1 ottimizzati generati automaticamente per ogni contenuto', 'var(--teal)'],
+                ['✓', 'Meta description unica per ogni post (max 155 caratteri)', 'var(--teal)'],
+                ['✓', 'Sitemap XML automatica e aggiornata ad ogni sync', 'var(--teal)'],
+                ['✓', 'Schema markup JSON-LD per rich snippet Google', 'var(--teal)'],
+                ['✓', 'URL slug leggibili da motori di ricerca', 'var(--teal)'],
+                ['✓', 'Tag e parole chiave estratte dal contenuto reale', 'var(--teal)'],
+              ].map(([icon, text, color], i) => (
+                <div key={i} style={{ display: 'flex', gap: '10px', marginBottom: '10px', fontSize: '14px' }}>
+                  <span style={{ color, fontWeight: 600 }}>{icon}</span>
+                  <span style={{ color: 'var(--text-muted)' }}>{text}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Tab: Impostazioni */}
+        {tab === 'settings' && (
+          <div>
+            <div className="card" style={{ marginBottom: '1rem', background: 'linear-gradient(135deg, var(--purple-light), #fff)', border: '1px solid var(--purple)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                <div>
+                  <h3 style={{ marginBottom: '0.25rem', color: 'var(--purple-dark)' }}>✨ Layout generati dall'AI</h3>
+                  <p style={{ color: 'var(--text-muted)', fontSize: '13px', margin: 0 }}>
+                    Lascia che il Graphic Designer crei proposte su misura in base al tuo profilo.
+                  </p>
+                </div>
+                <button className="btn btn-primary" onClick={forceDesignSite} disabled={designingSite}>
+                  {designingSite ? '⟳ Generazione in corso...' : 'Rigenera Proposte Layout'}
+                </button>
+              </div>
+
+              {data?.site?.generated_layouts && (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px' }}>
+                  {JSON.parse(data.site.generated_layouts).map((layout, i) => (
+                    <div key={i} style={{ background: 'var(--surface)', border: '1px solid var(--border-strong)', borderRadius: 'var(--radius)', padding: '1rem', textAlign: 'center' }}>
+                      <div style={{ fontWeight: 600, fontSize: '14px', marginBottom: '5px' }}>Proposta {i + 1}</div>
+                      <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '8px' }}>
+                        Tema: <b>{layout.theme}</b><br/>Layout: <b>{layout.header_layout}</b>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'center', gap: '5px', marginBottom: '12px' }}>
+                        <div style={{ width: '20px', height: '20px', borderRadius: '50%', background: layout.accent_color, border: '1px solid rgba(0,0,0,0.1)' }} title={layout.accent_color} />
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                        <button className="btn btn-outline btn-full" onClick={() => setActivePreviewUrl(`${siteUrl}?preview_index=${i}`)} style={{ fontSize: '12px', padding: '6px' }}>
+                          👁️ Anteprima Reale
+                        </button>
+                        <button className="btn btn-primary btn-full" onClick={() => applyLayout(i)} style={{ fontSize: '12px', padding: '6px' }}>
+                          ✓ Applica
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Iframe Anteprima Modale */}
+            {activePreviewUrl && (
+              <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.8)', zIndex: 9999, display: 'flex', flexDirection: 'column', padding: '20px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', background: '#222', color: '#fff', padding: '10px 20px', borderRadius: '10px 10px 0 0' }}>
+                  <span style={{ fontWeight: 600 }}>Anteprima Reale Proposta AI</span>
+                  <button onClick={() => setActivePreviewUrl(null)} style={{ background: 'transparent', color: '#fff', fontSize: '18px' }}>✕ Chiudi</button>
+                </div>
+                <iframe src={activePreviewUrl} style={{ width: '100%', flex: 1, background: '#fff', border: 'none', borderRadius: '0 0 10px 10px' }} />
+              </div>
+            )}
+
+            <div className="card" style={{ marginBottom: '1rem' }}>
+              <h3 style={{ marginBottom: '0.35rem' }}>Layout base manuale</h3>
+              <p style={{ color: 'var(--text-muted)', fontSize: '13px', marginBottom: '1rem' }}>
+                Oltre ai design AI, puoi selezionare manualmente un modello base.
+              </p>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(148px, 1fr))', gap: '10px' }}>
+                {SITE_LAYOUTS.map(layout => {
+                  const active = selectedTheme === layout.id;
+                  return (
+                    <button key={layout.id} type="button" onClick={() => chooseTheme(layout.id)}
+                      style={{
+                        textAlign: 'left',
+                        background: active ? 'var(--purple-light)' : 'var(--surface)',
+                        border: `1.5px solid ${active ? 'var(--purple)' : 'var(--border)'}`,
+                        borderRadius: 'var(--radius-sm)',
+                        padding: '10px',
+                        minHeight: '150px',
+                      }}>
+                      <div style={{ height: '66px', border: '1px solid var(--border)', borderRadius: '5px', padding: '8px', background: '#fff', display: 'grid', gap: '5px', alignContent: 'start', marginBottom: '8px' }}>
+                        <div style={{ height: '10px', width: '46%', background: active ? 'var(--purple)' : 'var(--text)', borderRadius: '2px' }} />
+                        <div style={{ display: 'grid', gridTemplateColumns: layout.id === 'magazine' ? '1fr 1fr' : '1fr', gap: '4px' }}>
+                          {layout.bars.map((w, i) => (
+                            <span key={i} style={{ display: 'block', height: '7px', width: w, background: i % 2 ? 'var(--gray-light)' : '#dedbd3', borderRadius: '2px' }} />
+                          ))}
+                        </div>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '6px', marginBottom: '3px' }}>
+                        <strong style={{ fontSize: '13px' }}>{layout.name}</strong>
+                        {active && <span className="badge badge-purple">Attivo</span>}
+                      </div>
+                      <div style={{ color: 'var(--text-muted)', fontSize: '12px', lineHeight: 1.35 }}>{layout.desc}</div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="card" style={{ marginBottom: '1rem' }}>
+              <h3 style={{ marginBottom: '0.75rem' }}>Agente editoriale</h3>
+              <div className="form-group">
+                <label className="label">Ruolo e missione</label>
+                <textarea value={roleMissionDraft} onChange={e => setRoleMissionDraft(e.target.value)}
+                  placeholder="Es: consulente che aiuta PMI locali a trasformare contenuti social in pagine utili per clienti e Google."
+                  style={{ width: '100%', minHeight: '82px', resize: 'vertical', padding: '10px 14px', border: '1px solid var(--border-strong)', borderRadius: 'var(--radius-sm)', background: 'var(--surface)', fontFamily: 'inherit', fontSize: '14px' }} />
+              </div>
+              <div className="form-group">
+                <label className="label">Strategia di aggregazione</label>
+                <textarea value={strategyDraft} onChange={e => setStrategyDraft(e.target.value)}
+                  placeholder="Cosa pubblicare, cosa evitare, tono, temi ricorrenti, pubblico ideale."
+                  style={{ width: '100%', minHeight: '96px', resize: 'vertical', padding: '10px 14px', border: '1px solid var(--border-strong)', borderRadius: 'var(--radius-sm)', background: 'var(--surface)', fontFamily: 'inherit', fontSize: '14px' }} />
+              </div>
+              <button className="btn btn-outline" onClick={saveProfile} disabled={savingProfile}>
+                {savingProfile ? 'Salvo...' : 'Salva agente editoriale'}
+              </button>
+            </div>
+            
+            <div className="card" style={{ marginBottom: '1rem' }}>
+              <h3 style={{ marginBottom: '0.75rem' }}>Personalizzazione Layout Avanzata</h3>
+              <div className="form-group">
+                <label className="label">Stile Header</label>
+                <select value={headerLayout} onChange={e => setHeaderLayout(e.target.value)} style={{ width: '100%', padding: '10px 14px', borderRadius: 'var(--radius-sm)' }}>
+                  <option value="standard">Standard</option>
+                  <option value="minimal">Minimal</option>
+                  <option value="banner">Banner Image</option>
+                  <option value="glassmorphism">Glassmorphism</option>
+                </select>
+              </div>
+              <div className="form-group">
+                <label className="label">Colore Accento (es: #E24B4A o red)</label>
+                <input type="text" value={accentColor} onChange={e => setAccentColor(e.target.value)} placeholder="#7F77DD" />
+              </div>
+              <div className="form-group">
+                <label className="label">URL Logo Immagine</label>
+                <input type="text" value={logoUrl} onChange={e => setLogoUrl(e.target.value)} placeholder="https://..." />
+              </div>
+              <div className="form-group">
+                <label className="label">Link Menu di Navigazione (Etichetta|URL, uno per riga)</label>
+                <textarea value={menuLinksStr} onChange={e => setMenuLinksStr(e.target.value)}
+                  placeholder="Home|/&#10;Contatti|/contatti"
+                  style={{ width: '100%', minHeight: '60px', padding: '10px 14px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-strong)', background: 'var(--surface)' }} />
+              </div>
+              <div className="form-group">
+                <label className="label">CSS Personalizzato</label>
+                <textarea value={customCss} onChange={e => setCustomCss(e.target.value)}
+                  placeholder=".my-class { color: red; }"
+                  style={{ width: '100%', minHeight: '80px', padding: '10px 14px', borderRadius: 'var(--radius-sm)', fontFamily: 'monospace', border: '1px solid var(--border-strong)', background: 'var(--surface)' }} />
+              </div>
+              <button className="btn btn-outline" onClick={saveProfile} disabled={savingProfile}>
+                {savingProfile ? 'Salvo...' : 'Salva Impostazioni Layout'}
+              </button>
+            </div>
+
+            <div className="card" style={{ marginBottom: '1rem' }}>
+              <h3 style={{ marginBottom: '1rem' }}>Link social inseriti</h3>
+              {sources.length === 0 ? (
+                <p style={{ color: 'var(--text-muted)', fontSize: '13px' }}>Nessun link social inserito.</p>
+              ) : sources.map(s => (
+                <div key={s.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px', gap: '12px' }}>
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 500, fontSize: '14px' }}><SocialIcon platform={s.platform} size={16} /> {s.label || SOCIAL[s.platform]?.label || s.platform}</div>
+                    <a href={s.url} target="_blank" rel="noopener" style={{ display: 'block', fontSize: '12px', color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.url}</a>
+                  </div>
+                  <span className="badge badge-green">Attivo</span>
+                </div>
+              ))}
+            </div>
+
+            <div className="card" style={{ marginBottom: '1rem' }}>
+              <h3 style={{ marginBottom: '1rem' }}>Social connessi</h3>
+              {connections.length === 0 ? (
+                <p style={{ color: 'var(--text-muted)', fontSize: '13px' }}>Nessun social connesso.</p>
+              ) : connections.map(c => (
+                <div key={c.platform} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <SocialIcon platform={c.platform} size={18} />
+                    <div>
+                      <div style={{ fontWeight: 500, fontSize: '14px' }}>{SOCIAL[c.platform]?.label}</div>
+                      {c.handle && <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{c.handle}</div>}
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <input type="date" title="Retroattività" 
+                      defaultValue={c.since_date || ''}
+                      onBlur={e => saveConnectionSinceDate(c.platform, e.target.value)}
+                      style={{ padding: '6px', fontSize: '13px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)' }} />
+                    <span className={`badge ${c.active ? 'badge-green' : 'badge-red'}`}>
+                      {c.active ? 'Attivo' : 'Inattivo'}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="card" style={{ marginBottom: '1rem' }}>
+              <h3 style={{ marginBottom: '0.5rem' }}>Sincronizzazione automatica</h3>
+              <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '0.75rem' }}>
+                Il tuo sito si aggiorna automaticamente ogni 6 ore quando pubblichi nuovi contenuti sui social.
+              </p>
+              {site?.last_sync && (
+                <p style={{ fontSize: '13px', color: 'var(--text-faint)' }}>
+                  Ultima sincronizzazione: {new Date(site.last_sync).toLocaleString('it-IT')}
+                </p>
+              )}
+            </div>
+
+            <div className="card">
+              <h3 style={{ marginBottom: '0.75rem' }}>🌍 Il tuo sito pubblico</h3>
+              <div style={{ background: 'var(--gray-light)', padding: '10px 14px', borderRadius: 'var(--radius-sm)', fontFamily: 'monospace', fontSize: '13px', marginBottom: '10px', wordBreak: 'break-all' }}>{siteUrl}</div>
+              <div style={{ display: 'flex', gap: '10px' }}>
+                <a href={siteUrl} target="_blank" rel="noopener" className="btn btn-primary" style={{ textDecoration: 'none' }}>🌍 Apri sito</a>
+                <a href={`${siteUrl}/sitemap.xml`} target="_blank" className="btn btn-outline" style={{ textDecoration: 'none', fontSize: '13px' }}>Sitemap</a>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {tab === 'admin' && user.role === 'admin' && (
+          <AdminScreen token={token} currentUser={user} adminPrompts={adminPrompts} updatePrompt={updatePrompt} />
+        )}
+      </div>
+    </div>
+  );
+}
+
+function AdminScreen({ token, currentUser, adminPrompts, updatePrompt }) {
+  const [adminTab, setAdminTab] = useState('users');
+  const [users, setUsers] = useState([]);
+  const [form, setForm] = useState({ name: '', email: '', password: '', role: 'user' });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  useEffect(() => { loadUsers(); }, []);
+
+  async function loadUsers() {
+    try {
+      const data = await apiFetch('/api/index.php?action=admin-users', {}, token);
+      setUsers(data.users || []);
+    } catch (e) {
+      setError(e.message);
+    }
+  }
+
+  async function createUser(e) {
+    e.preventDefault();
+    setLoading(true); setError('');
+    try {
+      await apiFetch('/api/index.php?action=admin-create-user', {
+        method: 'POST',
+        body: JSON.stringify(form)
+      }, token);
+      setForm({ name: '', email: '', password: '', role: 'user' });
+      await loadUsers();
+    } catch (e) {
+      setError(e.message);
+    }
+    setLoading(false);
+  }
+
+  async function updateUser(id, patch) {
+    setError('');
+    try {
+      await apiFetch('/api/index.php?action=admin-update-user', {
+        method: 'POST',
+        body: JSON.stringify({ id, ...patch })
+      }, token);
+      await loadUsers();
+    } catch (e) {
+      setError(e.message);
+    }
+  }
+
+  async function deleteUser(id) {
+    if (!confirm('Eliminare questo utente e tutti i suoi contenuti?')) return;
+    setError('');
+    try {
+      await apiFetch('/api/index.php?action=admin-delete-user', {
+        method: 'POST',
+        body: JSON.stringify({ id })
+      }, token);
+      await loadUsers();
+    } catch (e) {
+      setError(e.message);
+    }
+  }
+
+  return (
+    <div>
+      <div style={{ display: 'flex', gap: '8px', marginBottom: '1rem', flexWrap: 'wrap' }}>
+        <button className={`btn ${adminTab === 'users' ? 'btn-primary' : 'btn-outline'}`} onClick={() => setAdminTab('users')}>👤 Gestione Utenti</button>
+        <button className={`btn ${adminTab === 'agents' ? 'btn-primary' : 'btn-outline'}`} onClick={() => setAdminTab('agents')}>🤖 Agenti Editoriali Utenti</button>
+        <button className={`btn ${adminTab === 'prompts' ? 'btn-primary' : 'btn-outline'}`} onClick={() => setAdminTab('prompts')}>⚙️ Istruzioni Sistema (Prompt)</button>
+      </div>
+
+      {adminTab === 'users' && (
+      <div>
+        <div className="card" style={{ marginBottom: '1rem' }}>
+          <h3 style={{ marginBottom: '1rem' }}>Crea nuovo utente</h3>
+          <form onSubmit={createUser} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+            <div className="form-group" style={{ marginBottom: 0 }}>
+              <label className="label">Nome</label>
+              <input type="text" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} />
+            </div>
+            <div className="form-group" style={{ marginBottom: 0 }}>
+              <label className="label">Email</label>
+              <input type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} required />
+            </div>
+            <div className="form-group" style={{ marginBottom: 0 }}>
+              <label className="label">Password temporanea</label>
+              <input type="password" value={form.password} onChange={e => setForm({ ...form, password: e.target.value })} required />
+            </div>
+            <div className="form-group" style={{ marginBottom: 0 }}>
+              <label className="label">Ruolo</label>
+              <select value={form.role} onChange={e => setForm({ ...form, role: e.target.value })}
+                style={{ width: '100%', padding: '10px 14px', border: '1px solid var(--border-strong)', borderRadius: 'var(--radius-sm)', background: 'var(--surface)' }}>
+                <option value="user">Utente</option>
+                <option value="admin">Admin</option>
+              </select>
+            </div>
+            <button className="btn btn-primary" disabled={loading} style={{ gridColumn: '1 / -1', justifyContent: 'center' }}>
+              {loading ? 'Creazione...' : 'Crea utente'}
+            </button>
+          </form>
+          {error && <div style={{ background: 'var(--red-light)', color: 'var(--red)', padding: '10px 14px', borderRadius: 'var(--radius-sm)', marginTop: '1rem', fontSize: '13px' }}>{error}</div>}
+        </div>
+
+        <div className="card">
+          <h3 style={{ marginBottom: '1rem' }}>Lista Utenti</h3>
+          {users.map(u => {
+            const siteUrl = `${API.replace('3001', '3000')}/s/${u.slug}`;
+            return (
+              <div key={u.id} style={{ display: 'grid', gridTemplateColumns: '1.4fr .8fr .7fr auto', gap: '12px', alignItems: 'center', padding: '12px 0', borderBottom: '1px solid var(--border)' }}>
+                <div>
+                  <div style={{ fontWeight: 600 }}>{u.name || u.email}</div>
+                  <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{u.email}</div>
+                  <a href={siteUrl} target="_blank" rel="noopener" style={{ fontSize: '12px', color: 'var(--purple)', textDecoration: 'none' }}>{siteUrl}</a>
+                </div>
+                <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+                  <div>{u.posts_count} contenuti</div>
+                  <div>{u.connections_count} social attivi</div>
+                </div>
+                <div style={{ display: 'grid', gap: '6px' }}>
+                  <select value={u.role || 'user'} onChange={e => updateUser(u.id, { role: e.target.value })}
+                    style={{ padding: '7px', border: '1px solid var(--border-strong)', borderRadius: 'var(--radius-sm)', background: 'var(--surface)' }}>
+                    <option value="user">Utente</option>
+                    <option value="admin">Admin</option>
+                  </select>
+                  <input type="text" defaultValue={u.plan || 'free'} onBlur={e => updateUser(u.id, { plan: e.target.value })}
+                    style={{ padding: '7px', fontSize: '12px' }} />
+                </div>
+                <button className="btn btn-outline" onClick={() => deleteUser(u.id)} disabled={u.id === currentUser.id}
+                  style={{ color: 'var(--red)', borderColor: 'var(--red-light)' }}>
+                  Elimina
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+      )}
+
+      {adminTab === 'agents' && (
+      <div className="card">
+        <h3 style={{ marginBottom: '1rem' }}>Agenti Editoriali degli Utenti</h3>
+        <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '1rem' }}>
+          Visualizza e modifica le direttive dell'agente assegnato ad ogni utente. L'agente usa questi dati per filtrare e armonizzare i post importati.
+        </p>
+        {users.map(u => (
+          <div key={u.id} style={{ marginBottom: '1.5rem', paddingBottom: '1.5rem', borderBottom: '1px solid var(--border)' }}>
+            <div style={{ fontWeight: 600, marginBottom: '8px' }}>{u.name || u.email} <span style={{ fontSize: '12px', fontWeight: 400, color: 'var(--text-muted)' }}>({u.email})</span></div>
+            <div style={{ display: 'grid', gap: '10px' }}>
+              <div>
+                <label className="label">Ruolo e Missione</label>
+                <textarea defaultValue={u.role_mission || ''} onBlur={e => updateUser(u.id, { role_mission: e.target.value })}
+                  style={{ width: '100%', minHeight: '60px', padding: '8px 12px', fontSize: '13px', border: '1px solid var(--border-strong)', borderRadius: 'var(--radius-sm)', background: 'var(--surface)' }} />
+              </div>
+              <div>
+                <label className="label">Strategia dei Contenuti</label>
+                <textarea defaultValue={u.content_strategy || ''} onBlur={e => updateUser(u.id, { content_strategy: e.target.value })}
+                  style={{ width: '100%', minHeight: '60px', padding: '8px 12px', fontSize: '13px', border: '1px solid var(--border-strong)', borderRadius: 'var(--radius-sm)', background: 'var(--surface)' }} />
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+      )}
+
+      {adminTab === 'prompts' && (
+      <div className="card">
+        <h3 style={{ marginBottom: '0.5rem' }}>🤖 Istruzioni Sistema Agenti AI</h3>
+        <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '1.25rem', lineHeight: 1.6 }}>
+          Ogni agente ha il suo prompt di sistema. Modificalo per cambiare come l'AI genera i contenuti.
+          Le variabili <code style={{ background: 'var(--gray-light)', padding: '1px 5px', borderRadius: '4px' }}>{'{'+'profileSummary{'+'}'}</code>, <code style={{ background: 'var(--gray-light)', padding: '1px 5px', borderRadius: '4px' }}>{'{'+'roleMission{'+'}'}</code> etc. vengono sostituite automaticamente con i dati del profilo.
+        </p>
+        {adminPrompts.map(p => (
+          <div key={p.id} style={{ marginBottom: '1.75rem', paddingBottom: '1.75rem', borderBottom: '1px solid var(--border)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
+              <span style={{ background: 'var(--purple-light)', color: 'var(--purple-dark)', fontWeight: 700, fontSize: '13px', padding: '3px 12px', borderRadius: '20px' }}>
+                {p.label || p.agent_name}
+              </span>
+              {p.description && <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{p.description}</span>}
+            </div>
+            <textarea key={`${p.id}-${p.instructions}`} defaultValue={p.instructions}
+              onBlur={e => updatePrompt(p.agent_name, e.target.value)}
+              style={{ width: '100%', minHeight: '180px', padding: '12px', fontSize: '12px', fontFamily: 'monospace', border: '1px solid var(--border-strong)', borderRadius: 'var(--radius-sm)', background: 'var(--surface)', lineHeight: 1.6 }} />
+          </div>
+        ))}
+        {adminPrompts.length === 0 && (
+          <p style={{ color: 'var(--text-muted)', fontSize: '13px' }}>Nessun agente trovato. Visita <code>/api/index.php?action=migrate</code> per inizializzare.</p>
+        )}
+      </div>
+      )}
+    </div>
+  );
+}
+
+// ── Progress bar step ────────────────────────────────────────────────────────
+function ProgressBar({ step }) {
+  const pct = { 1: 33, 2: 66, 3: 100 }[step] || 0;
+  return (
+    <div style={{ marginBottom: '1.5rem' }}>
+      <div style={{ fontSize: '12px', color: 'var(--text-faint)', marginBottom: '6px' }}>Passo {step} di 3</div>
+      <div style={{ height: '4px', background: 'var(--gray-light)', borderRadius: '2px', overflow: 'hidden' }}>
+        <div style={{ height: '100%', width: `${pct}%`, background: 'var(--purple)', borderRadius: '2px', transition: 'width .4s' }} />
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════
+// App root — gestione screen
+// ═══════════════════════════════════════════════════════════════
+function App() {
+  const [screen, setScreen] = useState('auth');
+  const [token, setToken] = useState(null);
+  const [user, setUser] = useState(null);
+  const [deployInfo, setDeployInfo] = useState(null);
+
+  useEffect(() => {
+    const t = localStorage.getItem('sts_token');
+    const u = localStorage.getItem('sts_user');
+    if (t && u) {
+      setToken(t); setUser(JSON.parse(u));
+      setScreen('dashboard');
+    }
+    fetch('/deploy-info.json', { cache: 'no-store' })
+      .then(r => r.ok ? r.json() : null)
+      .then(setDeployInfo)
+      .catch(() => {});
+  }, []);
+
+  function handleAuth(t, u) {
+    setToken(t); setUser(u);
+    setScreen('dashboard');
+  }
+
+  function logout() {
+    localStorage.removeItem('sts_token');
+    localStorage.removeItem('sts_user');
+    setToken(null); setUser(null);
+    setScreen('auth');
+  }
+
+  let content = null;
+  if (screen === 'auth') content = <AuthScreen onAuth={handleAuth} />;
+  if (screen === 'connect') content = <ConnectScreen token={token} onDone={() => setScreen('generating')} />;
+  if (screen === 'generating') content = <GeneratingScreen token={token} user={user} onDone={() => setScreen('dashboard')} />;
+  if (screen === 'dashboard') content = <DashboardScreen token={token} user={user} onLogout={logout} />;
+
+  return (
+    <>
+      {content}
+      {deployInfo && (
+        <footer style={{ textAlign: 'center', padding: '18px 12px', fontSize: '12px', color: 'var(--text-faint)' }}>
+          Deploy {deployInfo.deployed_day || ''} {deployInfo.deployed_at || ''}
+          {deployInfo.release ? ` · ${deployInfo.release}` : ''}
+        </footer>
+      )}
+    </>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);

@@ -1,0 +1,21 @@
+{
+  "name": "socialtosite",
+  "version": "1.0.0",
+  "description": "```\r socialtosite-php/\r ├── .htaccess              ← Routing Apache (carica nella root)\r ├── config/\r │   ├── config.example.php ← RINOMINA in config.php e compila\r │   └── db.php             ← Classe DB (PDO MySQL)\r ├── api/\r │   ├── index.php          ← Router API principale\r │   ├── auth/\r │   │   └── callback.php   ← OAuth callback social\r │   ├── middleware/\r │   │   ├── jwt.php        ← JWT puro PHP\r │   │   └── response.php   ← Helper JSON/CORS\r │   ├── routes/\r │   │   └── auth.php       ← Register/Login\r │   └── services/\r │       ├── ai.php         ← Whisper + Claude API\r │       └── sync.php       ← Importa contenuti social\r ├── public/\r │   └── site.php           ← Pagina pubblica + sitemap XML\r ├── cron/\r │   └── sync.php           ← Sync automatico (cron job)\r ├── frontend/\r │   └── index.html         ← App React (già inclusa)\r └── db/\r     └── schema.sql         ← Schema MySQL da importare\r ```",
+  "main": "check.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mrrmrc/socialtosite.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/mrrmrc/socialtosite/issues"
+  },
+  "homepage": "https://github.com/mrrmrc/socialtosite#readme"
+}
