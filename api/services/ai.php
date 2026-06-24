@@ -207,12 +207,35 @@ class AI {
 
     public static function sourceItems(string $platform, string $url, int $limit = 5, ?string $sinceDate = null): array {
         if ($platform === 'youtube') {
-            if (preg_match('~/channel/([A-Za-z0-9_-]+)~', $url, $m)) {
-                $feed = @simplexml_load_file('https://www.youtube.com/feeds/videos.xml?channel_id=' . $m[1]);
+            $channelId = '';
+            if (preg_match('~/channel/([A-Za-z0-9_-]{20,})~', $url, $m)) {
+                $channelId = $m[1];
+            } else {
+                $ch = curl_init($url);
+                curl_setopt_array($ch, [
+                    CURLOPT_RETURNTRANSFER => true,
+                    CURLOPT_FOLLOWLOCATION => true,
+                    CURLOPT_USERAGENT => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64 AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36)'
+                ]);
+                $html = curl_exec($ch);
+                curl_close($ch);
+                if ($html && preg_match('/"browseId":"(UC[a-zA-Z0-9_-]{22})"/', $html, $m)) {
+                    $channelId = $m[1];
+                } elseif ($html && preg_match('/<meta\s+itemprop="identifier"\s+content="(UC[a-zA-Z0-9_-]{22})"/i', $html, $m)) {
+                    $channelId = $m[1];
+                }
+            }
+
+            if ($channelId) {
+                $feed = @simplexml_load_file('https://www.youtube.com/feeds/videos.xml?channel_id=' . $channelId);
                 $items = [];
                 if ($feed && isset($feed->entry)) {
                     foreach ($feed->entry as $entry) {
                         $videoId = (string) $entry->children('yt', true)->videoId;
+                        $publishedAt = (string) $entry->published;
+                        if ($sinceDate && strtotime($publishedAt) < strtotime($sinceDate)) {
+                            continue;
+                        }
                         if ($videoId) $items[] = ['url' => 'https://www.youtube.com/watch?v=' . $videoId];
                         if (count($items) >= $limit) break;
                     }
