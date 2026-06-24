@@ -246,7 +246,8 @@ class Ingest {
             try {
                 $sinceDate = !empty($source['since_date']) ? $source['since_date'] : null;
                 $autoPublish = (int)($source['auto_publish'] ?? 1);
-                $items = AI::sourceItems($source['platform'], $source['url'], $limitPerSource, $sinceDate);
+                $limit = !empty($source['max_posts']) ? (int)$source['max_posts'] : $limitPerSource;
+                $items = AI::sourceItems($source['platform'], $source['url'], $limit, $sinceDate);
                 $report['found'] += count($items);
                 foreach ($items as $item) {
                     $sourceUrl = $item['url'] ?? '';

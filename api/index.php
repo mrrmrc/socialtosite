@@ -52,8 +52,10 @@ if (in_array($action, ['login', 'register', 'site-public', 'debug-site', 'migrat
     if ($action === 'migrate') {
         try { DB::execute('ALTER TABLE social_sources ADD COLUMN since_date DATE NULL'); } catch (Throwable $e) {}
         try { DB::execute('ALTER TABLE social_sources ADD COLUMN auto_publish TINYINT DEFAULT 1'); } catch (Throwable $e) {}
+        try { DB::execute('ALTER TABLE social_sources ADD COLUMN max_posts INT NULL'); } catch (Throwable $e) {}
         try { DB::execute('ALTER TABLE social_connections ADD COLUMN since_date DATE NULL'); } catch (Throwable $e) {}
         try { DB::execute('ALTER TABLE social_connections ADD COLUMN auto_publish TINYINT DEFAULT 1'); } catch (Throwable $e) {}
+        try { DB::execute('ALTER TABLE social_connections ADD COLUMN max_posts INT NULL'); } catch (Throwable $e) {}
         try { DB::execute('ALTER TABLE sites ADD COLUMN menu_links TEXT NULL'); } catch (Throwable $e) {}
         try { DB::execute('ALTER TABLE sites ADD COLUMN accent_color VARCHAR(50) NULL'); } catch (Throwable $e) {}
         try { DB::execute('ALTER TABLE sites ADD COLUMN header_layout VARCHAR(50) NULL'); } catch (Throwable $e) {}
@@ -276,6 +278,7 @@ if ($action === 'social-source-upsert' && $method === 'POST') {
     $label = trim($b['label'] ?? '');
     $sinceDate = trim($b['since_date'] ?? '');
     $autoPublish = (int)($b['auto_publish'] ?? 1);
+    $maxPosts = isset($b['max_posts']) && $b['max_posts'] !== '' ? (int)$b['max_posts'] : null;
     if ($sinceDate && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $sinceDate)) $sinceDate = null;
 
     if (!in_array($platform, ['instagram', 'facebook', 'tiktok', 'youtube'], true)) {
@@ -293,17 +296,17 @@ if ($action === 'social-source-upsert' && $method === 'POST') {
 
     if ($existing) {
         DB::execute(
-            'UPDATE social_sources SET label=?, url=?, topic_summary=?, active=1, since_date=?, auto_publish=? WHERE id=? AND user_id=?',
-            [$label, $url, $topic, $sinceDate ?: null, $autoPublish, $existing['id'], $userId]
+            'UPDATE social_sources SET label=?, url=?, topic_summary=?, active=1, since_date=?, auto_publish=?, max_posts=? WHERE id=? AND user_id=?',
+            [$label, $url, $topic, $sinceDate ?: null, $autoPublish, $maxPosts, $existing['id'], $userId]
         );
         $id = (int)$existing['id'];
     } else {
         $id = DB::insert(
-            'INSERT INTO social_sources (user_id, platform, label, url, topic_summary, since_date, auto_publish) VALUES (?,?,?,?,?,?,?)',
-            [$userId, $platform, $label, $url, $topic, $sinceDate ?: null, $autoPublish]
+            'INSERT INTO social_sources (user_id, platform, label, url, topic_summary, since_date, auto_publish, max_posts) VALUES (?,?,?,?,?,?,?,?)',
+            [$userId, $platform, $label, $url, $topic, $sinceDate ?: null, $autoPublish, $maxPosts]
         );
     }
-    json(['ok' => true, 'source' => ['id' => $id, 'platform' => $platform, 'label' => $label, 'url' => $url, 'topic_summary' => $topic, 'since_date' => $sinceDate ?: null, 'auto_publish' => $autoPublish]]);
+    json(['ok' => true, 'source' => ['id' => $id, 'platform' => $platform, 'label' => $label, 'url' => $url, 'topic_summary' => $topic, 'since_date' => $sinceDate ?: null, 'auto_publish' => $autoPublish, 'max_posts' => $maxPosts]]);
 }
 
 if ($action === 'social-connection-update' && $method === 'POST') {
@@ -311,6 +314,7 @@ if ($action === 'social-connection-update' && $method === 'POST') {
     $platform = trim($b['platform'] ?? '');
     $sinceDate = trim($b['since_date'] ?? '');
     $autoPublish = (int)($b['auto_publish'] ?? 1);
+    $maxPosts = isset($b['max_posts']) && $b['max_posts'] !== '' ? (int)$b['max_posts'] : null;
     if ($sinceDate && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $sinceDate)) $sinceDate = null;
 
     if (!in_array($platform, ['instagram', 'facebook', 'tiktok', 'youtube'], true)) {
@@ -318,8 +322,8 @@ if ($action === 'social-connection-update' && $method === 'POST') {
     }
 
     DB::execute(
-        'UPDATE social_connections SET since_date=?, auto_publish=? WHERE user_id=? AND platform=?',
-        [$sinceDate ?: null, $autoPublish, $userId, $platform]
+        'UPDATE social_connections SET since_date=?, auto_publish=?, max_posts=? WHERE platform=? AND user_id=?',
+        [$sinceDate ?: null, $autoPublish, $maxPosts, $platform, $userId]
     );
     json(['ok' => true]);
 }
@@ -420,10 +424,10 @@ if ($action === 'site' && $method === 'GET') {
             [$userId]
         );
         $connections = DB::fetchAll(
-            'SELECT platform, handle, active, since_date FROM social_connections WHERE user_id=?', [$userId]
+            'SELECT platform, handle, active, since_date, max_posts FROM social_connections WHERE user_id=?', [$userId]
         );
         $sources = DB::fetchAll(
-            'SELECT id, platform, label, url, topic_summary, active, since_date FROM social_sources WHERE user_id=? AND active=1 ORDER BY platform, id DESC',
+            'SELECT id, platform, label, url, topic_summary, active, since_date, max_posts FROM social_sources WHERE user_id=? AND active=1 ORDER BY platform, id DESC',
             [$userId]
         );
         foreach ($posts as &$p) {

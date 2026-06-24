@@ -296,11 +296,12 @@ class Sync {
             $token  = Crypto::decrypt($conn['access_token']);
             $connSinceDate = !empty($conn['since_date']) ? $conn['since_date'] : $sinceDate;
             $autoPublish = (int)($conn['auto_publish'] ?? 1);
+            $limit = !empty($conn['max_posts']) ? (int)$conn['max_posts'] : $maxPosts;
             $result = match($conn['platform']) {
-                'instagram' => self::instagram($userId, $token, $maxPosts, $connSinceDate, $autoPublish),
-                'tiktok'    => self::tiktok($userId, $token, $maxPosts, $connSinceDate, $autoPublish),
-                'youtube'   => self::youtube($userId, $token, $maxPosts, $connSinceDate, $autoPublish),
-                'facebook'  => self::facebook($userId, $token, $maxPosts, $connSinceDate, $autoPublish),
+                'instagram' => self::instagram($userId, $token, $limit, $connSinceDate, $autoPublish),
+                'tiktok'    => self::tiktok($userId, $token, $limit, $connSinceDate, $autoPublish),
+                'youtube'   => self::youtube($userId, $token, $limit, $connSinceDate, $autoPublish),
+                'facebook'  => self::facebook($userId, $token, $limit, $connSinceDate, $autoPublish),
                 default     => null,
             };
             if (!$result) continue;

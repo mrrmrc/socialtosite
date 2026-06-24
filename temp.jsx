@@ -423,12 +423,12 @@ function DashboardScreen({ token, user, onLogout }) {
     }
   }
 
-  async function savePlatformSource(platform, url, since_date = null, auto_publish = 1) {
+  async function savePlatformSource(platform, url, since_date = null, auto_publish = 1, max_posts = null) {
     setSourceMsg(null);
     try {
       await apiFetch('/api/index.php?action=social-source-upsert', {
         method: 'POST',
-        body: JSON.stringify({ platform, label: SOCIAL[platform]?.label || platform, url, since_date, auto_publish })
+        body: JSON.stringify({ platform, label: SOCIAL[platform]?.label || platform, url, since_date, auto_publish, max_posts })
       }, token);
       await loadData();
     } catch (err) {
@@ -734,22 +734,26 @@ function DashboardScreen({ token, user, onLogout }) {
               </p>
               <div style={{ display: 'grid', gap: '10px', marginBottom: '12px' }}>
                 {['instagram', 'tiktok', 'facebook', 'youtube'].map(platform => (
-                  <div key={platform} style={{ display: 'grid', gridTemplateColumns: '150px 1fr 130px 120px', gap: '12px', alignItems: 'center' }}>
+                  <div key={platform} style={{ display: 'grid', gridTemplateColumns: '150px 1fr 130px 60px 120px', gap: '12px', alignItems: 'center' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 600 }}>
                       <SocialIcon platform={platform} size={22} />
                       <span>{SOCIAL[platform].label}</span>
                     </div>
                     <input type="text" placeholder={`Link ${SOCIAL[platform].label}`}
                       defaultValue={sourceByPlatform[platform]?.url || ''}
-                      onBlur={e => savePlatformSource(platform, e.target.value.trim(), sourceByPlatform[platform]?.since_date, sourceByPlatform[platform]?.auto_publish ?? 1)} />
+                      onBlur={e => savePlatformSource(platform, e.target.value.trim(), sourceByPlatform[platform]?.since_date, sourceByPlatform[platform]?.auto_publish ?? 1, sourceByPlatform[platform]?.max_posts)} />
                     <input type="date" title="Retroattività (Da questa data in poi)" 
                       defaultValue={sourceByPlatform[platform]?.since_date || ''}
-                      onBlur={e => savePlatformSource(platform, sourceByPlatform[platform]?.url || '', e.target.value, sourceByPlatform[platform]?.auto_publish ?? 1)}
+                      onBlur={e => savePlatformSource(platform, sourceByPlatform[platform]?.url || '', e.target.value, sourceByPlatform[platform]?.auto_publish ?? 1, sourceByPlatform[platform]?.max_posts)}
                       style={{ padding: '6px', fontSize: '13px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)' }} />
+                    <input type="number" title="Max post per questo social" placeholder="Max" min="1" max="500"
+                      defaultValue={sourceByPlatform[platform]?.max_posts || ''}
+                      onBlur={e => savePlatformSource(platform, sourceByPlatform[platform]?.url || '', sourceByPlatform[platform]?.since_date, sourceByPlatform[platform]?.auto_publish ?? 1, e.target.value)}
+                      style={{ padding: '6px', fontSize: '13px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', width: '100%' }} />
                     <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', cursor: 'pointer' }}>
                       <input type="checkbox" 
                         defaultChecked={(sourceByPlatform[platform]?.auto_publish ?? 1) === 1}
-                        onChange={e => savePlatformSource(platform, sourceByPlatform[platform]?.url || '', sourceByPlatform[platform]?.since_date, e.target.checked ? 1 : 0)} />
+                        onChange={e => savePlatformSource(platform, sourceByPlatform[platform]?.url || '', sourceByPlatform[platform]?.since_date, e.target.checked ? 1 : 0, sourceByPlatform[platform]?.max_posts)} />
                       Auto-Pubblica
                     </label>
                   </div>
