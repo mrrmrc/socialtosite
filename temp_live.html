@@ -511,7 +511,7 @@ function DashboardScreen({ token, user, onLogout }) {
       const res = await apiFetch('/api/index.php?action=scan-sources', {
         method: 'POST',
         body: JSON.stringify({
-          limit: 5,
+          limit: parseInt(syncLimit) || 20,
           profile_summary: profileDraft,
           role_mission: roleMissionDraft,
           content_strategy: strategyDraft

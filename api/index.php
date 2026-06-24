@@ -38,6 +38,15 @@ cors();
 $method = $_SERVER['REQUEST_METHOD'];
 $action = $_GET['action'] ?? '';
 
+if ($action === 'debug-jwt') {
+    $included = get_included_files();
+    $jwtLoaded = false;
+    foreach ($included as $f) {
+        if (str_contains($f, 'jwt.php')) $jwtLoaded = true;
+    }
+    json(['ok' => true, 'jwt_loaded' => $jwtLoaded, 'class_exists' => class_exists('JWT'), 'files' => $included]);
+}
+
 // ── Auth endpoints (no JWT) ───────────────────────────────────────────────
 if (in_array($action, ['login', 'register', 'site-public', 'debug-site', 'migrate'])) {
     if ($action === 'migrate') {
