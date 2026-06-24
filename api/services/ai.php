@@ -8,7 +8,7 @@ class AI {
 
     // ── Chiamata generica a Gemini (generateContent) ───────────────────────
     // $parts: array di "part" Gemini. $config: opzioni generationConfig.
-    private static function gemini(array $parts, array $config = []): string {
+    public static function gemini(array $parts, array $config = []): string {
         if (!defined('GEMINI_API_KEY') || !GEMINI_API_KEY) {
             throw new Exception('GEMINI_API_KEY mancante: aggiungila in config/keys.php');
         }
@@ -44,7 +44,7 @@ class AI {
     // Gemini accetta direttamente l'URL YouTube: niente download né Whisper.
     public static function transcribeYouTube(string $youtubeUrl): string {
         return trim(self::gemini([
-            ['fileData' => ['fileUri' => $youtubeUrl]],
+            ['fileData' => ['fileUri' => $youtubeUrl, 'mimeType' => 'video/mp4']],
             ['text' => "Trascrivi INTEGRALMENTE e VERBATIM, in italiano, TUTTO il parlato di questo video, "
                      . "dall'inizio alla fine. NON riassumere, NON saltare parti, NON fermarti prima della fine. "
                      . "Restituisci SOLO il testo della trascrizione, senza timestamp e senza commenti."],
