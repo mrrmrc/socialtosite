@@ -665,7 +665,6 @@ function DashboardScreen({ token, user, onLogout }) {
             >
               {siteAiLoading ? '✨ Generando...' : '✨ SITO AI'}
             </button>
-            <input type="number" title="Max post da cercare per social" placeholder="Max" min="1" max="500" value={syncLimit} onChange={e => setSyncLimit(e.target.value)} style={{ width: '70px', padding: '6px', fontSize: '13px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)' }} />
             <button className="btn btn-outline" onClick={syncNow} disabled={syncing}>
               {syncing ? '⟳ Sync...' : '↻ Sync'}
             </button>
