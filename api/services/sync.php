@@ -63,7 +63,11 @@ class Sync {
         if (!trim($text) && !$mediaUrl) return false;
         $transcript = '';
         if ($mediaUrl && strtoupper($mediaType) === 'VIDEO') {
-            $transcript = AI::transcribeUrl($mediaUrl);
+            if ($platform === 'youtube') {
+                $transcript = AI::transcribeYouTube($mediaUrl);
+            } else {
+                $transcript = AI::transcribeUrl($mediaUrl);
+            }
         }
 
         $raw  = $transcript ?: $text;

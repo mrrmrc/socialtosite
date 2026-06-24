@@ -429,6 +429,37 @@ class AI {
         return $text;
     }
 
+    // ── Trascrivi video YouTube estraendo i sottotitoli ───────────────────
+    public static function transcribeYouTube(string $videoUrl): string {
+        $html = @file_get_contents($videoUrl);
+        if (!$html) return '';
+        if (preg_match('/"captionTracks":\s*(\[.*?\])/', $html, $matches)) {
+            $tracks = json_decode($matches[1], true);
+            if (!empty($tracks)) {
+                // Cerca una traccia in italiano, altrimenti prendi la prima
+                $trackUrl = $tracks[0]['baseUrl'];
+                foreach ($tracks as $t) {
+                    if (strpos(strtolower($t['languageCode'] ?? ''), 'it') !== false) {
+                        $trackUrl = $t['baseUrl'];
+                        break;
+                    }
+                }
+                
+                $xml = @file_get_contents($trackUrl);
+                if ($xml) {
+                    $text = '';
+                    if (preg_match_all('/<text[^>]*>(.*?)<\/text>/i', $xml, $m)) {
+                        foreach ($m[1] as $line) {
+                            $text .= html_entity_decode(strip_tags($line)) . ' ';
+                        }
+                    }
+                    return trim(preg_replace('/\s+/', ' ', $text));
+                }
+            }
+        }
+        return '';
+    }
+
     // ── Trascrivi URL video con Whisper ────────────────────────────────────
     public static function transcribeUrl(string $videoUrl): string {
         // Scarica video in tmp
