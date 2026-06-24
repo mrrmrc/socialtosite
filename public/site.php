@@ -479,7 +479,7 @@ if ($coverUrl) {
   sort($allPlatforms); sort($allTags);
   ?>
   <?php if ($posts): ?>
-  <div class="filters" id="post-filters">
+  <div class="filters" id="post-filters" style="display: none !important;">
     <button class="filter-btn active" data-filter="all">Tutti</button>
     <?php foreach ($allPlatforms as $pf): ?>
       <button class="filter-btn" data-filter="platform-<?= h($pf) ?>"><?= $icons[$pf] ?? '' ?> <?= h(ucfirst($pf)) ?></button>
