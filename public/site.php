@@ -425,8 +425,17 @@ $activeCss = str_replace('#$accent', $accent, $activeCss);
   </a>
   <?php if ($menuLinks): ?>
   <div class="nav-links">
-    <?php foreach ($menuLinks as $link): ?>
-      <a href="<?= h($link['url']) ?>"><?= h($link['label']) ?></a>
+    <?php foreach ($menuLinks as $link): 
+        $href = $link['url'] ?? '';
+        if (strpos($href, '/?tag=') === 0) {
+            $href = $siteUrl . substr($href, 1);
+        } elseif ($href === '/') {
+            $href = $siteUrl;
+        } else {
+            $href = h($href);
+        }
+    ?>
+      <a href="<?= $href ?>"><?= h($link['label']) ?></a>
     <?php endforeach; ?>
   </div>
   <?php endif; ?>
