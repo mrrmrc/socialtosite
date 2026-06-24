@@ -426,12 +426,18 @@ $activeCss = str_replace('#$accent', $accent, $activeCss);
   <?php if ($menuLinks): ?>
   <div class="nav-links">
     <?php foreach ($menuLinks as $link): 
-        $href = $link['url'] ?? '';
-        if (strpos($href, '/?tag=') === 0) {
-            $href = $siteUrl . substr($href, 1);
-        } elseif ($href === '/') {
+        $href = trim($link['url'] ?? '');
+        
+        // Se è la home
+        if ($href === '/' || $href === '') {
             $href = $siteUrl;
-        } else {
+        }
+        // Se contiene un tag (es. "/?tag=...", "?tag=...")
+        elseif (preg_match('/[?&]tag=([^&]+)/i', $href, $m)) {
+            $href = $siteUrl . '?tag=' . $m[1];
+        }
+        // Altrimenti lascialo com'è (es. ancore # o link esterni)
+        else {
             $href = h($href);
         }
     ?>
