@@ -1,4 +1,16 @@
 User-agent: *
 Allow: /
 
+# Consenti bot AI per llms.txt
+User-agent: GPTBot
+Allow: /
+User-agent: ChatGPT-User
+Allow: /
+User-agent: Google-Extended
+Allow: /
+User-agent: Anthropic-ai
+Allow: /
+User-agent: Claude-Web
+Allow: /
+
 Sitemap: https://socialtosite.sviluppo.host/s/duemmemail/sitemap.xml

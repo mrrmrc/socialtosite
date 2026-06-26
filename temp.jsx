@@ -1199,6 +1199,8 @@ function AdminScreen({ token, currentUser, adminPrompts, updatePrompt }) {
   const [form, setForm] = useState({ name: '', email: '', password: '', role: 'user' });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [expandedPrompt, setExpandedPrompt] = useState(null);
+  const [savingPrompt, setSavingPrompt] = useState(null);
 
   useEffect(() => { loadUsers(); }, []);
 
@@ -1254,129 +1256,153 @@ function AdminScreen({ token, currentUser, adminPrompts, updatePrompt }) {
     }
   }
 
+  async function handleSavePrompt(agentName, value) {
+    setSavingPrompt(agentName);
+    await updatePrompt(agentName, value);
+    setSavingPrompt(null);
+  }
+
+  const agentMeta = {
+    content_editor:   { icon: '✍️', color: '#10B981', gradient: 'linear-gradient(135deg, #10B981 0%, #059669 100%)', label: 'Content Editor' },
+    seo_specialist:   { icon: '🔍', color: '#3B82F6', gradient: 'linear-gradient(135deg, #3B82F6 0%, #2563EB 100%)', label: 'SEO Specialist' },
+    graphic_designer: { icon: '🎨', color: '#8B5CF6', gradient: 'linear-gradient(135deg, #8B5CF6 0%, #7C3AED 100%)', label: 'Graphic Designer' },
+    site_ai:          { icon: '🤖', color: '#F59E0B', gradient: 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)', label: 'Sito AI' },
+  };
+
+  const tabs = [
+    { id: 'users',   icon: '👤', label: 'Utenti' },
+    { id: 'agents',  icon: '🎯', label: 'Agenti Editoriali' },
+    { id: 'prompts', icon: '🧠', label: 'Istruzioni AI' },
+  ];
+
   return (
     <div>
-      <div style={{ display: 'flex', gap: '8px', marginBottom: '1rem', flexWrap: 'wrap' }}>
-        <button className={`btn ${adminTab === 'users' ? 'btn-primary' : 'btn-outline'}`} onClick={() => setAdminTab('users')}>👤 Gestione Utenti</button>
-        <button className={`btn ${adminTab === 'agents' ? 'btn-primary' : 'btn-outline'}`} onClick={() => setAdminTab('agents')}>🤖 Agenti Editoriali Utenti</button>
-        <button className={`btn ${adminTab === 'prompts' ? 'btn-primary' : 'btn-outline'}`} onClick={() => setAdminTab('prompts')}>⚙️ Istruzioni Sistema (Prompt)</button>
+      <div style={{ display: 'flex', gap: '6px', marginBottom: '1.5rem', padding: '6px', background: 'var(--gray-light)', borderRadius: 'var(--radius)', flexWrap: 'wrap' }}>
+        {tabs.map(t => (
+          <button key={t.id} onClick={() => setAdminTab(t.id)} style={{
+            flex: 1, minWidth: '140px', padding: '10px 16px', border: 'none', borderRadius: 'calc(var(--radius) - 4px)', cursor: 'pointer',
+            fontWeight: 600, fontSize: '13px', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
+            background: adminTab === t.id ? 'var(--surface)' : 'transparent', color: adminTab === t.id ? 'var(--text)' : 'var(--text-muted)',
+            boxShadow: adminTab === t.id ? '0 2px 8px rgba(0,0,0,0.08)' : 'none', transition: 'all 0.2s ease',
+          }}><span style={{ fontSize: '16px' }}>{t.icon}</span> {t.label}</button>
+        ))}
       </div>
 
       {adminTab === 'users' && (
-      <div>
-        <div className="card" style={{ marginBottom: '1rem' }}>
-          <h3 style={{ marginBottom: '1rem' }}>Crea nuovo utente</h3>
+      <div style={{ display: 'grid', gap: '1.25rem' }}>
+        <div className="card" style={{ background: 'linear-gradient(135deg, rgba(99,102,241,0.04) 0%, rgba(139,92,246,0.04) 100%)', border: '1px solid rgba(99,102,241,0.12)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '1.25rem' }}>
+            <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: 'linear-gradient(135deg, #6366F1, #8B5CF6)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px', color: '#fff' }}>+</div>
+            <div><h3 style={{ margin: 0, fontSize: '15px', fontWeight: 700 }}>Nuovo Utente</h3><p style={{ margin: 0, fontSize: '12px', color: 'var(--text-muted)' }}>Crea un accesso per un nuovo cliente</p></div>
+          </div>
           <form onSubmit={createUser} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-            <div className="form-group" style={{ marginBottom: 0 }}>
-              <label className="label">Nome</label>
-              <input type="text" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} />
+            <div className="form-group" style={{ marginBottom: 0 }}><label className="label">Nome</label><input type="text" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} placeholder="Mario Rossi" /></div>
+            <div className="form-group" style={{ marginBottom: 0 }}><label className="label">Email</label><input type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} required placeholder="mario@esempio.it" /></div>
+            <div className="form-group" style={{ marginBottom: 0 }}><label className="label">Password temporanea</label><input type="password" value={form.password} onChange={e => setForm({ ...form, password: e.target.value })} required placeholder="••••••••" /></div>
+            <div className="form-group" style={{ marginBottom: 0 }}><label className="label">Ruolo</label>
+              <select value={form.role} onChange={e => setForm({ ...form, role: e.target.value })} style={{ width: '100%', padding: '10px 14px', border: '1px solid var(--border-strong)', borderRadius: 'var(--radius-sm)', background: 'var(--surface)', fontFamily: 'inherit' }}><option value="user">Utente</option><option value="admin">Admin</option></select>
             </div>
-            <div className="form-group" style={{ marginBottom: 0 }}>
-              <label className="label">Email</label>
-              <input type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} required />
-            </div>
-            <div className="form-group" style={{ marginBottom: 0 }}>
-              <label className="label">Password temporanea</label>
-              <input type="password" value={form.password} onChange={e => setForm({ ...form, password: e.target.value })} required />
-            </div>
-            <div className="form-group" style={{ marginBottom: 0 }}>
-              <label className="label">Ruolo</label>
-              <select value={form.role} onChange={e => setForm({ ...form, role: e.target.value })}
-                style={{ width: '100%', padding: '10px 14px', border: '1px solid var(--border-strong)', borderRadius: 'var(--radius-sm)', background: 'var(--surface)' }}>
-                <option value="user">Utente</option>
-                <option value="admin">Admin</option>
-              </select>
-            </div>
-            <button className="btn btn-primary" disabled={loading} style={{ gridColumn: '1 / -1', justifyContent: 'center' }}>
-              {loading ? 'Creazione...' : 'Crea utente'}
-            </button>
+            <button className="btn btn-primary" disabled={loading} style={{ gridColumn: '1 / -1', justifyContent: 'center' }}>{loading ? '⏳ Creazione...' : '➕ Crea utente'}</button>
           </form>
-          {error && <div style={{ background: 'var(--red-light)', color: 'var(--red)', padding: '10px 14px', borderRadius: 'var(--radius-sm)', marginTop: '1rem', fontSize: '13px' }}>{error}</div>}
+          {error && <div style={{ background: 'rgba(239,68,68,0.08)', color: '#DC2626', padding: '10px 14px', borderRadius: 'var(--radius-sm)', marginTop: '1rem', fontSize: '13px', border: '1px solid rgba(239,68,68,0.15)' }}>⚠️ {error}</div>}
         </div>
-
         <div className="card">
-          <h3 style={{ marginBottom: '1rem' }}>Lista Utenti</h3>
-          {users.map(u => {
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem' }}>
+            <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 700 }}>👥 Utenti Registrati</h3>
+            <span style={{ fontSize: '12px', color: 'var(--text-muted)', background: 'var(--gray-light)', padding: '4px 12px', borderRadius: '20px', fontWeight: 600 }}>{users.length} utenti</span>
+          </div>
+          <div style={{ display: 'grid', gap: '0' }}>
+          {users.map((u, i) => {
             const siteUrl = `${API.replace('3001', '3000')}/s/${u.slug}`;
             return (
-              <div key={u.id} style={{ display: 'grid', gridTemplateColumns: '1.4fr .8fr .7fr auto', gap: '12px', alignItems: 'center', padding: '12px 0', borderBottom: '1px solid var(--border)' }}>
-                <div>
-                  <div style={{ fontWeight: 600 }}>{u.name || u.email}</div>
-                  <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{u.email}</div>
-                  <a href={siteUrl} target="_blank" rel="noopener" style={{ fontSize: '12px', color: 'var(--purple)', textDecoration: 'none' }}>{siteUrl}</a>
+              <div key={u.id} style={{ display: 'grid', gridTemplateColumns: '1.4fr .8fr .7fr auto', gap: '16px', alignItems: 'center', padding: '16px 0', borderBottom: i < users.length - 1 ? '1px solid var(--border)' : 'none' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <div style={{ width: '40px', height: '40px', borderRadius: '12px', flexShrink: 0, background: u.role === 'admin' ? 'linear-gradient(135deg, #F59E0B, #D97706)' : 'linear-gradient(135deg, #6366F1, #8B5CF6)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '16px', color: '#fff', fontWeight: 700 }}>{(u.name || u.email)[0].toUpperCase()}</div>
+                  <div><div style={{ fontWeight: 600, fontSize: '14px' }}>{u.name || u.email}</div><div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{u.email}</div><a href={siteUrl} target="_blank" rel="noopener" style={{ fontSize: '11px', color: 'var(--purple)', textDecoration: 'none' }}>🌐 {u.slug}</a></div>
                 </div>
-                <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-                  <div>{u.posts_count} contenuti</div>
-                  <div>{u.connections_count} social attivi</div>
+                <div style={{ display: 'flex', gap: '12px' }}>
+                  <div style={{ textAlign: 'center', padding: '6px 12px', background: 'var(--gray-light)', borderRadius: '8px' }}><div style={{ fontSize: '16px', fontWeight: 700 }}>{u.posts_count}</div><div style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Post</div></div>
+                  <div style={{ textAlign: 'center', padding: '6px 12px', background: 'var(--gray-light)', borderRadius: '8px' }}><div style={{ fontSize: '16px', fontWeight: 700 }}>{u.connections_count}</div><div style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Social</div></div>
                 </div>
                 <div style={{ display: 'grid', gap: '6px' }}>
-                  <select value={u.role || 'user'} onChange={e => updateUser(u.id, { role: e.target.value })}
-                    style={{ padding: '7px', border: '1px solid var(--border-strong)', borderRadius: 'var(--radius-sm)', background: 'var(--surface)' }}>
-                    <option value="user">Utente</option>
-                    <option value="admin">Admin</option>
-                  </select>
-                  <input type="text" defaultValue={u.plan || 'free'} onBlur={e => updateUser(u.id, { plan: e.target.value })}
-                    style={{ padding: '7px', fontSize: '12px' }} />
+                  <select value={u.role || 'user'} onChange={e => updateUser(u.id, { role: e.target.value })} style={{ padding: '7px 10px', border: '1px solid var(--border-strong)', borderRadius: '8px', background: 'var(--surface)', fontSize: '12px', fontFamily: 'inherit' }}><option value="user">👤 Utente</option><option value="admin">⚡ Admin</option></select>
+                  <input type="text" defaultValue={u.plan || 'free'} onBlur={e => updateUser(u.id, { plan: e.target.value })} style={{ padding: '7px 10px', fontSize: '12px', borderRadius: '8px' }} />
                 </div>
-                <button className="btn btn-outline" onClick={() => deleteUser(u.id)} disabled={u.id === currentUser.id}
-                  style={{ color: 'var(--red)', borderColor: 'var(--red-light)' }}>
-                  Elimina
-                </button>
+                <button className="btn btn-outline" onClick={() => deleteUser(u.id)} disabled={u.id === currentUser.id} style={{ color: '#DC2626', borderColor: 'rgba(239,68,68,0.2)', borderRadius: '10px', padding: '8px 14px', fontSize: '12px', opacity: u.id === currentUser.id ? 0.3 : 1 }}>🗑️</button>
               </div>
             );
           })}
+          </div>
         </div>
       </div>
       )}
 
       {adminTab === 'agents' && (
-      <div className="card">
-        <h3 style={{ marginBottom: '1rem' }}>Agenti Editoriali degli Utenti</h3>
-        <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '1rem' }}>
-          Visualizza e modifica le direttive dell'agente assegnato ad ogni utente. L'agente usa questi dati per filtrare e armonizzare i post importati.
-        </p>
+      <div>
+        <div style={{ marginBottom: '1.5rem', padding: '1.25rem', background: 'linear-gradient(135deg, rgba(59,130,246,0.06) 0%, rgba(139,92,246,0.06) 100%)', borderRadius: 'var(--radius)', border: '1px solid rgba(59,130,246,0.1)' }}>
+          <h3 style={{ margin: '0 0 6px 0', fontSize: '15px' }}>🎯 Direttive Editoriali per Utente</h3>
+          <p style={{ margin: 0, fontSize: '13px', color: 'var(--text-muted)', lineHeight: 1.6 }}>Personalizza la missione e la strategia di ogni utente. L'AI utilizzerà queste informazioni per filtrare, riscrivere e armonizzare i contenuti importati dai social.</p>
+        </div>
+        <div style={{ display: 'grid', gap: '1rem' }}>
         {users.map(u => (
-          <div key={u.id} style={{ marginBottom: '1.5rem', paddingBottom: '1.5rem', borderBottom: '1px solid var(--border)' }}>
-            <div style={{ fontWeight: 600, marginBottom: '8px' }}>{u.name || u.email} <span style={{ fontSize: '12px', fontWeight: 400, color: 'var(--text-muted)' }}>({u.email})</span></div>
-            <div style={{ display: 'grid', gap: '10px' }}>
-              <div>
-                <label className="label">Ruolo e Missione</label>
-                <textarea defaultValue={u.role_mission || ''} onBlur={e => updateUser(u.id, { role_mission: e.target.value })}
-                  style={{ width: '100%', minHeight: '60px', padding: '8px 12px', fontSize: '13px', border: '1px solid var(--border-strong)', borderRadius: 'var(--radius-sm)', background: 'var(--surface)' }} />
-              </div>
-              <div>
-                <label className="label">Strategia dei Contenuti</label>
-                <textarea defaultValue={u.content_strategy || ''} onBlur={e => updateUser(u.id, { content_strategy: e.target.value })}
-                  style={{ width: '100%', minHeight: '60px', padding: '8px 12px', fontSize: '13px', border: '1px solid var(--border-strong)', borderRadius: 'var(--radius-sm)', background: 'var(--surface)' }} />
-              </div>
+          <div key={u.id} className="card" style={{ transition: 'box-shadow 0.2s, transform 0.2s' }} onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 8px 32px rgba(0,0,0,0.08)'; e.currentTarget.style.transform = 'translateY(-2px)'; }} onMouseLeave={e => { e.currentTarget.style.boxShadow = ''; e.currentTarget.style.transform = ''; }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '1rem' }}>
+              <div style={{ width: '42px', height: '42px', borderRadius: '12px', flexShrink: 0, background: 'linear-gradient(135deg, #6366F1, #8B5CF6)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px', color: '#fff', fontWeight: 700 }}>{(u.name || u.email)[0].toUpperCase()}</div>
+              <div style={{ flex: 1 }}><div style={{ fontWeight: 700, fontSize: '15px' }}>{u.name || u.email}</div><div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{u.email}</div></div>
+              <span style={{ fontSize: '11px', padding: '4px 10px', borderRadius: '20px', background: u.role === 'admin' ? 'rgba(245,158,11,0.1)' : 'rgba(99,102,241,0.1)', color: u.role === 'admin' ? '#D97706' : '#6366F1', fontWeight: 600 }}>{u.role === 'admin' ? '⚡ Admin' : '👤 Utente'}</span>
+            </div>
+            <div style={{ display: 'grid', gap: '12px' }}>
+              <div><label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.05em' }}><span>🎯</span> Ruolo e Missione</label>
+                <textarea defaultValue={u.role_mission || ''} onBlur={e => updateUser(u.id, { role_mission: e.target.value })} placeholder="Descrivi il ruolo e la missione editoriale..." style={{ width: '100%', minHeight: '70px', padding: '12px 14px', fontSize: '13px', border: '1px solid var(--border-strong)', borderRadius: '10px', background: 'var(--surface)', fontFamily: 'inherit', lineHeight: 1.6, resize: 'vertical' }} /></div>
+              <div><label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.05em' }}><span>📋</span> Strategia dei Contenuti</label>
+                <textarea defaultValue={u.content_strategy || ''} onBlur={e => updateUser(u.id, { content_strategy: e.target.value })} placeholder="Definisci la strategia editoriale, il tono di voce..." style={{ width: '100%', minHeight: '70px', padding: '12px 14px', fontSize: '13px', border: '1px solid var(--border-strong)', borderRadius: '10px', background: 'var(--surface)', fontFamily: 'inherit', lineHeight: 1.6, resize: 'vertical' }} /></div>
             </div>
           </div>
         ))}
+        </div>
       </div>
       )}
 
       {adminTab === 'prompts' && (
-      <div className="card">
-        <h3 style={{ marginBottom: '0.5rem' }}>🤖 Istruzioni Sistema Agenti AI</h3>
-        <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '1.25rem', lineHeight: 1.6 }}>
-          Ogni agente ha il suo prompt di sistema. Modificalo per cambiare come l'AI genera i contenuti.
-          Le variabili <code style={{ background: 'var(--gray-light)', padding: '1px 5px', borderRadius: '4px' }}>{'{'+'profileSummary{'+'}'}</code>, <code style={{ background: 'var(--gray-light)', padding: '1px 5px', borderRadius: '4px' }}>{'{'+'roleMission{'+'}'}</code> etc. vengono sostituite automaticamente con i dati del profilo.
-        </p>
-        {adminPrompts.map(p => (
-          <div key={p.id} style={{ marginBottom: '1.75rem', paddingBottom: '1.75rem', borderBottom: '1px solid var(--border)' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
-              <span style={{ background: 'var(--purple-light)', color: 'var(--purple-dark)', fontWeight: 700, fontSize: '13px', padding: '3px 12px', borderRadius: '20px' }}>
-                {p.label || p.agent_name}
-              </span>
-              {p.description && <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{p.description}</span>}
+      <div>
+        <div style={{ marginBottom: '1.5rem', padding: '1.25rem', background: 'linear-gradient(135deg, rgba(245,158,11,0.06) 0%, rgba(239,68,68,0.04) 100%)', borderRadius: 'var(--radius)', border: '1px solid rgba(245,158,11,0.12)' }}>
+          <h3 style={{ margin: '0 0 6px 0', fontSize: '15px' }}>🧠 Cervelli dell'Intelligenza Artificiale</h3>
+          <p style={{ margin: 0, fontSize: '13px', color: 'var(--text-muted)', lineHeight: 1.6 }}>Ogni agente ha le sue istruzioni di sistema (prompt). Modifica il testo per cambiare <strong>come</strong> l'AI ragiona, scrive e decide.</p>
+        </div>
+        <div style={{ display: 'grid', gap: '1rem' }}>
+        {adminPrompts.map(p => {
+          const meta = agentMeta[p.agent_name] || { icon: '🤖', color: '#6B7280', gradient: 'linear-gradient(135deg, #6B7280, #4B5563)', label: p.label || p.agent_name };
+          const isExpanded = expandedPrompt === p.agent_name;
+          return (
+            <div key={p.id} className="card" style={{ border: isExpanded ? `1px solid ${meta.color}33` : '1px solid var(--border)', transition: 'all 0.25s ease', boxShadow: isExpanded ? `0 4px 20px ${meta.color}15` : 'none' }}>
+              <div onClick={() => setExpandedPrompt(isExpanded ? null : p.agent_name)} style={{ display: 'flex', alignItems: 'center', gap: '14px', cursor: 'pointer', userSelect: 'none' }}>
+                <div style={{ width: '46px', height: '46px', borderRadius: '14px', flexShrink: 0, background: meta.gradient, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '22px', boxShadow: `0 4px 12px ${meta.color}30` }}>{meta.icon}</div>
+                <div style={{ flex: 1 }}><div style={{ fontWeight: 700, fontSize: '15px', marginBottom: '2px' }}>{meta.label}</div><div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{p.description || 'Istruzioni personalizzate'}</div></div>
+                <div style={{ width: '30px', height: '30px', borderRadius: '8px', background: 'var(--gray-light)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s' }}>▼</div>
+              </div>
+              {isExpanded && (
+                <div style={{ marginTop: '1.25rem', paddingTop: '1.25rem', borderTop: '1px solid var(--border)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px' }}>
+                    <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>📝 Prompt di Sistema</span>
+                    <span style={{ fontSize: '11px', color: meta.color, background: `${meta.color}12`, padding: '2px 8px', borderRadius: '10px' }}>{(p.instructions || '').length} caratteri</span>
+                  </div>
+                  <textarea key={`${p.id}-${p.instructions}`} defaultValue={p.instructions} onBlur={e => handleSavePrompt(p.agent_name, e.target.value)}
+                    style={{ width: '100%', minHeight: '240px', padding: '16px', fontSize: '12px', fontFamily: "'JetBrains Mono', 'Fira Code', monospace", border: `1px solid ${meta.color}25`, borderRadius: '12px', background: 'var(--bg)', lineHeight: 1.7, resize: 'vertical' }}
+                    onFocus={e => e.target.style.borderColor = meta.color + '60'} onBlurCapture={e => e.target.style.borderColor = meta.color + '25'} />
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '8px' }}>
+                    <span style={{ fontSize: '11px', color: 'var(--text-faint)', fontStyle: 'italic' }}>{savingPrompt === p.agent_name ? '⏳ Salvando...' : '💡 Le modifiche si salvano automaticamente quando esci dal campo'}</span>
+                  </div>
+                </div>
+              )}
             </div>
-            <textarea key={`${p.id}-${p.instructions}`} defaultValue={p.instructions}
-              onBlur={e => updatePrompt(p.agent_name, e.target.value)}
-              style={{ width: '100%', minHeight: '180px', padding: '12px', fontSize: '12px', fontFamily: 'monospace', border: '1px solid var(--border-strong)', borderRadius: 'var(--radius-sm)', background: 'var(--surface)', lineHeight: 1.6 }} />
-          </div>
-        ))}
+          );
+        })}
+        </div>
         {adminPrompts.length === 0 && (
-          <p style={{ color: 'var(--text-muted)', fontSize: '13px' }}>Nessun agente trovato. Visita <code>/api/index.php?action=migrate</code> per inizializzare.</p>
+          <div style={{ textAlign: 'center', padding: '3rem', background: 'var(--gray-light)', borderRadius: 'var(--radius)', marginTop: '1rem' }}>
+            <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>🤖</div>
+            <p style={{ fontSize: '14px', color: 'var(--text-muted)', margin: 0 }}>Nessun agente trovato. Visita <code style={{ background: 'var(--surface)', padding: '2px 8px', borderRadius: '4px' }}>/api/index.php?action=migrate</code> per inizializzare.</p>
+          </div>
         )}
       </div>
       )}

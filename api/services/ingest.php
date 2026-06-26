@@ -96,23 +96,30 @@ class Ingest {
                     $mediaUrl  = $saved['url'];
                     $mediaType = 'video';
                     
-                    // Use Whisper for all video transcriptions
-                    $ch = curl_init('https://api.openai.com/v1/audio/transcriptions');
-                    $cfile = new CURLFile($saved['path'], 'video/mp4', 'audio.mp4');
-                    curl_setopt_array($ch, [
-                        CURLOPT_RETURNTRANSFER => true,
-                        CURLOPT_POST           => true,
-                        CURLOPT_HTTPHEADER     => ['Authorization: Bearer ' . OPENAI_API_KEY],
-                        CURLOPT_POSTFIELDS     => ['file' => $cfile, 'model' => 'whisper-1', 'language' => 'it'],
-                        CURLOPT_TIMEOUT        => 120,
-                    ]);
-                    $res = curl_exec($ch);
-                    curl_close($ch);
-                    $data = json_decode((string)$res, true);
-                    $transcript = $data['text'] ?? '';
+                    // 1) Trascrivi con Gemini (sempre disponibile, gestisce file inline)
+                    if ($saved['size'] <= 15 * 1024 * 1024) {
+                        try {
+                            $transcript = AI::transcribeFile($saved['path'], 'video/mp4');
+                        } catch (Throwable $e) {
+                            $transcript = '';
+                        }
+                    }
                     
-                    if (!$transcript && $saved['size'] <= 15 * 1024 * 1024) {
-                        $transcript = AI::transcribeFile($saved['path'], 'video/mp4');
+                    // 2) Fallback: Whisper (solo se OPENAI_API_KEY è definita)
+                    if (!$transcript && defined('OPENAI_API_KEY') && OPENAI_API_KEY) {
+                        $ch = curl_init('https://api.openai.com/v1/audio/transcriptions');
+                        $cfile = new CURLFile($saved['path'], 'video/mp4', 'audio.mp4');
+                        curl_setopt_array($ch, [
+                            CURLOPT_RETURNTRANSFER => true,
+                            CURLOPT_POST           => true,
+                            CURLOPT_HTTPHEADER     => ['Authorization: Bearer ' . OPENAI_API_KEY],
+                            CURLOPT_POSTFIELDS     => ['file' => $cfile, 'model' => 'whisper-1', 'language' => 'it'],
+                            CURLOPT_TIMEOUT        => 120,
+                        ]);
+                        $res = curl_exec($ch);
+                        curl_close($ch);
+                        $data = json_decode((string)$res, true);
+                        $transcript = $data['text'] ?? '';
                     }
                 }
             } elseif (!empty($r['image'])) {
@@ -377,6 +384,65 @@ class Ingest {
                 ]
             );
         }
+        
+        // ── 4. Esegui il CAPOREDATTORE (Orchestrazione Finale) ──────────────
+        try {
+            $updatedSite  = DB::fetch('SELECT * FROM sites WHERE user_id=?', [$userId]);
+            $publishedPosts = DB::fetchAll('SELECT id, edited_title, generated_title, tags FROM posts WHERE user_id=? AND published=1', [$userId]);
+            
+            $chiefResult = AI::chiefEditor($updatedSite, $publishedPosts);
+            
+            if (!empty($chiefResult['ok'])) {
+                // Aggiorna i tag normalizzati nei post appena caricati
+                $mapping = $chiefResult['tag_mapping'] ?? [];
+                if (!empty($mapping)) {
+                    $allPosts = DB::fetchAll('SELECT id, tags FROM posts WHERE user_id=?', [$userId]);
+                    foreach ($allPosts as $p) {
+                        $tArr = is_array($p['tags']) ? $p['tags'] : (json_decode($p['tags'] ?? '[]', true) ?: []);
+                        $changed = false;
+                        $newTArr = [];
+                        foreach ($tArr as $t) {
+                            $low = strtolower(trim($t));
+                            if (isset($mapping[$low]) && $mapping[$low] !== $t) {
+                                $newTArr[] = $mapping[$low];
+                                $changed = true;
+                            } else {
+                                $newTArr[] = trim($t);
+                            }
+                        }
+                        if ($changed) {
+                            $newTagsJson = json_encode(array_unique(array_filter($newTArr)), JSON_UNESCAPED_UNICODE);
+                            DB::execute('UPDATE posts SET tags=? WHERE id=?', [$newTagsJson, $p['id']]);
+                        }
+                    }
+                }
+
+                // Aggiorna menu e tagline basati sui post reali
+                $menu = isset($chiefResult['menu_links']) ? json_encode($chiefResult['menu_links'], JSON_UNESCAPED_UNICODE) : '';
+                $tagline = $chiefResult['hero_tagline'] ?? '';
+                $updates = [];
+                $params = [];
+                if ($menu) { $updates[] = 'menu_links=?'; $params[] = $menu; }
+                if ($tagline) { $updates[] = 'hero_tagline=?'; $params[] = $tagline; }
+                
+                if (!empty($updates)) {
+                    $params[] = $userId;
+                    DB::execute('UPDATE sites SET ' . implode(', ', $updates) . ' WHERE user_id=?', $params);
+                }
+
+                // Imposta il featured post
+                $featuredId = (int)($chiefResult['featured_post_id'] ?? 0);
+                if ($featuredId > 0) {
+                    DB::execute('UPDATE posts SET featured=0 WHERE user_id=?', [$userId]);
+                    DB::execute('UPDATE posts SET featured=1 WHERE id=? AND user_id=?', [$featuredId, $userId]);
+                }
+                
+                $report['chief_editor'] = 'Orchestrazione completata con successo.';
+            }
+        } catch (Throwable $e) {
+            $report['chief_editor_error'] = $e->getMessage();
+        }
+
         DB::execute('UPDATE sites SET last_sync=NOW() WHERE user_id=?', [$userId]);
 
         return $report;

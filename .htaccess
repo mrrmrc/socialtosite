@@ -13,8 +13,11 @@ SetEnvIf Authorization "(.*)" HTTP_AUTHORIZATION=$1
 RewriteRule ^robots\.txt$ robots.txt [L]
 
 # ── Sito pubblico ───────────────────────────────────────────────────────────
-# Sitemap:  /s/<slug>/sitemap.xml
+# Sitemap, Feed, e llms.txt
 RewriteRule ^s/([^/]+)/sitemap\.xml$ public/site.php?slug=$1&action=sitemap [L,QSA]
+RewriteRule ^s/([^/]+)/feed\.xml$ public/site.php?slug=$1&action=feed [L,QSA]
+RewriteRule ^s/([^/]+)/llms\.txt$ public/site.php?slug=$1&action=llms [L,QSA]
+
 # Pagina pubblica:  /s/<slug>  e  /s/<slug>/<post-slug>
 RewriteRule ^s/([^/]+)/?$ public/site.php?slug=$1 [L,QSA]
 RewriteRule ^s/([^/]+)/([^/]+)/?$ public/site.php?slug=$1&post=$2 [L,QSA]

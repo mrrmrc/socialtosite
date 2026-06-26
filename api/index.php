@@ -635,6 +635,68 @@ if ($action === 'site-ai' && $method === 'POST') {
     }
 }
 
+// ── POST chief-editor (Orchestrazione Contenuti) ─────────────────────────
+if ($action === 'chief-editor' && $method === 'POST') {
+    try {
+        require_once __DIR__ . '/services/ai.php';
+        $site  = DB::fetch('SELECT * FROM sites WHERE user_id=?', [$userId]);
+        $posts = DB::fetchAll('SELECT id, edited_title, generated_title, tags FROM posts WHERE user_id=? AND published=1', [$userId]);
+        
+        $result = AI::chiefEditor($site, $posts);
+        
+        if (!empty($result['ok'])) {
+            // 1. Aggiorna i tag normalizzati in tutti i post
+            $mapping = $result['tag_mapping'] ?? [];
+            if (!empty($mapping)) {
+                $allPosts = DB::fetchAll('SELECT id, tags FROM posts WHERE user_id=?', [$userId]);
+                foreach ($allPosts as $p) {
+                    $tArr = is_array($p['tags']) ? $p['tags'] : (json_decode($p['tags'] ?? '[]', true) ?: []);
+                    $changed = false;
+                    $newTArr = [];
+                    foreach ($tArr as $t) {
+                        $low = strtolower(trim($t));
+                        if (isset($mapping[$low]) && $mapping[$low] !== $t) {
+                            $newTArr[] = $mapping[$low];
+                            $changed = true;
+                        } else {
+                            $newTArr[] = trim($t);
+                        }
+                    }
+                    if ($changed) {
+                        $newTagsJson = json_encode(array_unique(array_filter($newTArr)), JSON_UNESCAPED_UNICODE);
+                        DB::execute('UPDATE posts SET tags=? WHERE id=?', [$newTagsJson, $p['id']]);
+                    }
+                }
+            }
+
+            // 2. Aggiorna il sito con menu e tagline
+            $menu = isset($result['menu_links']) ? json_encode($result['menu_links'], JSON_UNESCAPED_UNICODE) : '';
+            $tagline = $result['hero_tagline'] ?? '';
+            
+            $updates = [];
+            $params = [];
+            if ($menu) { $updates[] = 'menu_links=?'; $params[] = $menu; }
+            if ($tagline) { $updates[] = 'hero_tagline=?'; $params[] = $tagline; }
+            
+            if (!empty($updates)) {
+                $params[] = $userId;
+                DB::execute('UPDATE sites SET ' . implode(', ', $updates) . ' WHERE user_id=?', $params);
+            }
+
+            // 3. Imposta il post in evidenza
+            $featuredId = (int)($result['featured_post_id'] ?? 0);
+            if ($featuredId > 0) {
+                DB::execute('UPDATE posts SET featured=0 WHERE user_id=?', [$userId]);
+                DB::execute('UPDATE posts SET featured=1 WHERE id=? AND user_id=?', [$featuredId, $userId]);
+            }
+        }
+        
+        json($result);
+    } catch (Throwable $e) {
+        jsonError('Errore Chief Editor: ' . $e->getMessage());
+    }
+}
+
 // ── AGENTE 1: POST ingest-url  { url } ────────────────────────────────────
 if ($action === 'ingest-url' && $method === 'POST') {
     $b   = body();

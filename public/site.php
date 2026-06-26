@@ -63,6 +63,89 @@ if ($action === 'sitemap') {
     exit;
 }
 
+// ── RSS / Atom Feed ─────────────────────────────────────────────────────────
+if ($action === 'feed') {
+    header('Content-Type: application/atom+xml; charset=utf-8');
+    $base = BASE_URL . '/s/' . $slug;
+    $titleXml = htmlspecialchars($site['title'] ?? $user['name'] ?? '', ENT_XML1, 'UTF-8');
+    $bioXml = htmlspecialchars($site['profile_summary'] ?: ($site['bio'] ?? ''), ENT_XML1, 'UTF-8');
+    $updated = !empty($posts) ? date(DATE_ATOM, strtotime($posts[0]['published_at'] ?? 'now')) : date(DATE_ATOM);
+    
+    echo '<?xml version="1.0" encoding="utf-8"?>' . "\n";
+    echo '<feed xmlns="http://www.w3.org/2005/Atom">' . "\n";
+    echo "  <title>$titleXml</title>\n";
+    echo "  <subtitle>$bioXml</subtitle>\n";
+    echo "  <link href=\"$base/feed.xml\" rel=\"self\" />\n";
+    echo "  <link href=\"$base\" />\n";
+    echo "  <id>$base/</id>\n";
+    echo "  <updated>$updated</updated>\n";
+    
+    $count = 0;
+    foreach ($posts as $p) {
+        if ($count++ >= 50) break;
+        $pUrl = "$base/{$p['slug']}";
+        $pTitle = htmlspecialchars($p['edited_title'] ?: ($p['generated_title'] ?: 'Post'), ENT_XML1, 'UTF-8');
+        $pDate = date(DATE_ATOM, strtotime($p['published_at'] ?? 'now'));
+        $pExcerpt = htmlspecialchars($p['edited_excerpt'] ?: ($p['generated_excerpt'] ?: ''), ENT_XML1, 'UTF-8');
+        $pBody = htmlspecialchars($p['edited_body'] ?: ($p['generated_body'] ?: ($p['transcript'] ?: $p['raw_content'] ?? '')), ENT_XML1, 'UTF-8');
+        
+        echo "  <entry>\n";
+        echo "    <title>$pTitle</title>\n";
+        echo "    <link href=\"$pUrl\" />\n";
+        echo "    <id>$pUrl</id>\n";
+        echo "    <updated>$pDate</updated>\n";
+        echo "    <summary>$pExcerpt</summary>\n";
+        echo "    <content type=\"html\"><![CDATA[" . nl2br($pBody) . "]]></content>\n";
+        if (!empty($p['media_url'])) {
+            $mUrl = htmlspecialchars($p['media_url'], ENT_XML1, 'UTF-8');
+            $mType = strtolower($p['media_type'] ?? '') === 'video' ? 'video/mp4' : 'image/jpeg';
+            echo "    <link rel=\"enclosure\" href=\"$mUrl\" type=\"$mType\" />\n";
+        }
+        echo "  </entry>\n";
+    }
+    echo '</feed>';
+    exit;
+}
+
+// ── llms.txt (AI Discoverability) ───────────────────────────────────────────
+if ($action === 'llms') {
+    header('Content-Type: text/plain; charset=utf-8');
+    $base = BASE_URL . '/s/' . $slug;
+    $titlePlain = $site['title'] ?? $user['name'] ?? '';
+    $bioPlain = $site['profile_summary'] ?: ($site['bio'] ?? '');
+    
+    echo "# $titlePlain\n\n";
+    if ($bioPlain) echo "> $bioPlain\n\n";
+    echo "This is a curated personal website aggregating content from various social platforms.\n\n";
+    
+    echo "## Categories (Tags)\n";
+    $tagCounts = [];
+    foreach ($posts as $p) {
+        foreach ($p['tags'] ?? [] as $t) {
+            $key = strtolower(trim($t));
+            if ($key !== '') $tagCounts[$key] = ($tagCounts[$key] ?? 0) + 1;
+        }
+    }
+    arsort($tagCounts);
+    foreach (array_slice(array_keys($tagCounts), 0, 10) as $t) {
+        echo "- [$t]($base/?tag=" . urlencode($t) . ")\n";
+    }
+    echo "\n## Recent Content\n";
+    $count = 0;
+    foreach ($posts as $p) {
+        if ($count++ >= 30) break;
+        $pUrl = "$base/{$p['slug']}";
+        $pTitle = $p['edited_title'] ?: ($p['generated_title'] ?: 'Post');
+        $pExcerpt = $p['edited_excerpt'] ?: ($p['generated_excerpt'] ?: '');
+        $pDate = $p['published_at'] ? substr($p['published_at'], 0, 10) : '';
+        echo "- [$pTitle]($pUrl)";
+        if ($pDate) echo " ($pDate)";
+        echo "\n";
+        if ($pExcerpt) echo "  $pExcerpt\n";
+    }
+    exit;
+}
+
 // ── Variabili base ───────────────────────────────────────────────────────────
 function h(?string $s): string { return htmlspecialchars((string)$s, ENT_QUOTES, 'UTF-8'); }
 
@@ -77,43 +160,41 @@ $menuLinks    = !empty($site['menu_links']) ? json_decode($site['menu_links'], t
 $accentColor  = $site['accent_color'] ?? '';
 $accentSecondary = $site['accent_secondary'] ?? '';
 
-// ── Sicurezza Menu: rimuovi link rotti che non puntano a nulla ──────────
-// Raccogli tutti i tag reali dei post pubblicati
-$validMenuTags = [];
+// ── Raccogli tutti i tag reali dei post pubblicati (con conteggio) ───────
+$tagCounts = [];
 foreach ($posts as $p) {
     foreach ($p['tags'] ?? [] as $t) {
-        $validMenuTags[] = strtolower(trim($t));
+        $key = strtolower(trim($t));
+        if ($key !== '') $tagCounts[$key] = ($tagCounts[$key] ?? 0) + 1;
     }
 }
-$validMenuTags = array_unique($validMenuTags);
+$validMenuTags = array_keys($tagCounts);
 
-// Filtra: tieni solo Home (/) e link a tag reali (/?tag=...)
+// ── Sicurezza Menu: rimuovi link rotti che non puntano a nulla ──────────
 $safeMenuLinks = [];
 if (is_array($menuLinks)) {
     foreach ($menuLinks as $link) {
         $url = trim($link['url'] ?? '');
-        // Home è sempre valida
-        if ($url === '/' || $url === '') {
-            $safeMenuLinks[] = $link;
-            continue;
-        }
-        // Link a tag: verifica che il tag esista davvero nei post
+        if ($url === '/' || $url === '') { $safeMenuLinks[] = $link; continue; }
         if (preg_match('/[?&]tag=([^&]+)/i', $url, $m)) {
             $tagVal = strtolower(trim(urldecode($m[1])));
-            if (in_array($tagVal, $validMenuTags, true)) {
-                $safeMenuLinks[] = $link;
-            }
+            if (in_array($tagVal, $validMenuTags, true)) $safeMenuLinks[] = $link;
             continue;
         }
-        // Link esterni (http/https) sono ok
-        if (preg_match('/^https?:\/\//i', $url)) {
-            $safeMenuLinks[] = $link;
-            continue;
-        }
-        // Tutto il resto (ancore #, link interni inventati /chi-siamo ecc) → IGNORATO
+        if (preg_match('/^https?:\/\//i', $url)) { $safeMenuLinks[] = $link; continue; }
     }
 }
 $menuLinks = $safeMenuLinks;
+
+// ── FALLBACK: se il menu è vuoto, genera automaticamente dai top tag ────
+if (empty($menuLinks) && !empty($tagCounts)) {
+    $menuLinks = [['label' => 'Home', 'url' => '/']];
+    arsort($tagCounts);
+    $topTags = array_slice(array_keys($tagCounts), 0, 4);
+    foreach ($topTags as $tag) {
+        $menuLinks[] = ['label' => ucfirst($tag), 'url' => '/?tag=' . urlencode($tag)];
+    }
+}
 $logoUrl      = $site['logo_url'] ?? '';
 $coverUrl     = $site['cover_url'] ?? '';
 $footerText   = $site['footer_text'] ?? '';
@@ -354,18 +435,90 @@ $activeCss = $themeCSS[$theme] ?? $themeCSS['classic'];
 // Sostituisce #$accent con il valore reale
 $activeCss = str_replace('#$accent', $accent, $activeCss);
 
+// HTTP Link headers per sitemap e feed
+header('Link: <' . $siteUrl . '/sitemap.xml>; rel="sitemap"');
+header('Link: <' . $siteUrl . '/feed.xml>; rel="alternate"; type="application/atom+xml"');
+
 ?>
 <!DOCTYPE html>
 <html lang="it">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title><?= $title ?></title>
-  <meta name="description" content="<?= $bio ?>">
-  <meta property="og:title" content="<?= $title ?>">
-  <meta property="og:description" content="<?= $bio ?>">
-  <link rel="canonical" href="<?= $siteUrl ?>">
+  <?php if ($single): ?>
+    <title><?= h(postTitle($single)) ?> - <?= $title ?></title>
+    <meta name="description" content="<?= h(postExcerpt($single)) ?>">
+    <meta property="og:title" content="<?= h(postTitle($single)) ?>">
+    <meta property="og:description" content="<?= h(postExcerpt($single)) ?>">
+    <meta property="og:type" content="article">
+    <meta property="article:published_time" content="<?= date(DATE_ATOM, strtotime($single['published_at'] ?? 'now')) ?>">
+    <?php if ($single['media_url'] && strtolower($single['media_type']) !== 'video'): ?>
+      <meta property="og:image" content="<?= h($single['media_url']) ?>">
+    <?php elseif ($coverUrl): ?>
+      <meta property="og:image" content="<?= h($coverUrl) ?>">
+    <?php endif; ?>
+    <link rel="canonical" href="<?= $siteUrl . '/' . h($single['slug']) ?>">
+  <?php else: ?>
+    <title><?= $title ?><?= $activeTag ? ' - ' . ucfirst($activeTag) : '' ?></title>
+    <meta name="description" content="<?= $bio ?>">
+    <meta property="og:title" content="<?= $title ?>">
+    <meta property="og:description" content="<?= $bio ?>">
+    <meta property="og:type" content="website">
+    <?php if ($coverUrl): ?><meta property="og:image" content="<?= h($coverUrl) ?>"><?php endif; ?>
+    <link rel="canonical" href="<?= $siteUrl ?><?= $activeTag ? '?tag=' . urlencode($activeTag) : '' ?>">
+  <?php endif; ?>
+  
+  <meta property="og:site_name" content="<?= $title ?>">
   <link rel="sitemap" type="application/xml" href="<?= $siteUrl ?>/sitemap.xml">
+  <link rel="alternate" type="application/atom+xml" title="RSS Feed" href="<?= $siteUrl ?>/feed.xml">
+  
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    "name": "<?= addslashes($site['title'] ?? $user['name'] ?? '') ?>",
+    "url": "<?= $siteUrl ?>",
+    "potentialAction": {
+      "@type": "SearchAction",
+      "target": "<?= $siteUrl ?>/?tag={search_term_string}",
+      "query-input": "required name=search_term_string"
+    }
+  }
+  </script>
+  
+  <?php if ($single): ?>
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    "itemListElement": [{
+      "@type": "ListItem",
+      "position": 1,
+      "name": "Home",
+      "item": "<?= $siteUrl ?>"
+    },{
+      "@type": "ListItem",
+      "position": 2,
+      "name": "<?= addslashes(postTitle($single)) ?>"
+    }]
+  }
+  </script>
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "Article",
+    "headline": "<?= addslashes(postTitle($single)) ?>",
+    "image": "<?= addslashes($single['media_url'] ?? $coverUrl ?? '') ?>",
+    "datePublished": "<?= date(DATE_ATOM, strtotime($single['published_at'] ?? 'now')) ?>",
+    "dateModified": "<?= date(DATE_ATOM, strtotime($single['published_at'] ?? 'now')) ?>",
+    "author": [{
+        "@type": "Person",
+        "name": "<?= addslashes($site['title'] ?? $user['name'] ?? '') ?>",
+        "url": "<?= $siteUrl ?>"
+      }]
+  }
+  </script>
+  <?php else: ?>
   <script type="application/ld+json">
   {
     "@context": "https://schema.org",
@@ -376,17 +529,18 @@ $activeCss = str_replace('#$accent', $accent, $activeCss);
     "mainEntity": {
       "@type": "ItemList",
       "itemListElement": [
-        <?php foreach ($posts as $i => $p): ?>
+        <?php $scount = 0; foreach ($posts as $i => $p): if ($scount++ >= 50) break; ?>
         {
           "@type": "ListItem",
           "position": <?= $i + 1 ?>,
           "url": "<?= $siteUrl . '/' . h($p['slug'] ?? '') ?>"
-        }<?= $i < count($posts) - 1 ? ',' : '' ?>
+        }<?= ($i < count($posts) - 1 && $scount < 50) ? ',' : '' ?>
         <?php endforeach; ?>
       ]
     }
   }
   </script>
+  <?php endif; ?>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     /* ─── TEMA: <?= $theme ?> ─── */
@@ -394,8 +548,23 @@ $activeCss = str_replace('#$accent', $accent, $activeCss);
 
     /* ─── STILI COMUNI (non sovrascrivibili dal tema) ─── */
     a { text-decoration: none; transition: color 0.2s; }
+    .nav-links { display: flex; gap: 1.5rem; }
     .nav-links a { transition: color 0.2s; }
     .nav-links a:hover { color: var(--accent, #7F77DD); }
+    /* ─── Hamburger Mobile ─── */
+    .nav-toggle { display: none; background: none; border: none; cursor: pointer; padding: 0.5rem; z-index: 110; }
+    .nav-toggle span { display: block; width: 24px; height: 2px; background: var(--text, #111); margin: 5px 0; transition: all 0.3s ease; border-radius: 2px; }
+    @media (max-width: 768px) {
+      .nav-toggle { display: block; }
+      .nav-links { position: fixed; top: 0; right: -100%; width: 280px; height: 100vh; flex-direction: column; background: var(--bg, #fff); padding: 5rem 2rem 2rem; gap: 1.25rem; box-shadow: -4px 0 30px rgba(0,0,0,0.15); transition: right 0.35s cubic-bezier(0.4,0,0.2,1); z-index: 105; }
+      .nav-links.open { right: 0; }
+      .nav-links a { font-size: 1.1rem; padding: 0.5rem 0; border-bottom: 1px solid var(--border, rgba(0,0,0,0.06)); }
+      .nav-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 100; }
+      .nav-overlay.open { display: block; }
+      .nav-toggle.open span:nth-child(1) { transform: rotate(45deg) translate(5px, 5px); }
+      .nav-toggle.open span:nth-child(2) { opacity: 0; }
+      .nav-toggle.open span:nth-child(3) { transform: rotate(-45deg) translate(5px, -5px); }
+    }
     .socials { display: flex; flex-wrap: wrap; gap: 0.75rem; margin-top: 2rem; justify-content: center; }
     .social-link { display: flex; align-items: center; gap: 0.5rem; padding: 0.6rem 1.25rem; border-radius: 50px; border: 1px solid var(--border, rgba(0,0,0,0.1)); font-size: 0.9rem; font-weight: 500; color: var(--text, #111); transition: all 0.25s; }
     .social-link:hover { background: var(--accent, #7F77DD); color: #fff; border-color: var(--accent, #7F77DD); transform: translateY(-2px); }
@@ -444,6 +613,10 @@ $activeCss = str_replace('#$accent', $accent, $activeCss);
     .footer-socials a:hover { background: var(--accent, #7F77DD); border-color: var(--accent, #7F77DD); transform: translateY(-4px) scale(1.05); }
     .footer-bottom { border-top: 1px solid rgba(255,255,255,0.1); padding-top: 1.5rem; font-size: 0.8rem; color: rgba(255,255,255,0.4); margin-top: 1.5rem; }
     .footer-bottom a { color: rgba(255,255,255,0.5); }
+    /* Breadcrumb */
+    .breadcrumb { display: flex; gap: 0.5rem; align-items: center; margin-bottom: 1.5rem; font-size: 0.85rem; color: var(--text, #111); opacity: 0.6; flex-wrap: wrap; }
+    .breadcrumb a { color: var(--accent, #7F77DD); }
+    .breadcrumb span.sep { opacity: 0.4; }
     /* Custom CSS iniettato dall'AI */
     <?= $customCss ?>
     @media (max-width: 768px) {
@@ -456,30 +629,24 @@ $activeCss = str_replace('#$accent', $accent, $activeCss);
 <body class="theme-<?= h($theme) ?>">
 
 <!-- NAVBAR -->
-<nav class="navbar">
+<nav class="navbar" aria-label="Navigazione principale" role="navigation">
   <a href="<?= $siteUrl ?>" class="nav-brand">
-    <?php if ($logoUrl): ?><img src="<?= h($logoUrl) ?>" alt="Logo" style="height:40px;border-radius:8px;">
+    <?php if ($logoUrl): ?><img src="<?= h($logoUrl) ?>" alt="<?= $title ?> - Logo" style="height:40px;border-radius:8px;">
     <?php else: ?><?= $title ?><?php endif; ?>
   </a>
   <?php if ($menuLinks): ?>
-  <div class="nav-links">
+  <button class="nav-toggle" aria-label="Apri menu" aria-expanded="false" id="nav-toggle">
+    <span></span><span></span><span></span>
+  </button>
+  <div class="nav-overlay" id="nav-overlay"></div>
+  <div class="nav-links" id="nav-links" role="menubar">
     <?php foreach ($menuLinks as $link): 
         $href = trim($link['url'] ?? '');
-        
-        // Se è la home
-        if ($href === '/' || $href === '') {
-            $href = $siteUrl;
-        }
-        // Se contiene un tag (es. "/?tag=...", "?tag=...")
-        elseif (preg_match('/[?&]tag=([^&]+)/i', $href, $m)) {
-            $href = $siteUrl . '?tag=' . $m[1];
-        }
-        // Altrimenti lascialo com'è (es. ancore # o link esterni)
-        else {
-            $href = h($href);
-        }
+        if ($href === '/' || $href === '') { $href = $siteUrl; }
+        elseif (preg_match('/[?&]tag=([^&]+)/i', $href, $m)) { $href = $siteUrl . '?tag=' . $m[1]; }
+        else { $href = h($href); }
     ?>
-      <a href="<?= $href ?>"><?= h($link['label']) ?></a>
+      <a href="<?= $href ?>" role="menuitem"><?= h($link['label']) ?></a>
     <?php endforeach; ?>
   </div>
   <?php endif; ?>
@@ -572,21 +739,21 @@ if ($coverUrl) {
       <button class="filter-btn" data-filter="tag-<?= h($tag) ?>">#<?= h($tag) ?></button>
     <?php endforeach; ?>
   </div>
-  <section class="post-grid" aria-label="Contenuti pubblicati">
+  <section class="post-grid" aria-label="Contenuti pubblicati" itemscope itemtype="https://schema.org/ItemList">
     <?php foreach ($posts as $p): if (!empty($p['featured'])) continue; // Il featured è già mostrato sopra
       $purl = $siteUrl . '/' . h($p['slug'] ?? '');
       $ptagStr = implode(' ', array_map(fn($t) => 'tag-' . strtolower(trim($t)), $p['tags'] ?? []));
     ?>
-    <article class="post" data-platform="platform-<?= h($p['platform']) ?>" data-tags="<?= h($ptagStr) ?>">
+    <article class="post" data-platform="platform-<?= h($p['platform']) ?>" data-tags="<?= h($ptagStr) ?>" itemprop="itemListElement" itemscope itemtype="https://schema.org/Article">
       <?= mediaHtml($p) ?>
       <div class="post-body">
         <div class="meta">
           <span><?= $icons[$p['platform']] ?? '📄' ?> <?= h($p['platform']) ?></span>
-          <span><?= $p['published_at'] ? date('d/m/Y', strtotime($p['published_at'])) : '' ?></span>
+          <span itemprop="datePublished" content="<?= date(DATE_ATOM, strtotime($p['published_at'] ?? 'now')) ?>"><?= $p['published_at'] ? date('d/m/Y', strtotime($p['published_at'])) : '' ?></span>
           <?php if (strtoupper($p['media_type'] ?? '') === 'VIDEO'): ?><span class="badge">Video</span><?php endif; ?>
         </div>
-        <h2><a href="<?= $purl ?>"><?= h(postTitle($p)) ?></a></h2>
-        <p class="excerpt"><?= h(postExcerpt($p)) ?></p>
+        <h2 itemprop="headline"><a href="<?= $purl ?>" itemprop="url"><?= h(postTitle($p)) ?></a></h2>
+        <p class="excerpt" itemprop="abstract"><?= h(postExcerpt($p)) ?></p>
         <?php if (!empty($p['source_url'])): ?>
           <a class="source-link" href="<?= h($p['source_url']) ?>" target="_blank" rel="noopener">Originale</a>
         <?php endif; ?>
@@ -627,6 +794,24 @@ if ($coverUrl) {
 
 <script>
 document.addEventListener('DOMContentLoaded', () => {
+  // Mobile nav toggle
+  const navToggle = document.getElementById('nav-toggle');
+  const navLinks = document.getElementById('nav-links');
+  const navOverlay = document.getElementById('nav-overlay');
+  
+  if (navToggle && navLinks && navOverlay) {
+    const toggleMenu = () => {
+      const isOpen = navLinks.classList.contains('open');
+      navLinks.classList.toggle('open');
+      navOverlay.classList.toggle('open');
+      navToggle.classList.toggle('open');
+      navToggle.setAttribute('aria-expanded', !isOpen);
+    };
+    
+    navToggle.addEventListener('click', toggleMenu);
+    navOverlay.addEventListener('click', toggleMenu);
+  }
+
   const observer = new IntersectionObserver(entries => {
     entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add('visible'); observer.unobserve(e.target); } });
   }, { threshold: 0.05, rootMargin: '0px 0px -40px 0px' });

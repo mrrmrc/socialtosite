@@ -671,5 +671,108 @@ class AI {
         }
         return $result;
     }
+
+    // ── AGENTE CAPOREDATTORE (Orchestrazione Contenuti) ─────────────────────
+    public static function chiefEditor(array $site, array $posts): array {
+        if (empty($posts)) {
+            return ['ok' => false, 'message' => 'Nessun post da analizzare.'];
+        }
+
+        $summary  = trim($site['profile_summary'] ?? $site['bio'] ?? '');
+        $role     = trim($site['role_mission'] ?? '');
+        
+        // 1. Raccogliamo i dati essenziali di tutti i post (per risparmiare token)
+        $postsData = [];
+        $currentTags = [];
+        foreach ($posts as $p) {
+            $postsData[] = [
+                'id' => $p['id'],
+                'title' => $p['edited_title'] ?: ($p['generated_title'] ?: 'Post'),
+                'tags' => is_array($p['tags']) ? $p['tags'] : (json_decode($p['tags'] ?? '[]', true) ?: [])
+            ];
+            $tArr = is_array($p['tags']) ? $p['tags'] : (json_decode($p['tags'] ?? '[]', true) ?: []);
+            foreach ($tArr as $t) {
+                $t = trim($t);
+                if ($t) $currentTags[] = strtolower($t);
+            }
+        }
+        $currentTags = array_unique($currentTags);
+
+        // 2. Normalizzazione dei tag
+        $normalizedTagsMapping = self::tagNormalizer($currentTags);
+        
+        // Applichiamo la normalizzazione ai post (in memoria) per l'analisi del caporedattore
+        foreach ($postsData as &$pd) {
+            $newT = [];
+            foreach ($pd['tags'] as $t) {
+                $lowT = strtolower(trim($t));
+                $newT[] = $normalizedTagsMapping[$lowT] ?? $t;
+            }
+            $pd['tags'] = array_unique(array_filter(array_map('trim', $newT)));
+        }
+        unset($pd);
+
+        $postsContext = json_encode($postsData, JSON_UNESCAPED_UNICODE);
+
+        $fallback = "Sei il CAPOREDATTORE di un sito web personale/brand. Analizza tutti i post pubblicati e orchestra i contenuti per creare un'esperienza editoriale coerente.\n\n"
+            . "Profilo:\n{profileSummary}\n\n"
+            . "Ruolo:\n{roleMission}\n\n"
+            . "Post attuali (JSON id, title, tags):\n{postsContext}\n\n"
+            . "Istruzioni:\n"
+            . "1. Individua 3-4 macro-categorie tematiche reali e coerenti con i post disponibili.\n"
+            . "2. Genera un menu_links usando SOLO i tag presenti nei post (es. /?tag=nome_categoria).\n"
+            . "3. Scegli l'ID del post migliore, più rappresentativo e di alta qualità da mettere in evidenza (featured_post_id).\n"
+            . "4. Genera una hero_tagline (max 80 char) che riassuma l'identità editoriale attuale.\n"
+            . "5. Scrivi un breve piano editoriale (max 300 char) su cosa manca o su cosa puntare.\n\n"
+            . "Rispondi SOLO con JSON valido:\n"
+            . '{"categories":["Cat1","Cat2"],"menu_links":[{"label":"Home","url":"/"},{"label":"Cat1","url":"/?tag=cat1"}],"featured_post_id":123,"hero_tagline":"Tagline d\'impatto","editorial_plan":"Note editoriali..."}';
+
+        $prompt = self::getAgentPrompt('chief_editor', $fallback);
+        $prompt = str_replace(
+            ['{profileSummary}', '{roleMission}', '{postsContext}'],
+            [$summary, $role, $postsContext],
+            $prompt
+        );
+
+        $text = self::gemini([['text' => $prompt]], [
+            'responseMimeType' => 'application/json',
+            'maxOutputTokens'  => 4096,
+        ]);
+        $text = preg_replace('/```json|```/', '', trim($text));
+        $result = json_decode($text, true);
+
+        if (!$result) {
+            return ['ok' => false, 'message' => 'Errore nella generazione del piano editoriale.'];
+        }
+
+        $result['ok'] = true;
+        $result['tag_mapping'] = $normalizedTagsMapping;
+        return $result;
+    }
+
+    // ── AGENTE TAG NORMALIZER ────────────────────────────────────────────────
+    public static function tagNormalizer(array $tags): array {
+        if (empty($tags)) return [];
+        $tagsList = implode(", ", $tags);
+        
+        $prompt = "Sei un tassonomista esperto. Hai questa lista disordinata di tag assegnati a vari post:\n"
+            . "[$tagsList]\n\n"
+            . "Il tuo compito è pulirli, unificare i sinonimi, correggere typo e raggrupparli in concetti chiave eleganti (es. 'cucina', 'ricette', 'food' -> 'Cucina'). "
+            . "Mantieni i tag unici se sono specifici e sensati. Capitalizza la prima lettera.\n\n"
+            . "Rispondi SOLO con un oggetto JSON chiave-valore dove la chiave è il tag originale esatto (minuscolo) e il valore è il tag normalizzato.\n"
+            . 'Esempio: {"ricette":"Cucina", "food":"Cucina", "viaggi":"Viaggi", "ai":"Intelligenza Artificiale"}';
+
+        try {
+            $text = self::gemini([['text' => $prompt]], [
+                'responseMimeType' => 'application/json',
+                'maxOutputTokens'  => 4096,
+            ]);
+            $text = preg_replace('/```json|```/', '', trim($text));
+            $mapping = json_decode($text, true);
+            return is_array($mapping) ? $mapping : [];
+        } catch (Throwable $e) {
+            return [];
+        }
+    }
 }
 
