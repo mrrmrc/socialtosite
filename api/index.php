@@ -57,9 +57,11 @@ if (in_array($action, ['login', 'register', 'site-public', 'debug-site', 'migrat
         try { DB::execute('ALTER TABLE social_connections ADD COLUMN auto_publish TINYINT DEFAULT 1'); } catch (Throwable $e) {}
         try { DB::execute('ALTER TABLE social_connections ADD COLUMN max_posts INT NULL'); } catch (Throwable $e) {}
         try { DB::execute('ALTER TABLE sites ADD COLUMN menu_links TEXT NULL'); } catch (Throwable $e) {}
+        try { DB::execute('ALTER TABLE sites ADD COLUMN cover_url TEXT NULL'); } catch (Throwable $e) {}
+        try { DB::execute('ALTER TABLE sites ADD COLUMN logo_url TEXT NULL'); } catch (Throwable $e) {}
+        try { DB::execute('ALTER TABLE sites ADD COLUMN footer_text TEXT NULL'); } catch (Throwable $e) {}
         try { DB::execute('ALTER TABLE sites ADD COLUMN accent_color VARCHAR(50) NULL'); } catch (Throwable $e) {}
         try { DB::execute('ALTER TABLE sites ADD COLUMN header_layout VARCHAR(50) NULL'); } catch (Throwable $e) {}
-        try { DB::execute('ALTER TABLE sites ADD COLUMN logo_url TEXT NULL'); } catch (Throwable $e) {}
         try { DB::execute('ALTER TABLE sites ADD COLUMN custom_css TEXT NULL'); } catch (Throwable $e) {}
         try { DB::execute('ALTER TABLE sites ADD COLUMN generated_layouts LONGTEXT NULL'); } catch (Throwable $e) {}
         try { DB::execute('ALTER TABLE sites ADD COLUMN site_ai_data LONGTEXT NULL'); } catch (Throwable $e) {}
@@ -343,12 +345,10 @@ if ($action === 'social-source-delete' && $method === 'POST') {
 
 if ($action === 'scan-sources' && $method === 'POST') {
     $b = body();
-    $limit = max(1, min(10, (int)($b['limit'] ?? 5)));
-    $profileSummary = trim($b['profile_summary'] ?? '');
-    $roleMission = trim($b['role_mission'] ?? '');
-    $contentStrategy = trim($b['content_strategy'] ?? '');
-    $report = Ingest::scanSources($userId, $limit, $profileSummary, $roleMission, $contentStrategy);
-    json(['ok' => true, 'report' => $report]);
+    $limit = $b['limit'] ?? 5;
+    $sourceId = !empty($b['source_id']) ? (int)$b['source_id'] : null;
+    $res = Ingest::scanSources($userId, $limit, $b['profile_summary'] ?? '', $b['role_mission'] ?? '', $b['content_strategy'] ?? '', $sourceId);
+    json(['ok' => true, 'report' => $res]);
 }
 
 // ── GET social/auth-url?platform=xxx ─────────────────────────────────────

@@ -550,23 +550,44 @@ function DashboardScreen({ token, user, onLogout }) {
   }
 
   async function scanSources() {
-    setScanning(true); setScanMsg({ ok: true, text: 'Acquisizione post dai social in corso...', loading: true });
-    try {
-      const res = await apiFetch('/api/index.php?action=scan-sources', {
-        method: 'POST',
-        body: JSON.stringify({
-          limit: parseInt(syncLimit) || 20,
-          profile_summary: profileDraft,
-          role_mission: roleMissionDraft,
-          content_strategy: strategyDraft
-        })
-      }, token);
-      const r = res.report;
-      setScanMsg({ ok: true, text: `Acquisizione completata. Avvio elaborazione AI in background...` });
-      await processPendingLoop(true);
-    } catch (err) {
-      setScanMsg({ ok: false, text: err.message });
+    if (!sources || sources.length === 0) {
+      alert("Nessuna fonte social attiva. Aggiungine una prima di scansionare.");
+      return;
     }
+    setScanning(true); 
+    setScanMsg({ ok: true, text: 'Inizio acquisizione...', loading: true });
+    
+    let totalImported = 0;
+    let totalFound = 0;
+    let totalDuplicates = 0;
+    let totalErrors = 0;
+
+    for (let i = 0; i < sources.length; i++) {
+      const source = sources[i];
+      setScanMsg({ ok: true, text: `Acquisizione post da ${source.label || source.platform} in corso... (${i+1}/${sources.length})`, loading: true });
+      try {
+        const res = await apiFetch('/api/index.php?action=scan-sources', {
+          method: 'POST',
+          body: JSON.stringify({
+            source_id: source.id,
+            limit: parseInt(syncLimit) || 20,
+            profile_summary: profileDraft,
+            role_mission: roleMissionDraft,
+            content_strategy: strategyDraft
+          })
+        }, token);
+        const r = res.report;
+        totalImported += (r.imported || 0);
+        totalFound += (r.found || 0);
+        totalDuplicates += (r.duplicates || 0);
+      } catch (err) {
+        console.error("Errore scansione " + source.platform, err);
+        totalErrors++;
+      }
+    }
+    
+    setScanMsg({ ok: true, text: `Acquisizione completata: trovati ${totalFound}, salvati ${totalImported} (duplicati: ${totalDuplicates}). Avvio elaborazione AI in background...` });
+    await processPendingLoop(true);
     setScanning(false);
   }
 

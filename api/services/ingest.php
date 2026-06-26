@@ -205,12 +205,17 @@ class Ingest {
         return ['id' => $postId, 'seo' => $seo];
     }
 
-    public static function scanSources(int $userId, int $limitPerSource = 5, string $profileOverride = '', string $roleMission = '', string $contentStrategy = ''): array {
-        $sources = DB::fetchAll(
-            'SELECT * FROM social_sources WHERE user_id=? AND active=1 ORDER BY platform, id',
-            [$userId]
-        );
-        if (!$sources) throw new Exception('Inserisci almeno un link social prima della scansione');
+    public static function scanSources(int $userId, int $limitPerSource = 5, string $profileOverride = '', string $roleMission = '', string $contentStrategy = '', ?int $sourceId = null): array {
+        $sql = 'SELECT * FROM social_sources WHERE user_id=? AND active=1';
+        $params = [$userId];
+        if ($sourceId) {
+            $sql .= ' AND id=?';
+            $params[] = $sourceId;
+        }
+        $sql .= ' ORDER BY platform, id';
+        
+        $sources = DB::fetchAll($sql, $params);
+        if (!$sources && !$sourceId) throw new Exception('Inserisci almeno un link social prima della scansione');
 
         $profileOverride = trim($profileOverride);
         $roleMission = trim($roleMission);
