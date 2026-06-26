@@ -58,30 +58,23 @@ class Sync {
         return true;
     }
 
-    // ── Processa un contenuto: trascrive se video, genera SEO ─────────────
+    // ── Processa un contenuto: salva bozza per AI ─────────────
     private static function process(int $userId, string $platform, string $postId, string $text, string $mediaUrl, string $mediaType, string $publishedAt, int $autoPublish = 1): bool {
         if (!trim($text) && !$mediaUrl) return false;
-        $transcript = '';
-        if ($mediaUrl && strtoupper($mediaType) === 'VIDEO') {
-            if ($platform === 'youtube') {
-                $transcript = AI::transcribeYouTube($mediaUrl);
-            } else {
-                $transcript = AI::transcribeUrl($mediaUrl);
-            }
-        }
 
-        $raw  = $transcript ?: $text;
-        $seo  = strlen($raw) > 30
-            ? AI::generateSeo($raw, $platform, $text)
-            : ['title' => mb_substr($text, 0, 60), 'body' => $text,
-               'excerpt' => mb_substr($text, 0, 155), 'tags' => [],
-               'meta_description' => mb_substr($text, 0, 155), 'seo_score' => 40];
-
-        $seo['raw_content'] = $text;
-        $seo['transcript'] = $transcript;
-        $seo['media_url'] = $mediaUrl;
-        $seo['media_type'] = $mediaType;
-        $seo['published_at'] = $publishedAt;
+        $seo = [
+            'raw_content' => $text,
+            'transcript' => '',
+            'media_url' => $mediaUrl,
+            'media_type' => $mediaType,
+            'published_at' => $publishedAt,
+            'title' => '',
+            'body' => '',
+            'excerpt' => '',
+            'tags' => [],
+            'meta_description' => '',
+            'seo_score' => -1 // Indica che è in attesa di elaborazione AI
+        ];
 
         return self::upsert($userId, $platform, $postId, $seo, $autoPublish);
     }

@@ -65,8 +65,8 @@ class Ingest {
         $mediaType  = 'text';
 
         if ($platform === 'youtube') {
-            // Gemini trascrive direttamente dal link; il video resta su YouTube (embed).
-            $transcript = AI::transcribeYouTube($url);
+            // Trascrizione posticipata all'elaborazione in background
+            $transcript = '';
             $mediaUrl   = $url;
             $mediaType  = 'video';
         } elseif ($platform === 'website') {
@@ -95,32 +95,8 @@ class Ingest {
                 if ($saved) {
                     $mediaUrl  = $saved['url'];
                     $mediaType = 'video';
-                    
-                    // 1) Trascrivi con Gemini (sempre disponibile, gestisce file inline)
-                    if ($saved['size'] <= 15 * 1024 * 1024) {
-                        try {
-                            $transcript = AI::transcribeFile($saved['path'], 'video/mp4');
-                        } catch (Throwable $e) {
-                            $transcript = '';
-                        }
-                    }
-                    
-                    // 2) Fallback: Whisper (solo se OPENAI_API_KEY è definita)
-                    if (!$transcript && defined('OPENAI_API_KEY') && OPENAI_API_KEY) {
-                        $ch = curl_init('https://api.openai.com/v1/audio/transcriptions');
-                        $cfile = new CURLFile($saved['path'], 'video/mp4', 'audio.mp4');
-                        curl_setopt_array($ch, [
-                            CURLOPT_RETURNTRANSFER => true,
-                            CURLOPT_POST           => true,
-                            CURLOPT_HTTPHEADER     => ['Authorization: Bearer ' . OPENAI_API_KEY],
-                            CURLOPT_POSTFIELDS     => ['file' => $cfile, 'model' => 'whisper-1', 'language' => 'it'],
-                            CURLOPT_TIMEOUT        => 120,
-                        ]);
-                        $res = curl_exec($ch);
-                        curl_close($ch);
-                        $data = json_decode((string)$res, true);
-                        $transcript = $data['text'] ?? '';
-                    }
+                    // Trascrizione posticipata all'elaborazione in background
+                    $transcript = '';
                 }
             } elseif (!empty($r['image'])) {
                 $saved = self::saveMedia($r['image'], $platform, $postId, 'jpg');
@@ -129,8 +105,8 @@ class Ingest {
         }
 
         $raw = $transcript ?: $caption;
-        if (!$raw) {
-            throw new Exception('Nessun testo estratto: il link potrebbe non essere un contenuto pubblico, o senza parlato/didascalia');
+        if (!$raw && !$mediaUrl) {
+            throw new Exception('Nessun testo estratto e nessun media trovato.');
         }
         $contentHash = self::contentHash($raw);
         $hashExists = DB::fetch('SELECT id FROM posts WHERE user_id=? AND content_hash=?', [$userId, $contentHash]);
@@ -141,8 +117,8 @@ class Ingest {
         $id = DB::insert('
             INSERT INTO posts
               (user_id, platform, platform_post_id, raw_content, transcript,
-               media_url, media_type, source_url, published_at, content_hash, published)
-            VALUES (?,?,?,?,?,?,?,?,?,?,0)
+               media_url, media_type, source_url, published_at, content_hash, seo_score, published)
+            VALUES (?,?,?,?,?,?,?,?,?,?,-1,0)
         ', [
             $userId, $platform, $postId,
             $caption, $transcript,

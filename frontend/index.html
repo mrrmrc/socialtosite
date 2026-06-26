@@ -357,6 +357,7 @@ function DashboardScreen({ token, user, onLogout }) {
   const [sourceForm, setSourceForm] = useState({ label: '', url: '', platform: '' });
   const [sourceMsg, setSourceMsg] = useState(null);
   const [scanMsg, setScanMsg] = useState(null);
+  const [syncMsg, setSyncMsg] = useState(null);
   const [scanning, setScanning] = useState(false);
   const [profileDraft, setProfileDraft] = useState('');
   const [roleMissionDraft, setRoleMissionDraft] = useState('');
@@ -445,15 +446,50 @@ function DashboardScreen({ token, user, onLogout }) {
     setHarmonizingId(0);
   }
 
+  // Funzione helper per elaborare la coda
+  async function processPendingLoop(isScan = false) {
+    try {
+      const pending = await apiFetch('/api/index.php?action=pending-posts', {}, token);
+      if (!pending || pending.length === 0) return;
+
+      for (let i = 0; i < pending.length; i++) {
+        const post = pending[i];
+        const msg = `Elaborazione AI post ${i+1} di ${pending.length}... (${post.platform})`;
+        if (isScan) setScanMsg({ ok: true, text: msg, loading: true });
+        else setSyncMsg({ ok: true, text: msg, loading: true });
+
+        try {
+          await apiFetch('/api/index.php?action=process-pending', {
+            method: 'POST',
+            body: JSON.stringify({ id: post.id })
+          }, token);
+        } catch (e) {
+          console.error("Errore post", post.id, e);
+        }
+      }
+      
+      const finalMsg = `Elaborazione di ${pending.length} post completata.`;
+      if (isScan) setScanMsg({ ok: true, text: finalMsg });
+      else setSyncMsg({ ok: true, text: finalMsg });
+      
+      await loadDrafts();
+      await loadData();
+    } catch (e) {
+      console.error(e);
+    }
+  }
+
   async function syncNow() {
-    setSyncing(true);
+    setSyncing(true); setSyncMsg({ ok: true, text: 'Acquisizione post in corso...', loading: true });
     try {
       await apiFetch('/api/index.php?action=sync', { 
         method: 'POST', 
         body: JSON.stringify({ limit: parseInt(syncLimit) || 20 }) 
       }, token);
-      await loadData();
-    } catch {}
+      await processPendingLoop(false);
+    } catch (e) {
+      setSyncMsg({ ok: false, text: e.message });
+    }
     setSyncing(false);
   }
 
@@ -514,7 +550,7 @@ function DashboardScreen({ token, user, onLogout }) {
   }
 
   async function scanSources() {
-    setScanning(true); setScanMsg(null);
+    setScanning(true); setScanMsg({ ok: true, text: 'Acquisizione post dai social in corso...', loading: true });
     try {
       const res = await apiFetch('/api/index.php?action=scan-sources', {
         method: 'POST',
@@ -526,9 +562,8 @@ function DashboardScreen({ token, user, onLogout }) {
         })
       }, token);
       const r = res.report;
-      setScanMsg({ ok: true, text: `Scansione completata: ${r.published} post pubblicati, ${r.skipped || 0} scartati dall'agente, ${r.duplicates} duplicati.` });
-      await loadDrafts();
-      await loadData();
+      setScanMsg({ ok: true, text: `Acquisizione completata. Avvio elaborazione AI in background...` });
+      await processPendingLoop(true);
     } catch (err) {
       setScanMsg({ ok: false, text: err.message });
     }
@@ -756,6 +791,15 @@ function DashboardScreen({ token, user, onLogout }) {
               <a href={siteUrl} target="_blank" rel="noopener" style={{ background: 'rgba(255,255,255,0.2)', color: '#fff', padding: '7px 16px', borderRadius: 'var(--radius-sm)', fontSize: '13px', fontWeight: 600, textDecoration: 'none' }}>🌍 Vedi sito</a>
               <button onClick={() => setSiteAiResult(null)} style={{ background: 'transparent', color: 'rgba(255,255,255,0.6)', border: 'none', cursor: 'pointer', fontSize: '18px' }}>✕</button>
             </div>
+          </div>
+        )}
+        {syncMsg && (
+          <div style={{ marginBottom: '1rem', padding: '12px 16px', borderRadius: 'var(--radius-sm)', fontSize: '14px',
+            background: syncMsg.ok ? (syncMsg.loading ? 'var(--blue-light)' : 'var(--teal-light)') : 'var(--red-light)',
+            color: syncMsg.ok ? (syncMsg.loading ? '#1E40AF' : '#0F6E56') : 'var(--red)',
+            display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div>{syncMsg.loading && <span style={{display:'inline-block', marginRight:'8px'}}>⟳</span>}{syncMsg.text}</div>
+            {!syncMsg.loading && <button onClick={() => setSyncMsg(null)} style={{background:'none', border:'none', cursor:'pointer', fontSize:'16px'}}>✕</button>}
           </div>
         )}
         {/* Stats */}
@@ -1325,11 +1369,39 @@ function DashboardScreen({ token, user, onLogout }) {
 function AdminScreen({ token, currentUser, adminPrompts, updatePrompt }) {
   const [adminTab, setAdminTab] = useState('users');
   const [users, setUsers] = useState([]);
+  const [logs, setLogs] = useState([]);
+  const [processes, setProcesses] = useState([]);
   const [form, setForm] = useState({ name: '', email: '', password: '', role: 'user' });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  useEffect(() => { loadUsers(); }, []);
+  useEffect(() => { 
+    if (adminTab === 'users') loadUsers(); 
+    if (adminTab === 'logs') loadLogs();
+    if (adminTab === 'processes') loadProcesses();
+  }, [adminTab]);
+
+  async function loadLogs() {
+    try {
+      const data = await apiFetch('/api/index.php?action=admin-logs', {}, token);
+      setLogs(data.logs || []);
+    } catch (e) { setError(e.message); }
+  }
+
+  async function loadProcesses() {
+    try {
+      const data = await apiFetch('/api/index.php?action=admin-processes', {}, token);
+      setProcesses(data.processes || []);
+    } catch (e) { setError(e.message); }
+  }
+
+  async function killProcess(id) {
+    if (!confirm('Eliminare questo processo in coda?')) return;
+    try {
+      await apiFetch('/api/index.php?action=admin-kill-process', { method: 'POST', body: JSON.stringify({id}) }, token);
+      await loadProcesses();
+    } catch (e) { setError(e.message); }
+  }
 
   async function loadUsers() {
     try {
@@ -1387,8 +1459,10 @@ function AdminScreen({ token, currentUser, adminPrompts, updatePrompt }) {
     <div>
       <div style={{ display: 'flex', gap: '8px', marginBottom: '1rem', flexWrap: 'wrap' }}>
         <button className={`btn ${adminTab === 'users' ? 'btn-primary' : 'btn-outline'}`} onClick={() => setAdminTab('users')}>👤 Gestione Utenti</button>
-        <button className={`btn ${adminTab === 'agents' ? 'btn-primary' : 'btn-outline'}`} onClick={() => setAdminTab('agents')}>🤖 Agenti Editoriali Utenti</button>
-        <button className={`btn ${adminTab === 'prompts' ? 'btn-primary' : 'btn-outline'}`} onClick={() => setAdminTab('prompts')}>⚙️ Istruzioni Sistema (Prompt)</button>
+        <button className={`btn ${adminTab === 'agents' ? 'btn-primary' : 'btn-outline'}`} onClick={() => setAdminTab('agents')}>🤖 Agenti Editoriali</button>
+        <button className={`btn ${adminTab === 'prompts' ? 'btn-primary' : 'btn-outline'}`} onClick={() => setAdminTab('prompts')}>⚙️ Istruzioni AI</button>
+        <button className={`btn ${adminTab === 'processes' ? 'btn-primary' : 'btn-outline'}`} onClick={() => setAdminTab('processes')}>⏳ Processi Attivi</button>
+        <button className={`btn ${adminTab === 'logs' ? 'btn-primary' : 'btn-outline'}`} onClick={() => setAdminTab('logs')}>📜 Log di Sistema</button>
       </div>
 
       {adminTab === 'users' && (
@@ -1507,6 +1581,70 @@ function AdminScreen({ token, currentUser, adminPrompts, updatePrompt }) {
         {adminPrompts.length === 0 && (
           <p style={{ color: 'var(--text-muted)', fontSize: '13px' }}>Nessun agente trovato. Visita <code>/api/index.php?action=migrate</code> per inizializzare.</p>
         )}
+      </div>
+      )}
+
+      {adminTab === 'processes' && (
+      <div className="card">
+        <h3 style={{ marginBottom: '1rem' }}>Processi in Coda (AI Pendente)</h3>
+        {processes.length === 0 ? (
+          <p style={{ color: 'var(--text-muted)', fontSize: '13px' }}>Nessun post in attesa di elaborazione AI.</p>
+        ) : (
+          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
+            <thead>
+              <tr style={{ borderBottom: '1px solid var(--border)', background: 'var(--gray-light)' }}>
+                <th style={{ padding: '8px' }}>ID</th>
+                <th style={{ padding: '8px' }}>Utente</th>
+                <th style={{ padding: '8px' }}>Platform</th>
+                <th style={{ padding: '8px' }}>Link</th>
+                <th style={{ padding: '8px' }}>Azione</th>
+              </tr>
+            </thead>
+            <tbody>
+              {processes.map(p => (
+                <tr key={p.id} style={{ borderBottom: '1px solid var(--border)' }}>
+                  <td style={{ padding: '8px' }}>#{p.id}</td>
+                  <td style={{ padding: '8px' }}>{p.name || p.email}</td>
+                  <td style={{ padding: '8px' }}>{p.platform}</td>
+                  <td style={{ padding: '8px' }}><a href={p.source_url} target="_blank" rel="noopener">Link</a></td>
+                  <td style={{ padding: '8px' }}>
+                    <button className="btn btn-outline" onClick={() => killProcess(p.id)} style={{ color: 'var(--red)', borderColor: 'var(--red-light)', padding: '4px 8px', fontSize: '12px' }}>Stoppa / Elimina</button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+      )}
+
+      {adminTab === 'logs' && (
+      <div className="card">
+        <h3 style={{ marginBottom: '1rem' }}>Log Sincronizzazione (Cron)</h3>
+        <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
+          <thead>
+            <tr style={{ borderBottom: '1px solid var(--border)', background: 'var(--gray-light)' }}>
+              <th style={{ padding: '8px' }}>Data</th>
+              <th style={{ padding: '8px' }}>Utente</th>
+              <th style={{ padding: '8px' }}>Platform</th>
+              <th style={{ padding: '8px' }}>Stato</th>
+              <th style={{ padding: '8px' }}>Nuovi</th>
+              <th style={{ padding: '8px' }}>Errore</th>
+            </tr>
+          </thead>
+          <tbody>
+            {logs.map(l => (
+              <tr key={l.id} style={{ borderBottom: '1px solid var(--border)' }}>
+                <td style={{ padding: '8px', whiteSpace: 'nowrap' }}>{l.ran_at}</td>
+                <td style={{ padding: '8px' }}>{l.email}</td>
+                <td style={{ padding: '8px' }}>{l.platform}</td>
+                <td style={{ padding: '8px' }}><span className={`badge ${l.status==='ok'?'badge-green':'badge-red'}`}>{l.status}</span></td>
+                <td style={{ padding: '8px' }}>{l.posts_new}</td>
+                <td style={{ padding: '8px', color: 'var(--red)', maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={l.error}>{l.error}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
       )}
     </div>

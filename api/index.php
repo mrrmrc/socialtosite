@@ -721,4 +721,94 @@ if ($action === 'drafts' && $method === 'GET') {
     json($drafts);
 }
 
+// ── GET pending-posts: post in coda per elaborazione AI ───────────────────
+if ($action === 'pending-posts' && $method === 'GET') {
+    $pending = DB::fetchAll(
+        'SELECT id, platform, source_url, published_at FROM posts WHERE user_id=? AND seo_score=-1 ORDER BY id ASC',
+        [$userId]
+    );
+    json($pending);
+}
+
+// ── POST process-pending: elabora un singolo post in coda ─────────────────
+if ($action === 'process-pending' && $method === 'POST') {
+    $b = body();
+    $postId = (int)($b['id'] ?? 0);
+    if (!$postId) jsonError('ID mancante');
+    
+    // Controlla che il post esista e sia pendente
+    $post = DB::fetch('SELECT id, platform, media_url, media_type, raw_content, source_url FROM posts WHERE id=? AND user_id=? AND seo_score=-1', [$postId, $userId]);
+    if (!$post) {
+        json(['ok' => false, 'message' => 'Post non trovato o gia elaborato']);
+    }
+
+    try {
+        require_once __DIR__ . '/services/ai.php';
+        
+        // 1. Trascrizione eventuale se video
+        $transcript = '';
+        if (!empty($post['media_url']) && strtoupper($post['media_type']) === 'VIDEO') {
+            if ($post['platform'] === 'youtube') {
+                $transcript = AI::transcribeYouTube($post['media_url'] ?: $post['source_url']);
+            } else {
+                // Trascrive dal file locale se salvato, altrimenti url
+                $parsedUrl = parse_url($post['media_url']);
+                $path = __DIR__ . '/../../' . ltrim($parsedUrl['path'], '/');
+                if (file_exists($path)) {
+                    $transcript = AI::transcribeFile($path, 'video/mp4');
+                } else {
+                    $transcript = AI::transcribeUrl($post['media_url']);
+                }
+            }
+        }
+        
+        $raw = trim($transcript ?: ($post['raw_content'] ?? ''));
+        if ($raw) {
+            // Aggiorna trascrizione prima di passare ad armonizza
+            DB::execute('UPDATE posts SET transcript=? WHERE id=?', [$transcript, $postId]);
+            
+            // 2. Armonizza (genera SEO)
+            $res = Ingest::harmonize($userId, $postId);
+            json(['ok' => true, 'id' => $postId, 'seo' => $res['seo']]);
+        } else {
+            // Elimina post non validi o ignorati (es. solo immagini senza didascalia)
+            DB::execute('DELETE FROM posts WHERE id=?', [$postId]);
+            json(['ok' => false, 'message' => 'Nessun testo estraibile. Post saltato.']);
+        }
+    } catch (Throwable $e) {
+        // Se errore AI, mantienilo in coda o segnalalo
+        DB::execute('UPDATE posts SET agent_notes=? WHERE id=?', ['Errore: ' . $e->getMessage(), $postId]);
+        jsonError('Errore processing: ' . $e->getMessage());
+    }
+}
+
+// ── ADMIN: GET admin-processes (tutti i post in coda) ─────────────────────
+if ($action === 'admin-processes' && $method === 'GET') {
+    requireAdmin($isAdmin);
+    $pending = DB::fetchAll(
+        'SELECT p.id, p.platform, p.source_url, p.imported_at, u.email, u.name 
+         FROM posts p JOIN users u ON p.user_id = u.id 
+         WHERE p.seo_score=-1 ORDER BY p.imported_at ASC'
+    );
+    json(['processes' => $pending]);
+}
+
+// ── ADMIN: POST admin-kill-process ────────────────────────────────────────
+if ($action === 'admin-kill-process' && $method === 'POST') {
+    requireAdmin($isAdmin);
+    $b = body();
+    $id = (int)($b['id'] ?? 0);
+    DB::execute('DELETE FROM posts WHERE id=? AND seo_score=-1', [$id]);
+    json(['ok' => true]);
+}
+
+// ── ADMIN: GET admin-logs (sync_log table) ────────────────────────────────
+if ($action === 'admin-logs' && $method === 'GET') {
+    requireAdmin($isAdmin);
+    $logs = DB::fetchAll(
+        'SELECT l.*, u.email FROM sync_log l LEFT JOIN users u ON l.user_id = u.id ORDER BY l.ran_at DESC LIMIT 100'
+    );
+    json(['logs' => $logs]);
+}
+
 jsonError('Endpoint non trovato', 404);
