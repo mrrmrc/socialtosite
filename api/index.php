@@ -534,8 +534,8 @@ if ($action === 'site-update' && $method === 'POST') {
 if ($action === 'design-site' && $method === 'POST') {
     try {
         require_once __DIR__ . '/services/ai.php';
-        $site = DB::fetch('SELECT profile_summary, role_mission, content_strategy FROM sites WHERE user_id=?', [$userId]);
-        $summary = trim($site['profile_summary'] ?? '');
+        $site = DB::fetch('SELECT profile_summary, bio, role_mission, content_strategy FROM sites WHERE user_id=?', [$userId]);
+        $summary = trim($site['profile_summary'] ?? $site['bio'] ?? '');
         $role    = trim($site['role_mission'] ?? '');
         $strategy = trim($site['content_strategy'] ?? '');
         if (!$summary) jsonError('Il profilo è vuoto. Fai prima una scansione dei social.');
