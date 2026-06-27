@@ -737,7 +737,7 @@ if ($action === 'process-pending' && $method === 'POST') {
     if (!$postId) jsonError('ID mancante');
     
     // Controlla che il post esista e sia pendente
-    $post = DB::fetch('SELECT id, platform, media_url, media_type, raw_content, source_url FROM posts WHERE id=? AND user_id=? AND seo_score=-1', [$postId, $userId]);
+    $post = DB::fetch('SELECT id, platform, media_url, media_type, raw_content, source_url, transcript FROM posts WHERE id=? AND user_id=? AND seo_score=-1', [$postId, $userId]);
     if (!$post) {
         json(['ok' => false, 'message' => 'Post non trovato o gia elaborato']);
     }
@@ -746,18 +746,24 @@ if ($action === 'process-pending' && $method === 'POST') {
         require_once __DIR__ . '/services/ai.php';
         
         // 1. Trascrizione eventuale se video
-        $transcript = '';
-        if (!empty($post['media_url']) && strtoupper($post['media_type']) === 'VIDEO') {
-            if ($post['platform'] === 'youtube') {
-                $transcript = AI::transcribeYouTube($post['media_url'] ?: $post['source_url']);
+        $transcript = trim($post['transcript'] ?? '');
+        if (!$transcript && !empty($post['media_url']) && strtoupper($post['media_type']) === 'VIDEO') {
+            // Verifica cache nel database
+            $cache = DB::fetch('SELECT transcript FROM posts WHERE (source_url=? OR media_url=?) AND transcript IS NOT NULL AND transcript != "" LIMIT 1', [$post['source_url'], $post['media_url']]);
+            if ($cache) {
+                $transcript = $cache['transcript'];
             } else {
-                // Trascrive dal file locale se salvato, altrimenti url
-                $parsedUrl = parse_url($post['media_url']);
-                $path = __DIR__ . '/../../' . ltrim($parsedUrl['path'], '/');
-                if (file_exists($path)) {
-                    $transcript = AI::transcribeFile($path, 'video/mp4');
+                if ($post['platform'] === 'youtube') {
+                    $transcript = AI::transcribeYouTube($post['media_url'] ?: $post['source_url']);
                 } else {
-                    $transcript = AI::transcribeUrl($post['media_url']);
+                    // Trascrive dal file locale se salvato, altrimenti url
+                    $parsedUrl = parse_url($post['media_url']);
+                    $path = __DIR__ . '/../../' . ltrim($parsedUrl['path'], '/');
+                    if (file_exists($path)) {
+                        $transcript = AI::transcribeFile($path, 'video/mp4');
+                    } else {
+                        $transcript = AI::transcribeUrl($post['media_url']);
+                    }
                 }
             }
         }

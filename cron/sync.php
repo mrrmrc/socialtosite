@@ -37,20 +37,25 @@ foreach ($users as $row) {
                 echo "    [" . ($idx+1) . "/" . count($pending) . "] Elaborazione post #{$p['id']}... ";
                 $postId = $p['id'];
                 try {
-                    $post = DB::fetch('SELECT media_url, media_type, raw_content, source_url, platform FROM posts WHERE id=?', [$postId]);
+                    $post = DB::fetch('SELECT media_url, media_type, raw_content, source_url, platform, transcript FROM posts WHERE id=?', [$postId]);
                     if (!$post) continue;
                     
-                    $transcript = '';
-                    if (!empty($post['media_url']) && strtoupper($post['media_type']) === 'VIDEO') {
-                        if ($post['platform'] === 'youtube') {
-                            $transcript = AI::transcribeYouTube($post['media_url'] ?: $post['source_url']);
+                    $transcript = trim($post['transcript'] ?? '');
+                    if (!$transcript && !empty($post['media_url']) && strtoupper($post['media_type']) === 'VIDEO') {
+                        $cache = DB::fetch('SELECT transcript FROM posts WHERE (source_url=? OR media_url=?) AND transcript IS NOT NULL AND transcript != "" LIMIT 1', [$post['source_url'], $post['media_url']]);
+                        if ($cache) {
+                            $transcript = $cache['transcript'];
                         } else {
-                            $parsedUrl = parse_url($post['media_url']);
-                            $path = __DIR__ . '/../' . ltrim($parsedUrl['path'], '/');
-                            if (file_exists($path)) {
-                                $transcript = AI::transcribeFile($path, 'video/mp4');
+                            if ($post['platform'] === 'youtube') {
+                                $transcript = AI::transcribeYouTube($post['media_url'] ?: $post['source_url']);
                             } else {
-                                $transcript = AI::transcribeUrl($post['media_url']);
+                                $parsedUrl = parse_url($post['media_url']);
+                                $path = __DIR__ . '/../' . ltrim($parsedUrl['path'], '/');
+                                if (file_exists($path)) {
+                                    $transcript = AI::transcribeFile($path, 'video/mp4');
+                                } else {
+                                    $transcript = AI::transcribeUrl($post['media_url']);
+                                }
                             }
                         }
                     }

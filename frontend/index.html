@@ -375,6 +375,9 @@ function DashboardScreen({ token, user, onLogout }) {
   const [menuLinksStr, setMenuLinksStr] = useState('');
   const [footerText, setFooterText] = useState('');
 
+  const [editingPost, setEditingPost] = useState(null);
+  const [cmsSaving, setCmsSaving] = useState(false);
+
   useEffect(() => { loadData(); loadDrafts(); }, []);
 
   async function loadData() {
@@ -411,6 +414,29 @@ function DashboardScreen({ token, user, onLogout }) {
     } catch {}
   }
 
+  async function savePostEdit() {
+    if (!editingPost) return;
+    setCmsSaving(true);
+    try {
+      const tagsArray = editingPost.tags.split(',').map(t => t.trim()).filter(Boolean);
+      await apiFetch('/api/index.php?action=post-update', {
+        method: 'POST',
+        body: JSON.stringify({
+          id: editingPost.id,
+          edited_title: editingPost.title,
+          edited_body: editingPost.body,
+          edited_excerpt: editingPost.excerpt,
+          tags: tagsArray
+        })
+      }, token);
+      setEditingPost(null);
+      await loadData();
+    } catch (e) {
+      alert('Errore salvataggio: ' + e.message);
+    }
+    setCmsSaving(false);
+  }
+
   // AGENTE 1 — Ingestione: importa e trascrive da link
   async function doImport(e) {
     e.preventDefault();
@@ -422,10 +448,13 @@ function DashboardScreen({ token, user, onLogout }) {
       if (r.duplicate) {
         setImportMsg({ ok: true, text: 'Questo contenuto era già stato importato.' });
       } else {
-        setImportMsg({ ok: true, text: 'Trascrizione completata! Ora puoi armonizzarla.' });
+        setImportMsg({ ok: true, text: 'Acquisizione completata! Elaborazione AI in corso...' });
+        // Avvia elaborazione in background automaticamente
+        processPendingLoop(true);
       }
       setLinkUrl('');
       await loadDrafts();
+      await loadData();
     } catch (err) {
       setImportMsg({ ok: false, text: err.message });
     }
@@ -1132,7 +1161,8 @@ function DashboardScreen({ token, user, onLogout }) {
                               <input type="checkbox" checked={post.published == 1} onChange={() => togglePublishPost(post.id, post.published)} />
                               {post.published == 1 ? 'Pubblicato' : 'Bozza'}
                             </label>
-                            <button onClick={() => deletePost(post.id)} style={{ background: 'none', border: 'none', color: 'var(--red)', fontSize: '16px', cursor: 'pointer', padding: '4px' }} title="Elimina definitivamente">🗑️ Elimina</button>
+                            <button onClick={() => setEditingPost({id: post.id, title: post.generated_title || '', body: post.edited_body || post.generated_body || '', excerpt: post.generated_excerpt || '', tags: (post.tags || []).join(', ')})} style={{ background: 'none', border: 'none', color: 'var(--purple)', fontSize: '14px', cursor: 'pointer', padding: '4px' }} title="Modifica post">✏️ Modifica</button>
+                            <button onClick={() => deletePost(post.id)} style={{ background: 'none', border: 'none', color: 'var(--red)', fontSize: '14px', cursor: 'pointer', padding: '4px' }} title="Elimina definitivamente">🗑️ Elimina</button>
                           </div>
                         </td>
                       </tr>
@@ -1160,12 +1190,35 @@ function DashboardScreen({ token, user, onLogout }) {
                   {(site?.seo_score || 0) >= 80 ? '🟢 Ottimo' : (site?.seo_score || 0) >= 60 ? '🟡 Buono' : '🔴 Da migliorare'}
                 </h3>
                 <p style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
-                  Basato su {posts.length} contenuti importati. Google potrà trovare il tuo sito.
-                </p>
-              </div>
-            </div>
-
-            <div className="card">
+                     <h2 style={{ marginBottom: '1rem' }}>Bozze in lavorazione</h2>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  {drafts.map(d => (
+                    <div key={d.id} className="card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                        <SocialIcon platform={d.platform} />
+                        <div>
+                          <a href={d.source_url} target="_blank" rel="noreferrer" style={{ fontWeight: 500, color: 'var(--text)', textDecoration: 'none' }}>
+                            {d.source_url}
+                          </a>
+                          <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+                            Importato il {d.published_at.substring(0, 10)}
+                          </div>
+                        </div>
+                      </div>
+                      <div>
+                        {harmonizingId === d.id ? (
+                          <span style={{ fontSize: '13px', color: 'var(--purple)', fontWeight: 500 }}>
+                            ⟳ Elaborazione AI...
+                          </span>
+                        ) : (
+                          <span className="badge badge-amber" style={{ fontSize: '13px' }}>
+                            ⟳ In coda AI...
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>       <div className="card">
               <h3 style={{ marginBottom: '1rem' }}>Cosa l'AI ha fatto per il tuo SEO</h3>
               {[
                 ['✓', 'Trascrizione audio/video con Whisper — i tuoi video ora sono testo leggibile da Google', 'var(--teal)'],
@@ -1381,6 +1434,37 @@ function DashboardScreen({ token, user, onLogout }) {
 
         {tab === 'admin' && user.role === 'admin' && (
           <AdminScreen token={token} currentUser={user} adminPrompts={adminPrompts} updatePrompt={updatePrompt} />
+        )}
+
+        {/* Modal Modifica Post */}
+        {editingPost && (
+          <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+            <div className="card" style={{ width: '100%', maxWidth: '600px', maxHeight: '90vh', overflowY: 'auto', background: 'var(--surface)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem' }}>
+                <h2>Modifica Post</h2>
+                <button onClick={() => setEditingPost(null)} style={{ background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer' }}>✕</button>
+              </div>
+              <div className="form-group">
+                <label className="label">Titolo SEO</label>
+                <input type="text" value={editingPost.title} onChange={e => setEditingPost({...editingPost, title: e.target.value})} />
+              </div>
+              <div className="form-group">
+                <label className="label">Riassunto (Excerpt)</label>
+                <textarea value={editingPost.excerpt} onChange={e => setEditingPost({...editingPost, excerpt: e.target.value})} style={{ width: '100%', minHeight: '60px', padding: '10px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', fontFamily: 'inherit', resize: 'vertical' }} />
+              </div>
+              <div className="form-group">
+                <label className="label">Corpo dell'articolo</label>
+                <textarea value={editingPost.body} onChange={e => setEditingPost({...editingPost, body: e.target.value})} style={{ width: '100%', minHeight: '200px', padding: '10px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', fontFamily: 'inherit', resize: 'vertical' }} />
+              </div>
+              <div className="form-group">
+                <label className="label">Tag (separati da virgola)</label>
+                <input type="text" value={editingPost.tags} onChange={e => setEditingPost({...editingPost, tags: e.target.value})} placeholder="tag1, tag2, tag3" />
+              </div>
+              <button className="btn btn-primary btn-full" onClick={savePostEdit} disabled={cmsSaving}>
+                {cmsSaving ? 'Salvataggio in corso...' : 'Salva Modifiche'}
+              </button>
+            </div>
+          </div>
         )}
       </div>
     </div>

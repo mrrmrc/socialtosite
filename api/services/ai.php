@@ -79,7 +79,8 @@ class AI {
 
         $prompt = "Sei un esperto SEO e copywriter italiano. Da questo contenuto"
             . ($platform ? " ($platform)" : '') . " genera un articolo pronto per un sito.\n"
-            . "Prima interpreta l'argomento del profilo e del contenuto, poi crea un post leggibile, accurato, non inventato e utile per un sito HTML.\n"
+            . "IMPORTANTE: Se il contenuto originale contiene umorismo, sarcasmo, barzellette o sketch comici, PRESERVA ASSOLUTAMENTE LA COMICITA'. Non trasformare una barzelletta in un testo logico, mantieni l'effetto comico originale.\n"
+            . "Prima interpreta l'argomento del profilo e del contenuto, poi crea un post leggibile, accurato e utile per un sito HTML, rispettando sempre il tono originale.\n"
             . "$context\n$source\n\n"
             . "Rispondi SOLO con JSON valido con questa forma:\n"
             . '{"title":"Titolo SEO max 60 caratteri","body":"Articolo 200-400 parole, italiano naturale, paragrafi",'
