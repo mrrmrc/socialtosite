@@ -1176,35 +1176,44 @@ function DashboardScreen({ token, user, onLogout }) {
                   {(site?.seo_score || 0) >= 80 ? '🟢 Ottimo' : (site?.seo_score || 0) >= 60 ? '🟡 Buono' : '🔴 Da migliorare'}
                 </h3>
                 <p style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
-                     <h2 style={{ marginBottom: '1rem' }}>Bozze in lavorazione</h2>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                  {drafts.map(d => (
-                    <div key={d.id} className="card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                        <SocialIcon platform={d.platform} />
-                        <div>
-                          <a href={d.source_url} target="_blank" rel="noreferrer" style={{ fontWeight: 500, color: 'var(--text)', textDecoration: 'none' }}>
-                            {d.source_url}
-                          </a>
-                          <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-                            Importato il {d.published_at.substring(0, 10)}
-                          </div>
+                  Basato su {posts.length} contenuti importati. Google potrà trovare il tuo sito.
+                </p>
+              </div>
+            </div>
+
+            <div className="card" style={{ marginBottom: '1rem' }}>
+              <h2 style={{ marginBottom: '1rem' }}>Bozze in lavorazione</h2>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                {drafts.map(d => (
+                  <div key={d.id} className="card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                      <SocialIcon platform={d.platform} />
+                      <div>
+                        <a href={d.source_url} target="_blank" rel="noreferrer" style={{ fontWeight: 500, color: 'var(--text)', textDecoration: 'none' }}>
+                          {d.source_url}
+                        </a>
+                        <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+                          Importato il {d.published_at.substring(0, 10)}
                         </div>
                       </div>
-                      <div>
-                        {harmonizingId === d.id ? (
-                          <span style={{ fontSize: '13px', color: 'var(--purple)', fontWeight: 500 }}>
-                            ⟳ Elaborazione AI...
-                          </span>
-                        ) : (
-                          <span className="badge badge-amber" style={{ fontSize: '13px' }}>
-                            ⟳ In coda AI...
-                          </span>
-                        )}
-                      </div>
                     </div>
-                  ))}
-                </div>       <div className="card">
+                    <div>
+                      {harmonizingId === d.id ? (
+                        <span style={{ fontSize: '13px', color: 'var(--purple)', fontWeight: 500 }}>
+                          ⟳ Elaborazione AI...
+                        </span>
+                      ) : (
+                        <span className="badge badge-amber" style={{ fontSize: '13px' }}>
+                          ⟳ In coda AI...
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="card">
               <h3 style={{ marginBottom: '1rem' }}>Cosa l'AI ha fatto per il tuo SEO</h3>
               {[
                 ['✓', 'Trascrizione audio/video con Whisper — i tuoi video ora sono testo leggibile da Google', 'var(--teal)'],
