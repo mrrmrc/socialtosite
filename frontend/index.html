@@ -382,9 +382,6 @@ function DashboardScreen({ token, user, onLogout }) {
   const [menuLinksStr, setMenuLinksStr] = useState('');
   const [footerText, setFooterText] = useState('');
 
-  const [editingPost, setEditingPost] = useState(null);
-  const [cmsSaving, setCmsSaving] = useState(false);
-
   useEffect(() => { loadData(); loadDrafts(); }, []);
 
   async function loadData() {
@@ -419,29 +416,6 @@ function DashboardScreen({ token, user, onLogout }) {
       const d = await apiFetch('/api/index.php?action=drafts', {}, token);
       setDrafts(d || []);
     } catch {}
-  }
-
-  async function savePostEdit() {
-    if (!editingPost) return;
-    setCmsSaving(true);
-    try {
-      const tagsArray = editingPost.tags.split(',').map(t => t.trim()).filter(Boolean);
-      await apiFetch('/api/index.php?action=post-update', {
-        method: 'POST',
-        body: JSON.stringify({
-          id: editingPost.id,
-          edited_title: editingPost.title,
-          edited_body: editingPost.body,
-          edited_excerpt: editingPost.excerpt,
-          tags: tagsArray
-        })
-      }, token);
-      setEditingPost(null);
-      await loadData();
-    } catch (e) {
-      alert('Errore salvataggio: ' + e.message);
-    }
-    setCmsSaving(false);
   }
 
   // AGENTE 1 — Ingestione: importa e trascrive da link
