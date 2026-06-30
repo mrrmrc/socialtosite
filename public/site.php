@@ -480,11 +480,8 @@ $themeCSS = [
   @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600;700&family=Jost:wght@300;400;500&display=swap');
   body { font-family:'Jost',sans-serif; background:var(--bg); color:var(--text); }
   .navbar { background:var(--text); padding:1.25rem 2rem; display:flex; justify-content:space-between; align-items:center; }
-  .navbar { background: rgba(13,17,23,0.85); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border-bottom: 1px solid rgba(255,255,255,0.08); padding: 0.75rem 2rem; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100; }
-  .nav-brand { font-weight: 700; font-size: 1.2rem; color: #fff; display: flex; align-items: center; gap: 0.75rem; }
-  .nav-brand img { border-radius: 50%; }
-  .nav-links { display: flex; gap: 1.5rem; } .nav-links a { color: rgba(255,255,255,0.8); font-size: 0.9rem; font-weight: 500; }
-  .nav-links a:hover { color: #fff; }
+  .nav-brand { font-family:'Cormorant Garamond',serif; color:#F5DEB3; font-size:1.4rem; font-weight:600; letter-spacing:0.02em; }
+  .nav-links a { color:rgba(245,222,179,0.75); font-size:0.85rem; letter-spacing:0.05em; }
   .hero { padding:6rem 1.5rem; text-align:center; background:linear-gradient(180deg,#FAF7F2 0%,#F5EDD8 100%); }
   .hero h1 { font-family:'Cormorant Garamond',serif; font-size:clamp(2.5rem,6vw,5rem); font-weight:600; line-height:1.1; letter-spacing:-0.01em; margin-bottom:1rem; }
   .hero .bio { font-size:1rem; color:#6B4A22; max-width:560px; margin:0 auto; letter-spacing:0.02em; }
