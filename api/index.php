@@ -155,6 +155,14 @@ if ($action === 'admin-users' && $method === 'GET') {
          GROUP BY u.id
          ORDER BY u.created_at DESC'
     );
+    $sources = DB::fetchAll('SELECT user_id, platform, url, label FROM social_sources WHERE active = 1');
+    $userSources = [];
+    foreach($sources as $src) {
+        $userSources[$src['user_id']][] = $src;
+    }
+    foreach($users as &$u) {
+        $u['sources'] = $userSources[$u['id']] ?? [];
+    }
     json(['users' => $users]);
 }
 
