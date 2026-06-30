@@ -12,6 +12,7 @@ $user = DB::fetch('SELECT * FROM users WHERE slug=?', [$slug]);
 if (!$user) { http_response_code(404); echo '<h1>Sito non trovato</h1>'; exit; }
 
 $site  = DB::fetch('SELECT * FROM sites WHERE user_id=?', [$user['id']]);
+if (!$site) $site = []; // Fallback sicuro: evita crash su array access
 $sources = DB::fetchAll(
     'SELECT platform, label, url FROM social_sources WHERE user_id=? AND active=1 ORDER BY platform, id DESC',
     [$user['id']]
@@ -150,12 +151,12 @@ if ($action === 'llms') {
 function h(?string $s): string { return htmlspecialchars((string)$s, ENT_QUOTES, 'UTF-8'); }
 
 $title      = h($site['title'] ?? $user['name'] ?? '');
-$bio        = h($site['profile_summary'] ?: ($site['bio'] ?? ''));
+$bio        = h(($site['profile_summary'] ?? '') ?: ($site['bio'] ?? ''));
 $siteUrl    = BASE_URL . '/s/' . $slug;
 $validThemes = ['classic', 'journal', 'authority', 'portfolio', 'magazine', 'minimal', 'studio', 'local', 'academy', 'bottega'];
 $theme      = $site['theme'] ?? 'classic';
 if (!in_array($theme, $validThemes, true)) {
-    $theme = 'classic'; // Fallback for backward compatibility, although AI might generate new archetypes
+    $theme = 'classic';
 }
 $archetype  = $site['design_archetype'] ?? $theme;
 
@@ -163,7 +164,7 @@ $icons      = ['instagram' => '📸', 'tiktok' => '🎵', 'youtube' => '▶️',
 
 $menuLinks    = !empty($site['menu_links']) ? json_decode($site['menu_links'], true) : [];
 $accentColor  = $site['accent_color'] ?? '';
-$accentSecondary = $site['accent_secondary'] ?? '';
+$accentSecondary = $site['accent_secondary'] ?? $site['accent_color'] ?? '';
 
 // ── Raccogli tutti i tag reali dei post pubblicati (con conteggio) ───────
 $tagCounts = [];
@@ -205,7 +206,7 @@ $coverUrl     = $site['cover_url'] ?? '';
 $footerText   = $site['footer_text'] ?? '';
 $customCss    = $site['custom_css'] ?? '';
 $heroTagline  = h($site['hero_tagline'] ?? '');
-$ctaText      = h($site['cta_text'] ?? 'Scopri i contenuti');
+$ctaText      = h(($site['cta_text'] ?? '') ?: 'Scopri i contenuti');
 
 // ── Dati AI dinamici (site_ai_data) ───────────
 $aiData = !empty($site['site_ai_data']) ? json_decode($site['site_ai_data'], true) : [];
@@ -843,7 +844,7 @@ header('Link: <' . $siteUrl . '/feed.xml>; rel="alternate"; type="application/at
     <div class="meta">
       <span><?= $icons[$p['platform']] ?? '📄' ?> <?= h($p['platform']) ?></span>
       <span><?= $p['published_at'] ? date('d/m/Y', strtotime($p['published_at'])) : '' ?></span>
-      <?php if (strtoupper($p['media_type']) === 'VIDEO'): ?><span class="badge">Video → Testo</span><?php endif; ?>
+      <?php if (strtoupper($p['media_type'] ?? '') === 'VIDEO'): ?><span class="badge">Video → Testo</span><?php endif; ?>
     </div>
     <h1 itemprop="headline"><?= h(postTitle($p)) ?></h1>
     <div class="body-content" itemprop="articleBody"><?= bodyHtml(postBody($p)) ?></div>
@@ -864,21 +865,82 @@ header('Link: <' . $siteUrl . '/feed.xml>; rel="alternate"; type="application/at
     <h2 style="margin:0;">Categoria: <strong><?= h(ucfirst($activeTag)) ?></strong></h2>
     <p style="margin-top: 0.5rem; color: var(--text-muted);"><a href="<?= $siteUrl ?>">← Torna a tutti i contenuti</a></p>
   </div>
-        <?php endif; ?>
-        <?php if (!empty($p['tags'])): ?>
-        <div class="tags">
-          <?php foreach ($p['tags'] as $tag): ?><span class="tag">#<?= h($tag) ?></span><?php endforeach; ?>
+  <!-- GRIGLIA STANDARD PER CATEGORIA -->
+  <section class="post-grid" aria-label="Contenuti per categoria">
+    <?php foreach ($posts as $p):
+      $purl = $siteUrl . '/' . h($p['slug'] ?? '');
+    ?>
+    <article class="post">
+      <?= mediaHtml($p) ?>
+      <div class="post-body">
+        <div class="meta">
+          <span><?= $icons[$p['platform']] ?? '📄' ?> <?= h($p['platform']) ?></span>
+          <span><?= $p['published_at'] ? date('d/m/Y', strtotime($p['published_at'])) : '' ?></span>
         </div>
-        <?php endif; ?>
+        <h2><a href="<?= $purl ?>"><?= h(postTitle($p)) ?></a></h2>
+        <p class="excerpt"><?= h(postExcerpt($p)) ?></p>
       </div>
     </article>
     <?php endforeach; ?>
   </section>
+
   <?php else: ?>
+
+  <!-- SEZIONI PER ARGOMENTI (HOME) -->
+  <?php foreach ($postsByTopic as $topic => $topicPosts): ?>
+  <section class="topic-section">
+    <div class="topic-header">
+      <h2><?= h(ucfirst($topic)) ?></h2>
+      <a href="<?= $siteUrl ?>?tag=<?= urlencode($topic) ?>">Vedi tutti →</a>
+    </div>
+    <div class="horizontal-scroll">
+      <?php foreach ($topicPosts as $p):
+        $purl = $siteUrl . '/' . h($p['slug'] ?? '');
+      ?>
+      <article class="post">
+        <?= mediaHtml($p) ?>
+        <div class="post-body">
+          <div class="meta">
+            <span><?= $icons[$p['platform']] ?? '📄' ?> <?= h($p['platform']) ?></span>
+          </div>
+          <h2><a href="<?= $purl ?>"><?= h(postTitle($p)) ?></a></h2>
+          <p class="excerpt"><?= h(postExcerpt($p)) ?></p>
+        </div>
+      </article>
+      <?php endforeach; ?>
+    </div>
+  </section>
+  <?php endforeach; ?>
+
+  <!-- ULTIMI ARRIVI (HOME) -->
+  <?php if (!empty($recentPosts)): ?>
+  <h2 class="recent-header">Ultimi Arrivi</h2>
+  <section class="post-grid" aria-label="Ultimi contenuti pubblicati">
+    <?php foreach ($recentPosts as $p):
+      $purl = $siteUrl . '/' . h($p['slug'] ?? '');
+    ?>
+    <article class="post">
+      <?= mediaHtml($p) ?>
+      <div class="post-body">
+        <div class="meta">
+          <span><?= $icons[$p['platform']] ?? '📄' ?> <?= h($p['platform']) ?></span>
+          <span><?= $p['published_at'] ? date('d/m/Y', strtotime($p['published_at'])) : '' ?></span>
+        </div>
+        <h2><a href="<?= $purl ?>"><?= h(postTitle($p)) ?></a></h2>
+        <p class="excerpt"><?= h(postExcerpt($p)) ?></p>
+      </div>
+    </article>
+    <?php endforeach; ?>
+  </section>
+  <?php endif; ?>
+
+  <?php if (empty($posts)): ?>
   <div style="text-align:center;padding:5rem 1rem;opacity:0.5;">
     <div style="font-size:4rem;margin-bottom:1rem;">✨</div>
     <p style="font-size:1.2rem;">Il sito è pronto. In attesa di nuovi contenuti.</p>
   </div>
+  <?php endif; ?>
+
   <?php endif; ?>
 
 <?php endif; ?>
