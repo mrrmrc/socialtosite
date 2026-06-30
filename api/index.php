@@ -166,6 +166,25 @@ if ($action === 'admin-users' && $method === 'GET') {
     json(['users' => $users]);
 }
 
+if ($action === 'admin-impersonate' && $method === 'POST') {
+    requireAdmin($isAdmin);
+    $b = body();
+    $targetId = (int)($b['id'] ?? 0);
+    if (!$targetId) jsonError('Utente non valido');
+    
+    $user = DB::fetch('SELECT id, email, slug, role FROM users WHERE id=?', [$targetId]);
+    if (!$user) jsonError('Utente non trovato', 404);
+    
+    $token = JWT::encode([
+        'id' => $user['id'], 
+        'email' => $user['email'], 
+        'slug' => $user['slug'], 
+        'role' => $user['role']
+    ]);
+    
+    json(['ok' => true, 'token' => $token, 'user' => $user]);
+}
+
 if ($action === 'admin-create-user' && $method === 'POST') {
     requireAdmin($isAdmin);
     $b = body();
