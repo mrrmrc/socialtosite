@@ -822,12 +822,20 @@ if ($action === 'process-pending' && $method === 'POST') {
             // Aggiorna trascrizione prima di passare ad armonizza
             DB::execute('UPDATE posts SET transcript=? WHERE id=?', [$transcript, $postId]);
             
-            // Decisione sui contenuti
-            $site = DB::fetch('SELECT profile_summary, role_mission, content_strategy FROM sites WHERE user_id=?', [$userId]);
+            // Decisione sui contenuti e Memoria (RAG)
+            $site = DB::fetch('SELECT profile_summary, role_mission, content_strategy, rag_knowledge FROM sites WHERE user_id=?', [$userId]);
+            
+            // Aggiorna memoria RAG asincrona (in questo thread, per semplicità)
+            $newMemory = AI::updateMemory($raw, $site['rag_knowledge'] ?? '');
+            if ($newMemory !== ($site['rag_knowledge'] ?? '')) {
+                DB::execute('UPDATE sites SET rag_knowledge=? WHERE user_id=?', [$newMemory, $userId]);
+            }
+
             $editorialContext = trim(
                 "Profilo:\n" . ($site['profile_summary'] ?? '') . "\n\n"
                 . "Ruolo/Missione:\n" . ($site['role_mission'] ?? '') . "\n\n"
-                . "Strategia:\n" . ($site['content_strategy'] ?? '')
+                . "Strategia:\n" . ($site['content_strategy'] ?? '') . "\n\n"
+                . "Memoria e Stile Utente (RAG):\n" . $newMemory
             );
             $recentPosts = DB::fetchAll(
                 'SELECT generated_title, generated_excerpt, raw_content FROM posts WHERE user_id=? AND published=1 ORDER BY published_at DESC LIMIT 12',

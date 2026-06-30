@@ -188,11 +188,14 @@ class Ingest {
             'SELECT platform, label, url, topic_summary FROM social_sources WHERE user_id=? AND active=1 ORDER BY platform, id',
             [$userId]
         );
-        $site = DB::fetch('SELECT profile_summary, bio FROM sites WHERE user_id=?', [$userId]);
+        $site = DB::fetch('SELECT profile_summary, bio, rag_knowledge FROM sites WHERE user_id=?', [$userId]);
         $profileSummary = trim($site['profile_summary'] ?? ($site['bio'] ?? ''));
         $sourceContext = '';
         if ($profileSummary !== '') {
             $sourceContext .= "Profilo utente/brand:\n" . $profileSummary . "\n\n";
+        }
+        if (!empty($site['rag_knowledge'])) {
+            $sourceContext .= "Memoria Storica e Stile (RAG):\n" . $site['rag_knowledge'] . "\n\n";
         }
         foreach ($sources as $source) {
             $sourceContext .= '- ' . $source['platform'] . ': ' . ($source['label'] ?: $source['url']);

@@ -87,6 +87,7 @@ CREATE TABLE IF NOT EXISTS sites (
   profile_summary TEXT,
   role_mission  TEXT,
   content_strategy TEXT,
+  rag_knowledge LONGTEXT,
   custom_domain VARCHAR(255),
   theme         VARCHAR(50) DEFAULT 'classic',
   seo_score     INT DEFAULT 0,

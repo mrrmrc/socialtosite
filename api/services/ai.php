@@ -40,6 +40,27 @@ class AI {
         return $data['candidates'][0]['content']['parts'][0]['text'] ?? '';
     }
 
+    // ── AGENTE MEMORIA (RAG): Estrae fatti e tono di voce dal post ───────────
+    public static function updateMemory(string $rawContent, string $existingKnowledge = ''): string {
+        if (!$rawContent) return $existingKnowledge;
+        
+        $prompt = "Sei un analista esperto nel profilare gli autori. Di seguito c'è la MEMORIA ATTUALE sull'autore (se presente) e un NUOVO POST appena scritto da lui.
+MEMORIA ATTUALE:
+" . ($existingKnowledge ?: '(nessuna)') . "
+
+NUOVO POST:
+$rawContent
+
+COMPITO:
+Aggiorna la memoria attuale integrando eventuali nuovi fatti, preferenze, argomenti ricorrenti o caratteristiche stilistiche (tono di voce, formattazione, espressioni tipiche) che emergono dal nuovo post. 
+- Sii sintetico ma preciso.
+- Non elencare i post, crea una guida/wiki fluida sulla persona.
+- Mantieni la lunghezza massima sotto i 2000 caratteri.
+Restituisci SOLO la nuova memoria aggiornata (testo semplice), nient'altro.";
+
+        return trim(self::gemini([['text' => $prompt]]));
+    }
+
     // ── AGENTE 1 (Ingestione): trascrivi un video YouTube da link ──────────
     // Gemini accetta direttamente l'URL YouTube: niente download né Whisper.
     public static function transcribeYouTube(string $youtubeUrl): string {
@@ -108,31 +129,37 @@ class AI {
 
 
 
-    // ── Apify: esegue un actor in modo sincrono e torna gli item dataset ───
+    // ── Apify: deprecato, ora usa lo scraper locale Node.js ─────────────
+    private static function nodeScrape(string $platform, string $url, int $limit = 0): array {
+        $scriptPath = realpath(__DIR__ . '/../../scraper/scraper.js');
+        if (!$scriptPath) {
+            throw new Exception('Scraper Node.js non trovato. Verifica la cartella scraper/.');
+        }
+        
+        $cmd = 'node ' . escapeshellarg($scriptPath) . ' ' . escapeshellarg($platform) . ' ' . escapeshellarg($url) . ' ' . (int)$limit;
+        
+        // Esegui comando
+        $output = shell_exec($cmd);
+        if (!$output) {
+            throw new Exception("Scraper: errore durante l'esecuzione di Node.js (output vuoto).");
+        }
+        
+        $result = json_decode($output, true);
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            throw new Exception("Scraper: risposta JSON non valida. Output grezzo: " . substr($output, 0, 100));
+        }
+        
+        if (isset($result['error'])) {
+            throw new Exception("Scraper: " . $result['error']);
+        }
+        
+        // Assicurati che ritorni un array di risultati (limit > 0) o un singolo array (limit == 0)
+        return is_array($result) ? $result : [];
+    }
+
     private static function apifyRun(string $actorId, array $input): array {
-        if (!defined('APIFY_TOKEN') || !APIFY_TOKEN) {
-            throw new Exception('APIFY_TOKEN mancante in config/keys.php');
-        }
-        $url = "https://api.apify.com/v2/acts/$actorId/run-sync-get-dataset-items?token=" . APIFY_TOKEN;
-        $ch = curl_init($url);
-        curl_setopt_array($ch, [
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_POST           => true,
-            CURLOPT_HTTPHEADER     => ['Content-Type: application/json'],
-            CURLOPT_POSTFIELDS     => json_encode($input, JSON_UNESCAPED_UNICODE),
-            CURLOPT_TIMEOUT        => 300,
-        ]);
-        $res  = curl_exec($ch);
-        $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        $err  = curl_error($ch);
-        curl_close($ch);
-        if ($res === false) throw new Exception("Apify: errore di rete ($err)");
-        $data = json_decode($res, true);
-        if ($code >= 400) {
-            $msg = $data['error']['message'] ?? (is_string($res) ? substr($res, 0, 200) : 'errore');
-            throw new Exception("Apify ($code): $msg");
-        }
-        return is_array($data) ? $data : [];
+        // Mantenuto per compatibilità, ma non verrà più usato
+        throw new Exception('Apify deprecato. Usa nodeScrape.');
     }
 
     // ── Cerca ricorsivamente il primo URL video plausibile in un item ──────
@@ -246,23 +273,12 @@ class AI {
             return [];
         }
 
-        [$actor, $input] = match ($platform) {
-            'tiktok' => [
-                defined('APIFY_ACTOR_TIKTOK') ? APIFY_ACTOR_TIKTOK : 'clockworks~tiktok-scraper',
-                ['profiles' => [$url], 'resultsPerPage' => $limit, 'shouldDownloadVideos' => false],
-            ],
-            'instagram' => [
-                defined('APIFY_ACTOR_INSTAGRAM') ? APIFY_ACTOR_INSTAGRAM : 'apify~instagram-scraper',
-                array_filter(['directUrls' => [$url], 'resultsType' => 'posts', 'resultsLimit' => $limit, 'oldestPostDate' => $sinceDate ? $sinceDate . 'T00:00:00.000Z' : null]),
-            ],
-            'facebook' => [
-                defined('APIFY_ACTOR_FACEBOOK') ? APIFY_ACTOR_FACEBOOK : 'apify~facebook-posts-scraper',
-                ['startUrls' => [['url' => $url]], 'resultsLimit' => $limit],
-            ],
-            default => throw new Exception('Piattaforma non gestita per la scansione'),
-        };
+        if (!in_array($platform, ['tiktok', 'instagram', 'facebook'])) {
+            throw new Exception('Piattaforma non gestita per la scansione');
+        }
 
-        $items = self::apifyRun($actor, $input);
+        // Usa lo scraper locale Node.js (limit > 0)
+        $items = self::nodeScrape($platform, $url, $limit);
         $out = [];
         foreach ($items as $item) {
             $sourceUrl = self::findSourceUrl($item);
@@ -393,58 +409,16 @@ class AI {
 
     // ── AGENTE 1: risolve un link social via Apify → caption + media ───────
     public static function apifyResolve(string $platform, string $url): array {
-        [$actor, $input] = match ($platform) {
-            'tiktok' => [
-                defined('APIFY_ACTOR_TIKTOK') ? APIFY_ACTOR_TIKTOK : 'clockworks~tiktok-scraper',
-                ['postURLs' => [$url], 'resultsPerPage' => 1, 'shouldDownloadVideos' => false],
-            ],
-            'instagram' => [
-                defined('APIFY_ACTOR_INSTAGRAM') ? APIFY_ACTOR_INSTAGRAM : 'apify~instagram-scraper',
-                ['directUrls' => [$url], 'resultsType' => 'posts', 'resultsLimit' => 1],
-            ],
-            'facebook' => [
-                defined('APIFY_ACTOR_FACEBOOK') ? APIFY_ACTOR_FACEBOOK : 'apify~facebook-posts-scraper',
-                ['startUrls' => [['url' => $url]], 'resultsLimit' => 1],
-            ],
-            default => throw new Exception('Piattaforma non gestita da Apify'),
-        };
-
-        $items = self::apifyRun($actor, $input);
-        $it = $items[0] ?? null;
-        if (!$it) throw new Exception('Apify non ha restituito contenuti per questo link');
-
-        $captionParts = [];
-        // Ricerca testuale più estesa
-        foreach (['title','description','caption','text','message','fullText','video_description'] as $k) {
-            if (!empty($it[$k])) {
-                if (is_string($it[$k])) {
-                    $captionParts[] = trim($it[$k]);
-                } elseif (is_array($it[$k])) {
-                    $captionParts[] = json_encode($it[$k], JSON_UNESCAPED_UNICODE);
-                }
-            }
+        // Usa lo scraper locale Node.js (limit = 0 per risolvere singolo URL)
+        $it = self::nodeScrape($platform, $url, 0);
+        if (!$it || (empty($it['caption']) && empty($it['video']) && empty($it['image']))) {
+            throw new Exception('Lo scraper non ha restituito contenuti validi per questo link');
         }
-        // Se non troviamo nulla, prendiamo la stringa più lunga nell'oggetto ignorando metadata
-        if (empty(array_filter($captionParts))) {
-            $longest = '';
-            array_walk_recursive($it, function($v, $k) use (&$longest) {
-                if (is_string($v) && mb_strlen($v) > mb_strlen($longest)) {
-                    // ignora url, id, date, etc
-                    if (!preg_match('~^https?://~', $v) && mb_strlen($v) > 20) {
-                        if (stripos((string)$k, 'author') === false && stripos((string)$k, 'owner') === false && stripos((string)$k, 'user') === false) {
-                            $longest = $v;
-                        }
-                    }
-                }
-            });
-            if ($longest) $captionParts[] = trim($longest);
-        }
-        
-        $caption = trim(implode("\n\n", array_unique(array_filter($captionParts))));
+
         return [
-            'caption' => $caption,
-            'video'   => self::findMediaUrl($it),
-            'image'   => self::findImageUrl($it),
+            'caption' => $it['caption'] ?? '',
+            'video'   => $it['video'] ?? '',
+            'image'   => $it['image'] ?? '',
         ];
     }
 
