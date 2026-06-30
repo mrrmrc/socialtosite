@@ -1547,8 +1547,8 @@ function AdminScreen({ token, currentUser, adminPrompts, updatePrompt }) {
         body: JSON.stringify({ id })
       }, token);
       
-      localStorage.setItem('socialtosite_token', data.token);
-      localStorage.setItem('socialtosite_user', JSON.stringify(data.user));
+      localStorage.setItem('sts_token', data.token);
+      localStorage.setItem('sts_user', JSON.stringify(data.user));
       window.location.reload();
     } catch (e) {
       setError(e.message);
