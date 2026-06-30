@@ -822,8 +822,36 @@ if ($action === 'process-pending' && $method === 'POST') {
             // Aggiorna trascrizione prima di passare ad armonizza
             DB::execute('UPDATE posts SET transcript=? WHERE id=?', [$transcript, $postId]);
             
-            // 2. Armonizza (genera SEO)
-            $res = Ingest::harmonize($userId, $postId);
+            // Decisione sui contenuti
+            $site = DB::fetch('SELECT profile_summary, role_mission, content_strategy FROM sites WHERE user_id=?', [$userId]);
+            $editorialContext = trim(
+                "Profilo:\n" . ($site['profile_summary'] ?? '') . "\n\n"
+                . "Ruolo/Missione:\n" . ($site['role_mission'] ?? '') . "\n\n"
+                . "Strategia:\n" . ($site['content_strategy'] ?? '')
+            );
+            $recentPosts = DB::fetchAll(
+                'SELECT generated_title, generated_excerpt, raw_content FROM posts WHERE user_id=? AND published=1 ORDER BY published_at DESC LIMIT 12',
+                [$userId]
+            );
+            $decision = AI::contentDecision($raw, $post['platform'], $post['source_url'], $editorialContext, $recentPosts);
+            DB::execute(
+                'UPDATE posts SET relevance_score=?, agent_notes=? WHERE id=? AND user_id=?',
+                [$decision['relevance_score'], json_encode($decision, JSON_UNESCAPED_UNICODE), $postId, $userId]
+            );
+            
+            if (!$decision['publish'] || $decision['relevance_score'] < 55 || $decision['duplicate_risk'] >= 75) {
+                // Post saltato perché non rilevante o duplicato (impostiamo seo_score=0 così esce dalla coda)
+                DB::execute('UPDATE posts SET seo_score=0 WHERE id=?', [$postId]);
+                echo json_encode(['ok' => false, 'message' => 'Post scartato dal curatore AI (punteggio basso o non rilevante)']);
+                exit;
+            }
+
+            // Ottieni impostazione auto-publish della fonte
+            $source = DB::fetch('SELECT auto_publish FROM social_sources WHERE user_id=? AND platform=?', [$userId, $post['platform']]);
+            $autoPublish = isset($source['auto_publish']) ? (int)$source['auto_publish'] : 1;
+            
+            // Armonizza (genera SEO)
+            $res = Ingest::harmonize($userId, $postId, $autoPublish);
             json(['ok' => true, 'id' => $postId, 'seo' => $res['seo']]);
         } else {
             // Elimina post non validi o ignorati (es. solo immagini senza didascalia)
@@ -854,6 +882,108 @@ if ($action === 'admin-kill-process' && $method === 'POST') {
     $b = body();
     $id = (int)($b['id'] ?? 0);
     DB::execute('DELETE FROM posts WHERE id=? AND seo_score=-1', [$id]);
+    json(['ok' => true]);
+}
+
+// ── POST finalize-sync: orchestrazione finale ─────────────────────────────
+if ($action === 'finalize-sync' && $method === 'POST') {
+    require_once __DIR__ . '/services/ai.php';
+    $b = body();
+    $profileOverride = trim($b['profile_summary'] ?? '');
+    $roleMission = trim($b['role_mission'] ?? '');
+    $contentStrategy = trim($b['content_strategy'] ?? '');
+
+    $sources = DB::fetchAll('SELECT * FROM social_sources WHERE user_id=? AND active=1 ORDER BY platform, id', [$userId]);
+    $posts = DB::fetchAll('SELECT generated_title, generated_excerpt, raw_content, transcript FROM posts WHERE user_id=? ORDER BY imported_at DESC LIMIT 12', [$userId]);
+    
+    if ($posts) {
+        $profile = AI::editorialProfile($sources, $posts, $profileOverride);
+        $summary = $profileOverride !== '' ? $profileOverride : ($profile['profile_summary'] ?? '');
+        $finalRoleMission = $roleMission !== '' ? $roleMission : ($profile['role_mission'] ?? '');
+        $finalContentStrategy = $contentStrategy !== '' ? $contentStrategy : ($profile['content_strategy'] ?? '');
+        
+        $site = DB::fetch('SELECT title, theme FROM sites WHERE user_id=?', [$userId]);
+        
+        $seoTitle = ''; $seoBio = ''; $seoMenu = ''; $seoFooter = '';
+        $gTheme = ''; $gColor = ''; $gLayout = ''; $gCss = ''; $layoutsJson = '';
+
+        $allTagsForMenu = [];
+        $tagsRawForMenu = DB::fetchAll('SELECT tags FROM posts WHERE user_id=? AND published=1', [$userId]);
+        foreach ($tagsRawForMenu as $tr) {
+            $dec = json_decode($tr['tags'] ?? '[]', true);
+            if (is_array($dec)) foreach ($dec as $t) $allTagsForMenu[] = strtolower(trim($t));
+        }
+        $tagsContextForMenu = implode(', ', array_unique($allTagsForMenu));
+
+        if (empty($site['title']) || $site['title'] === 'Sito Personale' || empty($site['theme']) || $site['theme'] === 'classic') {
+            $seo = AI::seoSpecialistSetup($summary, $finalRoleMission, $finalContentStrategy, $tagsContextForMenu);
+            $graphicProposals = AI::graphicDesignerSetup($summary, $finalRoleMission, $finalContentStrategy);
+            
+            $seoTitle = $seo['title'] ?? ''; $seoBio = $seo['bio'] ?? '';
+            $seoMenu = isset($seo['menu_links']) ? json_encode($seo['menu_links'], JSON_UNESCAPED_UNICODE) : '';
+            $seoFooter = $seo['footer_text'] ?? '';
+            
+            $gTheme = $graphicProposals[0]['theme'] ?? ''; $gColor = $graphicProposals[0]['accent_color'] ?? '';
+            $gLayout = $graphicProposals[0]['header_layout'] ?? ''; $gCss = $graphicProposals[0]['custom_css'] ?? '';
+            $layoutsJson = json_encode($graphicProposals, JSON_UNESCAPED_UNICODE);
+        }
+
+        DB::execute(
+            'UPDATE sites SET 
+                profile_summary=?, role_mission=?, content_strategy=?,
+                title=COALESCE(NULLIF(title, ""), NULLIF(?, "")), bio=COALESCE(NULLIF(bio, ""), NULLIF(?, "")),
+                menu_links=COALESCE(NULLIF(menu_links, ""), NULLIF(?, "")), footer_text=COALESCE(NULLIF(footer_text, ""), NULLIF(?, "")),
+                theme=COALESCE(NULLIF(theme, ""), NULLIF(?, "")), accent_color=COALESCE(NULLIF(accent_color, ""), NULLIF(?, "")),
+                header_layout=COALESCE(NULLIF(header_layout, ""), NULLIF(?, "")), custom_css=COALESCE(NULLIF(custom_css, ""), NULLIF(?, "")),
+                generated_layouts=COALESCE(NULLIF(?, ""), generated_layouts)
+             WHERE user_id=?',
+            [$summary, $finalRoleMission, $finalContentStrategy, $seoTitle, $seoBio, $seoMenu, $seoFooter, $gTheme, $gColor, $gLayout, $gCss, $layoutsJson, $userId]
+        );
+    }
+    
+    // Chief Editor
+    try {
+        $updatedSite = DB::fetch('SELECT * FROM sites WHERE user_id=?', [$userId]);
+        $publishedPosts = DB::fetchAll('SELECT id, edited_title, generated_title, tags FROM posts WHERE user_id=? AND published=1', [$userId]);
+        
+        $chiefResult = AI::chiefEditor($updatedSite, $publishedPosts);
+        
+        if (!empty($chiefResult['ok'])) {
+            $mapping = $chiefResult['tag_mapping'] ?? [];
+            if (!empty($mapping)) {
+                $allPosts = DB::fetchAll('SELECT id, tags FROM posts WHERE user_id=?', [$userId]);
+                foreach ($allPosts as $p) {
+                    $tArr = is_array($p['tags']) ? $p['tags'] : (json_decode($p['tags'] ?? '[]', true) ?: []);
+                    $changed = false; $newTArr = [];
+                    foreach ($tArr as $t) {
+                        $low = strtolower(trim($t));
+                        if (isset($mapping[$low]) && $mapping[$low] !== $t) { $newTArr[] = $mapping[$low]; $changed = true; }
+                        else { $newTArr[] = trim($t); }
+                    }
+                    if ($changed) {
+                        $newTagsJson = json_encode(array_unique(array_filter($newTArr)), JSON_UNESCAPED_UNICODE);
+                        DB::execute('UPDATE posts SET tags=? WHERE id=?', [$newTagsJson, $p['id']]);
+                    }
+                }
+            }
+            $menu = isset($chiefResult['menu_links']) ? json_encode($chiefResult['menu_links'], JSON_UNESCAPED_UNICODE) : '';
+            $tagline = $chiefResult['hero_tagline'] ?? '';
+            $updates = []; $params = [];
+            if ($menu) { $updates[] = 'menu_links=?'; $params[] = $menu; }
+            if ($tagline) { $updates[] = 'hero_tagline=?'; $params[] = $tagline; }
+            if (!empty($updates)) {
+                $params[] = $userId;
+                DB::execute('UPDATE sites SET ' . implode(', ', $updates) . ' WHERE user_id=?', $params);
+            }
+            $featuredId = (int)($chiefResult['featured_post_id'] ?? 0);
+            if ($featuredId > 0) {
+                DB::execute('UPDATE posts SET featured=0 WHERE user_id=?', [$userId]);
+                DB::execute('UPDATE posts SET featured=1 WHERE id=? AND user_id=?', [$featuredId, $userId]);
+            }
+        }
+    } catch (Throwable $e) { }
+
+    DB::execute('UPDATE sites SET last_sync=NOW() WHERE user_id=?', [$userId]);
     json(['ok' => true]);
 }
 

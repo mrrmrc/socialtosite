@@ -456,18 +456,25 @@ function DashboardScreen({ token, user, onLogout }) {
     setHarmonizingId(0);
   }
 
-  // Funzione helper per elaborare la coda
+  // Funzione helper per elaborare la coda (ora in parallelo)
   async function processPendingLoop(isScan = false) {
     try {
       const pending = await apiFetch('/api/index.php?action=pending-posts', {}, token);
       if (!pending || pending.length === 0) return;
 
-      for (let i = 0; i < pending.length; i++) {
-        const post = pending[i];
-        const msg = `Elaborazione AI post ${i+1} di ${pending.length}... (${post.platform})`;
+      const total = pending.length;
+      let completed = 0;
+      const concurrency = 4; // Elabora fino a 4 post in parallelo
+
+      const updateProgress = () => {
+        const msg = `Elaborazione AI: completati ${completed} su ${total} post...`;
         if (isScan) setScanMsg({ ok: true, text: msg, loading: true });
         else setSyncMsg({ ok: true, text: msg, loading: true });
+      };
 
+      updateProgress();
+
+      const processPost = async (post) => {
         try {
           await apiFetch('/api/index.php?action=process-pending', {
             method: 'POST',
@@ -476,11 +483,35 @@ function DashboardScreen({ token, user, onLogout }) {
         } catch (e) {
           console.error("Errore post", post.id, e);
         }
+        completed++;
+        updateProgress();
+      };
+
+      for (let i = 0; i < pending.length; i += concurrency) {
+        const chunk = pending.slice(i, i + concurrency);
+        await Promise.all(chunk.map(post => processPost(post)));
+      }
+
+      const finalMsg = `Orchestrazione finale del sito in corso...`;
+      if (isScan) setScanMsg({ ok: true, text: finalMsg, loading: true });
+      else setSyncMsg({ ok: true, text: finalMsg, loading: true });
+
+      try {
+        await apiFetch('/api/index.php?action=finalize-sync', {
+          method: 'POST',
+          body: JSON.stringify({
+             profile_summary: typeof profileDraft !== 'undefined' ? profileDraft : '',
+             role_mission: typeof roleMissionDraft !== 'undefined' ? roleMissionDraft : '',
+             content_strategy: typeof strategyDraft !== 'undefined' ? strategyDraft : ''
+          })
+        }, token);
+      } catch (e) {
+        console.error("Errore orchestrazione", e);
       }
       
-      const finalMsg = `Elaborazione di ${pending.length} post completata.`;
-      if (isScan) setScanMsg({ ok: true, text: finalMsg });
-      else setSyncMsg({ ok: true, text: finalMsg });
+      const doneMsg = `Elaborazione di ${total} post e aggiornamento sito completati.`;
+      if (isScan) setScanMsg({ ok: true, text: doneMsg });
+      else setSyncMsg({ ok: true, text: doneMsg });
       
       await loadDrafts();
       await loadData();
