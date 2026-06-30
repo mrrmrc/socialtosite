@@ -209,9 +209,16 @@ $ctaText      = h($site['cta_text'] ?? 'Scopri i contenuti');
 
 // ── Dati AI dinamici (site_ai_data) ───────────
 $aiData = !empty($site['site_ai_data']) ? json_decode($site['site_ai_data'], true) : [];
+if (!is_array($aiData)) $aiData = [];
 $fontHeading = $aiData['font_heading'] ?? 'Inter';
 $fontBody    = $aiData['font_body'] ?? 'Inter';
-$palette     = $aiData['color_palette'] ?? ['primary' => '#7F77DD', 'secondary' => '#5C54C4', 'background' => '#FAFAFA', 'text' => '#1a1a24'];
+$palette     = $aiData['color_palette'] ?? [];
+if (!is_array($palette)) $palette = [];
+
+$palPrimary   = $palette['primary']   ?? $accentColor ?: '#7F77DD';
+$palSecondary = $palette['secondary'] ?? '#5C54C4';
+$palBg        = $palette['background']?? '#FAFAFA';
+$palText      = $palette['text']      ?? '#1a1a24';
 
 // ── Override per Anteprima (preview_theme oppure preview_index) ──────────────
 if (isset($_GET['preview_theme'])) {
@@ -489,10 +496,10 @@ $fontHeadingUrl = urlencode($fontHeading);
 $fontBodyUrl = urlencode($fontBody);
 $dynamicBaseCss = "
   :root { 
-      --accent: {$palette['primary']}; 
-      --accent-secondary: {$palette['secondary']}; 
-      --bg: {$palette['background']}; 
-      --text: {$palette['text']}; 
+      --accent: {$palPrimary}; 
+      --accent-secondary: {$palSecondary}; 
+      --bg: {$palBg}; 
+      --text: {$palText}; 
       --card-bg: #fff; 
       --border: rgba(0,0,0,0.08); 
       --radius: 16px; 
