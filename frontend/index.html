@@ -677,10 +677,11 @@ function DashboardScreen({ token, user, onLogout }) {
       await apiFetch('/api/index.php?action=site-update', {
         method: 'POST',
         body: JSON.stringify({
-          theme: layout.theme,
-          accent_color: layout.accent_color,
+          theme: layout.design_archetype || layout.theme || 'classic',
+          accent_color: layout.color_palette?.primary || layout.accent_color || '',
           header_layout: layout.header_layout,
-          custom_css: layout.custom_css
+          custom_css: layout.custom_css,
+          site_ai_data: layout
         })
       }, token);
       await loadData();
@@ -1188,10 +1189,20 @@ function DashboardScreen({ token, user, onLogout }) {
                       <div key={i} style={{ background: 'var(--surface)', border: '1px solid var(--border-strong)', borderRadius: 'var(--radius)', padding: '1rem', textAlign: 'center' }}>
                         <div style={{ fontWeight: 600, fontSize: '14px', marginBottom: '5px' }}>Proposta {i + 1}</div>
                         <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '8px' }}>
-                          Tema: <b>{layout.theme}</b><br/>Layout: <b>{layout.header_layout}</b>
+                          Archetipo: <b>{layout.design_archetype || layout.theme}</b><br/>
+                          Layout: <b>{layout.header_layout}</b><br/>
+                          Font: <b>{layout.font_heading || 'Inter'}</b>
                         </div>
                         <div style={{ display: 'flex', justifyContent: 'center', gap: '5px', marginBottom: '12px' }}>
-                          <div style={{ width: '20px', height: '20px', borderRadius: '50%', background: layout.accent_color, border: '1px solid rgba(0,0,0,0.1)' }} title={layout.accent_color} />
+                          {layout.color_palette ? (
+                            <>
+                              <div style={{ width: '20px', height: '20px', borderRadius: '50%', background: layout.color_palette.primary, border: '1px solid rgba(0,0,0,0.1)' }} title={layout.color_palette.primary} />
+                              <div style={{ width: '20px', height: '20px', borderRadius: '50%', background: layout.color_palette.secondary, border: '1px solid rgba(0,0,0,0.1)' }} title={layout.color_palette.secondary} />
+                              <div style={{ width: '20px', height: '20px', borderRadius: '50%', background: layout.color_palette.background, border: '1px solid rgba(0,0,0,0.1)' }} title={layout.color_palette.background} />
+                            </>
+                          ) : (
+                            <div style={{ width: '20px', height: '20px', borderRadius: '50%', background: layout.accent_color, border: '1px solid rgba(0,0,0,0.1)' }} title={layout.accent_color} />
+                          )}
                         </div>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                           <button className="btn btn-outline btn-full" onClick={() => setActivePreviewUrl(`${siteUrl}?preview_index=${i}`)} style={{ fontSize: '12px', padding: '6px' }}>
@@ -1219,49 +1230,7 @@ function DashboardScreen({ token, user, onLogout }) {
               </div>
             )}
 
-            <div className="card" style={{ marginBottom: '1rem' }}>
-              <h3 style={{ marginBottom: '0.35rem' }}>Layout base manuale</h3>
-              <p style={{ color: 'var(--text-muted)', fontSize: '13px', marginBottom: '1rem' }}>
-                Oltre ai design AI, puoi selezionare manualmente un modello base.
-              </p>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(148px, 1fr))', gap: '10px' }}>
-                {SITE_LAYOUTS.map(layout => {
-                  const active = selectedTheme === layout.id;
-                  return (
-                    <div key={layout.id} style={{
-                      display: 'flex', flexDirection: 'column',
-                      background: active ? 'var(--purple-light)' : 'var(--surface)',
-                      border: `1.5px solid ${active ? 'var(--purple)' : 'var(--border)'}`,
-                      borderRadius: 'var(--radius-sm)',
-                      padding: '10px',
-                      minHeight: '150px',
-                    }}>
-                      <div style={{ height: '66px', border: '1px solid var(--border)', borderRadius: '5px', padding: '8px', background: '#fff', display: 'grid', gap: '5px', alignContent: 'start', marginBottom: '8px' }}>
-                        <div style={{ height: '10px', width: '46%', background: active ? 'var(--purple)' : 'var(--text)', borderRadius: '2px' }} />
-                        <div style={{ display: 'grid', gridTemplateColumns: layout.id === 'magazine' ? '1fr 1fr' : '1fr', gap: '4px' }}>
-                          {layout.bars.map((w, i) => (
-                            <span key={i} style={{ display: 'block', height: '7px', width: w, background: i % 2 ? 'var(--gray-light)' : '#dedbd3', borderRadius: '2px' }} />
-                          ))}
-                        </div>
-                      </div>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '6px', marginBottom: '3px' }}>
-                        <strong style={{ fontSize: '13px' }}>{layout.name}</strong>
-                        {active && <span className="badge badge-purple">Attivo</span>}
-                      </div>
-                      <div style={{ color: 'var(--text-muted)', fontSize: '12px', lineHeight: 1.35, flex: 1 }}>{layout.desc}</div>
-                      <div style={{ display: 'flex', gap: '6px', marginTop: '10px' }}>
-                        <button className="btn btn-outline btn-full" onClick={() => setActivePreviewUrl(`${siteUrl}?preview_theme=${layout.id}`)} style={{ fontSize: '12px', padding: '6px 8px' }}>
-                          👁️ Anteprima
-                        </button>
-                        <button className="btn btn-primary btn-full" onClick={() => chooseTheme(layout.id)} disabled={active} style={{ fontSize: '12px', padding: '6px 8px' }}>
-                          {active ? 'Attivo' : 'Applica'}
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
+
 
             <div className="card" style={{ marginBottom: '1rem' }}>
               <h3 style={{ marginBottom: '0.75rem' }}>Agente editoriale</h3>

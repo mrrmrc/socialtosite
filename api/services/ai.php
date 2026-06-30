@@ -588,17 +588,18 @@ class AI {
 
     // ── AGENTE 4 (Graphic Designer - Generazione di 3 proposte) ───────────
     public static function graphicDesignerSetup(string $profileSummary, string $roleMission, string $contentStrategy): array {
-        $fallback = "Sei un agente Graphic Designer esperto in UI/UX web moderna. Devi creare 3 proposte di design premium e distinte per questo profilo.\n\n"
+        $fallback = "Sei un Art Director digitale di fama mondiale. Devi creare 3 proposte di design ('Archetipi') premium e radicalmente diverse per questo profilo. NON usare stock photo, basa l'estetica su colori vibranti, tipografia pregiata e layout puliti.\n\n"
             . "Profilo:\n{profileSummary}\n\n"
             . "Ruolo e Missione:\n{roleMission}\n\n"
-            . "Istruzioni:\n"
-            . "Genera un array JSON con ESATTAMENTE 3 oggetti. Ogni oggetto rappresenta una proposta e deve avere questa struttura:\n"
-            . "1. 'theme' scelto tra: classic, journal, authority, portfolio, magazine, minimal, studio, local, academy, timeline, bottega.\n"
-            . "2. 'accent_color' esadecimale (es. #FF0000) super accattivante e adatto al mestiere.\n"
-            . "3. 'header_layout' scelto tra: standard, centered, split.\n"
-            . "4. 'custom_css' un blocco di CSS creativo per abbellire il sito in modo drastico (sfumature, ombreggiature moderne, border-radius). Il CSS verrà iniettato globalmente.\n\n"
+            . "Genera un array JSON con ESATTAMENTE 3 oggetti, ognuno rappresenta una proposta. Struttura:\n"
+            . "1. 'design_archetype': Nome dell'archetipo (es. 'Minimal & Clean', 'Dark Neo-brutalism', 'Elegant Editorial').\n"
+            . "2. 'font_heading': Google Font per titoli (es. 'Playfair Display', 'Syne', 'Outfit').\n"
+            . "3. 'font_body': Google Font testi (es. 'Inter', 'Lora').\n"
+            . "4. 'color_palette': oggetto con { 'bg': '#hex', 'surface': '#hex', 'text': '#hex', 'primary': '#hex', 'primary_gradient': 'linear-gradient(...)' }.\n"
+            . "5. 'ui_style': oggetto con { 'radius': 'px', 'card_shadow': 'css string', 'glassmorphism': bool }.\n"
+            . "6. 'custom_css': CSS aggiuntivo ultra-raffinato (micro-animazioni, hover). Max 300 char.\n\n"
             . "Esempio output:\n"
-            . '{"proposals": [{"theme":"classic","accent_color":"#000000","header_layout":"standard","custom_css":":root { --dynamic-radius: 12px; } body { background: linear-gradient(...); }"}]}';
+            . '{"proposals": [{"design_archetype":"Minimal","font_heading":"Inter","font_body":"Inter","color_palette":{"bg":"#ffffff","surface":"#f8f9fa","text":"#111111","primary":"#000000","primary_gradient":"linear-gradient(to right, #333, #000)"},"ui_style":{"radius":"4px","card_shadow":"none","glassmorphism":false},"custom_css":""}]}';
 
         $prompt = self::getAgentPrompt('graphic_designer', $fallback);
         $prompt = str_replace(['{profileSummary}', '{roleMission}', '{contentStrategy}'], [$profileSummary, $roleMission, $contentStrategy], $prompt);
@@ -611,32 +612,54 @@ class AI {
         $result = json_decode($text, true);
         if (!$result || empty($result['proposals'])) {
             return [
-                ['theme' => 'classic', 'accent_color' => '', 'header_layout' => 'standard', 'custom_css' => ''],
+                [
+                    'design_archetype' => 'Default Clean',
+                    'font_heading' => 'Outfit', 'font_body' => 'Inter',
+                    'color_palette' => ['bg'=>'#FAFAFA', 'surface'=>'#FFFFFF', 'text'=>'#1F2937', 'primary'=>'#6366F1', 'primary_gradient'=>'linear-gradient(135deg, #818CF8, #6366F1)'],
+                    'ui_style' => ['radius'=>'16px', 'card_shadow'=>'0 10px 30px rgba(0,0,0,0.05)', 'glassmorphism'=>false],
+                    'custom_css' => ''
+                ]
             ];
-        }
-        
-        $validThemes = ['classic', 'journal', 'authority', 'portfolio', 'magazine', 'minimal', 'studio', 'local', 'academy', 'timeline', 'bottega'];
-        foreach ($result['proposals'] as &$prop) {
-            if (!in_array($prop['theme'] ?? '', $validThemes)) {
-                $prop['theme'] = 'classic';
-            }
         }
         return $result['proposals'];
     }
 
     // ── AGENTE SITO AI (Generazione completa su misura) ────────────────────
-    // Prende tutto il profilo + post recenti e genera titolo, bio, tema, CSS custom
-    // in un'unica chiamata: un vero art director digitale.
     public static function siteAiGenerate(string $profileSummary, string $roleMission, string $contentStrategy, string $recentPosts = '', string $tagsContext = ''): array {
-        $fallback = "Sei un team AI completo, ma soprattutto sei il CAPOREDATTORE del sito.\n"
-            . "Il tuo compito: generare TUTTO il necessario per un sito web professionale su misura per questo profilo creando una vera organicità dei contenuti.\n\n"
+        $fallback = "Sei un Direttore Artistico (Art Director) e Caporedattore di altissimo livello.\n"
+            . "Il tuo compito: analizzare il profilo utente e definire un **Archetipo di Design** dinamico (es. Minimalista Elegante, Tech Vibrante, Creator Dinamico), generando la configurazione UI Premium su misura. NON proporre immagini di stock, il sito esalterà solo i contenuti social dell'utente e grafiche astratte di altissima qualità.\n\n"
             . "Profilo:\n{profileSummary}\n\n"
             . "Ruolo e Missione:\n{roleMission}\n\n"
             . "Strategia contenuti:\n{contentStrategy}\n\n"
             . "Post recenti pubblicati:\n{recentPosts}\n\n"
             . "Tag REALI attualmente assegnati ai contenuti nel database:\n[{tagsContext}]\n\n"
-            . "Genera JSON con questa struttura:\n"
-            . '{"title":"Titolo H1 sito max 60 caratteri","bio":"Bio ottimizzata max 200 caratteri","role_mission":"Missione aggiornata max 150 caratteri","theme":"classic","accent_color":"#hex colore primario","accent_secondary":"#hex colore secondario","header_layout":"standard","menu_links":[{"label":"Home","url":"/"},{"label":"Nome Categoria Esistente","url":"/?tag=tag_esatto_dalla_lista_reale"}],"footer_text":"Testo footer","custom_css":"CSS completo e creativo. Usa :root variables, gradienti, font Google @import, animazioni keyframe. Min 300 caratteri.","hero_tagline":"Frase impatto max 80 caratteri","cta_text":"Call to action"}';
+            . "Genera un JSON con questa rigorosa struttura:\n"
+            . "{\n"
+            . '  "title": "Titolo H1 sito max 60 caratteri",' . "\n"
+            . '  "bio": "Bio ottimizzata max 200 caratteri",' . "\n"
+            . '  "role_mission": "Missione aggiornata max 150 caratteri",' . "\n"
+            . '  "design_archetype": "Il nome dell\'archetipo (es. Neo Brutalism, Clean Corporate)",' . "\n"
+            . '  "font_heading": "Nome di un Google Font premium per titoli (es. Playfair Display, Outfit, Syne)",' . "\n"
+            . '  "font_body": "Nome di un Google Font per i testi (es. Inter, Roboto, Lora)",' . "\n"
+            . '  "color_palette": {' . "\n"
+            . '    "bg": "#hex (chiaro o scuro a seconda dell\'archetipo)",' . "\n"
+            . '    "surface": "#hex (colore per le card, con buon contrasto su bg)",' . "\n"
+            . '    "text": "#hex (colore testo primario ad altissimo contrasto)",' . "\n"
+            . '    "text_muted": "#hex",' . "\n"
+            . '    "primary": "#hex (colore di accento vibrante)",' . "\n"
+            . '    "primary_gradient": "linear-gradient(135deg, #hex, #hex)"' . "\n"
+            . '  },' . "\n"
+            . '  "ui_style": {' . "\n"
+            . '    "radius": "0px / 8px / 16px / 24px (in base allo stile)",' . "\n"
+            . '    "card_shadow": "ombra CSS premium (es. 0 10px 30px rgba(0,0,0,0.05))",' . "\n"
+            . '    "glassmorphism": true o false (se usare backdrop-filter)' . "\n"
+            . '  },' . "\n"
+            . '  "menu_links": [{"label":"Home","url":"/"},{"label":"Categoria Esistente","url":"/?tag=tag_reale"}],' . "\n"
+            . '  "footer_text": "Testo footer",' . "\n"
+            . '  "hero_tagline": "Frase impatto max 80 char",' . "\n"
+            . '  "cta_text": "Call to action",' . "\n"
+            . '  "custom_css": "CSS aggiuntivo opzionale (max 500 char) per micro-animazioni o hover states unici."' . "\n"
+            . "}";
 
         $prompt = self::getAgentPrompt('site_ai', $fallback);
         $prompt = str_replace(
@@ -656,19 +679,17 @@ class AI {
                 'title'         => '',
                 'bio'           => '',
                 'role_mission'  => '',
-                'theme'         => 'classic',
-                'accent_color'  => '#7F77DD',
-                'header_layout' => 'standard',
+                'design_archetype' => 'Default Clean',
+                'font_heading'  => 'Outfit',
+                'font_body'     => 'Inter',
+                'color_palette' => ['bg'=>'#FAFAFA', 'surface'=>'#FFFFFF', 'text'=>'#1F2937', 'text_muted'=>'#6B7280', 'primary'=>'#6366F1', 'primary_gradient'=>'linear-gradient(135deg, #818CF8, #6366F1)'],
+                'ui_style'      => ['radius'=>'16px', 'card_shadow'=>'0 10px 30px rgba(0,0,0,0.05)', 'glassmorphism'=>false],
                 'menu_links'    => [],
                 'footer_text'   => '',
                 'custom_css'    => '',
                 'hero_tagline'  => '',
                 'cta_text'      => 'Scopri i miei contenuti',
             ];
-        }
-        $validThemes = ['classic', 'journal', 'authority', 'portfolio', 'magazine', 'minimal', 'studio', 'local', 'academy', 'timeline', 'bottega'];
-        if (!in_array($result['theme'] ?? '', $validThemes)) {
-            $result['theme'] = 'classic';
         }
         return $result;
     }

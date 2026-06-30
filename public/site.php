@@ -153,7 +153,12 @@ $title      = h($site['title'] ?? $user['name'] ?? '');
 $bio        = h($site['profile_summary'] ?: ($site['bio'] ?? ''));
 $siteUrl    = BASE_URL . '/s/' . $slug;
 $validThemes = ['classic', 'journal', 'authority', 'portfolio', 'magazine', 'minimal', 'studio', 'local', 'academy', 'bottega'];
-$theme      = in_array($site['theme'] ?? '', $validThemes, true) ? $site['theme'] : 'classic';
+$theme      = $site['theme'] ?? 'classic';
+if (!in_array($theme, $validThemes, true)) {
+    $theme = 'classic'; // Fallback for backward compatibility, although AI might generate new archetypes
+}
+$archetype  = $site['design_archetype'] ?? $theme;
+
 $icons      = ['instagram' => '📸', 'tiktok' => '🎵', 'youtube' => '▶️', 'facebook' => '📘', 'website' => '🌐'];
 
 $menuLinks    = !empty($site['menu_links']) ? json_decode($site['menu_links'], true) : [];
@@ -202,10 +207,15 @@ $customCss    = $site['custom_css'] ?? '';
 $heroTagline  = h($site['hero_tagline'] ?? '');
 $ctaText      = h($site['cta_text'] ?? 'Scopri i contenuti');
 
+// ── Dati AI dinamici (site_ai_data) ───────────
+$aiData = !empty($site['site_ai_data']) ? json_decode($site['site_ai_data'], true) : [];
+$fontHeading = $aiData['font_heading'] ?? 'Inter';
+$fontBody    = $aiData['font_body'] ?? 'Inter';
+$palette     = $aiData['color_palette'] ?? ['primary' => '#7F77DD', 'secondary' => '#5C54C4', 'background' => '#FAFAFA', 'text' => '#1a1a24'];
+
 // ── Override per Anteprima (preview_theme oppure preview_index) ──────────────
-if (isset($_GET['preview_theme']) && in_array($_GET['preview_theme'], $validThemes, true)) {
-    $theme = $_GET['preview_theme'];
-    // Reset custom_css per vedere il tema puro
+if (isset($_GET['preview_theme'])) {
+    $archetype = $_GET['preview_theme'];
     $customCss = '';
     $accentColor = '';
 }
@@ -214,15 +224,59 @@ if (isset($_GET['preview_index']) && !empty($site['generated_layouts'])) {
     $layouts = json_decode($site['generated_layouts'], true);
     if (is_array($layouts) && isset($layouts[$idx])) {
         $p2 = $layouts[$idx];
-        if (in_array($p2['theme'] ?? '', $validThemes, true)) $theme = $p2['theme'];
-        $accentColor  = $p2['accent_color'] ?? $accentColor;
+        $archetype    = $p2['design_archetype'] ?? $archetype;
+        $accentColor  = $p2['color_palette']['primary'] ?? $p2['accent_color'] ?? $accentColor;
         $customCss    = $p2['custom_css'] ?? $customCss;
+        if (isset($p2['font_heading'])) $fontHeading = $p2['font_heading'];
+        if (isset($p2['font_body'])) $fontBody = $p2['font_body'];
+        if (isset($p2['color_palette'])) $palette = $p2['color_palette'];
     }
 }
 
-// ── Post in evidenza ─────────────────────────────────────────────────────────
-$featuredPost = null;
-foreach ($posts as $p) { if (!empty($p['featured'])) { $featuredPost = $p; break; } }
+// ── Post per lo Slider (Top 3) ───────────────────────────────────────────────
+$sliderPosts = [];
+// 1. Prendi i featured (fino a 3)
+foreach ($posts as $p) {
+    if (!empty($p['featured']) && count($sliderPosts) < 3) $sliderPosts[] = $p;
+}
+// 2. Riempi con quelli che hanno media (fino a 3 totali)
+foreach ($posts as $p) {
+    if (count($sliderPosts) >= 3) break;
+    if (empty($p['featured']) && !empty($p['media_url'])) $sliderPosts[] = $p;
+}
+// 3. Fallback: post recenti senza media
+if (count($sliderPosts) === 0) {
+    $sliderPosts = array_slice($posts, 0, 3);
+}
+
+$sliderIds = array_column($sliderPosts, 'id');
+
+// ── Topic (Categorie per Home Page) ──────────────────────────────────────────
+$topTags = array_slice(array_keys($tagCounts), 0, 4); // Prendi i primi 4 tag
+$postsByTopic = [];
+$usedPostIds = $sliderIds; // non duplicare i post dello slider
+
+foreach ($topTags as $tag) {
+    $topicPosts = [];
+    foreach ($posts as $p) {
+        if (!in_array($p['id'], $usedPostIds) && in_array(strtolower(trim($tag)), array_map('strtolower', $p['tags'] ?? []))) {
+            $topicPosts[] = $p;
+            $usedPostIds[] = $p['id'];
+            if (count($topicPosts) >= 4) break; // Max 4 post per topic in home
+        }
+    }
+    if (count($topicPosts) > 0) {
+        $postsByTopic[$tag] = $topicPosts;
+    }
+}
+
+// ── Gli altri post (Ultimi Arrivi) ──────────────────────────────────────────
+$recentPosts = [];
+foreach ($posts as $p) {
+    if (!in_array($p['id'], $usedPostIds)) {
+        $recentPosts[] = $p;
+    }
+}
 
 // Helper per titolo/body effettivi (usa edited_ se presente)
 function postTitle(array $p): string {
@@ -430,9 +484,49 @@ $themeCSS = [
 ",
 ];
 
+// Se abbiamo dati AI (fonts dinamici), sovrascriviamo il CSS di base
+$fontHeadingUrl = urlencode($fontHeading);
+$fontBodyUrl = urlencode($fontBody);
+$dynamicBaseCss = "
+  :root { 
+      --accent: {$palette['primary']}; 
+      --accent-secondary: {$palette['secondary']}; 
+      --bg: {$palette['background']}; 
+      --text: {$palette['text']}; 
+      --card-bg: #fff; 
+      --border: rgba(0,0,0,0.08); 
+      --radius: 16px; 
+  }
+  @import url('https://fonts.googleapis.com/css2?family={$fontHeadingUrl}:wght@400;600;700;800&family={$fontBodyUrl}:wght@300;400;500;600&display=swap');
+  
+  body { font-family: '{$fontBody}', sans-serif; background: var(--bg); color: var(--text); }
+  h1, h2, h3, h4, h5, h6, .nav-brand { font-family: '{$fontHeading}', sans-serif; }
+  
+  .navbar { background: var(--bg); border-bottom: 1px solid var(--border); padding: 1rem 2rem; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100; }
+  .nav-brand { font-weight: 700; font-size: 1.3rem; color: var(--text); display: flex; align-items: center; gap: 0.75rem; }
+  .nav-links { display: flex; gap: 1.5rem; } .nav-links a { color: var(--text); font-size: 0.95rem; font-weight: 500; opacity: 0.8; }
+  .nav-links a:hover { opacity: 1; color: var(--accent); }
+  
+  .hero { padding: 6rem 1.5rem; text-align: center; border-bottom: 1px solid var(--border); }
+  .hero h1 { font-size: clamp(2.5rem, 5vw, 4rem); font-weight: 800; letter-spacing: -0.02em; margin-bottom: 1rem; color: var(--text); }
+  .hero .bio { font-size: 1.15rem; color: var(--text); opacity: 0.8; max-width: 650px; margin: 0 auto 1.5rem; line-height: 1.6; }
+  
+  .post-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 2rem; }
+  .post { background: var(--card-bg); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.75rem; transition: transform 0.3s, box-shadow 0.3s; }
+  .post:hover { transform: translateY(-4px); box-shadow: 0 12px 30px rgba(0,0,0,0.07); border-color: var(--accent); }
+  .post h2 { font-size: 1.4rem; margin-bottom: 0.75rem; font-weight: 700; line-height: 1.3; }
+  .post h2 a { color: var(--text); } .post h2 a:hover { color: var(--accent); }
+";
+
 // Selezione CSS tema + inject accent color
-$activeCss = $themeCSS[$theme] ?? $themeCSS['classic'];
-// Sostituisce #$accent con il valore reale
+// Se stiamo usando un tema legacy, usa il CSS legacy, altrimenti usa la base dinamica
+$activeCss = isset($themeCSS[$archetype]) ? $themeCSS[$archetype] : $dynamicBaseCss;
+if (!isset($themeCSS[$archetype]) || !empty($site['site_ai_data'])) {
+    // Forza CSS dinamico se l'AI ha generato il sito (o se l'archetipo non e' nei fallback)
+    $activeCss = $dynamicBaseCss;
+}
+
+// Sostituisce eventuali tag $accent nel CSS per sicurezza
 $activeCss = str_replace('#$accent', $accent, $activeCss);
 
 // HTTP Link headers per sitemap e feed
@@ -617,16 +711,49 @@ header('Link: <' . $siteUrl . '/feed.xml>; rel="alternate"; type="application/at
     .breadcrumb { display: flex; gap: 0.5rem; align-items: center; margin-bottom: 1.5rem; font-size: 0.85rem; color: var(--text, #111); opacity: 0.6; flex-wrap: wrap; }
     .breadcrumb a { color: var(--accent, #7F77DD); }
     .breadcrumb span.sep { opacity: 0.4; }
-    /* Custom CSS iniettato dall'AI */
+    /* ─── Layout Editoriale Nuovo ─── */
+    .slider-container { position: relative; width: 100%; margin: 0 auto 3rem; overflow: hidden; border-radius: 0 0 20px 20px; box-shadow: 0 10px 40px rgba(0,0,0,0.1); background: #000; }
+    .slider-track { display: flex; transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1); }
+    .slider-slide { min-width: 100%; position: relative; }
+    .slider-slide img, .slider-slide video { width: 100%; height: 55vh; max-height: 600px; min-height: 400px; object-fit: cover; display: block; opacity: 0.8; }
+    .slider-content { position: absolute; bottom: 0; left: 0; right: 0; padding: 6rem 2rem 3rem; background: linear-gradient(transparent, rgba(0,0,0,0.9)); color: #fff; }
+    .slider-content .meta { color: rgba(255,255,255,0.8); margin-bottom: 0.5rem; }
+    .slider-content h2 { font-size: clamp(2rem, 5vw, 3.5rem); font-weight: 800; margin-bottom: 0.5rem; line-height: 1.1; letter-spacing: -0.02em; }
+    .slider-content h2 a { color: #fff; text-shadow: 0 2px 10px rgba(0,0,0,0.5); }
+    .slider-content h2 a:hover { color: var(--accent, #ccc); }
+    .slider-content .excerpt { opacity: 0.9; font-size: 1.15rem; max-width: 800px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; text-shadow: 0 1px 4px rgba(0,0,0,0.5); }
+    .slider-nav { position: absolute; bottom: 1.5rem; right: 2rem; display: flex; gap: 0.6rem; z-index: 10; }
+    .slider-dot { width: 12px; height: 12px; border-radius: 50%; background: rgba(255,255,255,0.4); border: 2px solid transparent; cursor: pointer; transition: all 0.3s; padding: 0; }
+    .slider-dot.active { background: #fff; transform: scale(1.3); }
+    
+    .topic-section { margin-bottom: 4rem; }
+    .topic-header { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 1.5rem; border-bottom: 2px solid var(--border); padding-bottom: 0.5rem; }
+    .topic-header h2 { font-size: 1.8rem; font-weight: 800; margin: 0; display: flex; align-items: center; gap: 0.5rem; }
+    .topic-header h2::before { content: ''; display: block; width: 6px; height: 24px; background: var(--accent); border-radius: 3px; }
+    .topic-header a { font-size: 0.9rem; font-weight: 600; color: var(--accent); padding: 0.4rem 1.2rem; border-radius: 20px; background: rgba(127,119,221,0.1); transition: all 0.2s; white-space: nowrap; }
+    .topic-header a:hover { background: var(--accent); color: #fff; }
+    
+    .horizontal-scroll { display: flex; gap: 1.5rem; overflow-x: auto; padding-bottom: 1.5rem; scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch; }
+    .horizontal-scroll::-webkit-scrollbar { height: 6px; }
+    .horizontal-scroll::-webkit-scrollbar-track { background: var(--border); border-radius: 3px; }
+    .horizontal-scroll::-webkit-scrollbar-thumb { background: var(--accent); border-radius: 3px; }
+    .horizontal-scroll .post { min-width: 320px; max-width: 380px; flex: 0 0 auto; scroll-snap-align: start; }
+    
+    .recent-header { font-size: 2rem; font-weight: 800; margin-bottom: 2rem; text-align: center; }
+
     <?= $customCss ?>
     @media (max-width: 768px) {
-      .hero { padding: 3.5rem 1rem; }
+      .slider-slide img, .slider-slide video { height: 45vh; min-height: 350px; }
+      .slider-content { padding: 4rem 1.5rem 2.5rem; }
+      .topic-header { flex-direction: column; align-items: flex-start; gap: 0.5rem; border-bottom: none; }
+      .topic-header h2 { font-size: 1.5rem; }
+      .horizontal-scroll .post { min-width: 280px; }
       .container { padding: 2rem 1rem; }
       .single-post { padding: 1.5rem; border-radius: 12px; }
     }
   </style>
 </head>
-<body class="theme-<?= h($theme) ?>">
+<body class="theme-<?= h($archetype) ?>">
 
 <!-- NAVBAR -->
 <nav class="navbar" aria-label="Navigazione principale" role="navigation">
@@ -652,29 +779,53 @@ header('Link: <' . $siteUrl . '/feed.xml>; rel="alternate"; type="application/at
   <?php endif; ?>
 </nav>
 
-<?php if (!$single): ?>
-<!-- HERO -->
-<?php 
-$heroStyle = '';
-if ($coverUrl) {
-    $heroStyle = 'background: linear-gradient(rgba(0,0,0,0.6), rgba(0,0,0,0.8)), url(' . h($coverUrl) . ') center/cover no-repeat; color: #fff; padding: 8rem 2rem; border-radius: 0 0 40px 40px;';
-}
-?>
-<header class="hero" style="<?= $heroStyle ?>">
-  <h1 style="<?= $coverUrl ? 'color:#fff;' : '' ?>"><?= $title ?></h1>
-  <?php if ($heroTagline): ?><p class="hero-tagline" style="font-size: clamp(1.2rem, 3vw, 1.6rem); font-weight: 600; margin-bottom: 1rem; <?= $coverUrl ? 'color:rgba(255,255,255,0.9);' : 'color:var(--accent);' ?>"><?= $heroTagline ?></p><?php endif; ?>
-  <?php if ($bio): ?><p class="bio" style="<?= $coverUrl ? 'color:rgba(255,255,255,0.7);' : '' ?>"><?= $bio ?></p><?php endif; ?>
-
-  <?php if ($sources): ?>
-  <div class="socials">
-    <?php foreach ($sources as $source): ?>
-      <a class="social-link" href="<?= h($source['url']) ?>" target="_blank" rel="noopener">
-        <?= $icons[$source['platform']] ?? '🔗' ?> <?= h($source['label'] ?: ucfirst($source['platform'])) ?>
-      </a>
+<?php if (!$single && count($sliderPosts) > 0): ?>
+<!-- SLIDER HERO -->
+<div class="slider-container" id="hero-slider">
+  <div class="slider-track" id="slider-track">
+    <?php foreach ($sliderPosts as $i => $p): 
+        $pUrl = $siteUrl . '/' . h($p['slug'] ?? '');
+        $u = $p['media_url'] ?? '';
+        $media = '';
+        if ($u) {
+            $type = strtolower($p['media_type'] ?? '');
+            if ($type === 'video' || preg_match('~\.(mp4|mov|webm)(\?|$)~i', $u)) {
+                $media = '<video autoplay muted loop playsinline><source src="' . h($u) . '"></video>';
+            } else if (preg_match('~(?:youtube\.com|youtu\.be)~i', $u) && preg_match('~(?:v=|youtu\.be/|shorts/|embed/)([A-Za-z0-9_-]{11})~', $u, $m)) {
+                // Per iframe youtube mettiamo un placeholder o cover se esiste, altrimenti un gradiente
+                $media = $coverUrl ? '<img src="'.h($coverUrl).'" alt="">' : '<div style="width:100%; height:100%; background: linear-gradient(135deg, var(--accent), #333);"></div>';
+            } else {
+                $media = '<img src="' . h($u) . '" alt="">';
+            }
+        } else if ($coverUrl) {
+            $media = '<img src="' . h($coverUrl) . '" alt="">';
+        } else {
+            $media = '<div style="width:100%; height:100%; background: linear-gradient(135deg, var(--accent), #111);"></div>';
+        }
+    ?>
+    <div class="slider-slide" data-index="<?= $i ?>">
+      <?= $media ?>
+      <div class="slider-content">
+        <div class="container" style="padding:0;">
+          <div class="meta">
+            <span class="badge" style="margin-right:8px;">In Evidenza</span>
+            <span><?= $icons[$p['platform']] ?? '📄' ?> <?= h($p['platform']) ?></span>
+          </div>
+          <h2><a href="<?= $pUrl ?>"><?= h(postTitle($p)) ?></a></h2>
+          <p class="excerpt"><?= h(postExcerpt($p)) ?></p>
+        </div>
+      </div>
+    </div>
+    <?php endforeach; ?>
+  </div>
+  <?php if (count($sliderPosts) > 1): ?>
+  <div class="slider-nav">
+    <?php foreach ($sliderPosts as $i => $p): ?>
+      <button class="slider-dot <?= $i === 0 ? 'active' : '' ?>" data-index="<?= $i ?>" aria-label="Vai alla slide <?= $i + 1 ?>"></button>
     <?php endforeach; ?>
   </div>
   <?php endif; ?>
-</header>
+</div>
 <?php endif; ?>
 
 <main class="container">
@@ -703,59 +854,9 @@ if ($coverUrl) {
 
   <?php if ($activeTag): ?>
   <div style="margin-bottom: 2rem; padding: 1.5rem; background: var(--card-bg); border-radius: var(--radius); border-left: 4px solid var(--accent);">
-    <h2 style="margin:0;">Stai visualizzando la categoria: <strong><?= h(ucfirst($activeTag)) ?></strong></h2>
+    <h2 style="margin:0;">Categoria: <strong><?= h(ucfirst($activeTag)) ?></strong></h2>
     <p style="margin-top: 0.5rem; color: var(--text-muted);"><a href="<?= $siteUrl ?>">← Torna a tutti i contenuti</a></p>
   </div>
-  <?php else: ?>
-  <!-- POST IN EVIDENZA -->
-  <?php if ($featuredPost): $fp = $featuredPost; $fpUrl = $siteUrl . '/' . h($fp['slug'] ?? ''); ?>
-  <div class="featured-post">
-    <div>
-      <div class="featured-label">⭐ In evidenza</div>
-      <h2><a href="<?= $fpUrl ?>"><?= h(postTitle($fp)) ?></a></h2>
-      <p class="excerpt"><?= h(postExcerpt($fp)) ?></p>
-      <a class="featured-cta" href="<?= $fpUrl ?>"><?= $ctaText ?> →</a>
-    </div>
-    <?= mediaHtml($fp) ?>
-  </div>
-  <?php endif; ?>
-  <?php endif; ?>
-
-  <!-- FILTRI -->
-  <?php
-  $allPlatforms = array_unique(array_column($posts, 'platform'));
-  $allTags = [];
-  foreach ($posts as $p) { if (!empty($p['tags'])) foreach ($p['tags'] as $t) { $allTags[] = strtolower(trim($t)); } }
-  $allTags = array_unique($allTags);
-  sort($allPlatforms); sort($allTags);
-  ?>
-  <?php if ($posts): ?>
-  <div class="filters" id="post-filters" style="display: none !important;">
-    <button class="filter-btn active" data-filter="all">Tutti</button>
-    <?php foreach ($allPlatforms as $pf): ?>
-      <button class="filter-btn" data-filter="platform-<?= h($pf) ?>"><?= $icons[$pf] ?? '' ?> <?= h(ucfirst($pf)) ?></button>
-    <?php endforeach; ?>
-    <?php foreach ($allTags as $tag): ?>
-      <button class="filter-btn" data-filter="tag-<?= h($tag) ?>">#<?= h($tag) ?></button>
-    <?php endforeach; ?>
-  </div>
-  <section class="post-grid" aria-label="Contenuti pubblicati" itemscope itemtype="https://schema.org/ItemList">
-    <?php foreach ($posts as $p): if (!empty($p['featured'])) continue; // Il featured è già mostrato sopra
-      $purl = $siteUrl . '/' . h($p['slug'] ?? '');
-      $ptagStr = implode(' ', array_map(fn($t) => 'tag-' . strtolower(trim($t)), $p['tags'] ?? []));
-    ?>
-    <article class="post" data-platform="platform-<?= h($p['platform']) ?>" data-tags="<?= h($ptagStr) ?>" itemprop="itemListElement" itemscope itemtype="https://schema.org/Article">
-      <?= mediaHtml($p) ?>
-      <div class="post-body">
-        <div class="meta">
-          <span><?= $icons[$p['platform']] ?? '📄' ?> <?= h($p['platform']) ?></span>
-          <span itemprop="datePublished" content="<?= date(DATE_ATOM, strtotime($p['published_at'] ?? 'now')) ?>"><?= $p['published_at'] ? date('d/m/Y', strtotime($p['published_at'])) : '' ?></span>
-          <?php if (strtoupper($p['media_type'] ?? '') === 'VIDEO'): ?><span class="badge">Video</span><?php endif; ?>
-        </div>
-        <h2 itemprop="headline"><a href="<?= $purl ?>" itemprop="url"><?= h(postTitle($p)) ?></a></h2>
-        <p class="excerpt" itemprop="abstract"><?= h(postExcerpt($p)) ?></p>
-        <?php if (!empty($p['source_url'])): ?>
-          <a class="source-link" href="<?= h($p['source_url']) ?>" target="_blank" rel="noopener">Originale</a>
         <?php endif; ?>
         <?php if (!empty($p['tags'])): ?>
         <div class="tags">
@@ -817,24 +918,33 @@ document.addEventListener('DOMContentLoaded', () => {
   }, { threshold: 0.05, rootMargin: '0px 0px -40px 0px' });
   document.querySelectorAll('.post').forEach(p => observer.observe(p));
 
-  const filters = document.getElementById('post-filters');
-  if (filters) {
-    const btns = filters.querySelectorAll('.filter-btn');
-    const posts = document.querySelectorAll('.post-grid .post');
-    btns.forEach(btn => {
-      btn.addEventListener('click', () => {
-        btns.forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-        const filter = btn.getAttribute('data-filter');
-        posts.forEach(post => {
-          const show = filter === 'all'
-            || (filter.startsWith('platform-') && post.getAttribute('data-platform') === filter)
-            || (filter.startsWith('tag-') && post.getAttribute('data-tags').split(' ').includes(filter));
-          post.classList.toggle('hidden', !show);
-          if (show) { post.classList.remove('visible'); setTimeout(() => post.classList.add('visible'), 50); }
-        });
+  // Slider Logic
+  const track = document.getElementById('slider-track');
+  if (track) {
+    const dots = document.querySelectorAll('.slider-dot');
+    let currentSlide = 0;
+    const maxSlides = dots.length;
+    
+    const goToSlide = (idx) => {
+      if (maxSlides <= 1) return;
+      currentSlide = idx;
+      track.style.transform = `translateX(-${currentSlide * 100}%)`;
+      dots.forEach(d => d.classList.remove('active'));
+      dots[currentSlide].classList.add('active');
+    };
+    
+    dots.forEach(dot => {
+      dot.addEventListener('click', () => {
+        clearInterval(autoSlide);
+        goToSlide(parseInt(dot.getAttribute('data-index')));
       });
     });
+    
+    let autoSlide = setInterval(() => {
+      if (maxSlides > 1) {
+        goToSlide((currentSlide + 1) % maxSlides);
+      }
+    }, 6000);
   }
 });
 </script>

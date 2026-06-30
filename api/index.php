@@ -503,9 +503,6 @@ if ($action === 'hide-post' && $method === 'POST') {
 // ── PATCH site settings ───────────────────────────────────────────────────
 if ($action === 'site-update' && $method === 'POST') {
     $b = body();
-    if (array_key_exists('theme', $b) && $b['theme'] !== null && !in_array($b['theme'], validSiteThemes(), true)) {
-        jsonError('Layout non valido');
-    }
     
     $fields = [];
     $params = [];
@@ -522,6 +519,7 @@ if ($action === 'site-update' && $method === 'POST') {
     if (array_key_exists('header_layout', $b)) { $fields[] = 'header_layout = ?'; $params[] = $b['header_layout']; }
     if (array_key_exists('logo_url', $b)) { $fields[] = 'logo_url = ?'; $params[] = $b['logo_url']; }
     if (array_key_exists('custom_css', $b)) { $fields[] = 'custom_css = ?'; $params[] = $b['custom_css']; }
+    if (array_key_exists('site_ai_data', $b)) { $fields[] = 'site_ai_data = ?'; $params[] = is_array($b['site_ai_data']) ? json_encode($b['site_ai_data'], JSON_UNESCAPED_UNICODE) : $b['site_ai_data']; }
 
     if (!empty($fields)) {
         $params[] = $userId;
@@ -566,7 +564,8 @@ if ($action === 'design-site' && $method === 'POST') {
                 $seo['title'] ?? '', $seo['bio'] ?? '',
                 isset($seo['menu_links']) ? json_encode($seo['menu_links'], JSON_UNESCAPED_UNICODE) : '',
                 $seo['footer_text'] ?? '',
-                $g['theme'] ?? 'classic', $g['accent_color'] ?? '',
+                $g['design_archetype'] ?? 'classic', 
+                $g['color_palette']['primary'] ?? '',
                 $g['header_layout'] ?? 'standard', $g['custom_css'] ?? '',
                 json_encode($proposals, JSON_UNESCAPED_UNICODE),
                 $seo['hero_tagline'] ?? '',
@@ -619,8 +618,8 @@ if ($action === 'site-ai' && $method === 'POST') {
                 $result['title'] ?? '',
                 $result['bio'] ?? '',
                 $result['role_mission'] ?? $role,
-                $result['theme'] ?? 'classic',
-                $result['accent_color'] ?? '',
+                $result['design_archetype'] ?? 'classic',
+                $result['color_palette']['primary'] ?? '',
                 $result['header_layout'] ?? 'standard',
                 isset($result['menu_links']) ? json_encode($result['menu_links'], JSON_UNESCAPED_UNICODE) : '',
                 $result['footer_text'] ?? '',
