@@ -350,7 +350,7 @@ function GeneratingScreen({ token, userId, onDone }) {
 // Screen: Dashboard — anteprima sito + SEO + impostazioni
 // ═══════════════════════════════════════════════════════════════
 function DashboardScreen({ token, user, onLogout }) {
-  const [tab, setTab] = useState('site');
+  const [tab, setTab] = useState('overview');
   const [dashboardFilter, setDashboardFilter] = useState('all');
   const [data, setData] = useState(null);
   const [syncing, setSyncing] = useState(false);
@@ -379,6 +379,7 @@ function DashboardScreen({ token, user, onLogout }) {
   const [customCss, setCustomCss] = useState('');
   const [menuLinksStr, setMenuLinksStr] = useState('');
   const [footerText, setFooterText] = useState('');
+  const [gscVerification, setGscVerification] = useState('');
 
   useEffect(() => { loadData(); loadDrafts(); }, []);
 
@@ -398,6 +399,7 @@ function DashboardScreen({ token, user, onLogout }) {
       setHeroTagline(d.site?.hero_tagline || '');
       setCustomCss(d.site?.custom_css || '');
       setFooterText(d.site?.footer_text || '');
+      setGscVerification(d.site?.gsc_verification || '');
       if (d.site?.menu_links) {
         try {
            const arr = JSON.parse(d.site.menu_links);
@@ -617,6 +619,7 @@ function DashboardScreen({ token, user, onLogout }) {
           hero_tagline: heroTagline,
           custom_css: customCss,
           footer_text: footerText,
+          gsc_verification: gscVerification,
           menu_links: menuLinksStr.split('\n').filter(x => x.trim()).map(x => {
              const parts = x.split('|');
              return { label: parts[0].trim(), url: parts[1] ? parts[1].trim() : '' };
@@ -689,6 +692,19 @@ function DashboardScreen({ token, user, onLogout }) {
       alert("Layout applicato con successo!");
     } catch (err) {
       alert(err.message);
+    }
+  }
+
+  async function removeGeneratedLayout(index) {
+    if (!confirm('Vuoi davvero eliminare questa proposta di layout?')) return;
+    try {
+      await apiFetch('/api/index.php?action=delete-layout', {
+        method: 'POST',
+        body: JSON.stringify({ index })
+      }, token);
+      await loadData();
+    } catch (err) {
+      alert("Errore eliminazione: " + err.message);
     }
   }
 
@@ -782,32 +798,61 @@ function DashboardScreen({ token, user, onLogout }) {
   const siteUrl = `${API.replace('3001', '3000')}/s/${user.slug}`;
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--bg)' }}>
-      {/* Topbar */}
-      <div style={{ background: 'var(--surface)', borderBottom: '1px solid var(--border)', padding: '0 1rem' }}>
-        <div style={{ maxWidth: '900px', margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: '56px' }}>
-          <div style={{ fontWeight: 700, fontSize: '17px', color: 'var(--purple)' }}>Social<span style={{ color: 'var(--text)' }}>ToSite</span></div>
-          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-            {/* Pulsante SITO AI - principale feature */}
-            <button
-              className="btn btn-primary"
-              onClick={runSiteAi}
-              disabled={siteAiLoading}
-              style={{ background: siteAiLoading ? 'var(--purple-dark)' : 'linear-gradient(135deg, #7F77DD, #534AB7)', fontSize: '13px', fontWeight: 600, boxShadow: '0 2px 8px rgba(127,119,221,0.4)' }}
-              title="L'AI genera il tuo sito personalizzato al 100% in base al tuo profilo"
-            >
-              {siteAiLoading ? '✨ Generando...' : '✨ SITO AI'}
+    <div style={{ minHeight: '100vh', background: 'var(--bg)', display: 'flex' }}>
+      {/* Sidebar Laterale */}
+      <div style={{ width: '250px', background: 'var(--surface)', borderRight: '1px solid var(--border)', display: 'flex', flexDirection: 'column', position: 'fixed', height: '100vh', top: 0, left: 0, zIndex: 50, backdropFilter: 'blur(10px)' }}>
+        <div style={{ padding: '24px 20px', fontWeight: 800, fontSize: '20px', color: 'var(--purple)', borderBottom: '1px solid var(--border-strong)' }}>Social<span style={{ color: 'var(--text)' }}>ToSite</span></div>
+        <div style={{ padding: '20px 10px', display: 'flex', flexDirection: 'column', gap: '4px', flex: 1, overflowY: 'auto' }}>
+          {[
+            { id: 'overview', icon: '🏠', label: 'Overview' },
+            { id: 'site', icon: '📝', label: 'Contenuti' },
+            { id: 'sources', icon: '📱', label: 'Social & Fonti' },
+            { id: 'settings', icon: '🎨', label: 'Design & Impostazioni' },
+            { id: 'seo', icon: '📈', label: 'SEO' },
+            ...(user.role === 'admin' ? [{ id: 'admin', icon: '🛠', label: 'Admin Panel' }] : [])
+          ].map(item => (
+            <button key={item.id} onClick={() => setTab(item.id)}
+              style={{
+                padding: '10px 14px', borderRadius: '8px', textAlign: 'left',
+                background: tab === item.id ? 'var(--purple-light)' : 'transparent',
+                color: tab === item.id ? 'var(--purple-dark)' : 'var(--text-muted)',
+                fontWeight: tab === item.id ? 600 : 500,
+                display: 'flex', alignItems: 'center', gap: '12px',
+                border: 'none', cursor: 'pointer', transition: 'all 0.2s',
+                boxShadow: tab === item.id ? '0 1px 3px rgba(0,0,0,0.05)' : 'none'
+              }}>
+              <span style={{ fontSize: '18px' }}>{item.icon}</span> {item.label}
             </button>
-            <button className="btn btn-outline" onClick={syncNow} disabled={syncing}>
-              {syncing ? '⟳ Sync...' : '↻ Sync'}
-            </button>
-            {user.role === 'admin' && (
-              <button className="btn btn-outline" onClick={() => setTab('admin')} style={{ fontSize: '13px' }}>🛠 Admin</button>
-            )}
-            <button className="btn btn-outline" onClick={onLogout} style={{ fontSize: '13px' }}>Esci</button>
-          </div>
+          ))}
+        </div>
+        <div style={{ padding: '20px', borderTop: '1px solid var(--border)' }}>
+          <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text)', marginBottom: '8px', overflow: 'hidden', textOverflow: 'ellipsis' }}>{user.email}</div>
+          <button className="btn btn-outline btn-full" onClick={onLogout} style={{ fontSize: '13px', padding: '8px', borderRadius: '8px' }}>Esci</button>
         </div>
       </div>
+
+      {/* Main Content Area */}
+      <div style={{ flex: 1, marginLeft: '250px', padding: '2rem 3rem' }}>
+        <div style={{ maxWidth: '1000px', margin: '0 auto' }}>
+          {/* Header Action Bar */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2.5rem' }}>
+            <h1 style={{ margin: 0, fontSize: '28px', fontWeight: 700, color: 'var(--text)' }}>
+              {tab === 'overview' && 'Panoramica'}
+              {tab === 'site' && 'Gestione Contenuti'}
+              {tab === 'sources' && 'Social & Fonti'}
+              {tab === 'settings' && 'Design & Impostazioni'}
+              {tab === 'seo' && 'SEO & Analisi'}
+              {tab === 'admin' && 'Pannello Admin'}
+            </h1>
+            <div style={{ display: 'flex', gap: '12px' }}>
+              <button className="btn btn-primary" onClick={runSiteAi} disabled={siteAiLoading} style={{ background: siteAiLoading ? 'var(--purple-dark)' : 'linear-gradient(135deg, #7F77DD, #534AB7)', fontSize: '14px', fontWeight: 600, boxShadow: '0 4px 12px rgba(127,119,221,0.3)', padding: '10px 20px', borderRadius: '10px' }} title="L'AI genera il tuo sito personalizzato al 100% in base al tuo profilo">
+                {siteAiLoading ? '✨ Generazione...' : '✨ Genera SITO AI'}
+              </button>
+              <button className="btn btn-outline" onClick={syncNow} disabled={syncing} style={{ background: 'var(--surface)', border: '1px solid var(--border-strong)', padding: '10px 20px', borderRadius: '10px' }}>
+                {syncing ? '⟳ Sync...' : '↻ Aggiorna Social'}
+              </button>
+            </div>
+          </div>
 
       <div style={{ maxWidth: '900px', margin: '0 auto', padding: '1.5rem 1rem' }}>
         {/* Banner SITO AI */}
@@ -832,37 +877,58 @@ function DashboardScreen({ token, user, onLogout }) {
             {!syncMsg.loading && <button onClick={() => setSyncMsg(null)} style={{background:'none', border:'none', cursor:'pointer', fontSize:'16px'}}>✕</button>}
           </div>
         )}
-        {/* Stats */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '10px', marginBottom: '1.5rem' }}>
-          {[
-            { n: posts.length, l: 'Contenuti' },
-            { n: sources.length, l: 'Social attivi' },
-            { n: site?.seo_score || 0, l: 'Score SEO' },
-            { n: posts.filter(p => p.media_type === 'VIDEO').length, l: 'Video trascritti' },
-          ].map((s, i) => (
-            <div key={i} style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '1rem', textAlign: 'center' }}>
-              <div style={{ fontSize: '24px', fontWeight: 600, color: 'var(--purple)' }}>{s.n}</div>
-              <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{s.l}</div>
+        {tab === 'overview' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1.25rem' }}>
+              {[
+                { n: posts.length, l: 'Contenuti pubblicati', c: 'var(--purple)' },
+                { n: sources.length, l: 'Social collegati', c: 'var(--teal)' },
+                { n: site?.seo_score || 0, l: 'Score SEO', c: (site?.seo_score >= 80) ? 'var(--teal)' : 'var(--amber)' },
+                { n: posts.filter(p => p.media_type === 'VIDEO').length, l: 'Video trascritti', c: 'var(--purple-dark)' },
+              ].map((s, i) => (
+                <div key={i} className="card" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                  <div style={{ fontSize: '36px', fontWeight: 700, color: s.c, lineHeight: 1 }}>{s.n}</div>
+                  <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '8px', fontWeight: 500 }}>{s.l}</div>
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
+            
+            <div className="card" style={{ background: 'linear-gradient(135deg, var(--purple-dark), var(--purple))', color: '#fff', border: 'none' }}>
+              <h2 style={{ marginBottom: '1rem', color: '#fff', fontSize: '20px' }}>🌍 Il tuo sito è online</h2>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+                <div style={{ background: 'rgba(255,255,255,0.1)', padding: '12px 20px', borderRadius: '8px', fontFamily: 'monospace', fontSize: '15px', flex: 1, minWidth: '250px' }}>
+                  {siteUrl}
+                </div>
+                <div style={{ display: 'flex', gap: '10px' }}>
+                  <a href={siteUrl} target="_blank" rel="noopener" className="btn" style={{ background: '#fff', color: 'var(--purple-dark)', textDecoration: 'none' }}>Apri sito</a>
+                  <button className="btn" onClick={() => navigator.clipboard.writeText(siteUrl).then(() => alert('Copiato!'))} style={{ background: 'rgba(255,255,255,0.2)', color: '#fff' }}>Copia link</button>
+                </div>
+              </div>
+            </div>
 
-        {/* Tabs */}
-        <div style={{ display: 'flex', gap: '4px', marginBottom: '1.25rem', background: 'var(--gray-light)', padding: '4px', borderRadius: 'var(--radius-sm)', width: 'fit-content', flexWrap: 'wrap' }}>
-          {[
-            ['site', '📝 Articoli'],
-            ['sources', '🔗 Fonti'],
-            ['seo', '📈 SEO'],
-            ['settings', '⚙️ Tema'],
-            ...(user.role === 'admin' ? [['admin', '🛠 Admin']] : [])
-          ].map(([t, l]) => (
-            <button key={t} onClick={() => setTab(t)}
-              style={{ padding: '6px 16px', borderRadius: '5px', fontWeight: tab === t ? 600 : 400,
-                background: tab === t ? 'var(--surface)' : 'transparent',
-                boxShadow: tab === t ? '0 1px 3px rgba(0,0,0,.1)' : 'none',
-                color: tab === t ? 'var(--text)' : 'var(--text-muted)', border: 'none' }}>{l}</button>
-          ))}
-        </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
+              <div className="card">
+                <h3 style={{ marginBottom: '1rem' }}>Sincronizzazione automatica</h3>
+                <p style={{ fontSize: '14px', color: 'var(--text-muted)', marginBottom: '1rem' }}>
+                  Il tuo sito si aggiorna automaticamente ogni 6 ore prelevando i contenuti dalle fonti social attive.
+                </p>
+                <div style={{ padding: '12px', background: 'var(--gray-light)', borderRadius: '8px', fontSize: '13px', display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ fontWeight: 600 }}>Ultimo sync:</span>
+                  <span>{site?.last_sync ? new Date(site.last_sync).toLocaleString('it-IT') : 'Mai effettuato'}</span>
+                </div>
+              </div>
+              
+              <div className="card">
+                <h3 style={{ marginBottom: '1rem' }}>Scorciatoie veloci</h3>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <button onClick={() => setTab('settings')} className="btn btn-outline" style={{ justifyContent: 'flex-start' }}>🎨 Modifica i colori e il font</button>
+                  <button onClick={() => setTab('sources')} className="btn btn-outline" style={{ justifyContent: 'flex-start' }}>➕ Aggiungi un nuovo canale social</button>
+                  <button onClick={() => setTab('site')} className="btn btn-outline" style={{ justifyContent: 'flex-start' }}>✏️ Rivedi un articolo pubblicato</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Tab: Fonti & Import */}
         {tab === 'sources' && (
@@ -1206,10 +1272,13 @@ function DashboardScreen({ token, user, onLogout }) {
                         </div>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                           <button className="btn btn-outline btn-full" onClick={() => setActivePreviewUrl(`${siteUrl}?preview_index=${i}`)} style={{ fontSize: '12px', padding: '6px' }}>
-                            👁️ Anteprima Reale
+                            👁️ Anteprima
                           </button>
                           <button className="btn btn-primary btn-full" onClick={() => applyLayout(i)} style={{ fontSize: '12px', padding: '6px' }}>
                             ✓ Applica
+                          </button>
+                          <button className="btn btn-outline btn-full" onClick={() => removeGeneratedLayout(i)} style={{ fontSize: '12px', padding: '6px', color: 'var(--red)', borderColor: 'var(--red-light)' }}>
+                            ❌ Elimina
                           </button>
                         </div>
                       </div>
@@ -1224,11 +1293,24 @@ function DashboardScreen({ token, user, onLogout }) {
               <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.8)', zIndex: 9999, display: 'flex', flexDirection: 'column', padding: '20px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', background: '#222', color: '#fff', padding: '10px 20px', borderRadius: '10px 10px 0 0' }}>
                   <span style={{ fontWeight: 600 }}>Anteprima Reale Proposta AI</span>
-                  <button onClick={() => setActivePreviewUrl(null)} style={{ background: 'transparent', color: '#fff', fontSize: '18px' }}>✕ Chiudi</button>
+                  <button onClick={() => setActivePreviewUrl(null)} style={{ background: 'transparent', color: '#fff', fontSize: '18px', border: 'none', cursor: 'pointer' }}>✕ Chiudi</button>
                 </div>
                 <iframe src={activePreviewUrl} style={{ width: '100%', flex: 1, background: '#fff', border: 'none', borderRadius: '0 0 10px 10px' }} />
               </div>
             )}
+
+            <div className="card" style={{ marginBottom: '1rem' }}>
+              <h3 style={{ marginBottom: '0.75rem' }}>Configurazione SEO</h3>
+              <div className="form-group">
+                <label className="label">Codice verifica Google Search Console</label>
+                <input type="text" value={gscVerification} onChange={e => setGscVerification(e.target.value)}
+                  placeholder="Es: google-site-verification=XXXXXXXXXXXXXXXXXXXXX" />
+                <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>Incolla il codice di verifica HTML che ti fornisce Google Search Console per indicizzare il tuo sito.</p>
+              </div>
+              <button className="btn btn-outline" onClick={saveProfile} disabled={savingProfile}>
+                {savingProfile ? 'Salvataggio...' : 'Salva configurazione SEO'}
+              </button>
+            </div>
 
 
 
@@ -1363,6 +1445,7 @@ function DashboardScreen({ token, user, onLogout }) {
             </div>
           </div>
         )}
+      </div>
       </div>
     </div>
   );

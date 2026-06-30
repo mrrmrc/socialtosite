@@ -419,6 +419,28 @@ if ($action === 'sync' && $method === 'POST') {
     json(['ok' => true, 'results' => $results]);
 }
 
+// ── POST delete-layout (Elimina una proposta generata) ────────────────────
+if ($action === 'delete-layout' && $method === 'POST') {
+    $b = body();
+    $index = $b['index'] ?? null;
+    if ($index === null) jsonError('Indice mancante');
+    
+    $site = DB::fetch('SELECT generated_layouts FROM sites WHERE user_id=?', [$userId]);
+    $layouts = json_decode($site['generated_layouts'] ?? '[]', true);
+    if (!is_array($layouts) || !isset($layouts[$index])) {
+        jsonError('Layout non trovato');
+    }
+    
+    array_splice($layouts, $index, 1);
+    
+    DB::execute('UPDATE sites SET generated_layouts=? WHERE user_id=?', [
+        json_encode($layouts, JSON_UNESCAPED_UNICODE),
+        $userId
+    ]);
+    
+    json(['ok' => true]);
+}
+
 // ── GET site ──────────────────────────────────────────────────────────────
 if ($action === 'site' && $method === 'GET') {
     try {
@@ -519,6 +541,7 @@ if ($action === 'site-update' && $method === 'POST') {
     if (array_key_exists('header_layout', $b)) { $fields[] = 'header_layout = ?'; $params[] = $b['header_layout']; }
     if (array_key_exists('logo_url', $b)) { $fields[] = 'logo_url = ?'; $params[] = $b['logo_url']; }
     if (array_key_exists('custom_css', $b)) { $fields[] = 'custom_css = ?'; $params[] = $b['custom_css']; }
+    if (array_key_exists('gsc_verification', $b)) { $fields[] = 'gsc_verification = ?'; $params[] = $b['gsc_verification']; }
     if (array_key_exists('site_ai_data', $b)) { $fields[] = 'site_ai_data = ?'; $params[] = is_array($b['site_ai_data']) ? json_encode($b['site_ai_data'], JSON_UNESCAPED_UNICODE) : $b['site_ai_data']; }
 
     if (!empty($fields)) {

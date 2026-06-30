@@ -547,6 +547,9 @@ header('Link: <' . $siteUrl . '/feed.xml>; rel="alternate"; type="application/at
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <?php if (!empty($site['gsc_verification'])): ?>
+    <meta name="google-site-verification" content="<?= h($site['gsc_verification']) ?>" />
+  <?php endif; ?>
   <?php if ($single): ?>
     <title><?= h(postTitle($single)) ?> - <?= $title ?></title>
     <meta name="description" content="<?= h(postExcerpt($single)) ?>">
