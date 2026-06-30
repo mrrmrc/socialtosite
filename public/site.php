@@ -480,8 +480,11 @@ $themeCSS = [
   @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600;700&family=Jost:wght@300;400;500&display=swap');
   body { font-family:'Jost',sans-serif; background:var(--bg); color:var(--text); }
   .navbar { background:var(--text); padding:1.25rem 2rem; display:flex; justify-content:space-between; align-items:center; }
-  .nav-brand { font-family:'Cormorant Garamond',serif; color:#F5DEB3; font-size:1.4rem; font-weight:600; letter-spacing:0.02em; }
-  .nav-links a { color:rgba(245,222,179,0.75); font-size:0.85rem; letter-spacing:0.05em; }
+  .navbar { background: rgba(13,17,23,0.85); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border-bottom: 1px solid rgba(255,255,255,0.08); padding: 0.75rem 2rem; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100; }
+  .nav-brand { font-weight: 700; font-size: 1.2rem; color: #fff; display: flex; align-items: center; gap: 0.75rem; }
+  .nav-brand img { border-radius: 50%; }
+  .nav-links { display: flex; gap: 1.5rem; } .nav-links a { color: rgba(255,255,255,0.8); font-size: 0.9rem; font-weight: 500; }
+  .nav-links a:hover { color: #fff; }
   .hero { padding:6rem 1.5rem; text-align:center; background:linear-gradient(180deg,#FAF7F2 0%,#F5EDD8 100%); }
   .hero h1 { font-family:'Cormorant Garamond',serif; font-size:clamp(2.5rem,6vw,5rem); font-weight:600; line-height:1.1; letter-spacing:-0.01em; margin-bottom:1rem; }
   .hero .bio { font-size:1rem; color:#6B4A22; max-width:560px; margin:0 auto; letter-spacing:0.02em; }
@@ -510,10 +513,10 @@ $dynamicBaseCss = "
   body { font-family: '{$fontBody}', sans-serif; background: var(--bg); color: var(--text); }
   h1, h2, h3, h4, h5, h6, .nav-brand { font-family: '{$fontHeading}', sans-serif; }
   
-  .navbar { background: var(--bg); border-bottom: 1px solid var(--border); padding: 1rem 2rem; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100; }
-  .nav-brand { font-weight: 700; font-size: 1.3rem; color: var(--text); display: flex; align-items: center; gap: 0.75rem; }
-  .nav-links { display: flex; gap: 1.5rem; } .nav-links a { color: var(--text); font-size: 0.95rem; font-weight: 500; opacity: 0.8; }
-  .nav-links a:hover { opacity: 1; color: var(--accent); }
+  .navbar { background: rgba(13,17,23,0.88); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border-bottom: 1px solid rgba(255,255,255,0.08); padding: 0.75rem 2rem; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100; }
+  .nav-brand { font-weight: 700; font-size: 1.2rem; color: #fff; display: flex; align-items: center; gap: 0.75rem; }
+  .nav-links { display: flex; gap: 1.5rem; } .nav-links a { color: rgba(255,255,255,0.8); font-size: 0.9rem; font-weight: 500; }
+  .nav-links a:hover { color: #fff; }
   
   .hero { padding: 6rem 1.5rem; text-align: center; border-bottom: 1px solid var(--border); }
   .hero h1 { font-size: clamp(2.5rem, 5vw, 4rem); font-weight: 800; letter-spacing: -0.02em; margin-bottom: 1rem; color: var(--text); }
@@ -655,7 +658,7 @@ header('Link: <' . $siteUrl . '/feed.xml>; rel="alternate"; type="application/at
     .nav-links a:hover { color: var(--accent, #7F77DD); }
     /* ─── Hamburger Mobile ─── */
     .nav-toggle { display: none; background: none; border: none; cursor: pointer; padding: 0.5rem; z-index: 110; }
-    .nav-toggle span { display: block; width: 24px; height: 2px; background: var(--text, #111); margin: 5px 0; transition: all 0.3s ease; border-radius: 2px; }
+     .nav-toggle span { display: block; width: 24px; height: 2px; background: #fff; margin: 5px 0; transition: all 0.3s ease; border-radius: 2px; }
     @media (max-width: 768px) {
       .nav-toggle { display: block; }
       .nav-links { position: fixed; top: 0; right: -100%; width: 280px; height: 100vh; flex-direction: column; background: var(--bg, #fff); padding: 5rem 2rem 2rem; gap: 1.25rem; box-shadow: -4px 0 30px rgba(0,0,0,0.15); transition: right 0.35s cubic-bezier(0.4,0,0.2,1); z-index: 105; }
@@ -797,16 +800,17 @@ header('Link: <' . $siteUrl . '/feed.xml>; rel="alternate"; type="application/at
         $media = '';
         if ($u) {
             $type = strtolower($p['media_type'] ?? '');
-            if ($type === 'video' || preg_match('~\.(mp4|mov|webm)(\?|$)~i', $u)) {
+            // YouTube: usa thumbnail ad alta risoluzione
+            if (preg_match('~(?:youtube\.com|youtu\.be)~i', $u) && preg_match('~(?:v=|youtu\.be/|shorts/|embed/)([A-Za-z0-9_-]{11})~', $u, $m)) {
+                $ytThumb = 'https://img.youtube.com/vi/' . $m[1] . '/maxresdefault.jpg';
+                $media = '<img src="' . h($ytThumb) . '" alt="" loading="eager">';
+            } else if ($type === 'video' || preg_match('~\.(mp4|mov|webm)(\?|$)~i', $u)) {
                 $media = '<video autoplay muted loop playsinline><source src="' . h($u) . '"></video>';
-            } else if (preg_match('~(?:youtube\.com|youtu\.be)~i', $u) && preg_match('~(?:v=|youtu\.be/|shorts/|embed/)([A-Za-z0-9_-]{11})~', $u, $m)) {
-                // Per iframe youtube mettiamo un placeholder o cover se esiste, altrimenti un gradiente
-                $media = $coverUrl ? '<img src="'.h($coverUrl).'" alt="">' : '<div style="width:100%; height:100%; background: linear-gradient(135deg, var(--accent), #333);"></div>';
             } else {
-                $media = '<img src="' . h($u) . '" alt="">';
+                $media = '<img src="' . h($u) . '" alt="" loading="eager">';
             }
         } else if ($coverUrl) {
-            $media = '<img src="' . h($coverUrl) . '" alt="">';
+            $media = '<img src="' . h($coverUrl) . '" alt="" loading="eager">';
         } else {
             $media = '<div style="width:100%; height:100%; background: linear-gradient(135deg, var(--accent), #111);"></div>';
         }
