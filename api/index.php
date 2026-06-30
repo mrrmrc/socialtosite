@@ -504,6 +504,18 @@ if ($action === 'delete-post' && $method === 'POST') {
     json(['ok' => true]);
 }
 
+// ── BULK DELETE posts ─────────────────────────────────────────────────────
+if ($action === 'bulk-delete-posts' && $method === 'POST') {
+    $b = body();
+    $ids = $b['ids'] ?? [];
+    if (is_array($ids) && count($ids) > 0) {
+        $placeholders = implode(',', array_fill(0, count($ids), '?'));
+        $params = array_merge($ids, [$userId]);
+        DB::execute("DELETE FROM posts WHERE id IN ($placeholders) AND user_id=?", $params);
+    }
+    json(['ok' => true]);
+}
+
 // ── TOGGLE PUBLISH post ───────────────────────────────────────────────────
 if ($action === 'toggle-publish-post' && $method === 'POST') {
     $b = body();
