@@ -37,7 +37,7 @@ class Ingest {
     }
 
     // ── Ingestione di un singolo link → bozza nel DB ───────────────────────
-    public static function url(int $userId, string $url): array {
+    public static function url(int $userId, string $url, array $prefetched = []): array {
         $url = trim($url);
         if (!filter_var($url, FILTER_VALIDATE_URL)) {
             throw new Exception('Link non valido');
@@ -60,9 +60,9 @@ class Ingest {
 
         // Ricava testo grezzo + media (video/immagine)
         $transcript = '';
-        $caption    = '';
-        $mediaUrl   = $url;       // riferimento mostrabile nel contenuto
-        $mediaType  = 'text';
+        $caption    = $prefetched['caption'] ?? '';
+        $mediaUrl   = $prefetched['media_url'] ?? $url;
+        $mediaType  = $prefetched['media_type'] ?? 'text';
 
         if ($platform === 'youtube') {
             // Trascrizione posticipata all'elaborazione in background
@@ -70,37 +70,49 @@ class Ingest {
             $mediaUrl   = $url;
             $mediaType  = 'video';
         } elseif ($platform === 'website') {
-            $ch = curl_init($url);
-            curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER => true, CURLOPT_FOLLOWLOCATION => true, CURLOPT_USERAGENT => 'Mozilla/5.0']);
-            $html = curl_exec($ch);
-            curl_close($ch);
-            
-            if ($html) {
-                preg_match('/<title[^>]*>(.*?)<\/title>/is', $html, $mTitle);
-                $title = $mTitle[1] ?? '';
-                preg_match('/<meta[^>]*name=["\']description["\'][^>]*content=["\'](.*?)["\']/is', $html, $mDesc);
-                $desc = $mDesc[1] ?? '';
-                $text = strip_tags(preg_replace('/<(script|style)[^>]*>.*?<\/\1>/is', '', $html));
-                $text = preg_replace('/\s+/', ' ', $text);
-                $caption = trim($title . "\n\n" . $desc . "\n\n" . mb_substr($text, 0, 5000));
+            if (!$caption) {
+                $ch = curl_init($url);
+                curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER => true, CURLOPT_FOLLOWLOCATION => true, CURLOPT_USERAGENT => 'Mozilla/5.0']);
+                $html = curl_exec($ch);
+                curl_close($ch);
+                
+                if ($html) {
+                    preg_match('/<title[^>]*>(.*?)<\/title>/is', $html, $mTitle);
+                    $title = $mTitle[1] ?? '';
+                    preg_match('/<meta[^>]*name=["\']description["\'][^>]*content=["\'](.*?)["\']/is', $html, $mDesc);
+                    $desc = $mDesc[1] ?? '';
+                    $text = strip_tags(preg_replace('/<(script|style)[^>]*>.*?<\/\1>/is', '', $html));
+                    $text = preg_replace('/\s+/', ' ', $text);
+                    $caption = trim($title . "\n\n" . $desc . "\n\n" . mb_substr($text, 0, 5000));
+                }
             }
         } else {
-            // TikTok / Instagram / Facebook: Apify recupera media + didascalia.
-            $r       = AI::apifyResolve($platform, $url);
-            $caption = $r['caption'] ?? '';
+            // TikTok / Instagram / Facebook: se non abbiamo i dati dal prefetched, usa Apify
+            if (empty($caption) && empty($prefetched['media_url'])) {
+                $r       = AI::apifyResolve($platform, $url);
+                $caption = $r['caption'] ?? '';
 
-            if (!empty($r['video'])) {
-                // Conserva il video sul server (così resta nei contenuti dell'utente)
-                $saved = self::saveMedia($r['video'], $platform, $postId, 'mp4');
-                if ($saved) {
-                    $mediaUrl  = $saved['url'];
-                    $mediaType = 'video';
-                    // Trascrizione posticipata all'elaborazione in background
-                    $transcript = '';
+                if (!empty($r['video'])) {
+                    // Conserva il video sul server
+                    $saved = self::saveMedia($r['video'], $platform, $postId, 'mp4');
+                    if ($saved) {
+                        $mediaUrl  = $saved['url'];
+                        $mediaType = 'video';
+                        $transcript = '';
+                    }
+                } elseif (!empty($r['image'])) {
+                    $saved = self::saveMedia($r['image'], $platform, $postId, 'jpg');
+                    if ($saved) { $mediaUrl = $saved['url']; $mediaType = 'image'; }
                 }
-            } elseif (!empty($r['image'])) {
-                $saved = self::saveMedia($r['image'], $platform, $postId, 'jpg');
-                if ($saved) { $mediaUrl = $saved['url']; $mediaType = 'image'; }
+            } else {
+                // Abbiamo i dati dal prefetched. Salviamo i media se possibile
+                if ($mediaType === 'video' && !empty($prefetched['media_url']) && strpos($prefetched['media_url'], 'http') === 0) {
+                     $saved = self::saveMedia($prefetched['media_url'], $platform, $postId, 'mp4');
+                     if ($saved) { $mediaUrl = $saved['url']; }
+                } elseif ($mediaType === 'image' && !empty($prefetched['media_url']) && strpos($prefetched['media_url'], 'http') === 0) {
+                     $saved = self::saveMedia($prefetched['media_url'], $platform, $postId, 'jpg');
+                     if ($saved) { $mediaUrl = $saved['url']; }
+                }
             }
         }
 
@@ -247,7 +259,7 @@ class Ingest {
                     }
                     $seenUrls[$normalizedUrl] = true;
                     try {
-                        $ingested = self::url($userId, $sourceUrl);
+                        $ingested = self::url($userId, $sourceUrl, $item);
                         if (!empty($ingested['duplicate'])) {
                             $report['duplicates']++;
                             continue;

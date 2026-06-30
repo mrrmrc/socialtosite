@@ -267,7 +267,28 @@ class AI {
         foreach ($items as $item) {
             $sourceUrl = self::findSourceUrl($item);
             if (!$sourceUrl) continue;
-            $out[] = ['url' => $sourceUrl];
+            
+            $caption = '';
+            foreach (['text','caption','message','description','video_description','story'] as $k) {
+                if (!empty($item[$k]) && is_string($item[$k])) { $caption = $item[$k]; break; }
+            }
+            if (!$caption && !empty($item['edge_media_to_caption']['edges'][0]['node']['text'])) {
+                $caption = $item['edge_media_to_caption']['edges'][0]['node']['text'];
+            }
+            
+            $mediaUrl = self::findMediaUrl($item);
+            $mediaType = $mediaUrl ? 'video' : 'text';
+            if (!$mediaUrl) {
+                $mediaUrl = self::findImageUrl($item);
+                if ($mediaUrl) $mediaType = 'image';
+            }
+            
+            $out[] = [
+                'url' => $sourceUrl,
+                'caption' => $caption,
+                'media_url' => $mediaUrl,
+                'media_type' => $mediaType
+            ];
             if (count($out) >= $limit) break;
         }
         return $out;
