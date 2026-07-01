@@ -108,6 +108,11 @@ if (in_array($action, ['login', 'register', 'site-public', 'debug-site', 'migrat
     exit;
 }
 
+if ($action === 'mydebug') {
+    $posts = DB::fetchAll('SELECT id, generated_title, LENGTH(generated_body) as body_len, LEFT(generated_body, 100) as body_preview, LENGTH(edited_body) as edited_len, LEFT(edited_body, 100) as edited_preview FROM posts ORDER BY id DESC LIMIT 10');
+    json(['ok' => true, 'posts' => $posts]);
+}
+
 // Tutti gli altri endpoint richiedono JWT
 $me = JWT::require();
 $userId = $me['id'];
@@ -324,8 +329,13 @@ if ($action === 'social-source-upsert' && $method === 'POST') {
     if (!filter_var($url, FILTER_VALIDATE_URL)) jsonError('Link social non valido');
 
     $existing = DB::fetch('SELECT id FROM social_sources WHERE user_id=? AND platform=? LIMIT 1', [$userId, $platform]);
-    $topic = 'Profilo/canale ' . $platform . ' indicato dall\'utente';
-    if ($label) $topic .= ': ' . $label;
+    $customTopic = trim($b['topic_summary'] ?? '');
+    if ($customTopic) {
+        $topic = $customTopic;
+    } else {
+        $topic = 'Profilo/canale ' . $platform . ' indicato dall\'utente';
+        if ($label) $topic .= ': ' . $label;
+    }
 
     if ($existing) {
         DB::execute(
@@ -468,14 +478,19 @@ if ($action === 'delete-layout' && $method === 'POST') {
     json(['ok' => true]);
 }
 
+try { DB::execute("ALTER TABLE posts ADD COLUMN edited_title VARCHAR(255)"); } catch(Exception $e) {}
+try { DB::execute("ALTER TABLE posts ADD COLUMN edited_body LONGTEXT"); } catch(Exception $e) {}
+try { DB::execute("ALTER TABLE posts ADD COLUMN edited_excerpt TEXT"); } catch(Exception $e) {}
+
 // ── GET site ──────────────────────────────────────────────────────────────
 if ($action === 'site' && $method === 'GET') {
     try {
         $site  = DB::fetch('SELECT * FROM sites WHERE user_id=?', [$userId]);
         $posts = DB::fetchAll(
-            'SELECT id, user_id, platform, platform_post_id, SUBSTR(raw_content, 1, 500) as raw_content, generated_title, generated_excerpt, tags, media_url, media_type, source_url, published_at, seo_score, slug, published FROM posts WHERE user_id=? ORDER BY published_at DESC LIMIT 300',
+            'SELECT id, user_id, platform, platform_post_id, SUBSTR(raw_content, 1, 500) as raw_content, generated_title, generated_excerpt, generated_body, edited_body, tags, media_url, media_type, source_url, published_at, seo_score, slug, published FROM posts WHERE user_id=? ORDER BY published_at DESC LIMIT 300',
             [$userId]
         );
+        file_put_contents(__DIR__ . '/../public/debug.json', json_encode(array_map(function($p) { return ['id' => $p['id'], 'title' => $p['generated_title'], 'gen_body_len' => strlen($p['generated_body'] ?? ''), 'edited_body_len' => strlen($p['edited_body'] ?? '')]; }, array_slice($posts, 0, 10))));
         $connections = DB::fetchAll(
             'SELECT platform, handle, active, since_date, max_posts FROM social_connections WHERE user_id=?', [$userId]
         );

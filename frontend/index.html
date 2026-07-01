@@ -12,6 +12,9 @@
   <!-- Babel pinnato alla v7: usa la "classic runtime" (React.createElement),
        così il JSX NON genera import (con la v8 si rompe l'in-browser transform). -->
   <script src="https://unpkg.com/@babel/standalone@7/babel.min.js"></script>
+  
+  <link href="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.snow.css" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     :root {
@@ -110,6 +113,64 @@ function SocialIcon({ platform, size = 20 }) {
   const info = SOCIAL[platform];
   if (!info) return <span style={{ fontSize: size }}>•</span>;
   return <img src={info.icon} alt="" style={{ width: size, height: size, objectFit: 'contain', flexShrink: 0 }} />;
+}
+
+// ── Quill Editor Wrapper ─────────────────────────────────────────────────────
+function QuillEditor({ value, onChange, style }) {
+  const containerRef = useRef(null);
+  const editorRef = useRef(null);
+  const quillRef = useRef(null);
+  const isInternalChange = useRef(false);
+
+  useEffect(() => {
+    if (!editorRef.current || quillRef.current) return;
+    const quill = new Quill(editorRef.current, {
+      theme: 'snow',
+      modules: {
+        toolbar: [
+          [{ header: [1, 2, 3, false] }],
+          ['bold', 'italic', 'underline', 'strike'],
+          [{ list: 'ordered' }, { list: 'bullet' }],
+          ['blockquote', 'link', 'image'],
+          ['clean']
+        ]
+      },
+      placeholder: 'Scrivi il testo dell\'articolo...'
+    });
+    quillRef.current = quill;
+
+    // Set initial content
+    if (value) {
+      quill.root.innerHTML = value;
+    }
+
+    quill.on('text-change', () => {
+      isInternalChange.current = true;
+      const html = quill.root.innerHTML;
+      if (onChange) onChange(html === '<p><br></p>' ? '' : html);
+      isInternalChange.current = false;
+    });
+
+    return () => {
+      quillRef.current = null;
+    };
+  }, []);
+
+  // Sync external value changes (e.g. when opening a different article)
+  useEffect(() => {
+    if (quillRef.current && !isInternalChange.current) {
+      const currentHtml = quillRef.current.root.innerHTML;
+      if (value !== currentHtml) {
+        quillRef.current.root.innerHTML = value || '';
+      }
+    }
+  }, [value]);
+
+  return (
+    <div ref={containerRef} style={style}>
+      <div ref={editorRef} style={{ minHeight: '300px' }} />
+    </div>
+  );
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -589,12 +650,12 @@ function DashboardScreen({ token, user, onLogout }) {
     }
   }
 
-  async function savePlatformSource(platform, url, since_date = null, auto_publish = 1, max_posts = null) {
+  async function savePlatformSource(platform, url, since_date = null, auto_publish = 1, max_posts = null, topic_summary = null) {
     setSourceMsg(null);
     try {
       await apiFetch('/api/index.php?action=social-source-upsert', {
         method: 'POST',
-        body: JSON.stringify({ platform, label: SOCIAL[platform]?.label || platform, url, since_date, auto_publish, max_posts })
+        body: JSON.stringify({ platform, label: SOCIAL[platform]?.label || platform, url, since_date, auto_publish, max_posts, topic_summary })
       }, token);
       await loadData();
     } catch (err) {
@@ -991,30 +1052,38 @@ function DashboardScreen({ token, user, onLogout }) {
               <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '12px' }}>
                 Inserisci un link per ogni profilo o canale. Il sistema li userà per capire chi sei e pubblicare i contenuti sul tuo sito.
               </p>
-              <div style={{ display: 'grid', gap: '10px', marginBottom: '12px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: '12px' }}>
                 {['instagram', 'tiktok', 'facebook', 'youtube'].map(platform => (
-                  <div key={platform} style={{ display: 'grid', gridTemplateColumns: '150px 1fr 130px 60px 120px', gap: '12px', alignItems: 'center' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 600 }}>
-                      <SocialIcon platform={platform} size={22} />
-                      <span>{SOCIAL[platform].label}</span>
+                  <div key={platform} style={{ padding: '12px', background: 'var(--bg)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-strong)' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '150px 1fr 130px 60px 120px', gap: '12px', alignItems: 'center', marginBottom: '10px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 600 }}>
+                        <SocialIcon platform={platform} size={22} />
+                        <span>{SOCIAL[platform].label}</span>
+                      </div>
+                      <input type="text" placeholder={`Link ${SOCIAL[platform].label}`}
+                        defaultValue={sourceByPlatform[platform]?.url || ''}
+                        onBlur={e => savePlatformSource(platform, e.target.value.trim(), sourceByPlatform[platform]?.since_date, sourceByPlatform[platform]?.auto_publish ?? 1, sourceByPlatform[platform]?.max_posts, sourceByPlatform[platform]?.topic_summary)} />
+                      <input type="date" title="Retroattività (Da questa data in poi)" 
+                        defaultValue={sourceByPlatform[platform]?.since_date || ''}
+                        onBlur={e => savePlatformSource(platform, sourceByPlatform[platform]?.url || '', e.target.value, sourceByPlatform[platform]?.auto_publish ?? 1, sourceByPlatform[platform]?.max_posts, sourceByPlatform[platform]?.topic_summary)}
+                        style={{ padding: '6px', fontSize: '13px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)' }} />
+                      <input type="number" title="Max post per questo social" placeholder="Max" min="1" max="500"
+                        defaultValue={sourceByPlatform[platform]?.max_posts || ''}
+                        onBlur={e => savePlatformSource(platform, sourceByPlatform[platform]?.url || '', sourceByPlatform[platform]?.since_date, sourceByPlatform[platform]?.auto_publish ?? 1, e.target.value, sourceByPlatform[platform]?.topic_summary)}
+                        style={{ padding: '6px', fontSize: '13px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', width: '100%' }} />
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', cursor: 'pointer' }}>
+                        <input type="checkbox" 
+                          defaultChecked={(sourceByPlatform[platform]?.auto_publish ?? 1) === 1}
+                          onChange={e => savePlatformSource(platform, sourceByPlatform[platform]?.url || '', sourceByPlatform[platform]?.since_date, e.target.checked ? 1 : 0, sourceByPlatform[platform]?.max_posts, sourceByPlatform[platform]?.topic_summary)} />
+                        Auto-Pubblica
+                      </label>
                     </div>
-                    <input type="text" placeholder={`Link ${SOCIAL[platform].label}`}
-                      defaultValue={sourceByPlatform[platform]?.url || ''}
-                      onBlur={e => savePlatformSource(platform, e.target.value.trim(), sourceByPlatform[platform]?.since_date, sourceByPlatform[platform]?.auto_publish ?? 1, sourceByPlatform[platform]?.max_posts)} />
-                    <input type="date" title="Retroattività (Da questa data in poi)" 
-                      defaultValue={sourceByPlatform[platform]?.since_date || ''}
-                      onBlur={e => savePlatformSource(platform, sourceByPlatform[platform]?.url || '', e.target.value, sourceByPlatform[platform]?.auto_publish ?? 1, sourceByPlatform[platform]?.max_posts)}
-                      style={{ padding: '6px', fontSize: '13px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)' }} />
-                    <input type="number" title="Max post per questo social" placeholder="Max" min="1" max="500"
-                      defaultValue={sourceByPlatform[platform]?.max_posts || ''}
-                      onBlur={e => savePlatformSource(platform, sourceByPlatform[platform]?.url || '', sourceByPlatform[platform]?.since_date, sourceByPlatform[platform]?.auto_publish ?? 1, e.target.value)}
-                      style={{ padding: '6px', fontSize: '13px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', width: '100%' }} />
-                    <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', cursor: 'pointer' }}>
-                      <input type="checkbox" 
-                        defaultChecked={(sourceByPlatform[platform]?.auto_publish ?? 1) === 1}
-                        onChange={e => savePlatformSource(platform, sourceByPlatform[platform]?.url || '', sourceByPlatform[platform]?.since_date, e.target.checked ? 1 : 0, sourceByPlatform[platform]?.max_posts)} />
-                      Auto-Pubblica
-                    </label>
+                    <div>
+                      <input type="text" placeholder="Cosa pubblichi qui? (Es: Solo video divertenti, o Approfondimenti tecnici...)"
+                        defaultValue={sourceByPlatform[platform]?.topic_summary || ''}
+                        onBlur={e => savePlatformSource(platform, sourceByPlatform[platform]?.url || '', sourceByPlatform[platform]?.since_date, sourceByPlatform[platform]?.auto_publish ?? 1, sourceByPlatform[platform]?.max_posts, e.target.value.trim())}
+                        style={{ width: '100%', fontSize: '13px', padding: '8px 12px', border: '1px dashed var(--border)', borderRadius: 'var(--radius-sm)', background: 'transparent' }} />
+                    </div>
                   </div>
                 ))}
               </div>
@@ -1026,13 +1095,35 @@ function DashboardScreen({ token, user, onLogout }) {
                 </div>
               )}
               <div className="divider" />
-              <div style={{ marginBottom: '12px' }}>
-                <label className="label">Profilo generato della persona/brand</label>
-                <textarea value={profileDraft} onChange={e => setProfileDraft(e.target.value)}
-                  placeholder="Dopo la scansione comparirà qui un profilo sintetico editabile."
-                  style={{ width: '100%', minHeight: '96px', resize: 'vertical', padding: '10px 14px', border: '1px solid var(--border-strong)', borderRadius: 'var(--radius-sm)', background: 'var(--surface)', fontFamily: 'inherit', fontSize: '14px' }} />
-                <button className="btn btn-outline" onClick={saveProfile} disabled={savingProfile} style={{ marginTop: '8px' }}>
-                  {savingProfile ? 'Salvo...' : 'Salva profilo'}
+              <div style={{ marginBottom: '12px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                <h3 style={{ marginBottom: '4px' }}>Profilazione Avanzata (Evita Allucinazioni AI)</h3>
+                <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '8px' }}>
+                  Spiega all'Intelligenza Artificiale chi sei e come deve comportarsi per evitare che inventi cose non vere.
+                </p>
+
+                <div>
+                  <label className="label">1. Chi sei e cosa fai?</label>
+                  <textarea value={profileDraft} onChange={e => setProfileDraft(e.target.value)}
+                    placeholder="Es: Sono Marco, un artigiano che crea ceramiche e vende online..."
+                    style={{ width: '100%', minHeight: '60px', resize: 'vertical', padding: '10px 14px', border: '1px solid var(--border-strong)', borderRadius: 'var(--radius-sm)', background: 'var(--surface)', fontFamily: 'inherit', fontSize: '14px' }} />
+                </div>
+
+                <div>
+                  <label className="label">2. Qual è il tuo pubblico target e il tuo obiettivo?</label>
+                  <textarea value={roleMissionDraft} onChange={e => setRoleMissionDraft(e.target.value)}
+                    placeholder="Es: Mi rivolgo ad appassionati di design d'interni e voglio vendere i miei vasi..."
+                    style={{ width: '100%', minHeight: '60px', resize: 'vertical', padding: '10px 14px', border: '1px solid var(--border-strong)', borderRadius: 'var(--radius-sm)', background: 'var(--surface)', fontFamily: 'inherit', fontSize: '14px' }} />
+                </div>
+
+                <div>
+                  <label className="label">3. Tono di voce e regole editoriali (Importante)</label>
+                  <textarea value={strategyDraft} onChange={e => setStrategyDraft(e.target.value)}
+                    placeholder="Es: Usa un tono ironico. NON parlare mai di argomenti sensibili. Attieniti solo ai fatti del video..."
+                    style={{ width: '100%', minHeight: '60px', resize: 'vertical', padding: '10px 14px', border: '1px solid var(--border-strong)', borderRadius: 'var(--radius-sm)', background: 'var(--surface)', fontFamily: 'inherit', fontSize: '14px' }} />
+                </div>
+
+                <button className="btn btn-outline" onClick={saveProfile} disabled={savingProfile} style={{ marginTop: '4px', alignSelf: 'flex-start' }}>
+                  {savingProfile ? 'Salvataggio in corso...' : '💾 Salva regole editoriali'}
                 </button>
               </div>
               <button className="btn btn-primary btn-full" onClick={scanSources} disabled={scanning || sources.length === 0}>
@@ -1536,7 +1627,16 @@ function DashboardScreen({ token, user, onLogout }) {
                 
                 <div>
                   <label style={{ display: 'block', fontSize: '18px', fontWeight: 700, marginBottom: '8px', color: 'var(--text)' }}>Testo dell'Articolo</label>
-                  <textarea value={editingPost.body} onChange={e => setEditingPost({...editingPost, body: e.target.value})} style={{ width: '100%', minHeight: '400px', padding: '16px', borderRadius: '8px', border: '2px solid var(--border-strong)', fontSize: '16px', background: '#fff', resize: 'vertical', fontFamily: 'inherit', lineHeight: '1.6' }} />
+                  <div style={{ padding: '10px', background: '#ffebee', color: '#c62828', marginBottom: '10px', borderRadius: '4px' }}>
+                    DEBUG (Lunghezza dati ricevuti dal server): {editingPost.body ? editingPost.body.length : 0} caratteri
+                  </div>
+                  <QuillEditor value={editingPost.body} onChange={val => setEditingPost({...editingPost, body: val})} style={{ background: '#fff', border: '2px solid var(--border-strong)', borderRadius: '8px', marginBottom: '20px' }} />
+                  <textarea 
+                    value={editingPost.body || ''} 
+                    onChange={e => setEditingPost({...editingPost, body: e.target.value})} 
+                    style={{ width: '100%', height: '100px', fontFamily: 'monospace', fontSize: '12px', border: '1px solid #ccc' }}
+                    placeholder="Debug Testo Grezzo..."
+                  />
                 </div>
 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
