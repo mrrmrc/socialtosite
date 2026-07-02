@@ -97,16 +97,26 @@ const SOCIAL = {
 
 // 10 Temi con anteprima visiva e descrizione
 const SITE_LAYOUTS = [
-  { id: 'classic',   name: 'Corporate (Apple-like)',   desc: 'Design minimalista premium, sfondi bianchi, box soft e tipografia pulita.', emoji: '🍏', colors: ['#FBFBFD','#1D1D1F','#FFFFFF'], bars: ['80%','60%','40%'] },
+  { id: 'classic', name: 'Corporate Apple', desc: 'Design minimalista premium, sfondi bianchi, box soft e tipografia pulita.', emoji: '🍏', colors: ['#FBFBFD','#1D1D1F','#FFFFFF'], bars: ['80%','60%','40%'] },
   { id: 'authority', name: 'Tech / Neon', desc: 'Scurissimo con Glassmorphism, accenti neon e look super-moderno.', emoji: '🔮', colors: ['#09090B','#FAFAFA','#1a1a24'], bars: ['90%','70%','50%'] },
   { id: 'portfolio', name: 'Portfolio Masonry', desc: 'Layout a griglia asimmetrica stile Pinterest, ideale per creativi.', emoji: '🎨', colors: ['#FAF9F6','#1C1C1E','#FFFFFF'], bars: ['40%','40%','40%'] },
-  { id: 'magazine',  name: 'Magazine Premium',  desc: 'Griglia complessa per news editoriali con hero section dinamica.', emoji: '📰', colors: ['#FFFFFF','#000000','#EAEAEA'], bars: ['30%','30%','30%'] },
-  { id: 'journal',   name: 'Journal',   desc: 'Editoriale serio, tipografia serif elegante e raffinata.', emoji: '🖋️', colors: ['#8B4513','#FDF6EE','#fff'], bars: ['100%','80%','50%'] },
-  { id: 'minimal',   name: 'Minimal',   desc: 'Solo testo, zero distrazioni, eleganza estrema.', emoji: '⬜', colors: ['#000','#fff','#fff'], bars: ['70%','50%','30%'] },
-  { id: 'studio',    name: 'Studio',    desc: 'Header scuro e bold, per agenzie e studi.', emoji: '🏢', colors: ['#2D2D2D','#F7F5F2','#fff'], bars: ['100%','50%','25%'] },
-  { id: 'local',     name: 'Local SEO', desc: 'Caldo, accogliente, per attività di quartiere.', emoji: '🏪', colors: ['#F4A261','#FFFDF5','#fff'], bars: ['80%','60%','40%'] },
-  { id: 'academy',   name: 'Academy',   desc: 'Serio e strutturato, per guide e formazione.', emoji: '🎓', colors: ['#1D3557','#F0F4FF','#fff'], bars: ['90%','80%','70%'] },
-  { id: 'bottega',   name: 'Bottega',   desc: 'Artigianale, caldo, per mestieri e creativi.', emoji: '🧵', colors: ['#8B6914','#FAF7F2','#FFF8EF'], bars: ['85%','65%','45%'] },
+  { id: 'magazine', name: 'Magazine Premium', desc: 'Griglia complessa per news editoriali con hero section dinamica.', emoji: '📰', colors: ['#FFFFFF','#000000','#EAEAEA'], bars: ['30%','30%','30%'] },
+  { id: 'brutalist', name: 'Bold & Brutalist', desc: 'Testi giganteschi, bordi netti, giallo/nero per impatto.', emoji: '🚧', colors: ['#FFF300','#000000','#FFFFFF'], bars: ['100%','80%','60%'] },
+  { id: 'ecommerce', name: 'E-commerce Vibe', desc: 'Card prodotto pulite, adatte a vendere.', emoji: '🛍️', colors: ['#F4F5F7','#172B4D','#FFFFFF'], bars: ['70%','50%','30%'] },
+  { id: 'wedding', name: 'Wedding / Elegant', desc: 'Font serif romantici, colori pastello, eleganza.', emoji: '💍', colors: ['#FDFBFA','#4A403A','#FFFFFF'], bars: ['60%','40%','20%'] },
+  { id: 'fitness', name: 'Fitness / Aggressive', desc: 'Rosso scuro e nero, obliquo e potente.', emoji: '💪', colors: ['#111111','#FFFFFF','#1A1A1A'], bars: ['90%','70%','50%'] },
+  { id: 'restaurant', name: 'Restaurant / Food', desc: 'Colori caldi, tondeggiante, stile menù.', emoji: '🍽️', colors: ['#FBF8F1','#2D312E','#FFFFFF'], bars: ['80%','60%','40%'] },
+  { id: 'agency', name: 'Agency / Studio', desc: 'Scurissimo, header diviso a metà, molto testo.', emoji: '💼', colors: ['#000000','#FFFFFF','#111111'], bars: ['100%','50%','25%'] },
+  { id: 'zen', name: 'Minimal Zen', desc: 'Spazi vuoti, pulizia estrema, stile giapponese.', emoji: '🧘', colors: ['#EBEBEB','#222222','#FFFFFF'], bars: ['50%','30%','10%'] },
+  { id: 'vaporwave', name: 'Retro 90s Vaporwave', desc: 'Colori fluo, griglie visibili, stile hacker.', emoji: '🕹️', colors: ['#01CDFE','#05FFA1','#B967FF'], bars: ['90%','80%','70%'] },
+  { id: 'realestate', name: 'Modern Real Estate', desc: 'Foto grandi, box info puliti e squadrati.', emoji: '🏠', colors: ['#F4F4F4','#2B2B2B','#FFFFFF'], bars: ['80%','60%','40%'] },
+  { id: 'blogger', name: 'Blogger Chic', desc: 'Stile femminile, testi centrali e font curati.', emoji: '💄', colors: ['#FEFBFB','#333333','#FFFFFF'], bars: ['60%','50%','40%'] },
+  { id: 'darkphoto', name: 'Dark Photography', desc: 'Nero profondo, risalto assoluto alle foto.', emoji: '📸', colors: ['#050505','#E0E0E0','#1A1A1A'], bars: ['90%','60%','30%'] },
+  { id: 'medical', name: 'Medical / Clean', desc: 'Azzurro/bianco, asettico e affidabile.', emoji: '⚕️', colors: ['#F0F8FA','#2C3E50','#FFFFFF'], bars: ['70%','50%','30%'] },
+  { id: 'education', name: 'Education', desc: 'Blu navy, rigoroso, accademico.', emoji: '🎓', colors: ['#FFFFFF','#333333','#F9F9F9'], bars: ['80%','60%','40%'] },
+  { id: 'gamer', name: 'Gamer / Streamer', desc: 'Viola/scuro, font squadrati, luce al neon.', emoji: '🎮', colors: ['#0F0F1A','#E2E8F0','#8B5CF6'], bars: ['100%','80%','60%'] },
+  { id: 'startup', name: 'Start-Up SaaS', desc: 'Illustrazioni friendly, toni pastello blu.', emoji: '🚀', colors: ['#F8FAFC','#334155','#FFFFFF'], bars: ['80%','60%','40%'] },
+  { id: 'lawyer', name: 'Lawyer / Trust', desc: 'Oro e blu scuro, istituzionale.', emoji: '⚖️', colors: ['#FFFFFF','#2C3135','#F9F9F9'], bars: ['90%','70%','50%'] },
 ];
 
 function SocialIcon({ platform, size = 20 }) {
@@ -969,7 +979,8 @@ const [importMsg, setImportMsg] = useState(null);
             { id: 'overview', icon: '🏠', label: 'Overview' },
             { id: 'site', icon: '📝', label: 'Contenuti' },
             { id: 'sources', icon: '📱', label: 'Social & Fonti' },
-            { id: 'settings', icon: '🎨', label: 'Design & Impostazioni' },
+            { id: 'settings', icon: '🎨', label: 'Design & Aspetto' },
+              { id: 'general', icon: '⚙️', label: 'Impost. Generali' },
             { id: 'seo', icon: '📈', label: 'SEO' },
             ...(user.role === 'admin' ? [{ id: 'admin', icon: '🛠', label: 'Admin Panel' }] : [])
           ].map(item => (
@@ -1002,7 +1013,8 @@ const [importMsg, setImportMsg] = useState(null);
               {tab === 'overview' && 'Panoramica'}
               {tab === 'site' && 'Gestione Contenuti'}
               {tab === 'sources' && 'Social & Fonti'}
-              {tab === 'settings' && 'Design & Impostazioni'}
+              {tab === 'settings' && 'Design & Aspetto'}
+                {tab === 'general' && 'Impostazioni Generali'}
               {tab === 'seo' && 'SEO & Analisi'}
               {tab === 'admin' && 'Pannello Admin'}
             </h1>
@@ -1610,7 +1622,14 @@ const [importMsg, setImportMsg] = useState(null);
               </div>
             )}
 
-            <div className="card" style={{ marginBottom: '1rem' }}>
+            
+          </div>
+        )}
+
+        {/* Tab: Impostazioni Generali (General) */}
+        {tab === 'general' && (
+          <div>
+<div className="card" style={{ marginBottom: '1rem' }}>
               <h3 style={{ marginBottom: '0.75rem' }}>Configurazione SEO</h3>
               <div className="form-group">
                 <label className="label">Codice verifica Google Search Console</label>
