@@ -54,7 +54,23 @@ if ($action === 'sitemap') {
     $base = BASE_URL . '/s/' . $slug;
     echo '<?xml version="1.0" encoding="UTF-8"?>' . "\n";
     echo '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">' . "\n";
-    echo "  <url><loc>$base</loc><changefreq>weekly</changefreq><priority>1.0</priority></url>\n";
+    echo "  <url><loc>$base</loc><changefreq>daily</changefreq><priority>1.0</priority></url>\n";
+    
+    // Tag/Categories
+    $tagCounts = [];
+    foreach ($posts as $p) {
+        foreach ($p['tags'] ?? [] as $t) {
+            $key = strtolower(trim($t));
+            if ($key !== '') $tagCounts[$key] = ($tagCounts[$key] ?? 0) + 1;
+        }
+    }
+    $validTags = array_keys($tagCounts);
+    foreach ($validTags as $t) {
+        $loc = "$base/?tag=" . urlencode($t);
+        echo "  <url><loc>" . htmlspecialchars($loc, ENT_XML1, 'UTF-8') . "</loc><changefreq>weekly</changefreq><priority>0.9</priority></url>\n";
+    }
+
+    // Posts
     foreach ($posts as $p) {
         $loc = "$base/{$p['slug']}";
         $mod = substr($p['published_at'] ?? $p['imported_at'] ?? '', 0, 10);
@@ -501,29 +517,33 @@ $dynamicBaseCss = "
       --accent-secondary: {$palSecondary}; 
       --bg: {$palBg}; 
       --text: {$palText}; 
-      --card-bg: #fff; 
-      --border: rgba(0,0,0,0.08); 
-      --radius: 16px; 
+      --card-bg: rgba(255, 255, 255, 0.7); 
+      --border: rgba(0,0,0,0.05); 
+      --radius: 20px; 
   }
   @import url('https://fonts.googleapis.com/css2?family={$fontHeadingUrl}:wght@400;600;700;800&family={$fontBodyUrl}:wght@300;400;500;600&display=swap');
   
-  body { font-family: '{$fontBody}', sans-serif; background: var(--bg); color: var(--text); }
+  body { font-family: '{$fontBody}', sans-serif; background: var(--bg); color: var(--text); overflow-x: hidden; }
   h1, h2, h3, h4, h5, h6, .nav-brand { font-family: '{$fontHeading}', sans-serif; }
   
-  .navbar { background: rgba(13,17,23,0.88); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border-bottom: 1px solid rgba(255,255,255,0.08); padding: 0.75rem 2rem; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100; }
-  .nav-brand { font-weight: 700; font-size: 1.2rem; color: #fff; display: flex; align-items: center; gap: 0.75rem; }
-  .nav-links { display: flex; gap: 1.5rem; } .nav-links a { color: rgba(255,255,255,0.8); font-size: 0.9rem; font-weight: 500; }
-  .nav-links a:hover { color: #fff; }
+  .navbar { background: rgba(255, 255, 255, 0.6); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); border-bottom: 1px solid rgba(0,0,0,0.05); padding: 1rem 2rem; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100; transition: all 0.3s ease; }
+  .nav-brand { font-weight: 800; font-size: 1.25rem; color: var(--text); display: flex; align-items: center; gap: 0.75rem; letter-spacing: -0.02em; }
+  .nav-links { display: flex; gap: 2rem; } .nav-links a { color: var(--text); opacity: 0.7; font-size: 0.95rem; font-weight: 600; transition: opacity 0.3s; position: relative; }
+  .nav-links a:hover { opacity: 1; color: var(--accent); }
   
-  .hero { padding: 6rem 1.5rem; text-align: center; border-bottom: 1px solid var(--border); }
-  .hero h1 { font-size: clamp(2.5rem, 5vw, 4rem); font-weight: 800; letter-spacing: -0.02em; margin-bottom: 1rem; color: var(--text); }
-  .hero .bio { font-size: 1.15rem; color: var(--text); opacity: 0.8; max-width: 650px; margin: 0 auto 1.5rem; line-height: 1.6; }
+  .hero { padding: 8rem 1.5rem; text-align: center; border-bottom: 1px solid var(--border); position: relative; overflow: hidden; }
+  .hero::before { content: ''; position: absolute; top: -50%; left: -50%; width: 200%; height: 200%; background: radial-gradient(circle, rgba(127,119,221,0.05) 0%, transparent 60%); z-index: -1; animation: rotate 30s linear infinite; }
+  @keyframes rotate { 100% { transform: rotate(360deg); } }
+  .hero h1 { font-size: clamp(3rem, 6vw, 5rem); font-weight: 800; letter-spacing: -0.03em; margin-bottom: 1.2rem; color: var(--text); line-height: 1.1; }
+  .hero .bio { font-size: 1.25rem; color: var(--text); opacity: 0.75; max-width: 680px; margin: 0 auto 2rem; line-height: 1.6; }
   
-  .post-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 2rem; }
-  .post { background: var(--card-bg); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.75rem; transition: transform 0.3s, box-shadow 0.3s; }
-  .post:hover { transform: translateY(-4px); box-shadow: 0 12px 30px rgba(0,0,0,0.07); border-color: var(--accent); }
-  .post h2 { font-size: 1.4rem; margin-bottom: 0.75rem; font-weight: 700; line-height: 1.3; }
-  .post h2 a { color: var(--text); } .post h2 a:hover { color: var(--accent); }
+  .post-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 2rem; align-items: start; }
+  .post { background: var(--card-bg); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid var(--border); border-radius: var(--radius); padding: 2rem; transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+  .post:hover { transform: translateY(-8px) scale(1.02); box-shadow: 0 20px 40px rgba(0,0,0,0.08); border-color: var(--accent); z-index: 2; }
+  .post h2 { font-size: 1.5rem; margin-bottom: 0.75rem; font-weight: 800; line-height: 1.3; letter-spacing: -0.01em; }
+  .post h2 a { color: var(--text); transition: color 0.3s; } .post h2 a:hover { color: var(--accent); }
+  .post .media img { border-radius: 12px; transition: transform 0.6s cubic-bezier(0.165, 0.84, 0.44, 1); }
+  .post:hover .media img { transform: scale(1.05); }
 ";
 
 // Selezione CSS tema + inject accent color

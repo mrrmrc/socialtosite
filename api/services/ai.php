@@ -98,10 +98,13 @@ Restituisci SOLO la nuova memoria aggiornata (testo semplice), nient'altro.";
             : "Contenuto: \"$rawText\"";
         $context = $sourceContext ? "\n\nContesto dei canali/profili dell'utente:\n$sourceContext\n" : '';
 
-        $prompt = "Sei un esperto SEO e copywriter italiano. Da questo contenuto"
-            . ($platform ? " ($platform)" : '') . " genera un articolo pronto per un sito.\n"
-            . "IMPORTANTE: Se il contenuto originale contiene umorismo, sarcasmo, barzellette o sketch comici, PRESERVA ASSOLUTAMENTE LA COMICITA'. Non trasformare una barzelletta in un testo logico, mantieni l'effetto comico originale.\n"
-            . "Prima interpreta l'argomento del profilo e del contenuto, poi crea un post leggibile, accurato e utile per un sito HTML, rispettando sempre il tono originale.\n"
+        $prompt = "Sei il copywriter e curatore editoriale ufficiale di questo utente/brand. "
+            . "Il tuo compito è trasformare il seguente contenuto" . ($platform ? " (estratto da $platform)" : '') . " in un articolo professionale per il suo sito web.\n\n"
+            . "REGOLE FONDAMENTALI (PENA IL FALLIMENTO DEL TASK):\n"
+            . "1. ADERENZA AL FATTO: Basati ESCLUSIVAMENTE sulle informazioni fornite nel Contenuto. NON inventare dettagli, NON aggiungere tendenze, challenge, fenomeni virali o notizie esterne se non esplicitamente menzionate nella Trascrizione/Didascalia.\n"
+            . "2. RISPETTO DELLA PROFILAZIONE: Adatta il tono di voce e lo stile esattamente come indicato nel 'Contesto dei canali/profili dell'utente' (Target, Strategia, Tono). Se il contesto richiede un tono specifico, usalo.\n"
+            . "3. PRESERVAZIONE: Se il contenuto originale contiene umorismo, sarcasmo, barzellette o sketch comici, PRESERVA ASSOLUTAMENTE LA COMICITA'. Non trasformare una barzelletta in un testo accademico.\n\n"
+            . "PRIMA analizza il Contesto dell'Utente per capire chi sta parlando e a chi si rivolge. POI leggi il Contenuto e scrivi l'articolo.\n"
             . "$context\n$source\n\n"
             . "Rispondi SOLO con JSON valido con questa forma:\n"
             . '{"title":"Titolo SEO max 60 caratteri","body":"Articolo 200-400 parole, italiano naturale, paragrafi",'
@@ -736,13 +739,13 @@ Restituisci SOLO la nuova memoria aggiornata (testo semplice), nient'altro.";
             . "Ruolo:\n{roleMission}\n\n"
             . "Post attuali (JSON id, title, tags):\n{postsContext}\n\n"
             . "Istruzioni:\n"
-            . "1. Individua 3-4 macro-categorie tematiche reali e coerenti con i post disponibili.\n"
-            . "2. Genera un menu_links usando SOLO i tag presenti nei post (es. /?tag=nome_categoria).\n"
+            . "1. Individua 3-4 macro-categorie tematiche reali basandoti ESCLUSIVAMENTE sui tag presenti nei post forniti nel JSON.\n"
+            . "2. Genera un menu_links usando SOLO E RIGOROSAMENTE i tag esatti presenti nei post (es. /?tag=nome_tag_esatto). Non inventare nuovi tag. Se non ci sono tag, non generare categorie nel menu.\n"
             . "3. Scegli l'ID del post migliore, più rappresentativo e di alta qualità da mettere in evidenza (featured_post_id).\n"
             . "4. Genera una hero_tagline (max 80 char) che riassuma l'identità editoriale attuale.\n"
             . "5. Scrivi un breve piano editoriale (max 300 char) su cosa manca o su cosa puntare.\n\n"
             . "Rispondi SOLO con JSON valido:\n"
-            . '{"categories":["Cat1","Cat2"],"menu_links":[{"label":"Home","url":"/"},{"label":"Cat1","url":"/?tag=cat1"}],"featured_post_id":123,"hero_tagline":"Tagline d\'impatto","editorial_plan":"Note editoriali..."}';
+            . '{"categories":["Cat1 esatta","Cat2 esatta"],"menu_links":[{"label":"Home","url":"/"},{"label":"Cat1","url":"/?tag=cat1"}],"featured_post_id":123,"hero_tagline":"Tagline d\'impatto","editorial_plan":"Note editoriali..."}';
 
         $prompt = self::getAgentPrompt('chief_editor', $fallback);
         $prompt = str_replace(

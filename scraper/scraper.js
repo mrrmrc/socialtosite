@@ -21,9 +21,18 @@ const limit = parseInt(args[2]) || 0; // 0 = resolve single post, >0 = discover 
         });
         const page = await browser.newPage();
         
-        // Randomize viewport
+        // Randomize viewport and user agent to simulate mobile/desktop better
         await page.setViewport({ width: 1366, height: 768 });
+        
+        if (platform === 'instagram') {
+            // Use a mobile user agent for Instagram to sometimes bypass strict desktop login walls
+            await page.setUserAgent('Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1');
+        }
+
         await page.goto(url, { waitUntil: 'networkidle2', timeout: 30000 });
+
+        // Attendi un attimo aggiuntivo per il rendering di JS pesanti
+        await new Promise(r => setTimeout(r, 3000));
 
         let result = [];
 
@@ -31,12 +40,43 @@ const limit = parseInt(args[2]) || 0; // 0 = resolve single post, >0 = discover 
             // DISCOVERY: Find recent post URLs
             const links = await page.evaluate(() => {
                 const anchors = Array.from(document.querySelectorAll('a'));
-                return anchors.map(a => a.href).filter(href => {
+                let foundLinks = anchors.map(a => a.href).filter(href => {
                     return href.includes('/p/') || href.includes('/reel/') || href.includes('/video/') || href.includes('/posts/');
                 });
+                // Prova anche a cercare se ci sono script tags con JSON-LD o window._sharedData
+                try {
+                    const scripts = document.querySelectorAll('script');
+                    for (const script of scripts) {
+                        if (script.innerHTML.includes('GraphImage') || script.innerHTML.includes('GraphVideo')) {
+                            const match = script.innerHTML.match(/"shortcode":"([^"]+)"/g);
+                            if (match) {
+                                match.forEach(m => {
+                                    const code = m.split(':')[1].replace(/"/g, '');
+                                    foundLinks.push('https://www.instagram.com/p/' + code + '/');
+                                });
+                            }
+                        }
+                    }
+                } catch (e) {}
+                
+                return foundLinks;
             });
             // Unique
-            const uniqueLinks = [...new Set(links)];
+            let uniqueLinks = [...new Set(links)];
+            
+            // Fallback for Instagram if no links found: try the ?__a=1&__d=dis endpoint
+            if (uniqueLinks.length === 0 && platform === 'instagram') {
+                try {
+                    const apiUrl = url.split('?')[0] + '?__a=1&__d=dis';
+                    await page.goto(apiUrl, { waitUntil: 'networkidle2' });
+                    const text = await page.evaluate(() => document.body.innerText);
+                    const json = JSON.parse(text);
+                    if (json && json.graphql && json.graphql.user && json.graphql.user.edge_owner_to_timeline_media) {
+                        const edges = json.graphql.user.edge_owner_to_timeline_media.edges;
+                        uniqueLinks = edges.map(e => 'https://www.instagram.com/p/' + e.node.shortcode + '/');
+                    }
+                } catch(e) {}
+            }
             
             for (let i = 0; i < Math.min(uniqueLinks.length, limit); i++) {
                 result.push({ url: uniqueLinks[i] });
