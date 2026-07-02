@@ -134,6 +134,9 @@ Restituisci SOLO la nuova memoria aggiornata (testo semplice), nient'altro.";
 
     // ── Apify: deprecato, ora usa lo scraper locale Node.js ─────────────
     private static function nodeScrape(string $platform, string $url, int $limit = 0): array {
+        if (!function_exists('shell_exec')) {
+            throw new Exception("shell_exec disabilitato dal server: impossibile usare lo scraper locale per $platform. Richiede Apify.");
+        }
         $scriptPath = realpath(__DIR__ . '/../../scraper/scraper.js');
         if (!$scriptPath) {
             throw new Exception('Scraper Node.js non trovato. Verifica la cartella scraper/.');
@@ -164,7 +167,8 @@ Restituisci SOLO la nuova memoria aggiornata (testo semplice), nient'altro.";
         if (!defined('APIFY_TOKEN') || !APIFY_TOKEN) {
             throw new Exception('APIFY_TOKEN mancante in config/keys.php');
         }
-        $url = "https://api.apify.com/v2/acts/$actorId/run-sync-get-dataset-items?token=" . APIFY_TOKEN;
+        $actorIdSafe = str_replace('/', '~', $actorId);
+        $url = "https://api.apify.com/v2/acts/$actorIdSafe/run-sync-get-dataset-items?token=" . APIFY_TOKEN;
         
         $ch = curl_init($url);
         curl_setopt_array($ch, [
@@ -345,11 +349,52 @@ Restituisci SOLO la nuova memoria aggiornata (testo semplice), nient'altro.";
             return $out;
         }
 
-        // Usa lo scraper locale Node.js (limit > 0) per Tiktok e Facebook
-        $items = self::nodeScrape($platform, $url, $limit);
+        // Usa lo scraper locale Node.js (se disponibile) per Tiktok e Facebook, altrimenti usa Apify
+        $items = [];
+        if (function_exists('shell_exec')) {
+            $items = self::nodeScrape($platform, $url, $limit);
+        } else {
+            // Fallback ad Apify se shell_exec non e' disponibile
+            if ($platform === 'facebook') {
+                $dataset = self::apifyRun('apify/facebook-pages-scraper', [
+                    'startUrls' => [['url' => $url]],
+                    'resultsLimit' => $limit ?: 20,
+                ]);
+                $items = [];
+                foreach ($dataset as $it) {
+                    // Mappa l'output di Facebook Pages Scraper al formato standard atteso
+                    $items[] = [
+                        'url' => $it['url'] ?? '',
+                        'text' => $it['text'] ?? '',
+                        'mediaUrl' => $it['videoUrl'] ?? $it['imageUrl'] ?? ''
+                    ];
+                }
+            } elseif ($platform === 'tiktok') {
+                // Per TikTok possiamo provare tiktok-scraper
+                $username = '';
+                if (preg_match('~@([^/?]+)~', $url, $m)) $username = $m[1];
+                if (!$username) throw new Exception("Impossibile estrarre username da URL TikTok");
+                $dataset = self::apifyRun('clockwork/tiktok-profile-scraper', [
+                    'profiles' => [$username],
+                    'resultsPerPage' => $limit ?: 20,
+                ]);
+                $items = [];
+                foreach ($dataset as $it) {
+                    $items[] = [
+                        'url' => $it['videoWebUrl'] ?? '',
+                        'text' => $it['text'] ?? '',
+                        'mediaUrl' => $it['playAddr'] ?? ''
+                    ];
+                }
+            } else {
+                 throw new Exception("shell_exec disabilitato: impossibile avviare lo scraper locale.");
+            }
+        }
+
         $out = [];
         foreach ($items as $item) {
             $sourceUrl = self::findSourceUrl($item);
+            if (!$sourceUrl && !empty($item['url'])) $sourceUrl = $item['url'];
             if (!$sourceUrl) continue;
             
             $caption = '';
@@ -361,7 +406,9 @@ Restituisci SOLO la nuova memoria aggiornata (testo semplice), nient'altro.";
             }
             
             $mediaUrl = self::findMediaUrl($item);
-            $mediaType = $mediaUrl ? 'video' : 'text';
+            if (!$mediaUrl && !empty($item['mediaUrl'])) $mediaUrl = $item['mediaUrl'];
+            
+            $mediaType = $mediaUrl && preg_match('/\.mp4/i', $mediaUrl) ? 'video' : ($mediaUrl ? 'image' : 'text');
             if (!$mediaUrl) {
                 $mediaUrl = self::findImageUrl($item);
                 if ($mediaUrl) $mediaType = 'image';
