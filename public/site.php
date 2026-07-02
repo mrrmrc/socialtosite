@@ -909,7 +909,42 @@ header('Link: <' . $siteUrl . '/feed.xml>; rel="alternate"; type="application/at
     /* ─── TEMA: <?= $theme ?> ─── */
     <?= $activeCss ?>
 
+    
+    /* ─── MACRO LAYOUTS STRUTTURALI ─── */
+    .layout-wrapper { display: flex; min-height: 100vh; background: var(--bg); }
+    .layout-sidebar-col { flex-shrink: 0; background: var(--card-bg, #fff); border-right: 1px solid var(--border); display: flex; flex-direction: column; z-index: 50; }
+    .layout-content-col { flex: 1; display: flex; flex-direction: column; overflow-x: hidden; }
+    
+    /* VARIABILE: SPLIT */
+    .layout-split-wrapper .layout-sidebar-col { width: 350px; position: sticky; top: 0; height: 100vh; overflow-y: auto; }
+    .layout-split-wrapper .navbar { padding: 2rem; display: flex; flex-direction: column; align-items: flex-start; gap: 2rem; background: transparent; }
+    .layout-split-wrapper .nav-links { flex-direction: column; gap: 1rem; width: 100%; }
+    .layout-split-wrapper .nav-links a { font-size: 1.2rem; display: block; border-bottom: 1px solid var(--border); padding-bottom: 0.5rem; }
+    .split-hero { flex-shrink: 0; min-height: 60vh; }
+    
+    /* VARIABILE: SIDEBAR */
+    .layout-sidebar-wrapper .layout-sidebar-col { width: 280px; position: sticky; top: 0; height: 100vh; padding: 2rem; justify-content: space-between; }
+    .layout-sidebar-wrapper .navbar { display: flex; flex-direction: column; align-items: flex-start; gap: 2rem; background: transparent; padding:0; }
+    .layout-sidebar-wrapper .nav-links { flex-direction: column; gap: 1rem; }
+    .footer-sidebar { margin-top: auto; padding-top: 2rem; font-size: 0.8rem; opacity: 0.7; border-top: 1px solid var(--border); }
+    
+    @media (max-width: 992px) {
+      .layout-wrapper { flex-direction: column; }
+      .layout-sidebar-col { width: 100% !important; height: auto !important; position: static !important; border-right: none; border-bottom: 1px solid var(--border); }
+      .layout-split-wrapper .navbar, .layout-sidebar-wrapper .navbar { flex-direction: row; align-items: center; justify-content: space-between; padding: 1rem 1.5rem; }
+      .layout-split-wrapper .nav-links, .layout-sidebar-wrapper .nav-links { display: none; } /* Vengono gestiti dall'hamburger .nav-links.open */
+      .layout-split-wrapper .nav-links.open, .layout-sidebar-wrapper .nav-links.open { display: flex; position: fixed; right: 0; width: 280px; height: 100vh; padding: 5rem 2rem 2rem; border: none; }
+      .footer-sidebar { display: none; } /* Nascondi footer laterale su mobile */
+    }
+    
+    /* REGOLE BASE (Classic / Magazine) */
+    body:not([class*="layout-split"]):not([class*="layout-sidebar"]) .navbar {
+       display: flex; align-items: center; justify-content: space-between; padding: 1.5rem 2rem; background: var(--bg);
+    }
+    .placeholder-hero { padding: 8rem 2rem; }
+    
     /* ─── STILI COMUNI (non sovrascrivibili dal tema) ─── */
+
     a { text-decoration: none; transition: color 0.2s; }
     .nav-links { display: flex; gap: 1.5rem; }
     .nav-links a { transition: color 0.2s; }
@@ -1022,10 +1057,28 @@ header('Link: <' . $siteUrl . '/feed.xml>; rel="alternate"; type="application/at
     }
   </style>
 </head>
-<body class="theme-<?= h($archetype) ?>">
+<?php
+  $layoutVariant = 'classic';
+  if (in_array($archetype, ['agency', 'fitness', 'brutalist', 'darkphoto', 'gamer'])) { $layoutVariant = 'split'; }
+  elseif (in_array($archetype, ['zen', 'blogger', 'portfolio', 'vaporwave'])) { $layoutVariant = 'sidebar'; }
+  elseif (in_array($archetype, ['magazine', 'authority', 'ecommerce', 'education'])) { $layoutVariant = 'magazine'; }
+  
+  // Unsplash Placeholder
+  $unsplashKeyword = $archetype;
+  if ($archetype === 'classic') $unsplashKeyword = 'corporate,office';
+  if ($archetype === 'realestate') $unsplashKeyword = 'house,interior';
+  if ($archetype === 'wedding') $unsplashKeyword = 'wedding,flowers';
+  if ($archetype === 'restaurant') $unsplashKeyword = 'food,restaurant';
+  $placeholderImage = "https://images.unsplash.com/photo-1542314831-c53cd4b85ca4?auto=format&fit=crop&w=1600&q=80";
+  if (in_array($archetype, ['wedding', 'realestate', 'restaurant', 'fitness', 'darkphoto', 'medical', 'agency', 'startup', 'lawyer'])) {
+      $placeholderImage = "https://source.unsplash.com/1600x900/?" . urlencode($unsplashKeyword);
+  }
+?>
+<body class="theme-<?= h($archetype) ?> layout-<?= $layoutVariant ?>">
 
-<!-- NAVBAR -->
-<nav class="navbar" aria-label="Navigazione principale" role="navigation">
+<?php
+ob_start();
+?>
   <a href="<?= $siteUrl ?>" class="nav-brand">
     <?php if ($logoUrl): ?><img src="<?= h($logoUrl) ?>" alt="<?= $title ?> - Logo" style="height:40px;border-radius:8px;">
     <?php else: ?><?= $title ?><?php endif; ?>
@@ -1046,59 +1099,29 @@ header('Link: <' . $siteUrl . '/feed.xml>; rel="alternate"; type="application/at
     <?php endforeach; ?>
   </div>
   <?php endif; ?>
-</nav>
+<?php
+$menuHtml = ob_get_clean();
 
-<?php if (!$single && count($sliderPosts) > 0): ?>
-<!-- SLIDER HERO -->
-<div class="slider-container" id="hero-slider">
-  <div class="slider-track" id="slider-track">
-    <?php foreach ($sliderPosts as $i => $p): 
-        $pUrl = $siteUrl . '/' . h($p['slug'] ?? '');
-        $u = $p['media_url'] ?? '';
-        $media = '';
-        if ($u) {
-            $type = strtolower($p['media_type'] ?? '');
-            // YouTube: usa thumbnail ad alta risoluzione
-            if (preg_match('~(?:youtube\.com|youtu\.be)~i', $u) && preg_match('~(?:v=|youtu\.be/|shorts/|embed/)([A-Za-z0-9_-]{11})~', $u, $m)) {
-                $ytThumb = 'https://img.youtube.com/vi/' . $m[1] . '/maxresdefault.jpg';
-                $media = '<img src="' . h($ytThumb) . '" alt="" loading="eager">';
-            } else if ($type === 'video' || preg_match('~\.(mp4|mov|webm)(\?|$)~i', $u)) {
-                $media = '<video autoplay muted loop playsinline><source src="' . h($u) . '"></video>';
-            } else {
-                $media = '<img src="' . h($u) . '" alt="" loading="eager">';
-            }
-        } else if ($coverUrl) {
-            $media = '<img src="' . h($coverUrl) . '" alt="" loading="eager">';
-        } else {
-            $media = '<div style="width:100%; height:100%; background: linear-gradient(135deg, var(--accent), #111);"></div>';
-        }
-    ?>
-    <div class="slider-slide" data-index="<?= $i ?>">
-      <?= $media ?>
-      <div class="slider-content">
-        <div class="container" style="padding:0;">
-          <div class="meta">
-            <span class="badge" style="margin-right:8px;">In Evidenza</span>
-            <span><?= $icons[$p['platform']] ?? '📄' ?> <?= h($p['platform']) ?></span>
-          </div>
-          <h2><a href="<?= $pUrl ?>"><?= h(postTitle($p)) ?></a></h2>
-          <p class="excerpt"><?= h(postExcerpt($p)) ?></p>
-        </div>
-      </div>
-    </div>
-    <?php endforeach; ?>
-  </div>
-  <?php if (count($sliderPosts) > 1): ?>
-  <div class="slider-nav">
-    <?php foreach ($sliderPosts as $i => $p): ?>
-      <button class="slider-dot <?= $i === 0 ? 'active' : '' ?>" data-index="<?= $i ?>" aria-label="Vai alla slide <?= $i + 1 ?>"></button>
+ob_start();
+?>
+  <div class="footer-logo"><?= $title ?></div>
+  <p class="footer-text"><?= $footerText ? h($footerText) : h($site['role_mission'] ?? $site['bio'] ?? '') ?></p>
+  <?php if ($sources): ?>
+  <div class="footer-socials">
+    <?php foreach ($sources as $source): ?>
+      <a href="<?= h($source['url']) ?>" target="_blank" aria-label="<?= h($source['platform']) ?>" title="<?= h($source['platform']) ?>"><?= $icons[$source['platform']] ?? '🔗' ?></a>
     <?php endforeach; ?>
   </div>
   <?php endif; ?>
-</div>
-<?php endif; ?>
+  <div class="footer-bottom">
+    <span>&copy; <?= date('Y') ?> <?= $title ?>. Creato con <a href="<?= BASE_URL ?>">SocialToSite</a>.</span>
+    <a href="<?= $siteUrl ?>/sitemap.xml">Sitemap</a>
+  </div>
+<?php
+$footerHtml = ob_get_clean();
 
-<main class="container">
+ob_start();
+?>
 <?php if ($single): $p = $single; ?>
   <a class="back-btn" href="<?= $siteUrl ?>">← Torna ai contenuti</a>
   <article class="single-post" itemscope itemtype="https://schema.org/Article">
@@ -1206,27 +1229,127 @@ header('Link: <' . $siteUrl . '/feed.xml>; rel="alternate"; type="application/at
   <?php endif; ?>
 
 <?php endif; ?>
-</main>
+<?php
+$mainContentHtml = ob_get_clean();
 
-<footer class="footer">
-  <div class="footer-logo"><?= $title ?></div>
-  <p class="footer-text"><?= $footerText ? h($footerText) : h($site['role_mission'] ?? $site['bio'] ?? '') ?></p>
-  <?php if ($sources): ?>
-  <div class="footer-socials">
-    <?php foreach ($sources as $source): ?>
-      <a href="<?= h($source['url']) ?>" target="_blank" aria-label="<?= h($source['platform']) ?>" title="<?= h($source['platform']) ?>"><?= $icons[$source['platform']] ?? '🔗' ?></a>
+ob_start();
+?>
+<?php if (!$single && count($sliderPosts) > 0): ?>
+<!-- SLIDER HERO -->
+<div class="slider-container" id="hero-slider">
+  <div class="slider-track" id="slider-track">
+    <?php foreach ($sliderPosts as $i => $p): 
+        $pUrl = $siteUrl . '/' . h($p['slug'] ?? '');
+        $u = $p['media_url'] ?? '';
+        $media = '';
+        if ($u) {
+            $type = strtolower($p['media_type'] ?? '');
+            if (preg_match('~(?:youtube\.com|youtu\.be)~i', $u) && preg_match('~(?:v=|youtu\.be/|shorts/|embed/)([A-Za-z0-9_-]{11})~', $u, $m)) {
+                $ytThumb = 'https://img.youtube.com/vi/' . $m[1] . '/maxresdefault.jpg';
+                $media = '<img src="' . h($ytThumb) . '" alt="" loading="eager">';
+            } else if ($type === 'video' || preg_match('~\.(mp4|mov|webm)(\?|$)~i', $u)) {
+                $media = '<video autoplay muted loop playsinline><source src="' . h($u) . '"></video>';
+            } else {
+                $media = '<img src="' . h($u) . '" alt="" loading="eager">';
+            }
+        } else if ($coverUrl) {
+            $media = '<img src="' . h($coverUrl) . '" alt="" loading="eager">';
+        } else {
+            $media = '<img src="' . $placeholderImage . '" alt="" loading="eager">';
+        }
+    ?>
+    <div class="slider-slide" data-index="<?= $i ?>">
+      <?= $media ?>
+      <div class="slider-content">
+        <div class="container" style="padding:0;">
+          <div class="meta">
+            <span class="badge" style="margin-right:8px;">In Evidenza</span>
+            <span><?= $icons[$p['platform']] ?? '📄' ?> <?= h($p['platform']) ?></span>
+          </div>
+          <h2><a href="<?= $pUrl ?>"><?= h(postTitle($p)) ?></a></h2>
+          <p class="excerpt"><?= h(postExcerpt($p)) ?></p>
+        </div>
+      </div>
+    </div>
+    <?php endforeach; ?>
+  </div>
+  <?php if (count($sliderPosts) > 1): ?>
+  <div class="slider-nav">
+    <?php foreach ($sliderPosts as $i => $p): ?>
+      <button class="slider-dot <?= $i === 0 ? 'active' : '' ?>" data-index="<?= $i ?>" aria-label="Vai alla slide <?= $i + 1 ?>"></button>
     <?php endforeach; ?>
   </div>
   <?php endif; ?>
-  <div class="footer-bottom">
-    <span>© <?= date('Y') ?> <?= $title ?>. Creato con <a href="<?= BASE_URL ?>">SocialToSite</a>.</span>
-    <a href="<?= $siteUrl ?>/sitemap.xml">Sitemap</a>
+</div>
+<?php elseif (!$single): ?>
+<!-- HERO PLACEHOLDER SE NON CI SONO SLIDER -->
+<div class="hero placeholder-hero" style="background: url('<?= $coverUrl ?: $placeholderImage ?>') center/cover; position:relative;">
+  <div style="position:absolute; inset:0; background:rgba(0,0,0,0.6);"></div>
+  <div class="container" style="position:relative; z-index:1; color:#fff; text-align:center;">
+    <h1 style="font-size:clamp(3rem, 6vw, 5rem); margin-bottom:1.5rem; color:#fff; font-weight:800; letter-spacing:-0.03em;"><?= h($title) ?></h1>
+    <p style="font-size:1.25rem; max-width:800px; margin:0 auto; line-height:1.6; opacity:0.9;"><?= h($bio) ?></p>
   </div>
-</footer>
+</div>
+<?php endif; ?>
+<?php
+$heroHtml = ob_get_clean();
+?>
+
+<!-- RENDER LAYOUT -->
+<?php if ($layoutVariant === 'split' || $layoutVariant === 'sidebar'): ?>
+  <div class="layout-wrapper layout-<?= $layoutVariant ?>-wrapper">
+    <aside class="layout-sidebar-col">
+      <nav class="navbar" role="navigation">
+        <?= $menuHtml ?>
+      </nav>
+      <?php if ($layoutVariant === 'sidebar'): ?>
+        <footer class="footer-sidebar">
+          <?= $footerHtml ?>
+        </footer>
+      <?php endif; ?>
+    </aside>
+    <main class="layout-content-col">
+       <?php if ($layoutVariant === 'split' && !$single): ?>
+         <div class="split-hero" style="background: url('<?= $coverUrl ?: $placeholderImage ?>') center/cover; position:relative; overflow:hidden;">
+            <div style="position:absolute; inset:0; background:linear-gradient(to right, rgba(0,0,0,0.9), transparent);"></div>
+            <div style="position:relative; z-index:1; padding:4rem; color:#fff; display:flex; flex-direction:column; justify-content:center; height:100%;">
+              <h1 style="font-size:4rem; color:#fff; margin-bottom:1rem;"><?= h($title) ?></h1>
+              <p style="font-size:1.2rem; max-width:600px; opacity:0.9; line-height:1.6;"><?= h($bio) ?></p>
+            </div>
+         </div>
+       <?php else: ?>
+         <?= $heroHtml ?>
+       <?php endif; ?>
+       
+       <div class="container">
+          <?= $mainContentHtml ?>
+       </div>
+
+       <?php if ($layoutVariant === 'split'): ?>
+         <footer class="footer">
+           <?= $footerHtml ?>
+         </footer>
+       <?php endif; ?>
+    </main>
+  </div>
+<?php else: ?>
+  <nav class="navbar" role="navigation">
+    <?= $menuHtml ?>
+  </nav>
+
+  <?= $heroHtml ?>
+
+  <main class="container">
+     <?= $mainContentHtml ?>
+  </main>
+
+  <footer class="footer">
+    <?= $footerHtml ?>
+  </footer>
+<?php endif; ?>
 
 <script>
 document.addEventListener('DOMContentLoaded', () => {
-  // Mobile nav toggle
   const navToggle = document.getElementById('nav-toggle');
   const navLinks = document.getElementById('nav-links');
   const navOverlay = document.getElementById('nav-overlay');
@@ -1239,7 +1362,6 @@ document.addEventListener('DOMContentLoaded', () => {
       navToggle.classList.toggle('open');
       navToggle.setAttribute('aria-expanded', !isOpen);
     };
-    
     navToggle.addEventListener('click', toggleMenu);
     navOverlay.addEventListener('click', toggleMenu);
   }
@@ -1249,13 +1371,11 @@ document.addEventListener('DOMContentLoaded', () => {
   }, { threshold: 0.05, rootMargin: '0px 0px -40px 0px' });
   document.querySelectorAll('.post').forEach(p => observer.observe(p));
 
-  // Slider Logic
   const track = document.getElementById('slider-track');
   if (track) {
     const dots = document.querySelectorAll('.slider-dot');
     let currentSlide = 0;
     const maxSlides = dots.length;
-    
     const goToSlide = (idx) => {
       if (maxSlides <= 1) return;
       currentSlide = idx;
@@ -1263,14 +1383,12 @@ document.addEventListener('DOMContentLoaded', () => {
       dots.forEach(d => d.classList.remove('active'));
       dots[currentSlide].classList.add('active');
     };
-    
     dots.forEach(dot => {
       dot.addEventListener('click', () => {
         clearInterval(autoSlide);
         goToSlide(parseInt(dot.getAttribute('data-index')));
       });
     });
-    
     let autoSlide = setInterval(() => {
       if (maxSlides > 1) {
         goToSlide((currentSlide + 1) % maxSlides);
