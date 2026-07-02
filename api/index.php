@@ -615,7 +615,14 @@ if ($action === 'site-update' && $method === 'POST') {
     if (array_key_exists('profile_summary', $b)) { $fields[] = 'profile_summary = ?'; $params[] = $b['profile_summary']; }
     if (array_key_exists('role_mission', $b)) { $fields[] = 'role_mission = ?'; $params[] = $b['role_mission']; }
     if (array_key_exists('content_strategy', $b)) { $fields[] = 'content_strategy = ?'; $params[] = $b['content_strategy']; }
-    if (array_key_exists('theme', $b)) { $fields[] = 'theme = ?'; $params[] = $b['theme']; }
+    if (array_key_exists('theme', $b)) { 
+        $fields[] = 'theme = ?'; 
+        $params[] = $b['theme']; 
+        if (!array_key_exists('site_ai_data', $b)) {
+            $fields[] = 'design_archetype = NULL';
+            $fields[] = 'site_ai_data = NULL';
+        }
+    }
     
     if (array_key_exists('menu_links', $b)) { $fields[] = 'menu_links = ?'; $params[] = is_array($b['menu_links']) ? json_encode($b['menu_links'], JSON_UNESCAPED_UNICODE) : $b['menu_links']; }
     if (array_key_exists('footer_text', $b)) { $fields[] = 'footer_text = ?'; $params[] = $b['footer_text']; }
@@ -749,26 +756,15 @@ if ($action === 'chief-editor' && $method === 'POST') {
         $result = AI::chiefEditor($site, $posts);
         
         if (!empty($result['ok'])) {
-            // 1. Aggiorna i tag normalizzati in tutti i post
-            $mapping = $result['tag_mapping'] ?? [];
-            if (!empty($mapping)) {
-                $allPosts = DB::fetchAll('SELECT id, tags FROM posts WHERE user_id=?', [$userId]);
-                foreach ($allPosts as $p) {
-                    $tArr = is_array($p['tags']) ? $p['tags'] : (json_decode($p['tags'] ?? '[]', true) ?: []);
-                    $changed = false;
-                    $newTArr = [];
-                    foreach ($tArr as $t) {
-                        $low = strtolower(trim($t));
-                        if (isset($mapping[$low]) && $mapping[$low] !== $t) {
-                            $newTArr[] = $mapping[$low];
-                            $changed = true;
-                        } else {
-                            $newTArr[] = trim($t);
-                        }
-                    }
-                    if ($changed) {
-                        $newTagsJson = json_encode(array_unique(array_filter($newTArr)), JSON_UNESCAPED_UNICODE);
-                        DB::execute('UPDATE posts SET tags=? WHERE id=?', [$newTagsJson, $p['id']]);
+            // 1. Aggiorna la categoria semantica di ciascun post nel DB in base alle risposte dell'AI
+            $postCategories = $result['post_categories'] ?? [];
+            if (is_array($postCategories)) {
+                foreach ($postCategories as $pId => $catName) {
+                    $pId = (int)$pId;
+                    $catName = trim($catName);
+                    if ($pId > 0 && $catName !== '') {
+                        $tagsJson = json_encode([$catName], JSON_UNESCAPED_UNICODE);
+                        DB::execute('UPDATE posts SET tags=? WHERE id=? AND user_id=?', [$tagsJson, $pId, $userId]);
                     }
                 }
             }
@@ -1012,20 +1008,14 @@ if ($action === 'finalize-sync' && $method === 'POST') {
         $chiefResult = AI::chiefEditor($updatedSite, $publishedPosts);
         
         if (!empty($chiefResult['ok'])) {
-            $mapping = $chiefResult['tag_mapping'] ?? [];
-            if (!empty($mapping)) {
-                $allPosts = DB::fetchAll('SELECT id, tags FROM posts WHERE user_id=?', [$userId]);
-                foreach ($allPosts as $p) {
-                    $tArr = is_array($p['tags']) ? $p['tags'] : (json_decode($p['tags'] ?? '[]', true) ?: []);
-                    $changed = false; $newTArr = [];
-                    foreach ($tArr as $t) {
-                        $low = strtolower(trim($t));
-                        if (isset($mapping[$low]) && $mapping[$low] !== $t) { $newTArr[] = $mapping[$low]; $changed = true; }
-                        else { $newTArr[] = trim($t); }
-                    }
-                    if ($changed) {
-                        $newTagsJson = json_encode(array_unique(array_filter($newTArr)), JSON_UNESCAPED_UNICODE);
-                        DB::execute('UPDATE posts SET tags=? WHERE id=?', [$newTagsJson, $p['id']]);
+            $postCategories = $chiefResult['post_categories'] ?? [];
+            if (is_array($postCategories)) {
+                foreach ($postCategories as $pId => $catName) {
+                    $pId = (int)$pId;
+                    $catName = trim($catName);
+                    if ($pId > 0 && $catName !== '') {
+                        $tagsJson = json_encode([$catName], JSON_UNESCAPED_UNICODE);
+                        DB::execute('UPDATE posts SET tags=? WHERE id=? AND user_id=?', [$tagsJson, $pId, $userId]);
                     }
                 }
             }

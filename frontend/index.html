@@ -444,6 +444,7 @@ const [importMsg, setImportMsg] = useState(null);
   const [strategyDraft, setStrategyDraft] = useState('');
   const [selectedTheme, setSelectedTheme] = useState('classic');
     const [previewingTheme, setPreviewingTheme] = useState(null);
+    const [regeneratingMenu, setRegeneratingMenu] = useState(false);
   const [savingProfile, setSavingProfile] = useState(false);
   const [syncLimit, setSyncLimit] = useState(20);
   
@@ -913,7 +914,19 @@ const [importMsg, setImportMsg] = useState(null);
   const [siteAiLoading, setSiteAiLoading] = useState(false);
   const [siteAiResult, setSiteAiResult] = useState(null);
 
-  async function runSiteAi() {
+    async function regenerateMenuAi() {
+    setRegeneratingMenu(true);
+    try {
+      const res = await apiFetch('/api/index.php?action=chief-editor', { method: 'POST' }, token);
+      await loadData();
+      alert("Menu e categorie rigenerate con successo in base ai contenuti!");
+    } catch (err) {
+      alert("Errore rigenerazione menu: " + err.message);
+    }
+    setRegeneratingMenu(false);
+  }
+
+async function runSiteAi() {
     if (!data?.site?.profile_summary && !data?.site?.bio) {
       alert('Prima esegui una scansione dei social per generare il profilo. Vai in "Fonti" → Scansiona social.');
       return;

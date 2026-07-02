@@ -813,36 +813,14 @@ Restituisci SOLO la nuova memoria aggiornata (testo semplice), nient'altro.";
         $summary  = trim($site['profile_summary'] ?? $site['bio'] ?? '');
         $role     = trim($site['role_mission'] ?? '');
         
-        // 1. Raccogliamo i dati essenziali di tutti i post (per risparmiare token)
         $postsData = [];
-        $currentTags = [];
         foreach ($posts as $p) {
             $postsData[] = [
-                'id' => $p['id'],
-                'title' => $p['edited_title'] ?: ($p['generated_title'] ?: 'Post'),
+                'id' => (int)$p['id'],
+                'title' => $p['edited_title'] ?: ($p['generated_title'] ?: mb_substr(strip_tags($p['raw_content'] ?? ''), 0, 80)),
                 'tags' => is_array($p['tags']) ? $p['tags'] : (json_decode($p['tags'] ?? '[]', true) ?: [])
             ];
-            $tArr = is_array($p['tags']) ? $p['tags'] : (json_decode($p['tags'] ?? '[]', true) ?: []);
-            foreach ($tArr as $t) {
-                $t = trim($t);
-                if ($t) $currentTags[] = strtolower($t);
-            }
         }
-        $currentTags = array_unique($currentTags);
-
-        // 2. Normalizzazione dei tag
-        $normalizedTagsMapping = self::tagNormalizer($currentTags);
-        
-        // Applichiamo la normalizzazione ai post (in memoria) per l'analisi del caporedattore
-        foreach ($postsData as &$pd) {
-            $newT = [];
-            foreach ($pd['tags'] as $t) {
-                $lowT = strtolower(trim($t));
-                $newT[] = $normalizedTagsMapping[$lowT] ?? $t;
-            }
-            $pd['tags'] = array_unique(array_filter(array_map('trim', $newT)));
-        }
-        unset($pd);
 
         $postsContext = json_encode($postsData, JSON_UNESCAPED_UNICODE);
 
@@ -851,13 +829,13 @@ Restituisci SOLO la nuova memoria aggiornata (testo semplice), nient'altro.";
             . "Ruolo:\n{roleMission}\n\n"
             . "Post attuali (JSON id, title, tags):\n{postsContext}\n\n"
             . "Istruzioni:\n"
-            . "1. Individua 3-4 macro-categorie tematiche reali basandoti ESCLUSIVAMENTE sui tag presenti nei post forniti nel JSON.\n"
-            . "2. Genera un menu_links usando SOLO E RIGOROSAMENTE i tag esatti presenti nei post (es. /?tag=nome_tag_esatto). Non inventare nuovi tag. Se non ci sono tag, non generare categorie nel menu.\n"
-            . "3. Scegli l'ID del post migliore, più rappresentativo e di alta qualità da mettere in evidenza (featured_post_id).\n"
-            . "4. Genera una hero_tagline (max 80 char) che riassuma l'identità editoriale attuale.\n"
-            . "5. Scrivi un breve piano editoriale (max 300 char) su cosa manca o su cosa puntare.\n\n"
-            . "Rispondi SOLO con JSON valido:\n"
-            . '{"categories":["Cat1 esatta","Cat2 esatta"],"menu_links":[{"label":"Home","url":"/"},{"label":"Cat1","url":"/?tag=cat1"}],"featured_post_id":123,"hero_tagline":"Tagline d\'impatto","editorial_plan":"Note editoriali..."}';
+            . "1. Individua 3-4 macro-categorie tematiche reali e armoniche analizzando il significato semantico dei titoli e dei tag presenti.\n"
+            . "2. Per ciascuno dei post forniti nel JSON, assegna a quale di queste 3-4 macro-categorie appartiene (in base al contenuto).\n"
+            . "3. Genera un menu_links usando queste categorie (es. label 'Design', url '/?tag=design'). Includi sempre anche la Home (url: '/').\n"
+            . "4. Scegli l'ID del post migliore, più rappresentativo e di alta qualità da mettere in evidenza (featured_post_id).\n"
+            . "5. Genera una hero_tagline (max 80 char) che riassuma l'identità editoriale attuale.\n\n"
+            . "Rispondi SOLO con JSON valido con questa esatta struttura:\n"
+            . '{"categories":["Categoria1","Categoria2"],"post_categories":{"POST_ID_1":"Categoria1","POST_ID_2":"Categoria2"},"menu_links":[{"label":"Home","url":"/"},{"label":"Categoria1","url":"/?tag=categoria1"}],"featured_post_id":123,"hero_tagline":"Tagline d\'impatto"}';
 
         $prompt = self::getAgentPrompt('chief_editor', $fallback);
         $prompt = str_replace(
@@ -878,7 +856,6 @@ Restituisci SOLO la nuova memoria aggiornata (testo semplice), nient'altro.";
         }
 
         $result['ok'] = true;
-        $result['tag_mapping'] = $normalizedTagsMapping;
         return $result;
     }
 
