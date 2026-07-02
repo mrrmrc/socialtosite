@@ -615,7 +615,8 @@ if ($action === 'site-update' && $method === 'POST') {
     if (array_key_exists('profile_summary', $b)) { $fields[] = 'profile_summary = ?'; $params[] = $b['profile_summary']; }
     if (array_key_exists('role_mission', $b)) { $fields[] = 'role_mission = ?'; $params[] = $b['role_mission']; }
     if (array_key_exists('content_strategy', $b)) { $fields[] = 'content_strategy = ?'; $params[] = $b['content_strategy']; }
-    if (array_key_exists('theme', $b)) { 
+        if (array_key_exists('design_archetype', $b)) { $fields[] = 'design_archetype = ?'; $params[] = $b['design_archetype']; }
+if (array_key_exists('theme', $b)) { 
         $fields[] = 'theme = ?'; 
         $params[] = $b['theme']; 
         if (!array_key_exists('site_ai_data', $b)) {

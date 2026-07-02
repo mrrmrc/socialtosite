@@ -855,6 +855,7 @@ const [importMsg, setImportMsg] = useState(null);
         method: 'POST',
         body: JSON.stringify({
           theme: layout.design_archetype || layout.theme || 'classic',
+          design_archetype: layout.design_archetype || layout.theme || 'classic',
           accent_color: layout.color_palette?.primary || layout.accent_color || '',
           header_layout: layout.header_layout,
           custom_css: layout.custom_css,
