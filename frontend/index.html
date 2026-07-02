@@ -443,6 +443,7 @@ const [importMsg, setImportMsg] = useState(null);
   const [roleMissionDraft, setRoleMissionDraft] = useState('');
   const [strategyDraft, setStrategyDraft] = useState('');
   const [selectedTheme, setSelectedTheme] = useState('classic');
+    const [previewingTheme, setPreviewingTheme] = useState(null);
   const [savingProfile, setSavingProfile] = useState(false);
   const [syncLimit, setSyncLimit] = useState(20);
   
@@ -1594,7 +1595,7 @@ const [importMsg, setImportMsg] = useState(null);
                           )}
                         </div>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                          <button className="btn btn-outline btn-full" onClick={() => setActivePreviewUrl(`${siteUrl}?preview_index=${i}`)} style={{ fontSize: '12px', padding: '6px' }}>
+                          <button className="btn btn-outline btn-full" onClick={() => { setPreviewingTheme(null); setActivePreviewUrl(`${siteUrl}?preview_index=${i}`); }} style={{ fontSize: '12px', padding: '6px' }}>
                             👁️ Anteprima
                           </button>
                           <button className="btn btn-primary btn-full" onClick={() => applyLayout(i)} style={{ fontSize: '12px', padding: '6px' }}>
@@ -1635,7 +1636,7 @@ const [importMsg, setImportMsg] = useState(null);
                       transition: 'all 0.2s', 
                       boxShadow: selectedTheme === layout.id ? '0 0 0 4px rgba(124, 58, 237, 0.1)' : '0 2px 5px rgba(0,0,0,0.02)' 
                     }} 
-                    onClick={() => chooseTheme(layout.id)}>
+                    onClick={() => { setPreviewingTheme(layout.id); setActivePreviewUrl(`${siteUrl}?preview_theme=${layout.id}`); }}>
                     
                     {selectedTheme === layout.id && <div style={{ position: 'absolute', top: 12, right: 12, background: 'var(--purple)', color: '#fff', borderRadius: '50%', width: 24, height: 24, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px', fontWeight: 'bold' }}>✓</div>}
                     
@@ -1648,7 +1649,7 @@ const [importMsg, setImportMsg] = useState(null);
                     </div>
                     
                     <button className={selectedTheme === layout.id ? "btn btn-primary btn-full" : "btn btn-outline btn-full"} style={{ fontSize: '13px', padding: '10px' }}>
-                      {selectedTheme === layout.id ? 'Modello Attivo' : 'Seleziona'}
+                      {selectedTheme === layout.id ? 'Modello Attivo' : 'Anteprima'}
                     </button>
                   </div>
                 ))}
@@ -1658,9 +1659,14 @@ const [importMsg, setImportMsg] = useState(null);
             {/* Iframe Anteprima Modale */}
             {activePreviewUrl && (
               <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.8)', zIndex: 9999, display: 'flex', flexDirection: 'column', padding: '20px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', background: '#222', color: '#fff', padding: '10px 20px', borderRadius: '10px 10px 0 0' }}>
-                  <span style={{ fontWeight: 600 }}>Anteprima Reale Proposta AI</span>
-                  <button onClick={() => setActivePreviewUrl(null)} style={{ background: 'transparent', color: '#fff', fontSize: '18px', border: 'none', cursor: 'pointer' }}>✕ Chiudi</button>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#222', color: '#fff', padding: '10px 20px', borderRadius: '10px 10px 0 0' }}>
+                  <span style={{ fontWeight: 600 }}>Anteprima Reale</span>
+                  <div style={{ display: 'flex', gap: '10px' }}>
+                    {previewingTheme && (
+                      <button onClick={() => { chooseTheme(previewingTheme); setActivePreviewUrl(null); setPreviewingTheme(null); }} style={{ background: 'var(--purple)', color: '#fff', fontSize: '14px', border: 'none', cursor: 'pointer', padding: '6px 16px', borderRadius: '4px', fontWeight: 'bold' }}>✓ Applica questo Tema</button>
+                    )}
+                    <button onClick={() => { setActivePreviewUrl(null); setPreviewingTheme(null); }} style={{ background: 'transparent', color: '#fff', fontSize: '18px', border: 'none', cursor: 'pointer' }}>✖ Chiudi</button>
+                  </div>
                 </div>
                 <iframe src={activePreviewUrl} style={{ width: '100%', flex: 1, background: '#fff', border: 'none', borderRadius: '0 0 10px 10px' }} />
               </div>

@@ -401,7 +401,7 @@ $themeCSS = [
   .hero { padding:8rem 2rem 5rem; max-width:900px; }
   .hero h1 { font-family:'Syne',sans-serif; font-size:clamp(3.5rem,8vw,6.5rem); font-weight:800; line-height:0.95; letter-spacing:-0.05em; margin-bottom:2rem; text-transform:uppercase; }
   .hero .bio { font-size:1.4rem; color:#555; line-height:1.5; font-weight:400; max-width:600px; }
-  .post-grid { display:columns; column-count:3; column-gap:1.5rem; padding:0 1rem; }
+  .post-grid { display: block; column-count:3; column-gap:1.5rem; padding:0 1rem; }
   @media(max-width:1024px){.post-grid{column-count:2;}}
   @media(max-width:600px){.post-grid{column-count:1;}}
   .post { break-inside:avoid; margin-bottom:1.5rem; background:var(--card-bg); border-radius:16px; overflow:hidden; box-shadow:0 4px 20px rgba(0,0,0,0.03); transition:transform 0.4s, box-shadow 0.4s; }
@@ -916,7 +916,7 @@ header('Link: <' . $siteUrl . '/feed.xml>; rel="alternate"; type="application/at
     .nav-links a:hover { color: var(--accent, #7F77DD); }
     /* ─── Hamburger Mobile ─── */
     .nav-toggle { display: none; background: none; border: none; cursor: pointer; padding: 0.5rem; z-index: 110; }
-     .nav-toggle span { display: block; width: 24px; height: 2px; background: #fff; margin: 5px 0; transition: all 0.3s ease; border-radius: 2px; }
+     .nav-toggle span { display: block; width: 24px; height: 2px; background: var(--text, #111); margin: 5px 0; transition: all 0.3s ease; border-radius: 2px; }
     @media (max-width: 768px) {
       .nav-toggle { display: block; }
       .nav-links { position: fixed; top: 0; right: -100%; width: 280px; height: 100vh; flex-direction: column; background: var(--bg, #fff); padding: 5rem 2rem 2rem; gap: 1.25rem; box-shadow: -4px 0 30px rgba(0,0,0,0.15); transition: right 0.35s cubic-bezier(0.4,0,0.2,1); z-index: 105; }
