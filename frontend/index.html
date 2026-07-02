@@ -426,6 +426,7 @@ const [importMsg, setImportMsg] = useState(null);
   const [sourceMsg, setSourceMsg] = useState(null);
   const [scanning, setScanning] = useState(false);
   const [scanMsg, setScanMsg] = useState(null);
+  const [scanProgress, setScanProgress] = useState([]);
   const [processingQueue, setProcessingQueue] = useState([]);
   const [syncMsg, setSyncMsg] = useState(null);
   const [profileDraft, setProfileDraft] = useState('');
@@ -722,6 +723,7 @@ const [importMsg, setImportMsg] = useState(null);
     }
     setScanning(true); 
     setScanMsg({ ok: true, text: 'Inizio acquisizione...', loading: true });
+    setScanProgress(sources.map(s => ({ id: s.id, platform: s.platform, label: s.label, status: 'pending', details: '' })));
     
     let totalImported = 0;
     let totalFound = 0;
@@ -730,6 +732,7 @@ const [importMsg, setImportMsg] = useState(null);
 
     for (let i = 0; i < sources.length; i++) {
       const source = sources[i];
+      setScanProgress(prev => prev.map(s => s.id === source.id ? { ...s, status: 'scanning' } : s));
       setScanMsg({ ok: true, text: `Acquisizione post da ${source.label || source.platform} in corso... (${i+1}/${sources.length})`, loading: true });
       try {
         const res = await apiFetch('/api/index.php?action=scan-sources', {
@@ -746,13 +749,16 @@ const [importMsg, setImportMsg] = useState(null);
         totalImported += (r.imported || 0);
         totalFound += (r.found || 0);
         totalDuplicates += (r.duplicates || 0);
+        setScanProgress(prev => prev.map(s => s.id === source.id ? { ...s, status: 'done', details: `${r.imported} post importati (su ${r.found} trovati)` } : s));
       } catch (err) {
         console.error("Errore scansione " + source.platform, err);
         totalErrors++;
+        setScanProgress(prev => prev.map(s => s.id === source.id ? { ...s, status: 'error', details: err.message } : s));
       }
     }
     
-    setScanMsg({ ok: true, text: `Acquisizione completata: trovati ${totalFound}, salvati ${totalImported} (duplicati: ${totalDuplicates}). Avvio elaborazione AI in background...` });
+    setScanMsg({ ok: true, text: `Acquisizione completata. Avvio elaborazione AI in background dei ${totalImported} nuovi post...` });
+    setTimeout(() => setScanProgress([]), 3000);
     await processPendingLoop(true);
     setScanning(false);
   }
@@ -1190,6 +1196,27 @@ const [importMsg, setImportMsg] = useState(null);
                   color: scanMsg.ok ? '#0F6E56' : 'var(--red)' }}>
                   {scanMsg.text}
                 </div>
+              )}
+              {scanProgress.length > 0 && (
+                 <div style={{ marginTop: '10px', padding: '12px', borderRadius: 'var(--radius-sm)', background: 'var(--surface)', border: '1px solid var(--border)', fontSize: '13px' }}>
+                   <h4 style={{ marginBottom: '8px', fontSize: '14px', color: 'var(--text)' }}>Stato Lettura Profili Social (Scraping)</h4>
+                   <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                     {scanProgress.map(s => (
+                       <div key={s.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 8px', background: 'var(--bg)', borderRadius: '4px', border: '1px solid var(--border-strong)' }}>
+                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                           <SocialIcon platform={s.platform} size={16} />
+                           <span style={{ fontWeight: 600 }}>{s.label || s.platform}</span>
+                         </div>
+                         <div style={{ fontWeight: 600, fontSize: '12px' }}>
+                           {s.status === 'pending' && <span style={{ color: 'var(--text-muted)' }}>⏳ In coda...</span>}
+                           {s.status === 'scanning' && <span style={{ color: 'var(--blue)' }}>🔍 Lettura API in corso...</span>}
+                           {s.status === 'done' && <span style={{ color: 'var(--teal)' }}>✅ {s.details}</span>}
+                           {s.status === 'error' && <span style={{ color: 'var(--red)' }} title={s.details}>❌ Errore API</span>}
+                         </div>
+                       </div>
+                     ))}
+                   </div>
+                 </div>
               )}
               {processingQueue.length > 0 && (
                  <div style={{ marginTop: '10px', padding: '12px', borderRadius: 'var(--radius-sm)', background: 'var(--surface)', border: '1px solid var(--border)', fontSize: '13px' }}>
