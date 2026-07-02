@@ -164,12 +164,12 @@ if ($action === 'llms') {
 }
 
 // ── Variabili base ───────────────────────────────────────────────────────────
-function h(?string $s): string { return htmlspecialchars((string)$s, ENT_QUOTES, 'UTF-8'); }
+function h(?string $s): string { return htmlspecialchars(html_entity_decode((string)$s, ENT_QUOTES, 'UTF-8'), ENT_QUOTES, 'UTF-8'); }
 
 $title      = h($site['title'] ?? $user['name'] ?? '');
 $bio        = h(($site['profile_summary'] ?? '') ?: ($site['bio'] ?? ''));
 $siteUrl    = BASE_URL . '/s/' . $slug;
-$validThemes = ['classic', 'journal', 'authority', 'portfolio', 'magazine', 'minimal', 'studio', 'local', 'academy', 'bottega'];
+$validThemes = ['classic', 'authority', 'portfolio', 'magazine', 'brutalist', 'ecommerce', 'wedding', 'fitness', 'restaurant', 'agency', 'zen', 'vaporwave', 'realestate', 'blogger', 'darkphoto', 'medical', 'education', 'gamer', 'startup', 'lawyer'];
 $theme      = $site['theme'] ?? 'classic';
 if (!in_array($theme, $validThemes, true)) {
     $theme = 'classic';
