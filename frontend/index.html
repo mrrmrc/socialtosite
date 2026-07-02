@@ -650,6 +650,34 @@ function DashboardScreen({ token, user, onLogout }) {
     }
   }
 
+  const [checkingPlatform, setCheckingPlatform] = useState({});
+  const [checkResult, setCheckResult] = useState({});
+
+  async function checkSocialUrl(platform) {
+    const urlInput = document.getElementById(`url_${platform}`);
+    const dateInput = document.getElementById(`date_${platform}`);
+    const maxInput = document.getElementById(`max_${platform}`);
+    if (!urlInput || !urlInput.value) return;
+
+    setCheckingPlatform(prev => ({...prev, [platform]: true}));
+    setCheckResult(prev => ({...prev, [platform]: null}));
+    try {
+      const res = await apiFetch('/api/index.php?action=check-social-url', {
+        method: 'POST',
+        body: JSON.stringify({
+          platform,
+          url: urlInput.value.trim(),
+          since_date: dateInput ? dateInput.value : '',
+          max_posts: maxInput ? maxInput.value : ''
+        })
+      }, token);
+      setCheckResult(prev => ({...prev, [platform]: { ok: true, msg: res.message }}));
+    } catch (err) {
+      setCheckResult(prev => ({...prev, [platform]: { ok: false, msg: err.message }}));
+    }
+    setCheckingPlatform(prev => ({...prev, [platform]: false}));
+  }
+
   async function savePlatformSource(platform, url, since_date = null, auto_publish = 1, max_posts = null, topic_summary = null) {
     setSourceMsg(null);
     try {
@@ -1060,14 +1088,14 @@ function DashboardScreen({ token, user, onLogout }) {
                         <SocialIcon platform={platform} size={22} />
                         <span>{SOCIAL[platform].label}</span>
                       </div>
-                      <input type="text" placeholder={`Link ${SOCIAL[platform].label}`}
+                      <input type="text" id={`url_${platform}`} placeholder={`Link ${SOCIAL[platform].label}`}
                         defaultValue={sourceByPlatform[platform]?.url || ''}
                         onBlur={e => savePlatformSource(platform, e.target.value.trim(), sourceByPlatform[platform]?.since_date, sourceByPlatform[platform]?.auto_publish ?? 1, sourceByPlatform[platform]?.max_posts, sourceByPlatform[platform]?.topic_summary)} />
-                      <input type="date" title="Retroattività (Da questa data in poi)" 
+                      <input type="date" id={`date_${platform}`} title="Retroattività (Da questa data in poi)" 
                         defaultValue={sourceByPlatform[platform]?.since_date || ''}
                         onBlur={e => savePlatformSource(platform, sourceByPlatform[platform]?.url || '', e.target.value, sourceByPlatform[platform]?.auto_publish ?? 1, sourceByPlatform[platform]?.max_posts, sourceByPlatform[platform]?.topic_summary)}
                         style={{ padding: '6px', fontSize: '13px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)' }} />
-                      <input type="number" title="Max post per questo social" placeholder="Max" min="1" max="500"
+                      <input type="number" id={`max_${platform}`} title="Max post per questo social" placeholder="Max" min="1" max="500"
                         defaultValue={sourceByPlatform[platform]?.max_posts || ''}
                         onBlur={e => savePlatformSource(platform, sourceByPlatform[platform]?.url || '', sourceByPlatform[platform]?.since_date, sourceByPlatform[platform]?.auto_publish ?? 1, e.target.value, sourceByPlatform[platform]?.topic_summary)}
                         style={{ padding: '6px', fontSize: '13px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', width: '100%' }} />
@@ -1078,6 +1106,21 @@ function DashboardScreen({ token, user, onLogout }) {
                         Auto-Pubblica
                       </label>
                     </div>
+                    
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '10px' }}>
+                      <button className="btn btn-outline" 
+                        onClick={() => checkSocialUrl(platform)} 
+                        disabled={checkingPlatform[platform]} 
+                        style={{ fontSize: '12px', padding: '6px 12px' }}>
+                        {checkingPlatform[platform] ? 'Verifica in corso...' : 'Verifica Connessione URL'}
+                      </button>
+                      {checkResult[platform] && (
+                        <div style={{ fontSize: '12px', padding: '6px 10px', borderRadius: '4px', background: checkResult[platform].ok ? 'var(--teal-light)' : 'var(--red-light)', color: checkResult[platform].ok ? 'var(--teal)' : 'var(--red)' }}>
+                          {checkResult[platform].msg}
+                        </div>
+                      )}
+                    </div>
+                    
                     <div>
                       <input type="text" placeholder="Cosa pubblichi qui? (Es: Solo video divertenti, o Approfondimenti tecnici...)"
                         defaultValue={sourceByPlatform[platform]?.topic_summary || ''}

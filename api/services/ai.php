@@ -161,8 +161,33 @@ Restituisci SOLO la nuova memoria aggiornata (testo semplice), nient'altro.";
     }
 
     private static function apifyRun(string $actorId, array $input): array {
-        // Mantenuto per compatibilità, ma non verrà più usato
-        throw new Exception('Apify deprecato. Usa nodeScrape.');
+        if (!defined('APIFY_TOKEN') || !APIFY_TOKEN) {
+            throw new Exception('APIFY_TOKEN mancante in config/keys.php');
+        }
+        $url = "https://api.apify.com/v2/acts/$actorId/run-sync-get-dataset-items?token=" . APIFY_TOKEN;
+        
+        $ch = curl_init($url);
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_POST           => true,
+            CURLOPT_HTTPHEADER     => ['Content-Type: application/json'],
+            CURLOPT_POSTFIELDS     => json_encode($input, JSON_UNESCAPED_UNICODE),
+            CURLOPT_TIMEOUT        => 180, // Apify puo' richiedere fino a 3 min
+        ]);
+        $res  = curl_exec($ch);
+        $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $err  = curl_error($ch);
+        curl_close($ch);
+
+        if ($res === false) throw new Exception("Apify: errore di rete ($err)");
+        
+        $data = json_decode($res, true);
+        if ($code >= 400) {
+            $msg = $data['error']['message'] ?? $res;
+            throw new Exception("Apify ($code): $msg");
+        }
+        
+        return is_array($data) ? $data : [];
     }
 
     // ── Cerca ricorsivamente il primo URL video plausibile in un item ──────
@@ -280,7 +305,47 @@ Restituisci SOLO la nuova memoria aggiornata (testo semplice), nient'altro.";
             throw new Exception('Piattaforma non gestita per la scansione');
         }
 
-        // Usa lo scraper locale Node.js (limit > 0)
+        // Se è Instagram, usiamo Apify
+        if ($platform === 'instagram') {
+            $actorId = 'apify/instagram-profile-scraper';
+            // Estrai username dall'url
+            $username = '';
+            if (preg_match('~(?:instagram\.com/)([^/?#]+)~i', $url, $m)) {
+                $username = $m[1];
+            }
+            if (!$username) throw new Exception('URL Instagram non valido');
+            
+            $input = [
+                'usernames' => [$username],
+                'resultsLimit' => $limit ?: 20,
+            ];
+            
+            $dataset = self::apifyRun($actorId, $input);
+            $out = [];
+            foreach ($dataset as $item) {
+                $postUrl = $item['url'] ?? '';
+                if (!$postUrl) continue;
+                if ($sinceDate && !empty($item['timestamp'])) {
+                    // Apify timestamp is often ISO 8601
+                    if (strtotime($item['timestamp']) < strtotime($sinceDate)) continue;
+                }
+                
+                $caption = $item['caption'] ?? '';
+                $mediaUrl = $item['videoUrl'] ?? $item['displayUrl'] ?? '';
+                $mediaType = !empty($item['videoUrl']) ? 'video' : 'image';
+                
+                $out[] = [
+                    'url' => $postUrl,
+                    'caption' => $caption,
+                    'media_url' => $mediaUrl,
+                    'media_type' => $mediaType
+                ];
+                if ($limit > 0 && count($out) >= $limit) break;
+            }
+            return $out;
+        }
+
+        // Usa lo scraper locale Node.js (limit > 0) per Tiktok e Facebook
         $items = self::nodeScrape($platform, $url, $limit);
         $out = [];
         foreach ($items as $item) {
@@ -308,7 +373,7 @@ Restituisci SOLO la nuova memoria aggiornata (testo semplice), nient'altro.";
                 'media_url' => $mediaUrl,
                 'media_type' => $mediaType
             ];
-            if (count($out) >= $limit) break;
+            if ($limit > 0 && count($out) >= $limit) break;
         }
         return $out;
     }

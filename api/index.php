@@ -265,6 +265,34 @@ if ($action === 'admin-update-prompt' && $method === 'POST') {
     json(['ok' => true]);
 }
 
+// ── GET check-social-url (verifica validita' e numero post stimati) ───────
+if ($action === 'check-social-url' && $method === 'POST') {
+    $b = body();
+    $url = trim($b['url'] ?? '');
+    $platform = trim($b['platform'] ?? '') ?: detectSocialPlatform($url);
+    $sinceDate = trim($b['since_date'] ?? '');
+    $maxPosts = isset($b['max_posts']) && $b['max_posts'] !== '' ? (int)$b['max_posts'] : 20;
+    
+    if ($sinceDate && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $sinceDate)) $sinceDate = null;
+    
+    if (!$platform) jsonError('Piattaforma non riconosciuta');
+    if (!filter_var($url, FILTER_VALIDATE_URL)) jsonError('Link social non valido');
+    
+    try {
+        require_once __DIR__ . '/services/ai.php';
+        $items = AI::sourceItems($platform, $url, $maxPosts, $sinceDate);
+        $count = count($items);
+        json([
+            'ok' => true, 
+            'platform' => $platform, 
+            'count' => $count, 
+            'message' => $count > 0 ? "Connessione OK. Trovati circa $count post validi." : "Connessione OK, ma nessun post trovato dopo la data indicata."
+        ]);
+    } catch (Throwable $e) {
+        jsonError("Errore connessione: " . $e->getMessage());
+    }
+}
+
 if ($action === 'social-sources' && $method === 'GET') {
     $sources = DB::fetchAll(
         'SELECT id, platform, label, url, topic_summary, active, created_at
