@@ -1,20 +1,23 @@
 <?php
-// Script di debug per verificare il campo generated_body nei post
 require_once __DIR__ . '/config/db.php';
-
 header('Content-Type: text/plain; charset=utf-8');
 
-$posts = DB::fetchAll(
-    'SELECT id, generated_title, LENGTH(generated_body) as body_len, LEFT(generated_body, 100) as body_preview, LENGTH(edited_body) as edited_len, LEFT(edited_body, 100) as edited_preview FROM posts ORDER BY id DESC LIMIT 10'
-);
-
-echo "=== CHECK generated_body nei primi 10 post ===\n\n";
-foreach ($posts as $p) {
-    echo "ID: {$p['id']}\n";
-    echo "  Titolo: {$p['generated_title']}\n";
-    echo "  generated_body length: " . ($p['body_len'] ?? 'NULL') . "\n";
-    echo "  generated_body preview: " . ($p['body_preview'] ?? '(vuoto)') . "\n";
-    echo "  edited_body length: " . ($p['edited_len'] ?? 'NULL') . "\n";
-    echo "  edited_body preview: " . ($p['edited_preview'] ?? '(vuoto)') . "\n";
-    echo "\n";
+$user = DB::fetch('SELECT * FROM users WHERE slug=?', ['duemmemail']);
+if (!$user) {
+    echo "Utente duemmemail non trovato!\n";
+    exit;
 }
+
+$site = DB::fetch('SELECT * FROM sites WHERE user_id=?', [$user['id']]);
+if (!$site) {
+    echo "Sito non trovato!\n";
+    exit;
+}
+
+echo "=== STATO SITO UTENTE ===\n";
+echo "Theme: " . ($site['theme'] ?? 'NULL') . "\n";
+echo "Design Archetype: " . ($site['design_archetype'] ?? 'NULL') . "\n";
+echo "Site AI Data empty?: " . (empty($site['site_ai_data']) ? 'YES' : 'NO') . "\n";
+echo "Site AI Data preview: " . substr($site['site_ai_data'] ?? '', 0, 300) . "\n";
+echo "Menu Links: " . ($site['menu_links'] ?? 'NULL') . "\n";
+
