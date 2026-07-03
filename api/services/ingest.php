@@ -188,7 +188,7 @@ class Ingest {
             'SELECT platform, label, url, topic_summary FROM social_sources WHERE user_id=? AND active=1 ORDER BY platform, id',
             [$userId]
         );
-        $site = DB::fetch('SELECT profile_summary, bio, rag_knowledge FROM sites WHERE user_id=?', [$userId]);
+        $site = DB::fetch('SELECT profile_summary, bio, rag_knowledge, harmonize_agent FROM sites WHERE user_id=?', [$userId]);
         $profileSummary = trim($site['profile_summary'] ?? ($site['bio'] ?? ''));
         $sourceContext = '';
         if ($profileSummary !== '') {
@@ -203,7 +203,8 @@ class Ingest {
             $sourceContext .= "\n";
         }
 
-        $seo = AI::harmonize($raw, $post['platform'], $post['raw_content'] ?? '', $sourceContext);
+        $agentName = !empty($site['harmonize_agent']) ? $site['harmonize_agent'] : 'content_editor';
+        $seo = AI::harmonize($raw, $post['platform'], $post['raw_content'] ?? '', $sourceContext, $agentName);
 
         DB::execute('
             UPDATE posts SET

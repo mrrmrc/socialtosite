@@ -92,24 +92,31 @@ Restituisci SOLO la nuova memoria aggiornata (testo semplice), nient'altro.";
     }
 
     // ── AGENTE 2 (Armonizzatore): testo grezzo → articolo SEO (Gemini) ─────
-    public static function harmonize(string $rawText, string $platform = '', string $caption = '', string $sourceContext = ''): array {
+    public static function harmonize(string $rawText, string $platform = '', string $caption = '', string $sourceContext = '', string $agentName = 'content_editor'): array {
         $source = $caption
             ? "Didascalia social: \"$caption\"\n\nTrascrizione: \"$rawText\""
             : "Contenuto: \"$rawText\"";
         $context = $sourceContext ? "\n\nContesto dei canali/profili dell'utente:\n$sourceContext\n" : '';
 
-        $prompt = "Sei il copywriter e curatore editoriale ufficiale di questo utente/brand. "
+        $fallback = "Sei il copywriter e curatore editoriale ufficiale di questo utente/brand. "
             . "Il tuo compito è trasformare il seguente contenuto" . ($platform ? " (estratto da $platform)" : '') . " in un articolo professionale per il suo sito web.\n\n"
             . "REGOLE FONDAMENTALI (PENA IL FALLIMENTO DEL TASK):\n"
             . "1. ADERENZA AL FATTO: Basati ESCLUSIVAMENTE sulle informazioni fornite nel Contenuto. NON inventare dettagli, NON aggiungere tendenze, challenge, fenomeni virali o notizie esterne se non esplicitamente menzionate nella Trascrizione/Didascalia.\n"
             . "2. RISPETTO DELLA PROFILAZIONE: Adatta il tono di voce e lo stile esattamente come indicato nel 'Contesto dei canali/profili dell'utente' (Target, Strategia, Tono). Se il contesto richiede un tono specifico, usalo.\n"
             . "3. PRESERVAZIONE: Se il contenuto originale contiene umorismo, sarcasmo, barzellette o sketch comici, PRESERVA ASSOLUTAMENTE LA COMICITA'. Non trasformare una barzelletta in un testo accademico.\n\n"
             . "PRIMA analizza il Contesto dell'Utente per capire chi sta parlando e a chi si rivolge. POI leggi il Contenuto e scrivi l'articolo.\n"
-            . "$context\n$source\n\n"
+            . "{sourceContext}\n{source}\n\n"
             . "Rispondi SOLO con JSON valido con questa forma:\n"
             . '{"title":"Titolo SEO max 60 caratteri","body":"Articolo 200-400 parole, italiano naturale, paragrafi",'
             . '"excerpt":"Riassunto max 155 caratteri","tags":["tag1","tag2","tag3","tag4","tag5"],'
             . '"meta_description":"Meta description max 155 caratteri","seo_score":75}';
+
+        $promptTemplate = self::getAgentPrompt($agentName, $fallback);
+        $prompt = str_replace(
+            ['{sourceContext}', '{profileSummary}', '{source}', '{content}', '{platform}'],
+            [$context, $sourceContext, $source, $rawText, $platform],
+            $promptTemplate
+        );
 
         $text = self::gemini([['text' => $prompt]], [
             'responseMimeType' => 'application/json',
@@ -127,6 +134,12 @@ Restituisci SOLO la nuova memoria aggiornata (testo semplice), nient'altro.";
                 'seo_score'        => 40,
             ];
         }
+
+        // Normalize generated keys to standard keys if returned by older templates
+        if (isset($result['generated_title']) && !isset($result['title'])) $result['title'] = $result['generated_title'];
+        if (isset($result['generated_body']) && !isset($result['body'])) $result['body'] = $result['generated_body'];
+        if (isset($result['generated_excerpt']) && !isset($result['excerpt'])) $result['excerpt'] = $result['generated_excerpt'];
+
         return $result;
     }
 

@@ -457,6 +457,7 @@ const [importMsg, setImportMsg] = useState(null);
   const [menuLinksStr, setMenuLinksStr] = useState('');
   const [footerText, setFooterText] = useState('');
   const [gscVerification, setGscVerification] = useState('');
+  const [harmonizeAgent, setHarmonizeAgent] = useState('content_editor');
 
   useEffect(() => { loadData(); loadDrafts(); }, []);
 
@@ -477,6 +478,7 @@ const [importMsg, setImportMsg] = useState(null);
       setCustomCss(d.site?.custom_css || '');
       setFooterText(d.site?.footer_text || '');
       setGscVerification(d.site?.gsc_verification || '');
+      setHarmonizeAgent(d.site?.harmonize_agent || 'content_editor');
       if (d.site?.menu_links) {
         try {
            const arr = JSON.parse(d.site.menu_links);
@@ -794,6 +796,7 @@ const [importMsg, setImportMsg] = useState(null);
           custom_css: customCss,
           footer_text: footerText,
           gsc_verification: gscVerification,
+          harmonize_agent: harmonizeAgent,
           menu_links: menuLinksStr.split('\n').filter(x => x.trim()).map(x => {
              const parts = x.split('|');
              return { label: parts[0].trim(), url: parts[1] ? parts[1].trim() : '' };
@@ -1727,6 +1730,23 @@ async function runSiteAi() {
               </button>
             </div>
 
+            <div className="card" style={{ marginBottom: '1rem' }}>
+              <h3 style={{ marginBottom: '0.75rem' }}>Configurazione Scrittura Articoli</h3>
+              <div className="form-group">
+                <label className="label">Modello di Scrittura AI (Agente)</label>
+                <select value={harmonizeAgent} onChange={e => setHarmonizeAgent(e.target.value)}
+                  style={{ width: '100%', padding: '10px 14px', border: '1px solid var(--border-strong)', borderRadius: 'var(--radius-sm)', background: 'var(--surface)', fontSize: '14px', color: 'var(--text)' }}>
+                  <option value="content_editor">Scrittore Standard (Copywriter)</option>
+                  <option value="topical_authority_architect">Scrittore Ottimizzato (Topical Authority Architect)</option>
+                </select>
+                <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '6px', lineHeight: '1.4' }}>
+                  Seleziona "Topical Authority Architect" per generare articoli che mostrano maggiore competenza ed esperienza e rompono i pattern tradizionali delle AI (Quality Rater friendly).
+                </p>
+              </div>
+              <button className="btn btn-outline" onClick={saveProfile} disabled={savingProfile}>
+                {savingProfile ? 'Salvataggio...' : 'Salva configurazione scrittura'}
+              </button>
+            </div>
 
             <div className="card" style={{ marginBottom: '1rem' }}>
               <h3 style={{ marginBottom: '1rem' }}>Link social inseriti</h3>

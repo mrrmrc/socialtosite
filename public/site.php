@@ -336,6 +336,10 @@ function mediaHtml(array $p): string {
 function bodyHtml(?string $b): string {
     $b = trim((string)$b);
     if ($b === '') return '';
+    // Se il testo contiene tag HTML comuni (p, br, table, div, strong, h2, h3), lo riteniamo HTML pre-formattato
+    if (preg_match('/<(p|br|table|tr|td|th|div|strong|em|h2|h3|h4|ul|ol|li)[^>]*>/i', $b)) {
+        return $b;
+    }
     $out = '';
     foreach (preg_split('/\n{2,}/', $b) as $para) {
         $para = trim($para);
@@ -1004,6 +1008,45 @@ header('Link: <' . $siteUrl . '/feed.xml>; rel="alternate"; type="application/at
     .single-post h1 { font-size: 2.2rem; margin-bottom: 1.5rem; line-height: 1.25; }
     .body-content { font-size: 1.05rem; line-height: 1.85; opacity: 0.85; }
     .body-content p { margin-bottom: 1.5rem; }
+    .pro-tip {
+        background: linear-gradient(135deg, rgba(127,119,221,0.08) 0%, rgba(127,119,221,0.03) 100%);
+        border-left: 4px solid var(--accent, #7F77DD);
+        padding: 1.25rem 1.5rem;
+        border-radius: 8px;
+        margin: 2rem 0;
+        font-size: 0.95rem;
+        line-height: 1.6;
+        color: var(--text, #111);
+    }
+    .pro-tip strong {
+        color: var(--accent, #7F77DD);
+        display: block;
+        margin-bottom: 0.25rem;
+        text-transform: uppercase;
+        font-size: 0.85rem;
+        letter-spacing: 0.05em;
+    }
+    .body-content table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 2rem 0;
+        font-size: 0.95rem;
+    }
+    .body-content th {
+        background: rgba(0,0,0,0.02);
+        font-weight: 700;
+        text-align: left;
+        padding: 12px 16px;
+        border-bottom: 2px solid rgba(0,0,0,0.06);
+    }
+    .body-content td {
+        padding: 12px 16px;
+        border-bottom: 1px solid rgba(0,0,0,0.04);
+        line-height: 1.5;
+    }
+    .body-content tr:hover td {
+        background: rgba(0,0,0,0.01);
+    }
     .back-btn { display: inline-flex; align-items: center; gap: 0.5rem; margin-bottom: 2rem; font-weight: 600; color: var(--accent, #7F77DD); }
     /* Footer */
     /* Footer Premium */
