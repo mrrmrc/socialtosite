@@ -387,7 +387,7 @@ Restituisci SOLO la nuova memoria aggiornata (testo semplice), nient'altro.";
                 $username = '';
                 if (preg_match('~@([^/?]+)~', $url, $m)) $username = $m[1];
                 if (!$username) throw new Exception("Impossibile estrarre username da URL TikTok");
-                $dataset = self::apifyRun('clockwork/tiktok-profile-scraper', [
+                $dataset = self::apifyRun('clockworks/tiktok-profile-scraper', [
                     'profiles' => [$username],
                     'resultsPerPage' => $limit ?: 20,
                 ]);
