@@ -51,11 +51,22 @@ class Ingest {
 
         // Già importato?
         $exists = DB::fetch(
-            'SELECT id FROM posts WHERE user_id=? AND platform=? AND platform_post_id=?',
+            'SELECT id, published, seo_score, raw_content FROM posts WHERE user_id=? AND platform=? AND platform_post_id=?',
             [$userId, $platform, $postId]
         );
         if ($exists) {
-            return ['id' => (int) $exists['id'], 'platform' => $platform, 'duplicate' => true];
+            // È un post visibile o già elaborato: è un vero duplicato → skip
+            if ((int)$exists['published'] === 1 || (int)$exists['seo_score'] > -1) {
+                return ['id' => (int) $exists['id'], 'platform' => $platform, 'duplicate' => true];
+            }
+            // È una bozza fallita/vuota (published=0, seo_score=-1 e raw vuoto):
+            // la eliminiamo così il re-import può procedere pulito
+            if (empty(trim($exists['raw_content'] ?? ''))) {
+                DB::execute('DELETE FROM posts WHERE id=?', [(int)$exists['id']]);
+            } else {
+                // Ha contenuto ma non è stato pubblicato: lo trattiamo comunque come duplicato
+                return ['id' => (int) $exists['id'], 'platform' => $platform, 'duplicate' => true];
+            }
         }
 
         // Ricava testo grezzo + media (video/immagine)
@@ -120,10 +131,15 @@ class Ingest {
         if (!$raw && !$mediaUrl) {
             throw new Exception('Nessun testo estratto e nessun media trovato.');
         }
-        $contentHash = self::contentHash($raw);
-        $hashExists = DB::fetch('SELECT id FROM posts WHERE user_id=? AND content_hash=?', [$userId, $contentHash]);
+        $contentHash = self::contentHash($raw ?: $mediaUrl);
+        $hashExists = DB::fetch('SELECT id, published, seo_score FROM posts WHERE user_id=? AND content_hash=?', [$userId, $contentHash]);
         if ($hashExists) {
-            return ['id' => (int) $hashExists['id'], 'platform' => $platform, 'duplicate' => true, 'duplicate_reason' => 'contenuto equivalente'];
+            // Bozza fallita/vuota → elimina e reimporta
+            if ((int)$hashExists['published'] === 0 && (int)$hashExists['seo_score'] === -1) {
+                DB::execute('DELETE FROM posts WHERE id=?', [(int)$hashExists['id']]);
+            } else {
+                return ['id' => (int) $hashExists['id'], 'platform' => $platform, 'duplicate' => true, 'duplicate_reason' => 'contenuto equivalente'];
+            }
         }
 
         $id = DB::insert('
@@ -243,10 +259,13 @@ class Ingest {
             );
         }
 
-        // Controlla se l'utente ha già post nel DB.
-        // Se il DB è vuoto (primo import o dopo un delete massiccio),
-        // ignoriamo la since_date per garantire il recupero completo dei contenuti.
-        $hasExistingPosts = (bool) DB::fetch('SELECT id FROM posts WHERE user_id=? LIMIT 1', [$userId]);
+        // Controlla se l'utente ha già post ELABORATI nel DB (seo_score >= 0).
+        // Le bozze pending (seo_score=-1) e i post nascosti vuoti NON contano:
+        // se il DB ha solo bozze fallite, trattiamo come DB vuoto e ignoriamo since_date.
+        $hasExistingPosts = (bool) DB::fetch(
+            'SELECT id FROM posts WHERE user_id=? AND seo_score >= 0 AND published = 1 LIMIT 1',
+            [$userId]
+        );
 
         $report = ['sources' => count($sources), 'found' => 0, 'imported' => 0, 'published' => 0, 'skipped' => 0, 'duplicates' => 0, 'filtered_by_date' => 0, 'errors' => []];
         $seenUrls = [];
