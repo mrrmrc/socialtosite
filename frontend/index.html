@@ -1891,8 +1891,16 @@ function AdminScreen({ token, currentUser, adminPrompts, updatePrompt }) {
 
   async function loadLogs() {
     try {
-      const data = await apiFetch('/api/index.php?action=admin-logs', {}, token);
-      setLogs(data.logs || []);
+      const data = await apiFetch('/api/index.php?action=logs', {}, token);
+      setLogs(data.entries || []);
+    } catch (e) { setError(e.message); }
+  }
+
+  async function clearLogs() {
+    if (!confirm('Sei sicuro di voler svuotare i log di sistema?')) return;
+    try {
+      await apiFetch('/api/index.php?action=logs-clear', { method: 'POST' }, token);
+      await loadLogs();
     } catch (e) { setError(e.message); }
   }
 
@@ -2167,31 +2175,42 @@ function AdminScreen({ token, currentUser, adminPrompts, updatePrompt }) {
 
       {adminTab === 'logs' && (
       <div className="card">
-        <h3 style={{ marginBottom: '1rem' }}>Log Sincronizzazione (Cron)</h3>
-        <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
-          <thead>
-            <tr style={{ borderBottom: '1px solid var(--border)', background: 'var(--gray-light)' }}>
-              <th style={{ padding: '8px' }}>Data</th>
-              <th style={{ padding: '8px' }}>Utente</th>
-              <th style={{ padding: '8px' }}>Platform</th>
-              <th style={{ padding: '8px' }}>Stato</th>
-              <th style={{ padding: '8px' }}>Nuovi</th>
-              <th style={{ padding: '8px' }}>Errore</th>
-            </tr>
-          </thead>
-          <tbody>
-            {logs.map(l => (
-              <tr key={l.id} style={{ borderBottom: '1px solid var(--border)' }}>
-                <td style={{ padding: '8px', whiteSpace: 'nowrap' }}>{l.ran_at}</td>
-                <td style={{ padding: '8px' }}>{l.email}</td>
-                <td style={{ padding: '8px' }}>{l.platform}</td>
-                <td style={{ padding: '8px' }}><span className={`badge ${l.status==='ok'?'badge-green':'badge-red'}`}>{l.status}</span></td>
-                <td style={{ padding: '8px' }}>{l.posts_new}</td>
-                <td style={{ padding: '8px', color: 'var(--red)', maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={l.error}>{l.error}</td>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+          <h3 style={{ margin: 0 }}>Log di Sistema (Backend)</h3>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <button className="btn btn-outline" onClick={loadLogs} style={{ padding: '6px 12px', fontSize: '13px' }}>🔄 Aggiorna</button>
+            <button className="btn btn-outline" onClick={clearLogs} style={{ color: 'var(--red)', borderColor: 'var(--red-light)', padding: '6px 12px', fontSize: '13px' }}>🗑 Svuota Log</button>
+          </div>
+        </div>
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '12px', fontFamily: 'monospace' }}>
+            <thead>
+              <tr style={{ borderBottom: '1px solid var(--border)', background: 'var(--gray-light)' }}>
+                <th style={{ padding: '8px' }}>Time</th>
+                <th style={{ padding: '8px' }}>Level</th>
+                <th style={{ padding: '8px' }}>Contesto</th>
+                <th style={{ padding: '8px' }}>Messaggio</th>
+                <th style={{ padding: '8px' }}>Dettagli</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {logs.map((l, idx) => (
+                <tr key={idx} style={{ borderBottom: '1px solid var(--border)', background: l.level === 'error' ? 'var(--red-light)' : (l.level === 'warn' ? 'var(--amber-light)' : 'transparent') }}>
+                  <td style={{ padding: '8px', whiteSpace: 'nowrap', color: 'var(--text-muted)' }}>{l.time}</td>
+                  <td style={{ padding: '8px', fontWeight: 'bold', color: l.level === 'error' ? 'var(--red)' : (l.level === 'warn' ? 'var(--amber)' : (l.level === 'debug' ? 'var(--text-faint)' : 'var(--teal)')) }}>{l.level?.toUpperCase()}</td>
+                  <td style={{ padding: '8px' }}>{l.ctx}</td>
+                  <td style={{ padding: '8px', fontWeight: 500 }}>{l.msg}</td>
+                  <td style={{ padding: '8px', color: 'var(--text-muted)', maxWidth: '400px', overflow: 'hidden', textOverflow: 'ellipsis' }} title={JSON.stringify(l.data)}>
+                    {l.data ? JSON.stringify(l.data).substring(0, 100) + (JSON.stringify(l.data).length > 100 ? '...' : '') : ''}
+                  </td>
+                </tr>
+              ))}
+              {logs.length === 0 && (
+                <tr><td colSpan="5" style={{ padding: '16px', textAlign: 'center', color: 'var(--text-muted)' }}>Nessun log trovato.</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
       )}
     </div>
