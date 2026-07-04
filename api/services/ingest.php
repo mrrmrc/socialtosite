@@ -243,15 +243,23 @@ class Ingest {
             );
         }
 
-        $report = ['sources' => count($sources), 'found' => 0, 'imported' => 0, 'published' => 0, 'skipped' => 0, 'duplicates' => 0, 'errors' => []];
+        // Controlla se l'utente ha già post nel DB.
+        // Se il DB è vuoto (primo import o dopo un delete massiccio),
+        // ignoriamo la since_date per garantire il recupero completo dei contenuti.
+        $hasExistingPosts = (bool) DB::fetch('SELECT id FROM posts WHERE user_id=? LIMIT 1', [$userId]);
+
+        $report = ['sources' => count($sources), 'found' => 0, 'imported' => 0, 'published' => 0, 'skipped' => 0, 'duplicates' => 0, 'filtered_by_date' => 0, 'errors' => []];
         $seenUrls = [];
 
         foreach ($sources as $source) {
             try {
-                $sinceDate = !empty($source['since_date']) ? $source['since_date'] : null;
+                // Se il DB è vuoto, ignoriamo la since_date per garantire l'import completo
+                $sourceSinceDate = !empty($source['since_date']) ? $source['since_date'] : null;
+                $effectiveSinceDate = $hasExistingPosts ? $sourceSinceDate : null;
+                
                 $autoPublish = (int)($source['auto_publish'] ?? 1);
                 $limit = !empty($source['max_posts']) ? (int)$source['max_posts'] : $limitPerSource;
-                $items = AI::sourceItems($source['platform'], $source['url'], $limit, $sinceDate);
+                $items = AI::sourceItems($source['platform'], $source['url'], $limit, $effectiveSinceDate);
                 $report['found'] += count($items);
                 foreach ($items as $item) {
                     $sourceUrl = $item['url'] ?? '';

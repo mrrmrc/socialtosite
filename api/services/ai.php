@@ -145,7 +145,7 @@ Restituisci SOLO la nuova memoria aggiornata (testo semplice), nient'altro.";
 
 
 
-    // ── Apify: deprecato, ora usa lo scraper locale Node.js ─────────────
+    // ── Scraper locale Node.js ──────────────────────────────────────────────
     private static function nodeScrape(string $platform, string $url, int $limit = 0): array {
         if (!function_exists('shell_exec')) {
             throw new Exception("shell_exec disabilitato dal server: impossibile usare lo scraper locale per $platform. Richiede Apify.");
@@ -155,24 +155,45 @@ Restituisci SOLO la nuova memoria aggiornata (testo semplice), nient'altro.";
             throw new Exception('Scraper Node.js non trovato. Verifica la cartella scraper/.');
         }
         
-        $cmd = 'node ' . escapeshellarg($scriptPath) . ' ' . escapeshellarg($platform) . ' ' . escapeshellarg($url) . ' ' . (int)$limit;
+        // 2>&1 cattura anche stderr così i messaggi di errore Node.js sono visibili
+        $cmd = 'node ' . escapeshellarg($scriptPath)
+            . ' ' . escapeshellarg($platform)
+            . ' ' . escapeshellarg($url)
+            . ' ' . (int)$limit
+            . ' 2>&1';
         
-        // Esegui comando
         $output = shell_exec($cmd);
-        if (!$output) {
-            throw new Exception("Scraper: errore durante l'esecuzione di Node.js (output vuoto).");
+        
+        // shell_exec ritorna null se il comando non può essere eseguito (es. permessi)
+        if ($output === null) {
+            throw new Exception("Scraper: impossibile avviare Node.js. Verificare che node sia installato e shell_exec sia abilitato.");
+        }
+        
+        $output = trim($output);
+        if ($output === '') {
+            throw new Exception("Scraper: Node.js ha restituito output vuoto per $platform.");
+        }
+        
+        // Tenta di estrarre il JSON dall'output (può esserci stderr prima del JSON)
+        $jsonStart = strpos($output, '{');
+        $jsonStartArr = strpos($output, '[');
+        if ($jsonStartArr !== false && ($jsonStart === false || $jsonStartArr < $jsonStart)) {
+            $jsonStart = $jsonStartArr;
+        }
+        if ($jsonStart !== false) {
+            $output = substr($output, $jsonStart);
         }
         
         $result = json_decode($output, true);
         if (json_last_error() !== JSON_ERROR_NONE) {
-            throw new Exception("Scraper: risposta JSON non valida. Output grezzo: " . substr($output, 0, 100));
+            throw new Exception("Scraper: risposta JSON non valida. Output: " . mb_substr($output, 0, 200));
         }
         
         if (isset($result['error'])) {
             throw new Exception("Scraper: " . $result['error']);
         }
         
-        // Assicurati che ritorni un array di risultati (limit > 0) o un singolo array (limit == 0)
+        // Assicurati che ritorni un array di risultati (limit > 0) o un singolo oggetto (limit == 0)
         return is_array($result) ? $result : [];
     }
 
@@ -181,7 +202,13 @@ Restituisci SOLO la nuova memoria aggiornata (testo semplice), nient'altro.";
             throw new Exception('APIFY_TOKEN mancante in config/keys.php');
         }
         $actorIdSafe = str_replace('/', '~', $actorId);
-        $url = "https://api.apify.com/v2/acts/$actorIdSafe/run-sync-get-dataset-items?token=" . APIFY_TOKEN;
+        // Aggiungiamo timeoutSecs e memoryMbytes all'input per contenere i tempi dell'actor
+        $input = array_merge([
+            'timeoutSecs'  => 180,
+            'memoryMbytes' => 512,
+        ], $input);
+        $url = "https://api.apify.com/v2/acts/$actorIdSafe/run-sync-get-dataset-items?token=" . APIFY_TOKEN
+             . "&timeout=180&memory=512";
         
         $ch = curl_init($url);
         curl_setopt_array($ch, [
@@ -189,7 +216,9 @@ Restituisci SOLO la nuova memoria aggiornata (testo semplice), nient'altro.";
             CURLOPT_POST           => true,
             CURLOPT_HTTPHEADER     => ['Content-Type: application/json'],
             CURLOPT_POSTFIELDS     => json_encode($input, JSON_UNESCAPED_UNICODE),
-            CURLOPT_TIMEOUT        => 180, // Apify puo' richiedere fino a 3 min
+            CURLOPT_TIMEOUT        => 300, // 5 min: Apify può richiedere fino a 3 min
+            CURLOPT_SSL_VERIFYPEER => true,
+            CURLOPT_SSL_VERIFYHOST => 2,
         ]);
         $res  = curl_exec($ch);
         $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
@@ -200,7 +229,7 @@ Restituisci SOLO la nuova memoria aggiornata (testo semplice), nient'altro.";
         
         $data = json_decode($res, true);
         if ($code >= 400) {
-            $msg = $data['error']['message'] ?? $res;
+            $msg = $data['error']['message'] ?? (is_string($res) ? mb_substr($res, 0, 200) : 'risposta non valida');
             throw new Exception("Apify ($code): $msg");
         }
         
@@ -325,37 +354,55 @@ Restituisci SOLO la nuova memoria aggiornata (testo semplice), nient'altro.";
         // Se è Instagram, usiamo Apify
         if ($platform === 'instagram') {
             $actorId = 'apify/instagram-profile-scraper';
-            // Estrai username dall'url
+            // Estrai username dall'url (gestisce URL con o senza trailing slash e query string)
             $username = '';
-            if (preg_match('~(?:instagram\.com/)([^/?#]+)~i', $url, $m)) {
-                $username = $m[1];
+            if (preg_match('~(?:instagram\.com/)([A-Za-z0-9_.]+)~i', $url, $m)) {
+                $username = rtrim($m[1], '/');
             }
-            if (!$username) throw new Exception('URL Instagram non valido');
+            if (!$username) throw new Exception('URL Instagram non valido: impossibile estrarre username.');
+            
+            // Recuperiamo molti più post di quanti ne servono per poi filtrare per data lato PHP.
+            // Se limit=5 ma i 5 più recenti sono tutti sotto sinceDate, senza questa moltiplicazione
+            // il risultato sarebbe zero anche se ci sono post validi più vecchi.
+            $fetchLimit = max($limit * 3, 30);
             
             $input = [
-                'usernames' => [$username],
-                'resultsLimit' => $limit ?: 20,
+                'usernames'    => [$username],
+                'resultsLimit' => $fetchLimit,
             ];
             
             $dataset = self::apifyRun($actorId, $input);
+            if (empty($dataset)) {
+                return []; // Profilo privato o zero post: non è un errore
+            }
+            
             $out = [];
             foreach ($dataset as $item) {
+                // Apify instagram-profile-scraper usa 'url' o 'shortCode' per il link del post
                 $postUrl = $item['url'] ?? '';
+                if (!$postUrl && !empty($item['shortCode'])) {
+                    $postUrl = 'https://www.instagram.com/p/' . $item['shortCode'] . '/';
+                }
                 if (!$postUrl) continue;
-                if ($sinceDate && !empty($item['timestamp'])) {
-                    // Apify timestamp is often ISO 8601
-                    if (strtotime($item['timestamp']) < strtotime($sinceDate)) continue;
+                
+                // Filtraggio per data: controlla sia 'timestamp' che 'takenAtTimestamp'
+                if ($sinceDate) {
+                    $ts = $item['timestamp'] ?? $item['takenAtTimestamp'] ?? '';
+                    if ($ts) {
+                        $postTime = is_numeric($ts) ? (int)$ts : strtotime($ts);
+                        if ($postTime > 0 && $postTime < strtotime($sinceDate)) continue;
+                    }
                 }
                 
-                $caption = $item['caption'] ?? '';
-                $mediaUrl = $item['videoUrl'] ?? $item['displayUrl'] ?? '';
+                $caption   = $item['caption'] ?? $item['alt'] ?? '';
+                $mediaUrl  = $item['videoUrl'] ?? $item['displayUrl'] ?? $item['thumbnailUrl'] ?? '';
                 $mediaType = !empty($item['videoUrl']) ? 'video' : 'image';
                 
                 $out[] = [
-                    'url' => $postUrl,
-                    'caption' => $caption,
-                    'media_url' => $mediaUrl,
-                    'media_type' => $mediaType
+                    'url'        => $postUrl,
+                    'caption'    => $caption,
+                    'media_url'  => $mediaUrl,
+                    'media_type' => $mediaType,
                 ];
                 if ($limit > 0 && count($out) >= $limit) break;
             }
