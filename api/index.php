@@ -169,8 +169,38 @@ La risposta DEVE essere esclusivamente un JSON valido con questa struttura (ness
 }
 
 if ($action === 'mydebug') {
-    $posts = DB::fetchAll('SELECT id, generated_title, LENGTH(generated_body) as body_len, LEFT(generated_body, 100) as body_preview, LENGTH(edited_body) as edited_len, LEFT(edited_body, 100) as edited_preview FROM posts ORDER BY id DESC LIMIT 10');
-    json(['ok' => true, 'posts' => $posts]);
+    // Conteggio per stato
+    $total       = DB::fetch('SELECT COUNT(*) as c FROM posts')['c'] ?? 0;
+    $published   = DB::fetch('SELECT COUNT(*) as c FROM posts WHERE published=1')['c'] ?? 0;
+    $draft       = DB::fetch('SELECT COUNT(*) as c FROM posts WHERE published=0')['c'] ?? 0;
+    $pending     = DB::fetch('SELECT COUNT(*) as c FROM posts WHERE seo_score=-1')['c'] ?? 0;
+    $byUser      = DB::fetchAll('SELECT user_id, COUNT(*) as c, MAX(id) as max_id FROM posts GROUP BY user_id ORDER BY user_id');
+    $posts       = DB::fetchAll('SELECT id, user_id, platform, published, seo_score, generated_title, platform_post_id, LEFT(raw_content,80) as raw_preview FROM posts ORDER BY id DESC LIMIT 20');
+    json([
+        'ok'       => true,
+        'total'    => $total,
+        'published'=> $published,
+        'draft_hidden' => $draft,
+        'pending_ai'   => $pending,
+        'by_user'  => $byUser,
+        'recent'   => $posts,
+    ]);
+}
+
+// ── POST purge-all-posts (Admin: svuota COMPLETAMENTE la tabella posts) ───
+if ($action === 'purge-all-posts' && $method === 'POST') {
+    requireAdmin($isAdmin);
+    $b = body();
+    $targetUserId = isset($b['user_id']) ? (int)$b['user_id'] : null;
+    if ($targetUserId) {
+        $count = DB::fetch('SELECT COUNT(*) as c FROM posts WHERE user_id=?', [$targetUserId])['c'] ?? 0;
+        DB::execute('DELETE FROM posts WHERE user_id=?', [$targetUserId]);
+        json(['ok' => true, 'deleted' => $count, 'user_id' => $targetUserId]);
+    } else {
+        $count = DB::fetch('SELECT COUNT(*) as c FROM posts')['c'] ?? 0;
+        DB::execute('DELETE FROM posts WHERE 1=1');
+        json(['ok' => true, 'deleted' => $count, 'scope' => 'all']);
+    }
 }
 
 // Tutti gli altri endpoint richiedono JWT
