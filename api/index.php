@@ -30,6 +30,7 @@ require_once __DIR__ . '/../config/config.php';
 if (file_exists(__DIR__ . '/../config/keys.php')) require_once __DIR__ . '/../config/keys.php';
 require_once __DIR__ . '/middleware/jwt.php';
 require_once __DIR__ . '/middleware/response.php';
+require_once __DIR__ . '/middleware/logger.php';
 require_once __DIR__ . '/services/sync.php';
 require_once __DIR__ . '/services/ingest.php';
 
@@ -234,6 +235,26 @@ function detectSocialPlatform(string $url): string {
 
 function validSiteThemes(): array {
     return ['classic', 'journal', 'authority', 'portfolio', 'magazine', 'minimal', 'studio', 'local', 'academy', 'timeline', 'bottega'];
+}
+
+// ── GET logs (Admin: visualizza log backend) ─────────────────────────────────
+if ($action === 'logs' && $method === 'GET') {
+    requireAdmin($isAdmin);
+    $n    = min((int)($_GET['n'] ?? 200), 500);
+    $level = $_GET['level'] ?? '';
+    $ctx   = $_GET['ctx'] ?? '';
+    $entries = Logger::read($n);
+    if ($level) $entries = array_values(array_filter($entries, fn($e) => ($e['level'] ?? '') === $level));
+    if ($ctx)   $entries = array_values(array_filter($entries, fn($e) => ($e['ctx']   ?? '') === $ctx));
+    json(['ok' => true, 'count' => count($entries), 'entries' => $entries]);
+}
+
+// ── POST logs-clear (Admin: svuota log backend) ───────────────────────────
+if ($action === 'logs-clear' && $method === 'POST') {
+    requireAdmin($isAdmin);
+    $cleared = Logger::clear();
+    Logger::info('admin', 'Log svuotato da admin', ['user_id' => $userId]);
+    json(['ok' => true, 'files_cleared' => $cleared]);
 }
 
 if ($action === 'admin-users' && $method === 'GET') {

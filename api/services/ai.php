@@ -3,6 +3,7 @@
 // Mantiene anche Whisper/Claude come alternative.
 require_once __DIR__ . '/../../config/config.php';
 if (file_exists(__DIR__ . '/../../config/keys.php')) require_once __DIR__ . '/../../config/keys.php';
+if (file_exists(__DIR__ . '/../middleware/logger.php')) require_once __DIR__ . '/../middleware/logger.php';
 
 class AI {
 
@@ -148,10 +149,12 @@ Restituisci SOLO la nuova memoria aggiornata (testo semplice), nient'altro.";
     // ── Scraper locale Node.js ──────────────────────────────────────────────
     private static function nodeScrape(string $platform, string $url, int $limit = 0): array {
         if (!function_exists('shell_exec')) {
+            Logger::error('scraper', "shell_exec disabilitato", ['platform' => $platform]);
             throw new Exception("shell_exec disabilitato dal server: impossibile usare lo scraper locale per $platform. Richiede Apify.");
         }
         $scriptPath = realpath(__DIR__ . '/../../scraper/scraper.js');
         if (!$scriptPath) {
+            Logger::error('scraper', 'scraper.js non trovato');
             throw new Exception('Scraper Node.js non trovato. Verifica la cartella scraper/.');
         }
         
@@ -162,17 +165,23 @@ Restituisci SOLO la nuova memoria aggiornata (testo semplice), nient'altro.";
             . ' ' . (int)$limit
             . ' 2>&1';
         
+        Logger::info('scraper', "Avvio Node.js scraper", ['platform' => $platform, 'url' => $url, 'limit' => $limit, 'cmd' => $cmd]);
+        
         $output = shell_exec($cmd);
         
         // shell_exec ritorna null se il comando non può essere eseguito (es. permessi)
         if ($output === null) {
+            Logger::error('scraper', 'Node.js non avviabile (output null)', ['platform' => $platform]);
             throw new Exception("Scraper: impossibile avviare Node.js. Verificare che node sia installato e shell_exec sia abilitato.");
         }
         
         $output = trim($output);
         if ($output === '') {
+            Logger::warn('scraper', 'Node.js output vuoto', ['platform' => $platform, 'url' => $url]);
             throw new Exception("Scraper: Node.js ha restituito output vuoto per $platform.");
         }
+        
+        Logger::debug('scraper', 'Node.js raw output', ['platform' => $platform, 'output_preview' => mb_substr($output, 0, 300)]);
         
         // Tenta di estrarre il JSON dall'output (può esserci stderr prima del JSON)
         $jsonStart = strpos($output, '{');
@@ -186,12 +195,17 @@ Restituisci SOLO la nuova memoria aggiornata (testo semplice), nient'altro.";
         
         $result = json_decode($output, true);
         if (json_last_error() !== JSON_ERROR_NONE) {
+            Logger::error('scraper', 'JSON non valido da Node.js', ['platform' => $platform, 'output' => mb_substr($output, 0, 300)]);
             throw new Exception("Scraper: risposta JSON non valida. Output: " . mb_substr($output, 0, 200));
         }
         
         if (isset($result['error'])) {
+            Logger::error('scraper', 'Errore da Node.js scraper', ['platform' => $platform, 'error' => $result['error']]);
             throw new Exception("Scraper: " . $result['error']);
         }
+        
+        $count = is_array($result) ? count($result) : 1;
+        Logger::info('scraper', "Node.js OK", ['platform' => $platform, 'items' => $count]);
         
         // Assicurati che ritorni un array di risultati (limit > 0) o un singolo oggetto (limit == 0)
         return is_array($result) ? $result : [];
@@ -199,6 +213,7 @@ Restituisci SOLO la nuova memoria aggiornata (testo semplice), nient'altro.";
 
     private static function apifyRun(string $actorId, array $input): array {
         if (!defined('APIFY_TOKEN') || !APIFY_TOKEN) {
+            Logger::error('apify', 'APIFY_TOKEN mancante');
             throw new Exception('APIFY_TOKEN mancante in config/keys.php');
         }
         $actorIdSafe = str_replace('/', '~', $actorId);
@@ -209,6 +224,9 @@ Restituisci SOLO la nuova memoria aggiornata (testo semplice), nient'altro.";
         ], $input);
         $url = "https://api.apify.com/v2/acts/$actorIdSafe/run-sync-get-dataset-items?token=" . APIFY_TOKEN
              . "&timeout=180&memory=512";
+        
+        Logger::info('apify', "Avvio actor Apify", ['actor' => $actorId, 'input_keys' => array_keys($input)]);
+        $startTime = microtime(true);
         
         $ch = curl_init($url);
         curl_setopt_array($ch, [
@@ -224,14 +242,23 @@ Restituisci SOLO la nuova memoria aggiornata (testo semplice), nient'altro.";
         $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
         $err  = curl_error($ch);
         curl_close($ch);
+        
+        $elapsed = round(microtime(true) - $startTime, 2);
 
-        if ($res === false) throw new Exception("Apify: errore di rete ($err)");
+        if ($res === false) {
+            Logger::error('apify', "Errore di rete curl", ['actor' => $actorId, 'curl_error' => $err, 'elapsed_s' => $elapsed]);
+            throw new Exception("Apify: errore di rete ($err)");
+        }
         
         $data = json_decode($res, true);
         if ($code >= 400) {
             $msg = $data['error']['message'] ?? (is_string($res) ? mb_substr($res, 0, 200) : 'risposta non valida');
+            Logger::error('apify', "HTTP $code dal actor", ['actor' => $actorId, 'code' => $code, 'msg' => $msg, 'elapsed_s' => $elapsed]);
             throw new Exception("Apify ($code): $msg");
         }
+        
+        $count = is_array($data) ? count($data) : 0;
+        Logger::info('apify', "Actor OK", ['actor' => $actorId, 'items' => $count, 'elapsed_s' => $elapsed]);
         
         return is_array($data) ? $data : [];
     }
@@ -353,17 +380,19 @@ Restituisci SOLO la nuova memoria aggiornata (testo semplice), nient'altro.";
 
         // Se è Instagram, usiamo Apify
         if ($platform === 'instagram') {
+            Logger::info('apify', 'sourceItems Instagram start', ['url' => $url, 'limit' => $limit, 'sinceDate' => $sinceDate]);
             $actorId = 'apify/instagram-profile-scraper';
             // Estrai username dall'url (gestisce URL con o senza trailing slash e query string)
             $username = '';
             if (preg_match('~(?:instagram\.com/)([A-Za-z0-9_.]+)~i', $url, $m)) {
                 $username = rtrim($m[1], '/');
             }
-            if (!$username) throw new Exception('URL Instagram non valido: impossibile estrarre username.');
+            if (!$username) {
+                Logger::error('apify', 'URL Instagram non valido', ['url' => $url]);
+                throw new Exception('URL Instagram non valido: impossibile estrarre username.');
+            }
             
             // Recuperiamo molti più post di quanti ne servono per poi filtrare per data lato PHP.
-            // Se limit=5 ma i 5 più recenti sono tutti sotto sinceDate, senza questa moltiplicazione
-            // il risultato sarebbe zero anche se ci sono post validi più vecchi.
             $fetchLimit = max($limit * 3, 30);
             
             $input = [
@@ -373,10 +402,12 @@ Restituisci SOLO la nuova memoria aggiornata (testo semplice), nient'altro.";
             
             $dataset = self::apifyRun($actorId, $input);
             if (empty($dataset)) {
+                Logger::warn('apify', 'Dataset Instagram vuoto (profilo privato?)', ['username' => $username]);
                 return []; // Profilo privato o zero post: non è un errore
             }
             
             $out = [];
+            $skippedByDate = 0;
             foreach ($dataset as $item) {
                 // Apify instagram-profile-scraper usa 'url' o 'shortCode' per il link del post
                 $postUrl = $item['url'] ?? '';
@@ -390,7 +421,10 @@ Restituisci SOLO la nuova memoria aggiornata (testo semplice), nient'altro.";
                     $ts = $item['timestamp'] ?? $item['takenAtTimestamp'] ?? '';
                     if ($ts) {
                         $postTime = is_numeric($ts) ? (int)$ts : strtotime($ts);
-                        if ($postTime > 0 && $postTime < strtotime($sinceDate)) continue;
+                        if ($postTime > 0 && $postTime < strtotime($sinceDate)) {
+                            $skippedByDate++;
+                            continue;
+                        }
                     }
                 }
                 
@@ -406,6 +440,13 @@ Restituisci SOLO la nuova memoria aggiornata (testo semplice), nient'altro.";
                 ];
                 if ($limit > 0 && count($out) >= $limit) break;
             }
+            Logger::info('apify', 'sourceItems Instagram result', [
+                'username'       => $username,
+                'fetched'        => count($dataset),
+                'returned'       => count($out),
+                'skipped_date'   => $skippedByDate,
+                'sinceDate'      => $sinceDate,
+            ]);
             return $out;
         }
 

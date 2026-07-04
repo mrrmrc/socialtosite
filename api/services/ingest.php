@@ -5,6 +5,7 @@
 require_once __DIR__ . '/../../config/db.php';
 require_once __DIR__ . '/ai.php';
 require_once __DIR__ . '/../middleware/response.php';
+if (file_exists(__DIR__ . '/../middleware/logger.php')) require_once __DIR__ . '/../middleware/logger.php';
 
 class Ingest {
 
@@ -57,13 +58,16 @@ class Ingest {
         if ($exists) {
             // È un post visibile o già elaborato: è un vero duplicato → skip
             if ((int)$exists['published'] === 1 || (int)$exists['seo_score'] > -1) {
+                Logger::debug('ingest', 'Duplicato (elaborato)', ['platform' => $platform, 'postId' => $postId, 'db_id' => $exists['id']]);
                 return ['id' => (int) $exists['id'], 'platform' => $platform, 'duplicate' => true];
             }
             // È una bozza fallita/vuota (published=0, seo_score=-1 e raw vuoto):
             // la eliminiamo così il re-import può procedere pulito
             if (empty(trim($exists['raw_content'] ?? ''))) {
+                Logger::info('ingest', 'Bozza vuota eliminata per re-import', ['platform' => $platform, 'postId' => $postId, 'db_id' => $exists['id']]);
                 DB::execute('DELETE FROM posts WHERE id=?', [(int)$exists['id']]);
             } else {
+                Logger::debug('ingest', 'Duplicato (bozza con contenuto)', ['platform' => $platform, 'postId' => $postId, 'db_id' => $exists['id']]);
                 // Ha contenuto ma non è stato pubblicato: lo trattiamo comunque come duplicato
                 return ['id' => (int) $exists['id'], 'platform' => $platform, 'duplicate' => true];
             }
@@ -129,6 +133,7 @@ class Ingest {
 
         $raw = $transcript ?: $caption;
         if (!$raw && !$mediaUrl) {
+            Logger::warn('ingest', 'Nessun testo o media estratto', ['platform' => $platform, 'url' => $url]);
             throw new Exception('Nessun testo estratto e nessun media trovato.');
         }
         $contentHash = self::contentHash($raw ?: $mediaUrl);
@@ -136,8 +141,10 @@ class Ingest {
         if ($hashExists) {
             // Bozza fallita/vuota → elimina e reimporta
             if ((int)$hashExists['published'] === 0 && (int)$hashExists['seo_score'] === -1) {
+                Logger::info('ingest', 'content_hash: bozza fallita eliminata per re-import', ['db_id' => $hashExists['id'], 'platform' => $platform]);
                 DB::execute('DELETE FROM posts WHERE id=?', [(int)$hashExists['id']]);
             } else {
+                Logger::debug('ingest', 'Duplicato per content_hash', ['platform' => $platform, 'db_id' => $hashExists['id']]);
                 return ['id' => (int) $hashExists['id'], 'platform' => $platform, 'duplicate' => true, 'duplicate_reason' => 'contenuto equivalente'];
             }
         }
@@ -266,6 +273,13 @@ class Ingest {
             'SELECT id FROM posts WHERE user_id=? AND seo_score >= 0 AND published = 1 LIMIT 1',
             [$userId]
         );
+        
+        Logger::info('scan', 'Inizio scanSources', [
+            'user_id'          => $userId,
+            'sources'          => count($sources),
+            'hasExistingPosts' => $hasExistingPosts,
+            'limitPerSource'   => $limitPerSource,
+        ]);
 
         $report = ['sources' => count($sources), 'found' => 0, 'imported' => 0, 'published' => 0, 'skipped' => 0, 'duplicates' => 0, 'filtered_by_date' => 0, 'errors' => []];
         $seenUrls = [];
@@ -278,8 +292,24 @@ class Ingest {
                 
                 $autoPublish = (int)($source['auto_publish'] ?? 1);
                 $limit = !empty($source['max_posts']) ? (int)$source['max_posts'] : $limitPerSource;
+                
+                Logger::info('scan', 'Scansione sorgente', [
+                    'platform'          => $source['platform'],
+                    'url'               => $source['url'],
+                    'limit'             => $limit,
+                    'effectiveSinceDate'=> $effectiveSinceDate,
+                    'sinceDate_stored'  => $sourceSinceDate,
+                    'sinceDate_skipped' => !$hasExistingPosts ? 'si (DB vuoto)' : 'no',
+                ]);
+                
                 $items = AI::sourceItems($source['platform'], $source['url'], $limit, $effectiveSinceDate);
                 $report['found'] += count($items);
+                
+                Logger::info('scan', 'Items trovati da sorgente', [
+                    'platform' => $source['platform'],
+                    'count'    => count($items),
+                ]);
+                
                 foreach ($items as $item) {
                     $sourceUrl = $item['url'] ?? '';
                     if (!$sourceUrl) continue;
@@ -296,15 +326,21 @@ class Ingest {
                             continue;
                         }
                         $report['imported']++;
+                        Logger::info('scan', 'Post importato', ['platform' => $source['platform'], 'url' => $sourceUrl, 'db_id' => $ingested['id'] ?? null]);
                         // L'ingestione si ferma qui (bozza creata). L'elaborazione AI avviene in process-pending.
                     } catch (Throwable $e) {
                         $report['errors'][] = $source['platform'] . ': ' . $e->getMessage();
+                        Logger::error('scan', 'Errore ingestione singolo post', ['platform' => $source['platform'], 'url' => $sourceUrl, 'error' => $e->getMessage()]);
                     }
                 }
             } catch (Throwable $e) {
                 $report['errors'][] = $source['platform'] . ': ' . $e->getMessage();
+                Logger::error('scan', 'Errore sorgente', ['platform' => $source['platform'], 'url' => $source['url'], 'error' => $e->getMessage()]);
             }
         }
+        
+        Logger::info('scan', 'scanSources completato', $report);
+
 
         // L'orchestrazione globale (Caporedattore, SEO, Graphic Designer) 
         // è stata spostata all'endpoint finalize-sync per essere eseguita a fine batch.
