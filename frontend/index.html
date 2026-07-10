@@ -1132,26 +1132,29 @@ async function runSiteAi() {
                 Collega i tuoi account ufficiali. Il sistema estrarrà i tuoi contenuti autentici e li userà per popolare automaticamente il tuo sito web in modo professionale.
               </p>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: '12px' }}>
-                {['facebook', 'instagram', 'tiktok', 'youtube'].map(platform => {
+                {['facebook', 'tiktok', 'youtube'].map(platform => {
                   const conn = connByPlatform[platform];
                   const isConnected = !!conn;
-                  const isOAuthReady = platform === 'facebook' || platform === 'instagram';
+                  const isOAuthReady = platform === 'facebook';
                   return (
                   <div key={platform} style={{ padding: '12px', background: 'var(--bg)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-strong)' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 600 }}>
                         <SocialIcon platform={platform} size={22} />
-                        <span>{platform === 'facebook' ? 'Facebook / IG Aziendale' : platform === 'instagram' ? 'Instagram (Profilo Personale)' : SOCIAL[platform]?.label || platform}</span>
+                        <div>
+                          <span>{platform === 'facebook' ? 'Meta (Facebook & Instagram)' : SOCIAL[platform]?.label || platform}</span>
+                          {platform === 'facebook' && <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 'normal' }}>L'account Instagram deve essere di tipo "Professionale" (Azienda o Creator).</div>}
+                        </div>
                         {isConnected ? (
-                          <span style={{ fontSize: '12px', background: 'var(--teal-light)', color: 'var(--teal)', padding: '2px 8px', borderRadius: '12px', marginLeft: '8px' }}>🟢 Collegato come @{conn.handle}</span>
+                          <span style={{ fontSize: '12px', background: 'var(--teal-light)', color: 'var(--teal)', padding: '2px 8px', borderRadius: '12px', marginLeft: '8px', alignSelf: 'flex-start' }}>🟢 Collegato come @{conn.handle}</span>
                         ) : (
-                          <span style={{ fontSize: '12px', background: 'var(--red-light)', color: 'var(--red)', padding: '2px 8px', borderRadius: '12px', marginLeft: '8px' }}>🔴 Non collegato</span>
+                          <span style={{ fontSize: '12px', background: 'var(--red-light)', color: 'var(--red)', padding: '2px 8px', borderRadius: '12px', marginLeft: '8px', alignSelf: 'flex-start' }}>🔴 Non collegato</span>
                         )}
                       </div>
                       
                       {!isConnected && isOAuthReady && (
-                        <button onClick={() => window.location.href = `/api/auth/oauth_redirect.php?platform=${platform === 'instagram' ? 'instagram_personal' : platform}&token=${localStorage.getItem('sts_token') || ''}`} className="btn btn-primary" style={{ fontSize: '12px', padding: '6px 12px' }}>
-                          Collega {platform === 'facebook' ? 'Facebook' : platform === 'instagram' ? 'Instagram' : SOCIAL[platform]?.label}
+                        <button onClick={() => window.location.href = `/api/auth/oauth_redirect.php?platform=${platform}&token=${localStorage.getItem('sts_token') || ''}`} className="btn btn-primary" style={{ fontSize: '12px', padding: '6px 12px' }}>
+                          Collega {platform === 'facebook' ? 'Account Meta' : SOCIAL[platform]?.label}
                         </button>
                       )}
                       {!isConnected && !isOAuthReady && (
