@@ -12,6 +12,6 @@ if (!defined('GEMINI_MODEL'))   define('GEMINI_MODEL', 'gemini-2.5-flash');
 if (!defined('APIFY_TOKEN'))    define('APIFY_TOKEN', 'apify_api_3LX8nL0nZmdDli7n4YlbyrJiPatuRf1MWkGE');
 
 // Meta Graph API (Facebook / Instagram) per OAuth Ufficiale
-if (!defined('FB_APP_ID'))      define('FB_APP_ID', 'INSERISCI_QUI_IL_TUO_APP_ID');
-if (!defined('FB_APP_SECRET'))  define('FB_APP_SECRET', 'INSERISCI_QUI_IL_TUO_APP_SECRET');
+if (!defined('FB_APP_ID'))      define('FB_APP_ID', '1573081654432555');
+if (!defined('FB_APP_SECRET'))  define('FB_APP_SECRET', '9801c410d5fa6124b0783a7248384bc7');
 
