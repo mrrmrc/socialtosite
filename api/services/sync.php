@@ -81,47 +81,81 @@ class Sync {
 
     // ── Instagram ──────────────────────────────────────────────────────────
     public static function instagram(int $userId, string $token, int $maxPosts = 20, ?string $sinceDate = null, int $autoPublish = 1): array {
+        // Rilevamento automatico del tipo di token (IG Basic vs FB Graph)
+        if (str_starts_with($token, 'IGQ')) {
+            return self::instagram_personal($userId, $token, $maxPosts, $sinceDate, $autoPublish);
+        } else {
+            return self::instagram_business($userId, $token, $maxPosts, $sinceDate, $autoPublish);
+        }
+    }
+
+    public static function instagram_personal(int $userId, string $token, int $maxPosts = 20, ?string $sinceDate = null, int $autoPublish = 1): array {
         $log = ['platform' => 'instagram', 'found' => 0, 'new' => 0, 'error' => null];
         try {
-            $profile = self::get('https://graph.facebook.com/v18.0/me',
-                '', ['fields' => 'instagram_business_account', 'access_token' => $token]);
-            $igId = $profile['instagram_business_account']['id'] ?? null;
-            if (!$igId) throw new Exception('Nessun account Instagram Business');
-
-            $url = "https://graph.facebook.com/v18.0/$igId/media";
-            $params = [
-                'fields'       => 'id,caption,media_type,media_url,thumbnail_url,timestamp',
-                'limit'        => min(50, $maxPosts),
-                'access_token' => $token,
-            ];
+            $url = "https://graph.instagram.com/me/media";
+            $params = ['fields' => 'id,caption,media_type,media_url,thumbnail_url,timestamp', 'limit' => min(50, $maxPosts), 'access_token' => $token];
 
             while ($url && $log['found'] < $maxPosts) {
                 $data = self::get($url, '', $params);
+                if (isset($data['error'])) throw new Exception("Errore API IG: " . $data['error']['message']);
+
                 $posts = $data['data'] ?? [];
                 if (empty($posts)) break;
                 
                 foreach ($posts as $p) {
                     if ($log['found'] >= $maxPosts) break;
+                    $ts = date('Y-m-d H:i:s', strtotime($p['timestamp'] ?? 'now'));
+                    if ($sinceDate && strtotime($ts) < strtotime($sinceDate)) { $url = null; break; }
+
+                    $mediaUrl = $p['media_url'] ?? $p['thumbnail_url'] ?? '';
+                    $mediaType = $p['media_type'] ?? 'IMAGE';
+                    $text = trim($p['caption'] ?? '');
+                    if (!$text && !$mediaUrl) continue;
                     
-                    $ts = $p['timestamp'] ?? date('Y-m-d H:i:s');
-                    if ($sinceDate && strtotime($ts) < strtotime($sinceDate)) {
-                        $url = null; // stop pagination
-                        break;
-                    }
-                    
-                    $new = self::process($userId, 'instagram', $p['id'],
-                        $p['caption'] ?? '', $p['media_url'] ?? $p['thumbnail_url'] ?? '',
-                        $p['media_type'] ?? 'IMAGE', $ts, $autoPublish);
+                    $new = self::process($userId, 'instagram', $p['id'], $text, $mediaUrl, $mediaType, $ts, $autoPublish);
                     if ($new) $log['new']++;
                     $log['found']++;
                 }
+                if ($url && isset($data['paging']['next'])) { $url = $data['paging']['next']; $params = []; } 
+                else { break; }
+            }
+        } catch (Exception $e) { $log['error'] = $e->getMessage(); }
+        return $log;
+    }
+
+    public static function instagram_business(int $userId, string $token, int $maxPosts = 20, ?string $sinceDate = null, int $autoPublish = 1): array {
+        $log = ['platform' => 'instagram', 'found' => 0, 'new' => 0, 'error' => null];
+        try {
+            $profile = self::get('https://graph.facebook.com/v18.0/me', '', ['fields' => 'instagram_business_account', 'access_token' => $token]);
+            $igId = $profile['instagram_business_account']['id'] ?? null;
+            if (!$igId) throw new Exception('Nessun account Instagram Business associato a questa Pagina Facebook.');
+
+            $url = "https://graph.facebook.com/v18.0/$igId/media";
+            $params = ['fields' => 'id,caption,media_type,media_url,thumbnail_url,timestamp', 'limit' => min(50, $maxPosts), 'access_token' => $token];
+
+            while ($url && $log['found'] < $maxPosts) {
+                $data = self::get($url, '', $params);
+                if (isset($data['error'])) throw new Exception("Errore API IG Graph: " . $data['error']['message']);
+
+                $posts = $data['data'] ?? [];
+                if (empty($posts)) break;
                 
-                if ($url && isset($data['paging']['next'])) {
-                    $url = $data['paging']['next'];
-                    $params = []; // The next URL already contains parameters and tokens
-                } else {
-                    break;
+                foreach ($posts as $p) {
+                    if ($log['found'] >= $maxPosts) break;
+                    $ts = date('Y-m-d H:i:s', strtotime($p['timestamp'] ?? 'now'));
+                    if ($sinceDate && strtotime($ts) < strtotime($sinceDate)) { $url = null; break; }
+
+                    $mediaUrl = $p['media_url'] ?? $p['thumbnail_url'] ?? '';
+                    $mediaType = $p['media_type'] ?? 'IMAGE';
+                    $text = trim($p['caption'] ?? '');
+                    if (!$text && !$mediaUrl) continue;
+                    
+                    $new = self::process($userId, 'instagram', $p['id'], $text, $mediaUrl, $mediaType, $ts, $autoPublish);
+                    if ($new) $log['new']++;
+                    $log['found']++;
                 }
+                if ($url && isset($data['paging']['next'])) { $url = $data['paging']['next']; $params = []; } 
+                else { break; }
             }
         } catch (Exception $e) { $log['error'] = $e->getMessage(); }
         return $log;

@@ -1141,7 +1141,7 @@ async function runSiteAi() {
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 600 }}>
                         <SocialIcon platform={platform} size={22} />
-                        <span>{SOCIAL[platform]?.label || platform}</span>
+                        <span>{platform === 'facebook' ? 'Facebook / IG Aziendale' : platform === 'instagram' ? 'Instagram (Profilo Personale)' : SOCIAL[platform]?.label || platform}</span>
                         {isConnected ? (
                           <span style={{ fontSize: '12px', background: 'var(--teal-light)', color: 'var(--teal)', padding: '2px 8px', borderRadius: '12px', marginLeft: '8px' }}>🟢 Collegato come @{conn.handle}</span>
                         ) : (
@@ -1150,8 +1150,8 @@ async function runSiteAi() {
                       </div>
                       
                       {!isConnected && isOAuthReady && (
-                        <button onClick={() => window.location.href = `/api/auth/oauth_redirect.php?platform=${platform}&token=${localStorage.getItem('sts_token') || ''}`} className="btn btn-primary" style={{ fontSize: '12px', padding: '6px 12px' }}>
-                          Collega {SOCIAL[platform]?.label}
+                        <button onClick={() => window.location.href = `/api/auth/oauth_redirect.php?platform=${platform === 'instagram' ? 'instagram_personal' : platform}&token=${localStorage.getItem('sts_token') || ''}`} className="btn btn-primary" style={{ fontSize: '12px', padding: '6px 12px' }}>
+                          Collega {platform === 'facebook' ? 'Facebook' : platform === 'instagram' ? 'Instagram' : SOCIAL[platform]?.label}
                         </button>
                       )}
                       {!isConnected && !isOAuthReady && (

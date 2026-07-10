@@ -26,74 +26,114 @@ if ($error) {
         // exit;
     }
 
-if ($code) {
-    // Scambiamo il code con un Access Token
-    $redirect_uri = BASE_URL . '/api/auth/oauth_callback.php';
+    $platform = $state_data['platform'] ?? 'facebook';
     
-    $token_url = "https://graph.facebook.com/v17.0/oauth/access_token?" . http_build_query([
-        'client_id' => FB_APP_ID,
-        'client_secret' => FB_APP_SECRET,
-        'redirect_uri' => $redirect_uri,
-        'code' => $code
-    ]);
+if ($code) {
+    $redirect_uri = BASE_URL . '/api/auth/oauth_callback.php';
 
-    $response = file_get_contents($token_url);
-    $data = json_decode($response, true);
-
-    if (isset($data['access_token'])) {
-        $access_token = $data['access_token'];
-        
-        // OPZIONALE MA CONSIGLIATO: Scambiare lo short-lived token con un long-lived token (valido 60 giorni)
-        $long_lived_url = "https://graph.facebook.com/v17.0/oauth/access_token?" . http_build_query([
-            'grant_type' => 'fb_exchange_token',
-            'client_id' => FB_APP_ID,
-            'client_secret' => FB_APP_SECRET,
-            'fb_exchange_token' => $access_token
+    if ($platform === 'instagram_personal') {
+        // --- INSTAGRAM BASIC DISPLAY API ---
+        $token_url = "https://api.instagram.com/oauth/access_token";
+        $post_fields = http_build_query([
+            'client_id' => IG_APP_ID,
+            'client_secret' => IG_APP_SECRET,
+            'grant_type' => 'authorization_code',
+            'redirect_uri' => $redirect_uri,
+            'code' => $code
         ]);
         
-        $ll_response = @file_get_contents($long_lived_url);
-        if ($ll_response) {
-            $ll_data = json_decode($ll_response, true);
-            if (isset($ll_data['access_token'])) {
-                $access_token = $ll_data['access_token'];
-            }
-        }
+        $ch = curl_init($token_url);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_POST, true);
+        curl_setopt($ch, CURLOPT_POSTFIELDS, $post_fields);
+        $response = curl_exec($ch);
+        curl_close($ch);
+        $data = json_decode($response, true);
 
-        // Recuperiamo i dati dell'utente per capire chi è (ID su Facebook)
-        $me_url = "https://graph.facebook.com/v17.0/me?fields=id,name&access_token=" . $access_token;
-        $me_response = @file_get_contents($me_url);
-        $me_data = json_decode($me_response, true);
-        
-        if (isset($me_data['id'])) {
-            $platform_uid = $me_data['id'];
-            $handle = $me_data['name'] ?? '';
+        if (isset($data['access_token'])) {
+            $access_token = $data['access_token'];
+            $platform_uid = $data['user_id'];
             
-            // L'ID dell'utente loggato nel nostro sito è ora estratto in modo sicuro dallo state
-            // tramite il token JWT decodificato in precedenza.
+            // Long lived token exchange
+            $ll_url = "https://graph.instagram.com/access_token?" . http_build_query([
+                'grant_type' => 'ig_exchange_token',
+                'client_secret' => IG_APP_SECRET,
+                'access_token' => $access_token
+            ]);
+            $ll_response = @file_get_contents($ll_url);
+            if ($ll_response) {
+                $ll_data = json_decode($ll_response, true);
+                if (isset($ll_data['access_token'])) $access_token = $ll_data['access_token'];
+            }
             
-            // Salviamo nel DB
+            // User details
+            $me_url = "https://graph.instagram.com/me?fields=id,username&access_token=" . $access_token;
+            $me_response = @file_get_contents($me_url);
+            $me_data = json_decode($me_response, true);
+            $handle = $me_data['username'] ?? 'Utente IG';
+
             try {
                 DB::execute("
                     INSERT INTO social_connections (user_id, platform, platform_uid, handle, access_token, connected_at, active)
-                    VALUES (?, 'facebook', ?, ?, ?, NOW(), 1)
+                    VALUES (?, 'instagram', ?, ?, ?, NOW(), 1)
                     ON DUPLICATE KEY UPDATE 
-                    access_token = VALUES(access_token),
-                    handle = VALUES(handle),
-                    active = 1,
-                    connected_at = NOW()
+                    access_token = VALUES(access_token), handle = VALUES(handle), active = 1, connected_at = NOW()
                 ", [$user_id, $platform_uid, $handle, $access_token]);
                 
-                echo "<h1>Autenticazione completata con successo!</h1>";
-                echo "<p>Account collegato. Ora puoi tornare alla dashboard.</p>";
+                echo "<h1>Autenticazione Instagram completata!</h1>";
                 echo "<script>setTimeout(() => { window.location.href = '/'; }, 3000);</script>";
-            } catch (Throwable $e) {
-                echo "Errore: Salvataggio nel database fallito. " . $e->getMessage();
-            }
+            } catch (Throwable $e) { echo "Errore DB: " . $e->getMessage(); }
         } else {
-            echo "Errore nel recupero dell'ID utente da Meta.";
+            echo "Errore token IG: " . print_r($data, true);
         }
     } else {
-        echo "Errore durante lo scambio del token: " . print_r($data, true);
+        // --- FACEBOOK / IG AZIENDALE ---
+        $token_url = "https://graph.facebook.com/v17.0/oauth/access_token?" . http_build_query([
+            'client_id' => FB_APP_ID,
+            'client_secret' => FB_APP_SECRET,
+            'redirect_uri' => $redirect_uri,
+            'code' => $code
+        ]);
+
+        $response = @file_get_contents($token_url);
+        $data = json_decode($response, true);
+
+        if (isset($data['access_token'])) {
+            $access_token = $data['access_token'];
+            
+            $long_lived_url = "https://graph.facebook.com/v17.0/oauth/access_token?" . http_build_query([
+                'grant_type' => 'fb_exchange_token',
+                'client_id' => FB_APP_ID,
+                'client_secret' => FB_APP_SECRET,
+                'fb_exchange_token' => $access_token
+            ]);
+            $ll_response = @file_get_contents($long_lived_url);
+            if ($ll_response) {
+                $ll_data = json_decode($ll_response, true);
+                if (isset($ll_data['access_token'])) $access_token = $ll_data['access_token'];
+            }
+
+            $me_url = "https://graph.facebook.com/v17.0/me?fields=id,name&access_token=" . $access_token;
+            $me_response = @file_get_contents($me_url);
+            $me_data = json_decode($me_response, true);
+            
+            if (isset($me_data['id'])) {
+                $platform_uid = $me_data['id'];
+                $handle = $me_data['name'] ?? '';
+                
+                try {
+                    DB::execute("
+                        INSERT INTO social_connections (user_id, platform, platform_uid, handle, access_token, connected_at, active)
+                        VALUES (?, 'facebook', ?, ?, ?, NOW(), 1)
+                        ON DUPLICATE KEY UPDATE 
+                        access_token = VALUES(access_token), handle = VALUES(handle), active = 1, connected_at = NOW()
+                    ", [$user_id, $platform_uid, $handle, $access_token]);
+                    
+                    echo "<h1>Autenticazione FB completata!</h1>";
+                    echo "<script>setTimeout(() => { window.location.href = '/'; }, 3000);</script>";
+                } catch (Throwable $e) { echo "Errore DB: " . $e->getMessage(); }
+            } else { echo "Errore ID utente Meta."; }
+        } else { echo "Errore token FB: " . print_r($data, true); }
     }
 } else {
     echo "Nessun codice di autorizzazione ricevuto.";
