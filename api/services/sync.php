@@ -232,20 +232,21 @@ class Sync {
     public static function facebook(int $userId, string $token, int $maxPosts = 20, ?string $sinceDate = null, int $autoPublish = 1): array {
         $log = ['platform' => 'facebook', 'found' => 0, 'new' => 0, 'error' => null];
         try {
-            $pages = self::get('https://graph.facebook.com/v18.0/me/accounts',
-                '', ['access_token' => $token]);
-            $page = $pages['data'][0] ?? null;
-            if (!$page) throw new Exception('Nessuna pagina Facebook trovata');
-
-            $url = "https://graph.facebook.com/v18.0/{$page['id']}/posts";
+            // Cerchiamo i post dal feed del profilo personale dell'utente
+            $url = "https://graph.facebook.com/v18.0/me/feed";
             $params = [
                 'fields'       => 'id,message,story,created_time,full_picture',
                 'limit'        => min(50, $maxPosts),
-                'access_token' => $page['access_token'],
+                'access_token' => $token,
             ];
 
             while ($url && $log['found'] < $maxPosts) {
                 $data = self::get($url, '', $params);
+                
+                if (isset($data['error'])) {
+                    throw new Exception("Errore API FB: " . $data['error']['message']);
+                }
+
                 $posts = $data['data'] ?? [];
                 if (empty($posts)) break;
                 
@@ -260,9 +261,12 @@ class Sync {
 
                     $mediaUrl = $p['full_picture'] ?? '';
                     $mediaType = $mediaUrl ? 'IMAGE' : 'text';
+                    $text = trim($p['message'] ?? $p['story'] ?? '');
+                    
+                    if (!$text && !$mediaUrl) continue; // Salta i post vuoti
                     
                     $new = self::process($userId, 'facebook', $p['id'],
-                        $p['message'] ?? $p['story'] ?? '',
+                        $text,
                         $mediaUrl, $mediaType, $ts, $autoPublish);
                     if ($new) $log['new']++;
                     $log['found']++;
