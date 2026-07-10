@@ -31,12 +31,12 @@ if ($error) {
 if ($code) {
     $redirect_uri = BASE_URL . '/api/auth/oauth_callback.php';
 
-    if ($platform === 'instagram_personal') {
-        // --- INSTAGRAM BASIC DISPLAY API ---
+    if ($platform === 'instagram_login') {
+        // --- INSTAGRAM API WITH INSTAGRAM LOGIN ---
         $token_url = "https://api.instagram.com/oauth/access_token";
         $post_fields = http_build_query([
-            'client_id' => IG_APP_ID,
-            'client_secret' => IG_APP_SECRET,
+            'client_id' => IG_LOGIN_APP_ID,
+            'client_secret' => IG_LOGIN_APP_SECRET,
             'grant_type' => 'authorization_code',
             'redirect_uri' => $redirect_uri,
             'code' => $code
@@ -57,7 +57,7 @@ if ($code) {
             // Long lived token exchange
             $ll_url = "https://graph.instagram.com/access_token?" . http_build_query([
                 'grant_type' => 'ig_exchange_token',
-                'client_secret' => IG_APP_SECRET,
+                'client_secret' => IG_LOGIN_APP_SECRET,
                 'access_token' => $access_token
             ]);
             $ll_response = @file_get_contents($ll_url);
@@ -67,7 +67,7 @@ if ($code) {
             }
             
             // User details
-            $me_url = "https://graph.instagram.com/me?fields=id,username&access_token=" . $access_token;
+            $me_url = "https://graph.instagram.com/v20.0/me?fields=id,username&access_token=" . $access_token;
             $me_response = @file_get_contents($me_url);
             $me_data = json_decode($me_response, true);
             $handle = $me_data['username'] ?? 'Utente IG';
@@ -75,7 +75,7 @@ if ($code) {
             try {
                 DB::execute("
                     INSERT INTO social_connections (user_id, platform, platform_uid, handle, access_token, connected_at, active)
-                    VALUES (?, 'instagram', ?, ?, ?, NOW(), 1)
+                    VALUES (?, 'instagram_login', ?, ?, ?, NOW(), 1)
                     ON DUPLICATE KEY UPDATE 
                     access_token = VALUES(access_token), handle = VALUES(handle), active = 1, connected_at = NOW()
                 ", [$user_id, $platform_uid, $handle, $access_token]);

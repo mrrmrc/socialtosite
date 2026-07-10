@@ -26,17 +26,18 @@ if ($platform === 'facebook' || $platform === 'instagram' || $platform === 'inst
 
     $redirect_uri = BASE_URL . '/api/auth/oauth_callback.php';
     
-    if ($platform === 'instagram_personal') {
-        $auth_url = "https://api.instagram.com/oauth/authorize?" . http_build_query([
-            'client_id' => IG_APP_ID,
+    if ($platform === 'instagram_login') {
+        $auth_url = "https://www.instagram.com/oauth/authorize?" . http_build_query([
+            'client_id' => IG_LOGIN_APP_ID,
             'redirect_uri' => $redirect_uri,
-            'scope' => 'user_profile,user_media',
+            'scope' => 'instagram_business_basic',
             'response_type' => 'code',
-            'state' => $state
+            'state' => $state,
+            'enable_fb_login' => 'false'
         ]);
     } else {
         $scopes = ['email', 'public_profile', 'user_posts', 'user_photos', 'user_videos']; 
-        $auth_url = "https://www.facebook.com/v17.0/dialog/oauth?" . http_build_query([
+        $auth_url = "https://www.facebook.com/v18.0/dialog/oauth?" . http_build_query([
             'client_id' => FB_APP_ID,
             'redirect_uri' => $redirect_uri,
             'state' => $state,

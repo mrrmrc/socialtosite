@@ -123,6 +123,40 @@ class Sync {
         return $log;
     }
 
+    public static function instagram_login_direct(int $userId, string $token, int $maxPosts = 20, ?string $sinceDate = null, int $autoPublish = 1): array {
+        $log = ['platform' => 'instagram', 'found' => 0, 'new' => 0, 'error' => null];
+        try {
+            $url = "https://graph.instagram.com/v20.0/me/media";
+            $params = ['fields' => 'id,caption,media_type,media_url,thumbnail_url,timestamp', 'limit' => min(50, $maxPosts), 'access_token' => $token];
+
+            while ($url && $log['found'] < $maxPosts) {
+                $data = self::get($url, '', $params);
+                if (isset($data['error'])) throw new Exception("Errore API IG Login Diretto: " . $data['error']['message']);
+
+                $posts = $data['data'] ?? [];
+                if (empty($posts)) break;
+                
+                foreach ($posts as $p) {
+                    if ($log['found'] >= $maxPosts) break;
+                    $ts = date('Y-m-d H:i:s', strtotime($p['timestamp'] ?? 'now'));
+                    if ($sinceDate && strtotime($ts) < strtotime($sinceDate)) { $url = null; break; }
+
+                    $mediaUrl = $p['media_url'] ?? $p['thumbnail_url'] ?? '';
+                    $mediaType = $p['media_type'] ?? 'IMAGE';
+                    $text = trim($p['caption'] ?? '');
+                    if (!$text && !$mediaUrl) continue;
+                    
+                    $new = self::process($userId, 'instagram', $p['id'], $text, $mediaUrl, $mediaType, $ts, $autoPublish);
+                    if ($new) $log['new']++;
+                    $log['found']++;
+                }
+                if ($url && isset($data['paging']['next'])) { $url = $data['paging']['next']; $params = []; } 
+                else { break; }
+            }
+        } catch (Exception $e) { $log['error'] = $e->getMessage(); }
+        return $log;
+    }
+
     public static function instagram_business(int $userId, string $token, int $maxPosts = 20, ?string $sinceDate = null, int $autoPublish = 1): array {
         $log = ['platform' => 'instagram', 'found' => 0, 'new' => 0, 'error' => null];
         try {
@@ -330,6 +364,7 @@ class Sync {
             $limit = !empty($conn['max_posts']) ? (int)$conn['max_posts'] : $maxPosts;
             $result = match($conn['platform']) {
                 'instagram' => self::instagram($userId, $token, $limit, $connSinceDate, $autoPublish),
+                'instagram_login' => self::instagram_login_direct($userId, $token, $limit, $connSinceDate, $autoPublish),
                 'tiktok'    => self::tiktok($userId, $token, $limit, $connSinceDate, $autoPublish),
                 'youtube'   => self::youtube($userId, $token, $limit, $connSinceDate, $autoPublish),
                 'facebook'  => self::facebook($userId, $token, $limit, $connSinceDate, $autoPublish),

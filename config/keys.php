@@ -15,6 +15,6 @@ if (!defined('APIFY_TOKEN'))    define('APIFY_TOKEN', 'apify_api_3LX8nL0nZmdDli7
 if (!defined('FB_APP_ID'))      define('FB_APP_ID', '1573081654432555');
 if (!defined('FB_APP_SECRET'))  define('FB_APP_SECRET', '9801c410d5fa6124b0783a7248384bc7');
 
-// Instagram Basic Display API (IG Personale)
-if (!defined('IG_APP_ID'))      define('IG_APP_ID', 'INSERISCI_QUI_IL_TUO_IG_APP_ID');
-if (!defined('IG_APP_SECRET'))  define('IG_APP_SECRET', 'INSERISCI_QUI_IL_TUO_IG_APP_SECRET');
+// Instagram API with Instagram Login (Login Diretto - Solo Creator/Aziende)
+if (!defined('IG_LOGIN_APP_ID'))      define('IG_LOGIN_APP_ID', 'INSERISCI_QUI_IL_TUO_IG_LOGIN_APP_ID');
+if (!defined('IG_LOGIN_APP_SECRET'))  define('IG_LOGIN_APP_SECRET', 'INSERISCI_QUI_IL_TUO_IG_LOGIN_APP_SECRET');

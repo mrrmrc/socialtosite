@@ -1242,12 +1242,25 @@ if ($action === 'finalize-sync' && $method === 'POST') {
 // ── Sincronizzazione Social Manuale ──────────────────────────────────────
 if ($action === 'sync' && $method === 'POST') {
     require_once __DIR__ . '/services/sync.php';
+    require_once __DIR__ . '/services/ingest.php';
     try {
         $results = Sync::syncUser($userId, 20); // Sync default up to 20 per social unless overridden by connection settings
         
         $totalImported = 0;
         foreach ($results as $res) {
             $totalImported += $res['new'] ?? 0;
+        }
+
+        // Armonizzazione automatica dei post appena importati (se autoPublish era 1 o se l'utente vuole l'automazione)
+        // Poiché i post inseriti da Sync hanno published=$autoPublish ma manca la generazione (seo_score=0),
+        // Li selezioniamo tutti e li passiamo ad Ingest::harmonize.
+        $drafts = DB::fetchAll('SELECT id FROM posts WHERE user_id=? AND (seo_score <= 0 OR seo_score IS NULL) AND published=1', [$userId]);
+        foreach ($drafts as $d) {
+            try {
+                Ingest::harmonize($userId, $d['id'], 1);
+            } catch (Exception $e) {
+                // Ignore single errors to avoid breaking the entire batch
+            }
         }
         
         json(['ok' => true, 'imported' => $totalImported]);
