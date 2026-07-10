@@ -204,6 +204,92 @@ if ($action === 'purge-all-posts' && $method === 'POST') {
     }
 }
 
+// ── POST openclaw-webhook (Ricezione articoli da OpenClaw) ────────────────
+if ($action === 'openclaw-webhook' && $method === 'POST') {
+    // Parsing robusto: prova JSON, poi form-urlencoded, poi raw
+    $rawInput = file_get_contents('php://input');
+    $b = json_decode($rawInput, true);
+    if (!is_array($b) || empty($b)) {
+        // Fallback: form-urlencoded ($_POST)
+        $b = !empty($_POST) ? $_POST : [];
+    }
+    if (!is_array($b) || empty($b)) {
+        // Ultimo tentativo: parse manuale query string dal body
+        parse_str($rawInput, $b);
+    }
+    
+    // Log di debug per capire cosa arriva
+    if (class_exists('Logger')) {
+        Logger::info('openclaw', 'Webhook ricevuto', [
+            'content_type' => $_SERVER['CONTENT_TYPE'] ?? 'non specificato',
+            'body_keys' => is_array($b) ? array_keys($b) : 'non-array',
+            'api_key_present' => isset($b['api_key']),
+            'api_key_value' => substr($b['api_key'] ?? '(vuoto)', 0, 10) . '...',
+            'raw_length' => strlen($rawInput),
+        ]);
+    }
+    
+    // Verifica API Key - prova dal body, poi dall'header Authorization
+    $expectedKey = defined('OPENCLAW_API_KEY') ? OPENCLAW_API_KEY : 'TEST_KEY_123';
+    $providedKey = $b['api_key'] ?? '';
+    if (!$providedKey) {
+        // Fallback: cerca nell'header Authorization: Bearer <key>
+        $authHeader = $_SERVER['HTTP_AUTHORIZATION'] ?? $_SERVER['HTTP_X_API_KEY'] ?? '';
+        if (str_starts_with($authHeader, 'Bearer ')) {
+            $providedKey = substr($authHeader, 7);
+        } else {
+            $providedKey = $authHeader;
+        }
+    }
+    
+    if ($providedKey !== $expectedKey) {
+        if (class_exists('Logger')) Logger::error('openclaw', 'API Key non valida', [
+            'ip' => $_SERVER['REMOTE_ADDR'],
+            'expected' => substr($expectedKey, 0, 5) . '...',
+            'received' => substr($providedKey, 0, 5) . '...',
+            'raw_body_preview' => substr($rawInput, 0, 200),
+        ]);
+        jsonError('Non autorizzato — chiave API non valida', 401);
+    }
+    
+    $uid = (int)($b['user_id'] ?? 0);
+    $url = trim($b['source_url'] ?? '');
+    $plat = trim($b['platform'] ?? 'website');
+    if (!$uid || !$url) jsonError('Parametri obbligatori mancanti (user_id, source_url)');
+    
+    $title = trim($b['title'] ?? '');
+    $bodyText = trim($b['body'] ?? '');
+    $excerpt = trim($b['excerpt'] ?? '');
+    $tags = isset($b['tags']) && is_array($b['tags']) ? json_encode($b['tags']) : (is_string($b['tags'] ?? null) ? $b['tags'] : '[]');
+    $media = trim($b['media_url'] ?? '');
+    $type = trim($b['media_type'] ?? 'text');
+    $meta = trim($b['meta_description'] ?? $excerpt);
+    
+    $existing = DB::fetch('SELECT id, published FROM posts WHERE user_id=? AND source_url=?', [$uid, $url]);
+    if ($existing) {
+        if ((int)$existing['published'] === 1) {
+            json(['ok' => true, 'message' => 'Post già esistente e pubblicato', 'duplicate' => true]);
+        } else {
+            DB::execute('UPDATE posts SET generated_title=?, generated_body=?, generated_excerpt=?, tags=?, meta_description=?, seo_score=100, published=1, media_url=?, media_type=?, platform=? WHERE id=?', 
+                [$title, $bodyText, $excerpt, $tags, $meta, $media, $type, $plat, $existing['id']]);
+            json(['ok' => true, 'message' => 'Bozza aggiornata con successo', 'updated' => true]);
+        }
+    }
+    
+    $slugText = $title !== '' ? $title : (string)time();
+    $slug = strtolower(trim(preg_replace('/[^A-Za-z0-9-]+/', '-', $slugText), '-'));
+    $cHash = hash('sha256', mb_substr(strip_tags($bodyText), 0, 4000));
+    $pId = $b['platform_post_id'] ?? substr(md5($url), 0, 24);
+    
+    $newId = DB::insert('
+        INSERT INTO posts (user_id, platform, platform_post_id, raw_content, generated_title, generated_body, generated_excerpt, tags, meta_description, media_url, media_type, source_url, published_at, imported_at, content_hash, seo_score, slug, published)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW(), ?, 100, ?, 1)
+    ', [$uid, $plat, $pId, 'Generato da OpenClaw', $title, $bodyText, $excerpt, $tags, $meta, $media, $type, $url, $cHash, $slug]);
+    
+    if (class_exists('Logger')) Logger::info('openclaw', 'Post pubblicato con successo', ['post_id' => $newId, 'title' => $title]);
+    json(['ok' => true, 'message' => 'Post inserito con successo', 'inserted' => true, 'post_id' => $newId]);
+}
+
 // Tutti gli altri endpoint richiedono JWT
 $me = JWT::require();
 $userId = $me['id'];
@@ -1151,6 +1237,23 @@ if ($action === 'finalize-sync' && $method === 'POST') {
 
     DB::execute('UPDATE sites SET last_sync=NOW() WHERE user_id=?', [$userId]);
     json(['ok' => true]);
+}
+
+// ── Sincronizzazione Social Manuale ──────────────────────────────────────
+if ($action === 'sync' && $method === 'POST') {
+    require_once __DIR__ . '/services/sync.php';
+    try {
+        $results = Sync::syncUser($userId, 20); // Sync default up to 20 per social unless overridden by connection settings
+        
+        $totalImported = 0;
+        foreach ($results as $res) {
+            $totalImported += $res['new'] ?? 0;
+        }
+        
+        json(['ok' => true, 'imported' => $totalImported]);
+    } catch (Throwable $e) {
+        jsonError($e->getMessage());
+    }
 }
 
 // ── ADMIN: GET admin-logs (sync_log table) ────────────────────────────────

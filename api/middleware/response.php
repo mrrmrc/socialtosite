@@ -31,7 +31,12 @@ function jsonError(string $msg, int $code = 400): void {
 }
 
 function body(): array {
-    return json_decode(file_get_contents('php://input'), true) ?? [];
+    $input = file_get_contents('php://input');
+    $data = json_decode($input, true);
+    if (!is_array($data) && !empty($_POST)) {
+        return $_POST;
+    }
+    return $data ?? [];
 }
 
 function slugify(string $text): string {

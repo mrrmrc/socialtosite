@@ -408,13 +408,25 @@ Restituisci SOLO la nuova memoria aggiornata (testo semplice), nient'altro.";
             
             $out = [];
             $skippedByDate = 0;
-            foreach ($dataset as $item) {
+            
+            $postsData = [];
+            foreach ($dataset as $it) {
+                if (isset($it['latestPosts'])) {
+                    foreach ($it['latestPosts'] as $p) {
+                        $postsData[] = $p;
+                    }
+                } else {
+                    $postsData[] = $it; // Fallback se fosse array di post diretti
+                }
+            }
+            
+            foreach ($postsData as $item) {
                 // Apify instagram-profile-scraper usa 'url' o 'shortCode' per il link del post
                 $postUrl = $item['url'] ?? '';
                 if (!$postUrl && !empty($item['shortCode'])) {
                     $postUrl = 'https://www.instagram.com/p/' . $item['shortCode'] . '/';
                 }
-                if (!$postUrl) continue;
+                if (!$postUrl || preg_match('~/p/$~', $postUrl) || $postUrl === $url) continue; // Evita di ingurgitare la home del profilo
                 
                 // Filtraggio per data: controlla sia 'timestamp' che 'takenAtTimestamp'
                 if ($sinceDate) {
@@ -461,15 +473,7 @@ Restituisci SOLO la nuova memoria aggiornata (testo semplice), nient'altro.";
                     'startUrls' => [['url' => $url]],
                     'resultsLimit' => $limit ?: 20,
                 ]);
-                $items = [];
-                foreach ($dataset as $it) {
-                    // Mappa l'output di Facebook Pages Scraper al formato standard atteso
-                    $items[] = [
-                        'url' => $it['url'] ?? '',
-                        'text' => $it['text'] ?? '',
-                        'mediaUrl' => $it['videoUrl'] ?? $it['imageUrl'] ?? ''
-                    ];
-                }
+                $items = $dataset;
             } elseif ($platform === 'tiktok') {
                 // Per TikTok possiamo provare tiktok-scraper
                 $username = '';
@@ -479,14 +483,7 @@ Restituisci SOLO la nuova memoria aggiornata (testo semplice), nient'altro.";
                     'profiles' => [$username],
                     'resultsPerPage' => $limit ?: 20,
                 ]);
-                $items = [];
-                foreach ($dataset as $it) {
-                    $items[] = [
-                        'url' => $it['videoWebUrl'] ?? '',
-                        'text' => $it['text'] ?? '',
-                        'mediaUrl' => $it['playAddr'] ?? ''
-                    ];
-                }
+                $items = $dataset;
             } else {
                  throw new Exception("shell_exec disabilitato: impossibile avviare lo scraper locale.");
             }
@@ -625,16 +622,29 @@ Restituisci SOLO la nuova memoria aggiornata (testo semplice), nient'altro.";
 
     // ── AGENTE 1: risolve un link social via Apify → caption + media ───────
     public static function apifyResolve(string $platform, string $url): array {
-        // Usa lo scraper locale Node.js (limit = 0 per risolvere singolo URL)
-        $it = self::nodeScrape($platform, $url, 0);
-        if (!$it || (empty($it['caption']) && empty($it['video']) && empty($it['image']))) {
-            throw new Exception('Lo scraper non ha restituito contenuti validi per questo link');
+        if (function_exists('shell_exec')) {
+            try {
+                $it = self::nodeScrape($platform, $url, 0);
+                if ($it && (!empty($it['caption']) || !empty($it['video']) || !empty($it['image']))) {
+                    return [
+                        'caption' => $it['caption'] ?? '',
+                        'video'   => $it['video'] ?? '',
+                        'image'   => $it['image'] ?? '',
+                    ];
+                }
+            } catch (Throwable $e) {}
         }
 
+        // Fallback ad Apify
+        $items = self::sourceItems($platform, $url, 1);
+        if (empty($items)) {
+            throw new Exception('Lo scraper non ha restituito contenuti validi per questo link');
+        }
+        $item = $items[0];
         return [
-            'caption' => $it['caption'] ?? '',
-            'video'   => $it['video'] ?? '',
-            'image'   => $it['image'] ?? '',
+            'caption' => $item['caption'] ?? '',
+            'video'   => $item['media_type'] === 'video' ? $item['media_url'] : '',
+            'image'   => $item['media_type'] === 'image' ? $item['media_url'] : '',
         ];
     }
 
