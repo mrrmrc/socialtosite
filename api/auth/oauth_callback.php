@@ -72,30 +72,22 @@ if ($code) {
             // tramite il token JWT decodificato in precedenza.
             
             // Salviamo nel DB
-            global $pdo;
-            if ($pdo) {
-                $stmt = $pdo->prepare("
-                    INSERT INTO social_connections (user_id, platform, platform_uid, handle, access_token, connected_at)
-                    VALUES (:user_id, 'facebook', :platform_uid, :handle, :access_token, NOW())
+            try {
+                DB::execute("
+                    INSERT INTO social_connections (user_id, platform, platform_uid, handle, access_token, connected_at, active)
+                    VALUES (?, 'facebook', ?, ?, ?, NOW(), 1)
                     ON DUPLICATE KEY UPDATE 
-                    access_token = :access_token_update,
-                    handle = :handle_update,
+                    access_token = VALUES(access_token),
+                    handle = VALUES(handle),
+                    active = 1,
                     connected_at = NOW()
-                ");
-                $stmt->execute([
-                    ':user_id' => $user_id,
-                    ':platform_uid' => $platform_uid,
-                    ':handle' => $handle,
-                    ':access_token' => $access_token,
-                    ':access_token_update' => $access_token,
-                    ':handle_update' => $handle
-                ]);
+                ", [$user_id, $platform_uid, $handle, $access_token]);
                 
                 echo "<h1>Autenticazione completata con successo!</h1>";
-                echo "<p>Account collegato. Ora puoi chiudere questa finestra.</p>";
-                // In un'app reale: header("Location: /dashboard?success=1");
-            } else {
-                echo "Errore: Connessione al database mancante.";
+                echo "<p>Account collegato. Ora puoi tornare alla dashboard.</p>";
+                echo "<script>setTimeout(() => { window.location.href = '/'; }, 3000);</script>";
+            } catch (Throwable $e) {
+                echo "Errore: Salvataggio nel database fallito. " . $e->getMessage();
             }
         } else {
             echo "Errore nel recupero dell'ID utente da Meta.";
