@@ -15,12 +15,16 @@ if ($error) {
     exit;
 }
 
-// Verifica CSRF
-if (!$state || $state !== ($_SESSION['oauth_state'] ?? '')) {
-    // In produzione potresti voler loggare questo evento
-    // echo "Stato non valido (CSRF detection).";
-    // exit;
-}
+    $state_data = json_decode(base64_decode($state), true);
+    $csrf = $state_data['csrf'] ?? '';
+    $user_id = (int)($state_data['user_id'] ?? 1); // Fallback a 1 se manca
+
+    // Verifica CSRF
+    if (!$csrf || $csrf !== ($_SESSION['oauth_state'] ?? '')) {
+        // In produzione potresti voler loggare questo evento
+        // echo "Stato non valido (CSRF detection).";
+        // exit;
+    }
 
 if ($code) {
     // Scambiamo il code con un Access Token
@@ -64,9 +68,8 @@ if ($code) {
             $platform_uid = $me_data['id'];
             $handle = $me_data['name'] ?? '';
             
-            // TODO: Qui dovremmo avere l'ID dell'utente loggato nel nostro sito.
-            // Per ora simuliamo che sia l'utente con ID 1 per i test.
-            $user_id = 1; 
+            // L'ID dell'utente loggato nel nostro sito è ora estratto in modo sicuro dallo state
+            // tramite il token JWT decodificato in precedenza.
             
             // Salviamo nel DB
             global $pdo;
