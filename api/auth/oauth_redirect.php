@@ -18,8 +18,8 @@ if ($platform === 'facebook' || $platform === 'instagram') {
     
     // Scopes (permessi) richiesti. 
     // Per Instagram Graph API serve: instagram_basic, pages_show_list, ecc.
-    // Per i post Facebook: user_posts
-    $scopes = ['email', 'public_profile', 'user_posts']; 
+    // Per i post Facebook: user_posts, user_photos, user_videos
+    $scopes = ['email', 'public_profile', 'user_posts', 'user_photos', 'user_videos']; 
     
     $auth_url = "https://www.facebook.com/v17.0/dialog/oauth?" . http_build_query([
         'client_id' => FB_APP_ID,
