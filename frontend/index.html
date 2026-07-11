@@ -446,21 +446,7 @@ function AuthScreen({ onAuth }) {
         </div>
 
         <div style={{ background: 'var(--surface)', borderRadius: 'var(--radius-xl)', padding: '32px', boxShadow: 'var(--shadow-lg)', border: '1px solid var(--border)' }}>
-          <div style={{ display: 'flex', gap: '4px', marginBottom: '28px', background: 'var(--bg)', borderRadius: '50px', padding: '4px' }}>
-            {['login', 'register'].map(m => (
-              <button key={m} onClick={() => setMode(m)} style={{ flex: 1, padding: '10px', borderRadius: '50px', fontSize: '14px', fontWeight: 700, border: 'none', cursor: 'pointer', background: mode === m ? 'var(--gradient)' : 'transparent', color: mode === m ? '#fff' : 'var(--text-muted)', boxShadow: mode === m ? 'var(--shadow-colored)' : 'none' }}>
-                {m === 'login' ? 'Accedi' : 'Registrati'}
-              </button>
-            ))}
-          </div>
-
           <form onSubmit={submit}>
-            {mode === 'register' && (
-              <div className="form-group">
-                <label className="label">Nome o nome attività</label>
-                <input type="text" placeholder="Es: Marco Rossi Ceramiche" value={name} onChange={e => setName(e.target.value)} />
-              </div>
-            )}
             <div className="form-group">
               <label className="label">Email</label>
               <input type="email" placeholder="tua@email.it" value={email} onChange={e => setEmail(e.target.value)} required />
@@ -2808,7 +2794,7 @@ function ProgressBar({ step }) {
 // App root — gestione screen
 // ═══════════════════════════════════════════════════════════════
 function App() {
-  const [screen, setScreen] = useState('landing');
+  const [screen, setScreen] = useState('auth');
   const [token, setToken] = useState(null);
   const [user, setUser] = useState(null);
   const [deployInfo, setDeployInfo] = useState(null);
