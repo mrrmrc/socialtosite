@@ -3,10 +3,11 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>AllSocialToWeb — Il tuo Content Manager guidato dall'AI</title>
+  <title>SocialToSite — Il tuo sito si aggiorna dai social</title>
+  <meta name="description" content="Trasforma automaticamente i tuoi post social in un sito web SEO-friendly. L'AI lavora per te 24/7 su Instagram, TikTok, YouTube e Facebook.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
   <script src="https://unpkg.com/react@18.3.1/umd/react.development.js"></script>
   <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js"></script>
   <!-- Babel pinnato alla v7: usa la "classic runtime" (React.createElement),
@@ -18,127 +19,153 @@
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     :root {
-      --primary: #4F46E5; /* Indigo */
-      --primary-dark: #4338CA;
-      --primary-light: #E0E7FF;
+      /* ── Palette principale ── */
+      --primary: #6366F1;
+      --primary-dark: #4F46E5;
+      --primary-light: #EEF2FF;
+      --accent: #8B5CF6;
+      --accent-2: #06B6D4;
       --teal: #10B981;
       --teal-light: #D1FAE5;
       --amber: #F59E0B;
       --amber-light: #FEF3C7;
-      --red: #EF4444; 
+      --red: #EF4444;
       --red-light: #FEE2E2;
-      --gray: #9CA3AF; 
-      --gray-light: #F3F4F6;
-      --text: #1F2937; 
-      --text-muted: #6B7280; 
-      --text-faint: #9CA3AF;
-      --bg: #F9FAFB; 
+      --gray: #9CA3AF;
+      --gray-light: #F1F5F9;
+
+      /* ── Testo ── */
+      --text: #0F172A;
+      --text-muted: #64748B;
+      --text-faint: #94A3B8;
+
+      /* ── Superfici ── */
+      --bg: #F8FAFF;
       --surface: #FFFFFF;
-      --border: #E5E7EB; 
-      --border-strong: #D1D5DB;
-      --radius: 12px; 
-      --radius-sm: 6px;
-      --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-      --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-      --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+      --border: #E8EEFF;
+      --border-strong: #C7D2FE;
+
+      /* ── Radii ── */
+      --radius: 16px;
+      --radius-sm: 10px;
+      --radius-lg: 24px;
+      --radius-xl: 32px;
+
+      /* ── Shadows colorate ── */
+      --shadow-sm: 0 1px 3px rgba(99,102,241,0.07), 0 1px 2px rgba(0,0,0,0.04);
+      --shadow: 0 4px 24px rgba(99,102,241,0.10), 0 1px 4px rgba(0,0,0,0.05);
+      --shadow-lg: 0 12px 48px rgba(99,102,241,0.15), 0 4px 16px rgba(0,0,0,0.06);
+      --shadow-colored: 0 8px 32px rgba(99,102,241,0.28);
+
+      /* ── Gradiente principale ── */
+      --gradient: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
     }
-    body { 
-      font-family: 'Inter', -apple-system, system-ui, sans-serif; 
-      background-color: var(--bg); 
-      color: var(--text); font-size: 15px; line-height: 1.6; min-height: 100vh; overflow-x: hidden; 
-      -webkit-font-smoothing: antialiased;
+
+    body {
+      font-family: 'Outfit', -apple-system, system-ui, sans-serif;
+      background-color: var(--bg);
+      color: var(--text); font-size: 15px; line-height: 1.6;
     }
-    
+
     input, button, select, textarea { font-family: inherit; font-size: 15px; color: var(--text); }
     input[type=text], input[type=email], input[type=password], input[type=number], textarea, select {
-      width: 100%; padding: 12px 16px; border: 1px solid var(--border-strong);
-      border-radius: var(--radius-sm); background: var(--surface); color: var(--text);
-      outline: none; transition: border-color .2s, box-shadow .2s; box-shadow: var(--shadow-sm);
+      width: 100%; padding: 12px 16px; border: 1.5px solid var(--border);
+      border-radius: var(--radius-sm); background: var(--surface);
+      outline: none; transition: border-color .2s; box-shadow: var(--shadow-sm);
     }
-    input:focus, textarea:focus { border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-light); }
+    input:focus { border-color: var(--primary); }
+
+    button { cursor: pointer; border: 1px solid transparent; border-radius: var(--radius-sm); transition: all .2s; display: inline-flex; align-items: center; justify-content: center; gap: 8px; font-weight: 600; }
+    .btn { padding: 10px 22px; box-shadow: var(--shadow-sm); border-radius: 50px; }
+    .btn-primary { background: var(--gradient); color: #fff; border: none; box-shadow: var(--shadow-colored); }
+    .btn-primary:hover { transform: translateY(-1px); }
+    .btn-outline { background: var(--surface); color: var(--primary); border: 1.5px solid var(--border-strong); }
     
-    button { cursor: pointer; border: 1px solid transparent; border-radius: var(--radius-sm); transition: all .2s; display: inline-flex; align-items: center; justify-content: center; gap: 8px; font-weight: 500; }
-    .btn { padding: 10px 20px; box-shadow: var(--shadow-sm); }
-    .btn-primary { background: var(--primary); color: #fff; border-color: var(--primary); }
-    .btn-primary:hover { background: var(--primary-dark); box-shadow: var(--shadow); }
-    .btn-primary:active { transform: translateY(1px); }
-    .btn-primary:disabled { opacity: .6; cursor: not-allowed; }
-    .btn-outline { background: var(--surface); color: var(--text); border-color: var(--border-strong); }
-    .btn-outline:hover { background: var(--gray-light); }
-    .btn-full { width: 100%; }
-    
-    .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.5rem; box-shadow: var(--shadow); transition: transform 0.2s, box-shadow 0.2s; }
-    .card:hover { transform: translateY(-2px); box-shadow: var(--shadow-lg); }
-    .glass-modal { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 2rem; box-shadow: var(--shadow-lg); }
-    
-    .badge { display: inline-flex; align-items: center; justify-content: center; font-size: 12px; padding: 4px 10px; border-radius: 50px; font-weight: 500; }
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 1.5rem; box-shadow: var(--shadow); transition: transform 0.25s, box-shadow 0.25s; }
+    .card:hover { transform: translateY(-3px); box-shadow: var(--shadow-lg); }
+    .glass-modal { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 2rem; box-shadow: var(--shadow-lg); }
+    .gradient-text { background: var(--gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+
+    .badge { display: inline-flex; align-items: center; justify-content: center; font-size: 12px; padding: 4px 12px; border-radius: 50px; font-weight: 600; }
     .badge-green { background: var(--teal-light); color: var(--teal); }
     .badge-purple { background: var(--primary-light); color: var(--primary-dark); }
     .badge-amber { background: var(--amber-light); color: var(--amber); }
     .badge-red { background: var(--red-light); color: var(--red); }
-    
+
     .divider { height: 1px; background: var(--border); margin: 1.5rem 0; }
-    .label { display: block; font-size: 13px; font-weight: 600; color: var(--text-muted); margin-bottom: 6px; }
+    .label { display: block; font-size: 13px; font-weight: 600; color: var(--text-muted); margin-bottom: 6px; letter-spacing: 0.02em; }
     .form-group { margin-bottom: 1.5rem; }
-    
-    h1 { font-size: 32px; font-weight: 700; letter-spacing: -0.5px; margin-bottom: 0.5rem; color: var(--text); }
-    h2 { font-size: 24px; font-weight: 600; letter-spacing: -0.5px; }
+
+    h1 { font-size: 32px; font-weight: 800; letter-spacing: -0.5px; margin-bottom: 0.5rem; color: var(--text); }
+    h2 { font-size: 24px; font-weight: 700; letter-spacing: -0.5px; }
     h3 { font-size: 18px; font-weight: 600; }
 
-    .dashboard-main { flex: 1; margin-left: 280px; padding: 3rem; transition: margin 0.3s; }
+    .btn-full { width: 100%; border-radius: var(--radius-sm); }
+    .btn-outline:hover { background: var(--primary-light); border-color: var(--primary); }
+    .btn-primary:active { transform: translateY(0px); }
+    .btn-primary:disabled { opacity: .55; cursor: not-allowed; transform: none; }
 
-    /* Mobile Bottom Tab Bar Styles */
-    .mobile-nav { display: none; }
+    .dashboard-main { flex: 1; margin-left: 280px; padding: 3rem; transition: margin 0.3s; }
     .desktop-sidebar { display: flex; }
     .mobile-top-header { display: none; }
-    
+
+    /* ── Mobile Nav ── */
+    .mobile-nav { display: none; }
+
     @media (max-width: 768px) {
       .desktop-sidebar { display: none !important; }
-      .mobile-top-header { display: flex; justify-content: space-between; align-items: center; padding: 16px; background: var(--surface); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 100; box-shadow: var(--shadow-sm); }
-      
-      .mobile-nav { 
-        display: flex; position: fixed; bottom: 0; left: 0; right: 0; 
-        background: var(--surface); 
-        border-top: 3px solid var(--border-strong); padding: 12px 16px; padding-bottom: calc(12px + env(safe-area-inset-bottom));
+      .mobile-top-header {
+        display: flex; justify-content: space-between; align-items: center;
+        padding: 14px 20px;
+        background: rgba(255,255,255,0.85); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+        border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 100;
+        box-shadow: 0 2px 16px rgba(99,102,241,0.08);
+      }
+      .mobile-nav {
+        display: flex; position: fixed; bottom: 0; left: 0; right: 0;
+        background: rgba(255,255,255,0.88); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
+        border-top: 1px solid var(--border);
+        padding: 10px 16px; padding-bottom: calc(10px + env(safe-area-inset-bottom));
         justify-content: space-between; align-items: center; z-index: 1000;
-        box-shadow: 0 -4px 0px var(--border);
+        box-shadow: 0 -8px 40px rgba(99,102,241,0.12);
       }
-      .mobile-nav-item { 
-        display: flex; flex-direction: column; align-items: center; gap: 6px;
-        color: var(--text-muted); font-size: 10px; font-weight: 800; text-transform: uppercase; text-decoration: none;
-        flex: 1; transition: color 0.3s; background: transparent; border: none; padding: 0; box-shadow: none;
+      .mobile-nav-item {
+        display: flex; flex-direction: column; align-items: center; gap: 5px;
+        color: var(--text-muted); font-size: 10px; font-weight: 700;
+        text-transform: uppercase; letter-spacing: 0.05em; text-decoration: none;
+        flex: 1; transition: all 0.25s; background: transparent; border: none; padding: 6px 0; box-shadow: none;
       }
-      .mobile-nav-item.active { color: var(--text); transform: translateY(-4px); }
-      .mobile-nav-item.active span { background: var(--primary); padding: 4px; border-radius: 8px; border: 2px solid var(--border); box-shadow: 2px 2px 0 var(--border); }
-      .mobile-nav-item svg { width: 24px; height: 24px; }
-      
+      .mobile-nav-item.active { color: var(--primary); transform: translateY(-2px); }
+      .mobile-nav-item.active .nav-icon-wrap { background: var(--primary-light); box-shadow: 0 4px 16px rgba(99,102,241,0.25); }
+      .nav-icon-wrap { width: 36px; height: 36px; border-radius: 12px; display: flex; align-items: center; justify-content: center; transition: all 0.25s; }
       .mobile-fab {
-        background: var(--primary-dark); color: #111; width: 64px; height: 64px; border-radius: 12px;
-        display: flex; align-items: center; justify-content: center; font-size: 28px;
-        box-shadow: 4px 4px 0 var(--border); transform: translateY(-30px);
-        border: 3px solid var(--border); cursor: pointer; transition: all 0.2s;
+        background: var(--gradient); color: #fff; width: 58px; height: 58px; border-radius: 18px;
+        display: flex; align-items: center; justify-content: center; font-size: 26px;
+        box-shadow: var(--shadow-colored); transform: translateY(-24px);
+        border: 3px solid #fff; cursor: pointer; transition: all 0.25s;
       }
-      .mobile-fab:active { transform: translateY(-26px); box-shadow: 0px 0px 0 var(--border); }
-      
-      /* Aggiustamenti layout globale per Mobile */
+      .mobile-fab:hover { transform: translateY(-28px); }
+      .mobile-fab:active { transform: translateY(-20px); }
       .dashboard-main { margin-bottom: 110px; padding: 16px !important; margin-left: 0 !important; width: 100%; }
       .card { padding: 1.25rem; }
-      h1 { font-size: 28px; }
-      
+      h1 { font-size: 26px; }
       .glass-modal { padding: 1.5rem; border-radius: 24px 24px 0 0; border-bottom: none; width: 100%; max-width: 100% !important; margin-top: 10vh; min-height: 90vh; }
       @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
       .mobile-bottom-sheet { animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1); align-items: flex-end !important; padding: 0 !important; }
+    }
+
+    @keyframes fadeInUp { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes blobFloat {
+      0%, 100% { transform: translate(0, 0) scale(1); }
+      33% { transform: translate(30px, -30px) scale(1.05); }
+      66% { transform: translate(-20px, 20px) scale(0.97); }
     }
   </style>
 </head>
 <body>
 <div id="root"></div>
 <script type="text/babel">
-// CACHE BUSTER: 2026-06-23 v3 (Fix for Babel cache)
-
 const { useState, useEffect, useCallback, useRef } = React;
-
-// ── Config API ──────────────────────────────────────────────────────────────
 const API = window.API_BASE || '';
 
 async function apiFetch(path, opts = {}, token = null) {
@@ -146,27 +173,20 @@ async function apiFetch(path, opts = {}, token = null) {
   if (token) headers['Authorization'] = `Bearer ${token}`;
   const r = await fetch(`${API}${path}`, { ...opts, headers: { ...headers, ...opts.headers } });
   const data = await r.json();
-  if (r.status === 401) {
-    // Token scaduto o invalido: pulisci la sessione e ricarica
-    localStorage.removeItem('sts_token');
-    localStorage.removeItem('sts_user');
-    window.location.reload();
-    return;
-  }
+  if (r.status === 401) { localStorage.removeItem('sts_token'); window.location.reload(); return; }
   if (!r.ok) throw new Error(data.error || `Errore server (${r.status})`);
   return data;
 }
 
-// ── Icons ────────────────────────────────────────────────────────────────────
 const SOCIAL = {
   instagram: { icon: 'https://cdn.simpleicons.org/instagram/E4405F', label: 'Instagram', color: '#E1306C' },
   tiktok:    { icon: 'https://cdn.simpleicons.org/tiktok/000000', label: 'TikTok',    color: '#010101' },
   facebook:  { icon: 'https://cdn.simpleicons.org/facebook/1877F2', label: 'Facebook',  color: '#1877F2' },
   youtube:   { icon: 'https://cdn.simpleicons.org/youtube/FF0000', label: 'YouTube',   color: '#FF0000' },
-  website:   { icon: 'https://cdn.simpleicons.org/googleearth/000000', label: 'Sito Web', color: '#888780' },
+  website:   { icon: 'https://cdn.simpleicons.org/googleearth/4285F4', label: 'Sito Web', color: '#4285F4' },
 };
 
-// 10 Temi con anteprima visiva e descrizione
+// 20 Temi con anteprima visiva
 const SITE_LAYOUTS = [
   { id: 'classic', name: 'Corporate Apple', desc: 'Design minimalista premium, sfondi bianchi, box soft e tipografia pulita.', emoji: '🍏', colors: ['#FBFBFD','#1D1D1F','#FFFFFF'], bars: ['80%','60%','40%'] },
   { id: 'authority', name: 'Tech / Neon', desc: 'Scurissimo con Glassmorphism, accenti neon e look super-moderno.', emoji: '🔮', colors: ['#09090B','#FAFAFA','#1a1a24'], bars: ['90%','70%','50%'] },
@@ -196,7 +216,7 @@ function SocialIcon({ platform, size = 20 }) {
   return <img src={info.icon} alt="" style={{ width: size, height: size, objectFit: 'contain', flexShrink: 0 }} />;
 }
 
-// ── Quill Editor Wrapper ─────────────────────────────────────────────────────
+// ── Quill Editor Wrapper ────────────────────────────────────────────────────
 function QuillEditor({ value, onChange, style }) {
   const containerRef = useRef(null);
   const editorRef = useRef(null);
@@ -216,34 +236,23 @@ function QuillEditor({ value, onChange, style }) {
           ['clean']
         ]
       },
-      placeholder: 'Scrivi il testo dell\'articolo...'
+      placeholder: "Scrivi il testo dell'articolo..."
     });
     quillRef.current = quill;
-
-    // Set initial content
-    if (value) {
-      quill.root.innerHTML = value;
-    }
-
+    if (value) quill.root.innerHTML = value;
     quill.on('text-change', () => {
       isInternalChange.current = true;
       const html = quill.root.innerHTML;
       if (onChange) onChange(html === '<p><br></p>' ? '' : html);
       isInternalChange.current = false;
     });
-
-    return () => {
-      quillRef.current = null;
-    };
+    return () => { quillRef.current = null; };
   }, []);
 
-  // Sync external value changes (e.g. when opening a different article)
   useEffect(() => {
     if (quillRef.current && !isInternalChange.current) {
       const currentHtml = quillRef.current.root.innerHTML;
-      if (value !== currentHtml) {
-        quillRef.current.root.innerHTML = value || '';
-      }
+      if (value !== currentHtml) quillRef.current.root.innerHTML = value || '';
     }
   }, [value]);
 
@@ -255,74 +264,146 @@ function QuillEditor({ value, onChange, style }) {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// Screen: Landing / Home Page
+// Screen: Landing / Home Page — Clean Vibrant 2026
 // ═══════════════════════════════════════════════════════════════
 function LandingScreen({ onGetStarted }) {
+  const isLoggedIn = !!localStorage.getItem('sts_token');
+
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg)', color: 'var(--text)', overflowX: 'hidden' }}>
-      <header style={{ padding: '20px 40px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--surface)', position: 'sticky', top: 0, zIndex: 100, borderBottom: '1px solid var(--border)', boxShadow: 'var(--shadow-sm)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <img src="https://i.imgur.com/uT2MvX3.png" alt="AllSocialToWeb" style={{ height: '40px' }} />
+
+      {/* Blob decorativi sfondo */}
+      <div aria-hidden="true" style={{ position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 0, overflow: 'hidden' }}>
+        <div style={{ position: 'absolute', width: '700px', height: '700px', borderRadius: '50%', top: '-200px', left: '-200px', background: 'radial-gradient(circle, rgba(99,102,241,0.12) 0%, transparent 70%)', animation: 'blobFloat 12s ease-in-out infinite' }} />
+        <div style={{ position: 'absolute', width: '500px', height: '500px', borderRadius: '50%', bottom: '-100px', right: '-100px', background: 'radial-gradient(circle, rgba(139,92,246,0.10) 0%, transparent 70%)', animation: 'blobFloat 16s ease-in-out infinite reverse' }} />
+        <div style={{ position: 'absolute', width: '400px', height: '400px', borderRadius: '50%', top: '40%', right: '10%', background: 'radial-gradient(circle, rgba(6,182,212,0.07) 0%, transparent 70%)', animation: 'blobFloat 10s ease-in-out infinite 4s' }} />
+      </div>
+
+      {/* Navbar */}
+      <header style={{ padding: '16px 40px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(255,255,255,0.80)', backdropFilter: 'blur(24px)', WebkitBackdropFilter: 'blur(24px)', position: 'sticky', top: 0, zIndex: 100, borderBottom: '1px solid rgba(99,102,241,0.12)', boxShadow: '0 2px 20px rgba(99,102,241,0.08)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <div style={{ width: 36, height: 36, borderRadius: '10px', background: 'var(--gradient)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px', boxShadow: '0 4px 12px rgba(99,102,241,0.35)' }}>✦</div>
+          <span style={{ fontWeight: 800, fontSize: '18px', letterSpacing: '-0.5px' }}>Social<span className="gradient-text">ToSite</span></span>
         </div>
-        <button className="btn btn-primary" onClick={() => {
-          if (localStorage.getItem('sts_token')) window.location.href = '/?app';
-          else onGetStarted();
-        }}>
-          {localStorage.getItem('sts_token') ? 'Dashboard ➔' : 'Accedi / Registrati'}
-        </button>
+        <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+          {!isLoggedIn && <button className="btn btn-outline" onClick={onGetStarted} style={{ padding: '8px 20px', fontSize: '14px' }}>Accedi</button>}
+          <button className="btn btn-primary" onClick={() => { if (isLoggedIn) window.location.href = '/?app'; else onGetStarted(); }} style={{ padding: '10px 22px', fontSize: '14px' }}>
+            {isLoggedIn ? 'Dashboard →' : 'Inizia Gratis'}
+          </button>
+        </div>
       </header>
 
-      <main style={{ maxWidth: '1200px', margin: '0 auto', padding: '80px 20px', textAlign: 'center' }}>
-        <div style={{ maxWidth: '800px', margin: '0 auto' }}>
-          <h1 style={{ fontSize: '64px', fontWeight: 800, lineHeight: 1.1, marginBottom: '24px', letterSpacing: '-2px' }}>
-            Il tuo <span style={{ color: 'var(--primary)' }}>Content Manager</span> guidato dall'AI.
-          </h1>
-          <p style={{ fontSize: '22px', color: 'var(--text-muted)', marginBottom: '40px', lineHeight: 1.5 }}>
-            Trasforma automaticamente i tuoi post social in un sito web SEO-friendly.
-            Aumenta la tua visibilità organica su Google, mentre tu continui a fare ciò che ami.
-          </p>
-          <div style={{ display: 'flex', gap: '16px', justifyContent: 'center', flexWrap: 'wrap' }}>
-            <button className="btn btn-primary" onClick={() => {
-              if (localStorage.getItem('sts_token')) {
-                window.location.href = '/?app';
-              } else {
-                onGetStarted();
-              }
-            }} style={{ fontSize: '18px', padding: '18px 36px' }}>
-              {localStorage.getItem('sts_token') ? 'Vai alla Dashboard ➔' : 'Inizia Gratis Ora ✨'}
-            </button>
-            <button className="btn btn-outline" onClick={() => document.getElementById('features').scrollIntoView({behavior: 'smooth'})} style={{ fontSize: '18px', padding: '18px 36px' }}>Scopri come funziona</button>
-          </div>
+      {/* Hero Section */}
+      <section style={{ position: 'relative', zIndex: 1, maxWidth: '1100px', margin: '0 auto', padding: '100px 24px 80px', textAlign: 'center' }}>
+        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', background: 'var(--primary-light)', color: 'var(--primary-dark)', border: '1px solid rgba(99,102,241,0.25)', borderRadius: '50px', padding: '6px 18px', fontSize: '13px', fontWeight: 700, marginBottom: '32px', animation: 'fadeInUp 0.6s ease both' }}>
+          <span style={{ fontSize: '16px' }}>✨</span> AI-Powered Content Manager · Gratis per iniziare
         </div>
 
-        <div id="features" style={{ marginTop: '100px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '32px', textAlign: 'left' }}>
-          <div className="card" style={{ padding: '40px' }}>
-            <div style={{ fontSize: '48px', marginBottom: '20px' }}>🤖</div>
-            <h3 style={{ fontSize: '24px', marginBottom: '16px' }}>Pilota Automatico</h3>
-            <p style={{ color: 'var(--text-muted)' }}>Collega i tuoi account (Instagram, YouTube, TikTok). La nostra AI risucchia i contenuti e li elabora mentre tu dormi, senza alcun intervento manuale.</p>
-          </div>
-          <div className="card" style={{ padding: '40px' }}>
-            <div style={{ fontSize: '48px', marginBottom: '20px' }}>🚀</div>
-            <h3 style={{ fontSize: '24px', marginBottom: '16px' }}>Dominio SEO Totale</h3>
-            <p style={{ color: 'var(--text-muted)' }}>I social muoiono in 24 ore. Noi trasformiamo i tuoi video e foto in articoli testuali strutturati, posizionandoti in cima alle ricerche di Google a vita.</p>
-          </div>
-          <div className="card" style={{ padding: '40px' }}>
-            <div style={{ fontSize: '48px', marginBottom: '20px' }}>📈</div>
-            <h3 style={{ fontSize: '24px', marginBottom: '16px' }}>Zero Costi ADS</h3>
-            <p style={{ color: 'var(--text-muted)' }}>Smetti di pagare Zuckerberg per farti vedere. Costruisci il tuo pubblico organico proprietario sul tuo sito web in modo completamente automatizzato.</p>
+        <h1 style={{ fontSize: 'clamp(40px, 7vw, 76px)', fontWeight: 800, lineHeight: 1.05, letterSpacing: '-2px', marginBottom: '28px', animation: 'fadeInUp 0.7s 0.1s ease both' }}>
+          Il tuo sito si aggiorna<br />
+          <span className="gradient-text">da solo, mentre dormi.</span>
+        </h1>
+
+        <p style={{ fontSize: 'clamp(16px, 2.5vw, 21px)', color: 'var(--text-muted)', maxWidth: '680px', margin: '0 auto 48px', lineHeight: 1.65, animation: 'fadeInUp 0.7s 0.2s ease both' }}>
+          Collega Instagram, TikTok, YouTube e Facebook. La nostra AI trasforma ogni post in un
+          <strong style={{ color: 'var(--text)' }}> articolo SEO ottimizzato</strong> e lo pubblica sul tuo sito personale.
+          Traffico organico su Google, senza pagare un euro di ADS.
+        </p>
+
+        <div style={{ display: 'flex', gap: '16px', justifyContent: 'center', flexWrap: 'wrap', animation: 'fadeInUp 0.7s 0.3s ease both' }}>
+          <button id="hero-cta" className="btn btn-primary" onClick={() => { if (isLoggedIn) window.location.href = '/?app'; else onGetStarted(); }} style={{ fontSize: '17px', padding: '16px 36px' }}>
+            {isLoggedIn ? 'Vai alla Dashboard →' : '🚀 Inizia Gratis Ora'}
+          </button>
+          <button className="btn btn-outline" onClick={() => document.getElementById('features').scrollIntoView({ behavior: 'smooth' })} style={{ fontSize: '17px', padding: '16px 32px' }}>Come funziona ↓</button>
+        </div>
+
+        {/* Mockup visivo */}
+        <div style={{ marginTop: '72px', animation: 'fadeInUp 0.8s 0.4s ease both' }}>
+          <div style={{ background: 'var(--surface)', borderRadius: '24px', border: '1px solid var(--border)', boxShadow: '0 24px 80px rgba(99,102,241,0.18), 0 8px 32px rgba(0,0,0,0.06)', padding: '20px', maxWidth: '760px', margin: '0 auto', textAlign: 'left' }}>
+            <div style={{ display: 'flex', gap: '8px', marginBottom: '16px', alignItems: 'center' }}>
+              <div style={{ width: 12, height: 12, borderRadius: '50%', background: '#FDA4AF' }} />
+              <div style={{ width: 12, height: 12, borderRadius: '50%', background: '#FDE68A' }} />
+              <div style={{ width: 12, height: 12, borderRadius: '50%', background: '#6EE7B7' }} />
+              <div style={{ flex: 1, background: 'var(--bg)', borderRadius: '8px', padding: '6px 14px', fontSize: '12px', color: 'var(--text-muted)', marginLeft: '8px', border: '1px solid var(--border)' }}>🔒 tuonome.socialtosite.com</div>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px' }}>
+              {[
+                { emoji: '📸', title: 'Nuova collezione estate 2026', src: 'Instagram', badge: '✅ SEO' },
+                { emoji: '🎬', title: 'Tutorial: come fare la pasta fatta in casa', src: 'YouTube', badge: '✅ SEO' },
+                { emoji: '🎵', title: 'Behind the scenes del video virale', src: 'TikTok', badge: '⏳ AI...' },
+              ].map((item, i) => (
+                <div key={i} style={{ background: 'var(--bg)', borderRadius: '12px', padding: '16px', border: '1px solid var(--border)' }}>
+                  <div style={{ fontSize: '28px', marginBottom: '8px' }}>{item.emoji}</div>
+                  <div style={{ fontSize: '12px', fontWeight: 700, marginBottom: '6px', lineHeight: 1.3 }}>{item.title}</div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600 }}>{item.src}</span>
+                    <span style={{ fontSize: '10px', fontWeight: 700, color: item.badge.startsWith('✅') ? 'var(--teal)' : 'var(--amber)', background: item.badge.startsWith('✅') ? 'var(--teal-light)' : 'var(--amber-light)', padding: '2px 8px', borderRadius: '20px' }}>{item.badge}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
-      </main>
-      
-      <footer style={{ padding: '40px 20px', textAlign: 'center', color: 'var(--text-muted)', borderTop: '1px solid var(--border)' }}>
-        <p>© 2026 AllSocialToWeb. Tutti i diritti riservati.</p>
+      </section>
+
+      {/* Social Proof Bar */}
+      <div style={{ position: 'relative', zIndex: 1, borderTop: '1px solid var(--border)', borderBottom: '1px solid var(--border)', background: 'rgba(255,255,255,0.6)', backdropFilter: 'blur(10px)', padding: '20px 24px', textAlign: 'center' }}>
+        <div style={{ display: 'flex', gap: '32px', justifyContent: 'center', alignItems: 'center', flexWrap: 'wrap', fontSize: '14px', color: 'var(--text-muted)', fontWeight: 600 }}>
+          <span>⭐⭐⭐⭐⭐ <strong style={{ color: 'var(--text)' }}>4.9/5</strong> dalle recensioni</span>
+          <span style={{ opacity: 0.3 }}>|</span>
+          <span>🚀 <strong style={{ color: 'var(--text)' }}>500+</strong> creator già connessi</span>
+          <span style={{ opacity: 0.3 }}>|</span>
+          <span style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+            {['instagram','tiktok','youtube','facebook'].map(p => <img key={p} src={SOCIAL[p]?.icon} alt={p} style={{ width: 18, height: 18, opacity: 0.7 }} />)}
+          </span>
+        </div>
+      </div>
+
+      {/* Features Section */}
+      <section id="features" style={{ position: 'relative', zIndex: 1, maxWidth: '1100px', margin: '0 auto', padding: '100px 24px' }}>
+        <div style={{ textAlign: 'center', marginBottom: '64px' }}>
+          <div style={{ display: 'inline-block', background: 'var(--primary-light)', color: 'var(--primary)', borderRadius: '50px', padding: '5px 16px', fontSize: '13px', fontWeight: 700, marginBottom: '16px' }}>COME FUNZIONA</div>
+          <h2 style={{ fontSize: 'clamp(28px, 4vw, 48px)', fontWeight: 800, letterSpacing: '-1px', marginBottom: '16px' }}>L'AI lavora, tu cresci.</h2>
+          <p style={{ fontSize: '18px', color: 'var(--text-muted)', maxWidth: '520px', margin: '0 auto' }}>Tre step automatici, zero fatica manuale.</p>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '24px' }}>
+          {[
+            { icon: '🤖', gradient: 'linear-gradient(135deg, #EEF2FF, #F3E8FF)', iconBg: 'linear-gradient(135deg, #6366F1, #8B5CF6)', title: 'Pilota Automatico', desc: 'Collega i tuoi account. Ogni post, reel e video viene intercettato e trascritto dalla nostra AI in automatico — 24 ore su 24, 7 giorni su 7, senza alcun click da parte tua.' },
+            { icon: '🚀', gradient: 'linear-gradient(135deg, #ECFEFF, #EEF2FF)', iconBg: 'linear-gradient(135deg, #06B6D4, #6366F1)', title: 'SEO a Vita', desc: 'I post social spariscono in 24 ore dal feed. Noi li trasformiamo in articoli strutturati che Google indicizza e che ti portano traffico organico per anni, senza pagare un euro di pubblicità.' },
+            { icon: '💸', gradient: 'linear-gradient(135deg, #F0FDF4, #ECFEFF)', iconBg: 'linear-gradient(135deg, #10B981, #06B6D4)', title: 'Zero ADS per Sempre', desc: 'Smetti di pagare Zuckerberg e Google per farti vedere. Costruisci un pubblico organico e proprietario sul tuo sito, che nessun algoritmo può toglierti e nessuna crisi di budget può fermare.' },
+          ].map((feature, i) => (
+            <div key={i} className="card" style={{ background: feature.gradient, border: '1px solid rgba(99,102,241,0.12)', padding: '40px 32px' }}>
+              <div style={{ width: '56px', height: '56px', borderRadius: '16px', background: feature.iconBg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '28px', marginBottom: '24px', boxShadow: '0 8px 24px rgba(0,0,0,0.12)' }}>{feature.icon}</div>
+              <h3 style={{ fontSize: '22px', fontWeight: 800, marginBottom: '14px' }}>{feature.title}</h3>
+              <p style={{ color: 'var(--text-muted)', lineHeight: 1.7, fontSize: '15px' }}>{feature.desc}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* CTA Footer */}
+      <section style={{ position: 'relative', zIndex: 1, margin: '0 24px 80px', borderRadius: '32px', overflow: 'hidden', background: 'var(--gradient)', boxShadow: '0 24px 80px rgba(99,102,241,0.30)' }}>
+        <div aria-hidden="true" style={{ position: 'absolute', inset: 0, pointerEvents: 'none', background: 'radial-gradient(ellipse 60% 80% at 80% 50%, rgba(255,255,255,0.08) 0%, transparent 70%)' }} />
+        <div style={{ position: 'relative', padding: 'clamp(48px, 8vw, 96px) 32px', textAlign: 'center' }}>
+          <h2 style={{ fontSize: 'clamp(28px, 4vw, 52px)', fontWeight: 800, color: '#fff', letterSpacing: '-1px', marginBottom: '20px' }}>Pronti a smettere<br />di lavorare per i social?</h2>
+          <p style={{ fontSize: '18px', color: 'rgba(255,255,255,0.80)', marginBottom: '40px', maxWidth: '480px', margin: '0 auto 40px' }}>Unisciti a centinaia di creator che hanno già automatizzato la loro presenza online. Il tuo primo sito è gratis.</p>
+          <button id="footer-cta" className="btn" onClick={() => { if (isLoggedIn) window.location.href = '/?app'; else onGetStarted(); }} style={{ background: '#fff', color: 'var(--primary)', fontSize: '17px', padding: '16px 40px', borderRadius: '50px', fontWeight: 800, boxShadow: '0 8px 32px rgba(0,0,0,0.15)', border: 'none' }}>
+            {isLoggedIn ? 'Vai alla Dashboard →' : '✨ Inizia Gratis — Nessuna carta richiesta'}
+          </button>
+        </div>
+      </section>
+
+      {/* Footer */}
+      <footer style={{ position: 'relative', zIndex: 1, padding: '32px 24px', textAlign: 'center', color: 'var(--text-faint)', fontSize: '13px', borderTop: '1px solid var(--border)' }}>
+        <div style={{ marginBottom: '8px', fontWeight: 700, color: 'var(--text-muted)', fontSize: '14px' }}>✦ SocialToSite</div>
+        <p>© 2026 SocialToSite. Tutti i diritti riservati. · Piano gratuito · Fino a 3 social · Nessuna carta richiesta</p>
       </footer>
     </div>
   );
 }
 
 // ═══════════════════════════════════════════════════════════════
-// Screen: Login / Register
+// Screen: Login / Register — Clean 2026
 // ═══════════════════════════════════════════════════════════════
 function AuthScreen({ onAuth }) {
   const [mode, setMode] = useState('login');
@@ -347,20 +428,24 @@ function AuthScreen({ onAuth }) {
   }
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
-      <div style={{ width: '100%', maxWidth: '400px' }}>
+    <div style={{
+      minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
+      padding: '1rem', position: 'relative', overflow: 'hidden'
+    }}>
+      <div style={{ position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 0 }}>
+        <div style={{ position: 'absolute', width: '600px', height: '600px', borderRadius: '50%', top: '-150px', left: '-150px', background: 'radial-gradient(circle, rgba(99,102,241,0.10) 0%, transparent 70%)' }} />
+      </div>
+
+      <div style={{ width: '100%', maxWidth: '420px', position: 'relative', zIndex: 1 }}>
         <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
-          <div style={{ fontSize: '26px', fontWeight: 800, color: 'var(--primary)', marginBottom: '4px' }}>allsocialto<span style={{ color: 'var(--text-muted)' }}>web</span><span style={{ fontSize: '14px', color: 'var(--text-faint)', fontWeight: 400 }}>.com</span></div>
-          <div style={{ color: 'var(--text-muted)', fontSize: '14px' }}>
-            Il tuo Content Manager guidato dall'AI
-          </div>
+          <div style={{ width: 52, height: 52, borderRadius: '16px', background: 'var(--gradient)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '24px', margin: '0 auto 16px', boxShadow: 'var(--shadow-colored)' }}>✦</div>
+          <div style={{ fontSize: '26px', fontWeight: 800, letterSpacing: '-0.5px', marginBottom: '6px' }}>Social<span className="gradient-text">ToSite</span></div>
         </div>
 
-        <div className="card">
-          <div style={{ display: 'flex', gap: '8px', marginBottom: '1.5rem' }}>
+        <div style={{ background: 'var(--surface)', borderRadius: 'var(--radius-xl)', padding: '32px', boxShadow: 'var(--shadow-lg)', border: '1px solid var(--border)' }}>
+          <div style={{ display: 'flex', gap: '4px', marginBottom: '28px', background: 'var(--bg)', borderRadius: '50px', padding: '4px' }}>
             {['login', 'register'].map(m => (
-              <button key={m} className={`btn btn-full ${mode === m ? 'btn-primary' : 'btn-outline'}`}
-                onClick={() => setMode(m)}>
+              <button key={m} onClick={() => setMode(m)} style={{ flex: 1, padding: '10px', borderRadius: '50px', fontSize: '14px', fontWeight: 700, border: 'none', cursor: 'pointer', background: mode === m ? 'var(--gradient)' : 'transparent', color: mode === m ? '#fff' : 'var(--text-muted)', boxShadow: mode === m ? 'var(--shadow-colored)' : 'none' }}>
                 {m === 'login' ? 'Accedi' : 'Registrati'}
               </button>
             ))}
@@ -381,15 +466,15 @@ function AuthScreen({ onAuth }) {
               <label className="label">Password</label>
               <input type="password" placeholder="Minimo 8 caratteri" value={password} onChange={e => setPassword(e.target.value)} required />
             </div>
-            {error && <div style={{ background: 'var(--red-light)', color: 'var(--red)', padding: '10px 14px', borderRadius: 'var(--radius-sm)', marginBottom: '1rem', fontSize: '13px' }}>{error}</div>}
-            <button type="submit" className="btn btn-primary btn-full" disabled={loading}>
-              {loading ? 'Caricamento...' : mode === 'login' ? 'Entra nella piattaforma →' : 'Crea il mio account →'}
+            {error && <div style={{ background: 'var(--red-light)', color: 'var(--red)', padding: '12px 16px', borderRadius: 'var(--radius-sm)', marginBottom: '16px', fontSize: '13px', fontWeight: 600, border: '1px solid rgba(239,68,68,0.2)' }}>{error}</div>}
+            <button type="submit" className="btn btn-primary" disabled={loading} style={{ width: '100%', padding: '14px', fontSize: '15px', borderRadius: 'var(--radius-sm)', fontWeight: 800 }}>
+              {loading ? '⟳ Caricamento...' : mode === 'login' ? 'Entra nella piattaforma →' : 'Crea il mio account →'}
             </button>
           </form>
 
           <div className="divider" />
-          <div style={{ fontSize: '12px', color: 'var(--text-faint)', textAlign: 'center' }}>
-            Piano gratuito · Fino a 3 social · Nessuna carta richiesta
+          <div style={{ fontSize: '12px', color: 'var(--text-faint)', textAlign: 'center', lineHeight: 1.6 }}>
+            🔒 Piano gratuito · Fino a 3 social · Nessuna carta richiesta
           </div>
         </div>
       </div>
@@ -2707,8 +2792,11 @@ function AdminScreen({ token, currentUser, adminPrompts, updatePrompt }) {
           { id: 'sources', icon: '📡', label: 'Canali' },
           { id: 'settings', icon: '🎨', label: 'Design' }
         ].map(item => (
-          <a key={item.id} href="#" onClick={(e) => { e.preventDefault(); setTab(item.id); }} className={`mobile-nav-item ${tab === item.id ? 'active' : ''}`}>
-            <span style={{ fontSize: '24px', filter: tab === item.id ? 'drop-shadow(0 0 8px rgba(0,240,255,0.8))' : 'none' }}>{item.icon}</span>
+          <a key={item.id} href="#" onClick={(e) => { e.preventDefault(); setTab(item.id); }}
+            className={`mobile-nav-item ${tab === item.id ? 'active' : ''}`}>
+            <span className="nav-icon-wrap">
+              <span style={{ fontSize: '20px' }}>{item.icon}</span>
+            </span>
             {item.label}
           </a>
         ))}
