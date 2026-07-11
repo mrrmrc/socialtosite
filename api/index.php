@@ -521,8 +521,8 @@ if ($action === 'social-source-create' && $method === 'POST') {
 
     try {
         $id = DB::insert(
-            'INSERT INTO social_sources (user_id, platform, label, url, topic_summary, since_date, auto_publish) VALUES (?,?,?,?,?,?,?)',
-            [$userId, $platform, $label, $url, $topic, $sinceDate ?: null, $autoPublish]
+            'INSERT INTO social_sources (user_id, platform, label, url, topic_summary) VALUES (?,?,?,?,?)',
+            [$userId, $platform, $label, $url, $topic]
         );
     } catch (Throwable $e) {
         jsonError('Questo social e gia presente per l\'utente', 409);
@@ -530,7 +530,7 @@ if ($action === 'social-source-create' && $method === 'POST') {
 
     json(['ok' => true, 'source' => [
         'id' => $id, 'platform' => $platform, 'label' => $label, 'url' => $url,
-        'topic_summary' => $topic, 'active' => 1, 'since_date' => $sinceDate ?: null, 'auto_publish' => $autoPublish
+        'topic_summary' => $topic, 'active' => 1
     ]], 201);
 }
 
@@ -564,35 +564,28 @@ if ($action === 'social-source-upsert' && $method === 'POST') {
 
     if ($existing) {
         DB::execute(
-            'UPDATE social_sources SET label=?, url=?, topic_summary=?, active=1, since_date=?, auto_publish=?, max_posts=? WHERE id=? AND user_id=?',
-            [$label, $url, $topic, $sinceDate ?: null, $autoPublish, $maxPosts, $existing['id'], $userId]
+            'UPDATE social_sources SET label=?, url=?, topic_summary=?, active=1 WHERE id=? AND user_id=?',
+            [$label, $url, $topic, $existing['id'], $userId]
         );
         $id = (int)$existing['id'];
     } else {
         $id = DB::insert(
-            'INSERT INTO social_sources (user_id, platform, label, url, topic_summary, since_date, auto_publish, max_posts) VALUES (?,?,?,?,?,?,?,?)',
-            [$userId, $platform, $label, $url, $topic, $sinceDate ?: null, $autoPublish, $maxPosts]
+            'INSERT INTO social_sources (user_id, platform, label, url, topic_summary) VALUES (?,?,?,?,?)',
+            [$userId, $platform, $label, $url, $topic]
         );
     }
-    json(['ok' => true, 'source' => ['id' => $id, 'platform' => $platform, 'label' => $label, 'url' => $url, 'topic_summary' => $topic, 'since_date' => $sinceDate ?: null, 'auto_publish' => $autoPublish, 'max_posts' => $maxPosts]]);
+    json(['ok' => true, 'source' => ['id' => $id, 'platform' => $platform, 'label' => $label, 'url' => $url, 'topic_summary' => $topic]]);
 }
 
 if ($action === 'social-connection-update' && $method === 'POST') {
     $b = body();
     $platform = trim($b['platform'] ?? '');
-    $sinceDate = trim($b['since_date'] ?? '');
-    $autoPublish = (int)($b['auto_publish'] ?? 1);
-    $maxPosts = isset($b['max_posts']) && $b['max_posts'] !== '' ? (int)$b['max_posts'] : null;
-    if ($sinceDate && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $sinceDate)) $sinceDate = null;
-
+    
     if (!in_array($platform, ['instagram', 'instagram_login', 'facebook', 'tiktok', 'youtube'], true)) {
         jsonError('Piattaforma non supportata');
     }
 
-    DB::execute(
-        'UPDATE social_connections SET since_date=?, auto_publish=?, max_posts=? WHERE platform=? AND user_id=?',
-        [$sinceDate ?: null, $autoPublish, $maxPosts, $platform, $userId]
-    );
+    // Per ora non usiamo since_date, auto_publish, max_posts
     json(['ok' => true]);
 }
 
