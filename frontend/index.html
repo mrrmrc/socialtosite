@@ -262,11 +262,37 @@ function AuthScreen({ onAuth }) {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// Screen: Connetti Social
+// Utilities Canali (condivise tra Onboarding e Dashboard)
+// ═══════════════════════════════════════════════════════════════
+function detectPlatformFromUrl(url) {
+  const u = (url || '').toLowerCase();
+  if (u.includes('youtube.com') || u.includes('youtu.be')) return 'youtube';
+  if (u.includes('tiktok.com')) return 'tiktok';
+  if (u.includes('instagram.com')) return 'instagram';
+  if (u.includes('facebook.com') || u.includes('fb.com') || u.includes('fb.watch')) return 'facebook';
+  if (u.match(/^https?:\/\//) && !u.includes('twitter') && !u.includes('x.com')) return 'website';
+  return null;
+}
+
+const PLATFORM_DESCRIPTIONS = {
+  instagram: 'Es: https://www.instagram.com/nomeutente/',
+  tiktok: 'Es: https://www.tiktok.com/@nomeutente',
+  youtube: 'Es: https://www.youtube.com/@nomeutente',
+  facebook: 'Es: https://www.facebook.com/nomepagina',
+  website: 'Il tuo sito web personale o blog',
+};
+
+// ═══════════════════════════════════════════════════════════════
+// Screen: Connetti Social (Onboarding Step 1)
 // ═══════════════════════════════════════════════════════════════
 function ConnectScreen({ token, onDone }) {
-  const [connections, setConnections] = useState({});
-  const [loading, setLoading] = useState(null);
+  const [connections, setConnections] = useState([]);
+  const [sources, setSources] = useState([]);
+  const [addUrl, setAddUrl] = useState('');
+  const [addLabel, setAddLabel] = useState('');
+  const [addMsg, setAddMsg] = useState(null);
+  const [addLoading, setAddLoading] = useState(false);
+  const [loadingChannels, setLoadingChannels] = useState(true);
 
   useEffect(() => {
     // Controlla parametri URL per callback OAuth
@@ -274,83 +300,213 @@ function ConnectScreen({ token, onDone }) {
     const connected = params.get('connected');
     const oauthError = params.get('error');
     if (connected) {
-      setConnections(prev => ({ ...prev, [connected]: { handle: 'Connesso ✓' } }));
       window.history.replaceState({}, '', window.location.pathname);
+      setAddMsg({ ok: true, text: `✅ Connessione OAuth completata con successo!` });
     } else if (oauthError) {
       const platform = params.get('platform') || 'il social';
-      alert(`Connessione a ${platform} non riuscita (${oauthError}). Riprova.`);
+      setAddMsg({ ok: false, text: `Connessione a ${platform} non riuscita (${oauthError}). Riprova.` });
       window.history.replaceState({}, '', window.location.pathname);
     }
-    loadConnections();
+    loadChannels();
   }, []);
 
-  async function loadConnections() {
+  async function loadChannels() {
+    setLoadingChannels(true);
     try {
-      const data = await apiFetch('/api/index.php?action=social-connections', {}, token);
-      const map = {};
-      data.forEach(c => { if (c.active) map[c.platform] = c; });
-      setConnections(map);
-    } catch {}
+      const [connData, srcData] = await Promise.all([
+        apiFetch('/api/index.php?action=social-connections', {}, token),
+        apiFetch('/api/index.php?action=social-sources-get', {}, token)
+      ]);
+      setConnections(connData);
+      setSources(srcData);
+    } catch (e) {
+      console.error(e);
+    }
+    setLoadingChannels(false);
   }
 
-  async function connect(platform) {
-    setLoading(platform);
+  async function handleAddChannel(e) {
+    e.preventDefault();
+    setAddMsg(null);
+    const url = addUrl.trim();
+    if (!url) return;
+    const platform = detectPlatformFromUrl(url);
+    if (!platform) {
+      setAddMsg({ ok: false, text: 'URL non riconosciuto. Inserisci il link al tuo profilo su Instagram, TikTok, YouTube, Facebook o il tuo sito web.' });
+      return;
+    }
+    setAddLoading(true);
+    try {
+      await apiFetch('/api/index.php?action=social-source-upsert', {
+        method: 'POST',
+        body: JSON.stringify({ platform, label: addLabel || (SOCIAL[platform]?.label || platform), url })
+      }, token);
+      setAddMsg({ ok: true, text: `✅ Profilo ${SOCIAL[platform]?.label || platform} aggiunto!` });
+      setAddUrl('');
+      setAddLabel('');
+      await loadChannels();
+    } catch (err) {
+      setAddMsg({ ok: false, text: err.message });
+    }
+    setAddLoading(false);
+  }
+
+  async function connectOAuth(platform) {
     try {
       const data = await apiFetch(`/api/index.php?action=social-auth-url&platform=${platform}`, {}, token);
       window.location.href = data.url;
-    } catch (e) {
-      alert('Errore connessione: ' + e.message);
-      setLoading(null);
-    }
+    } catch (e) { alert('Errore connessione: ' + e.message); }
   }
 
-  const connectedCount = Object.keys(connections).length;
+  async function removeChannel(channel) {
+    if (!window.confirm(`Rimuovere il canale "${channel.label || channel.platform}"?`)) return;
+    if (channel.type === 'scraping') {
+      await apiFetch('/api/index.php?action=social-source-delete', { method: 'POST', body: JSON.stringify({ id: channel.sourceId }) }, token);
+    } else {
+      await apiFetch('/api/index.php?action=social-disconnect', { method: 'POST', body: JSON.stringify({ platform: channel.rawPlatform }) }, token);
+    }
+    await loadChannels();
+  }
+
+  // Costruisci lista unificata (stessa logica della Dashboard)
+  const allChannels = [];
+  connections.filter(c => c.active).forEach(c => {
+    allChannels.push({
+      key: 'oauth_' + c.platform,
+      type: 'oauth',
+      platform: c.platform === 'instagram_login' ? 'instagram' : c.platform,
+      rawPlatform: c.platform,
+      handle: c.handle,
+      label: c.handle ? `@${c.handle}` : '',
+    });
+  });
+  sources.forEach(s => {
+    const hasOAuth = connections.some(c => c.active && (c.platform === s.platform || (c.platform === 'instagram_login' && s.platform === 'instagram')));
+    allChannels.push({
+      key: 'src_' + s.id,
+      type: 'scraping',
+      platform: s.platform,
+      rawPlatform: s.platform,
+      sourceId: s.id,
+      url: s.url,
+      label: s.label,
+      hasDuplicateOAuth: hasOAuth,
+    });
+  });
+
+  const connectedCount = allChannels.length;
+  const detectedPlatform = detectPlatformFromUrl(addUrl);
+  const connByPlatform = connections.reduce((acc, c) => ({ ...acc, [c.platform]: c }), {});
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg)', padding: '2rem 1rem' }}>
-      <div style={{ maxWidth: '500px', margin: '0 auto' }}>
+      <div style={{ maxWidth: '600px', margin: '0 auto' }}>
         <ProgressBar step={1} />
-        <h1 style={{ marginBottom: '0.25rem' }}>Connetti i tuoi social</h1>
+        <h1 style={{ marginBottom: '0.25rem' }}>Aggiungi i tuoi canali</h1>
         <p style={{ color: 'var(--text-muted)', marginBottom: '1.5rem', fontSize: '14px' }}>
-          Connetti almeno un social. Clicca e verrai reindirizzato alla pagina ufficiale della piattaforma — noi non vediamo mai la tua password.
+          Incolla i link dei tuoi profili social (Instagram, TikTok, ecc.) o del tuo sito web. L'AI li analizzerà per creare il tuo sito.
         </p>
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '1.5rem' }}>
-          {Object.entries(SOCIAL).map(([platform, info]) => {
-            const isConnected = !!connections[platform];
-            return (
-              <div key={platform}
-                onClick={() => !isConnected && connect(platform)}
-                style={{
-                  background: isConnected ? 'var(--teal-light)' : 'var(--surface)',
-                  border: `1.5px solid ${isConnected ? 'var(--teal)' : 'var(--border-strong)'}`,
-                  borderRadius: 'var(--radius)', padding: '1.25rem',
-                  cursor: isConnected ? 'default' : 'pointer',
-                  transition: 'all .15s',
-                  opacity: loading === platform ? 0.6 : 1,
-                }}>
-                <div style={{ fontSize: '28px', marginBottom: '6px' }}>{info.icon}</div>
-                <div style={{ fontWeight: 600, marginBottom: '3px' }}>{info.label}</div>
-                {isConnected ? (
-                  <>
-                    <div style={{ fontSize: '12px', color: 'var(--teal)', fontWeight: 500 }}>✓ Connesso</div>
-                    {connections[platform]?.handle && (
-                      <div style={{ fontSize: '12px', color: '#0F6E56' }}>{connections[platform].handle}</div>
-                    )}
-                  </>
-                ) : (
-                  <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-                    {loading === platform ? 'Apertura...' : 'Tocca per connettere'}
-                  </div>
-                )}
+        {/* Form Aggiungi Canale */}
+        <div className="card" style={{ marginBottom: '1.5rem' }}>
+          <form onSubmit={handleAddChannel} style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            <div style={{ position: 'relative' }}>
+              <input
+                type="url"
+                placeholder="https://www.instagram.com/nomeutente/ oppure https://tuosito.it"
+                value={addUrl}
+                onChange={e => { setAddUrl(e.target.value); setAddMsg(null); }}
+                style={{ paddingLeft: detectedPlatform ? '40px' : '16px', transition: 'padding 0.2s', width: '100%' }}
+              />
+              {detectedPlatform && (
+                <span style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}>
+                  <img src={SOCIAL[detectedPlatform]?.icon || ''} alt="" style={{ width: 18, height: 18 }} />
+                </span>
+              )}
+            </div>
+            {detectedPlatform && (
+              <div style={{ fontSize: '12px', color: 'var(--text-muted)', padding: '6px 10px', background: 'var(--purple-light)', borderRadius: 'var(--radius-sm)' }}>
+                ✓ Rilevato: <strong>{SOCIAL[detectedPlatform]?.label || detectedPlatform}</strong> — {PLATFORM_DESCRIPTIONS[detectedPlatform] || ''}
               </div>
-            );
-          })}
+            )}
+            <input
+              type="text"
+              placeholder="Etichetta (opzionale) — Es: Il mio account principale"
+              value={addLabel}
+              onChange={e => setAddLabel(e.target.value)}
+              style={{ width: '100%' }}
+            />
+            <button type="submit" className="btn btn-primary" disabled={addLoading || !addUrl.trim()} style={{ alignSelf: 'flex-start', padding: '10px 24px' }}>
+              {addLoading ? '⟳ Aggiunta in corso...' : '+ Aggiungi canale'}
+            </button>
+          </form>
+          {addMsg && (
+            <div style={{ marginTop: '12px', padding: '10px 14px', borderRadius: 'var(--radius-sm)', fontSize: '13px',
+              background: addMsg.ok ? 'var(--teal-light)' : 'var(--red-light)',
+              color: addMsg.ok ? '#0F6E56' : 'var(--red)' }}>
+              {addMsg.text}
+            </div>
+          )}
         </div>
 
-        <button className="btn btn-primary btn-full" disabled={connectedCount === 0} onClick={onDone}
-          style={{ fontSize: '15px', padding: '12px' }}>
-          {connectedCount === 0 ? 'Connetti almeno 1 social per continuare' : `Genera il mio sito con ${connectedCount} social →`}
+        {/* Canali Aggiunti */}
+        {allChannels.length > 0 && (
+          <div style={{ marginBottom: '1.5rem' }}>
+            <h3 style={{ fontSize: '14px', color: 'var(--text-muted)', marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Canali aggiunti</h3>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              {allChannels.map(channel => (
+                <div key={channel.key} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--surface)', padding: '12px 16px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <SocialIcon platform={channel.platform} size={24} />
+                    <div>
+                      <div style={{ fontWeight: 600 }}>{channel.label || channel.platform}</div>
+                      <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+                        {channel.type === 'oauth' ? 'Connesso via OAuth' : channel.url}
+                        {channel.hasDuplicateOAuth && <span style={{ color: 'var(--red)', marginLeft: '8px' }}>(Duplicato)</span>}
+                      </div>
+                    </div>
+                  </div>
+                  <button onClick={() => removeChannel(channel)} style={{ background: 'none', border: 'none', color: 'var(--red)', cursor: 'pointer', fontSize: '12px', padding: '4px 8px' }}>
+                    Rimuovi
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Connessioni OAuth (YouTube, Facebook) */}
+        <div style={{ marginBottom: '2rem' }}>
+          <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+            Oppure collega tramite accesso ufficiale (consigliato per YouTube e Facebook)
+          </div>
+          <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+            {['youtube', 'facebook'].map(platform => {
+              const conn = connByPlatform[platform];
+              const isConnected = !!conn && conn.active;
+              return (
+                <button key={platform}
+                  onClick={() => !isConnected && connectOAuth(platform)}
+                  disabled={isConnected}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: '8px',
+                    padding: '8px 16px', borderRadius: 'var(--radius-sm)', fontSize: '13px', fontWeight: 500,
+                    background: isConnected ? 'var(--teal-light)' : 'var(--surface)',
+                    border: `1px solid ${isConnected ? 'var(--teal)' : 'var(--border-strong)'}`,
+                    color: isConnected ? '#0F6E56' : 'var(--text)',
+                    cursor: isConnected ? 'default' : 'pointer',
+                  }}>
+                  <img src={SOCIAL[platform]?.icon} alt="" style={{ width: 16, height: 16 }} />
+                  {isConnected ? `✓ ${SOCIAL[platform]?.label} connesso come @${conn.handle}` : `Connetti ${SOCIAL[platform]?.label}`}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        <button className="btn btn-primary btn-full" disabled={connectedCount === 0 || loadingChannels} onClick={onDone}
+          style={{ fontSize: '16px', padding: '14px', background: connectedCount > 0 ? 'linear-gradient(135deg, #7F77DD, #534AB7)' : 'var(--border-strong)' }}>
+          {connectedCount === 0 ? 'Aggiungi almeno 1 canale per continuare' : `Importa e genera il mio sito →`}
         </button>
       </div>
     </div>
@@ -434,6 +590,10 @@ const [importMsg, setImportMsg] = useState(null);
   const [harmonizingId, setHarmonizingId] = useState(0);
   const [sourceForm, setSourceForm] = useState({ label: '', url: '', platform: '' });
   const [sourceMsg, setSourceMsg] = useState(null);
+  const [addUrl, setAddUrl] = useState('');
+  const [addLabel, setAddLabel] = useState('');
+  const [addMsg, setAddMsg] = useState(null);
+  const [addLoading, setAddLoading] = useState(false);
   const [scanning, setScanning] = useState(false);
   const [scanMsg, setScanMsg] = useState(null);
   const [scanProgress, setScanProgress] = useState([]);
@@ -980,6 +1140,51 @@ async function runSiteAi() {
     await loadData();
   }
 
+  // ── Funzioni gestione canali (tab "I miei canali") ─────────────────────
+  async function handleAddChannel(e) {
+    e.preventDefault();
+    setAddMsg(null);
+    const url = addUrl.trim();
+    if (!url) return;
+    const platform = detectPlatformFromUrl(url);
+    if (!platform) {
+      setAddMsg({ ok: false, text: 'URL non riconosciuto. Inserisci il link al tuo profilo su Instagram, TikTok, YouTube, Facebook o il tuo sito web.' });
+      return;
+    }
+    setAddLoading(true);
+    try {
+      await apiFetch('/api/index.php?action=social-source-upsert', {
+        method: 'POST',
+        body: JSON.stringify({ platform, label: addLabel || (SOCIAL[platform]?.label || platform), url })
+      }, token);
+      setAddMsg({ ok: true, text: `✅ Profilo ${SOCIAL[platform]?.label || platform} aggiunto! Clicca "Sincronizza tutti" per importare i contenuti.` });
+      setAddUrl('');
+      setAddLabel('');
+      await loadData();
+    } catch (err) {
+      setAddMsg({ ok: false, text: err.message });
+    }
+    setAddLoading(false);
+  }
+
+  async function connectOAuth(platform) {
+    try {
+      const data = await apiFetch(`/api/index.php?action=social-auth-url&platform=${platform}`, {}, token);
+      window.location.href = data.url;
+    } catch (e) { alert('Errore connessione: ' + e.message); }
+  }
+
+  async function removeChannel(channel) {
+    if (!window.confirm(`Rimuovere il canale "${channel.label || channel.platform}"?`)) return;
+    if (channel.type === 'scraping') {
+      await apiFetch('/api/index.php?action=social-source-delete', { method: 'POST', body: JSON.stringify({ id: channel.sourceId }) }, token);
+    } else {
+      await apiFetch('/api/index.php?action=social-disconnect', { method: 'POST', body: JSON.stringify({ platform: channel.rawPlatform }) }, token);
+    }
+    await loadData();
+  }
+
+
   const site = data?.site;
   const posts = data?.posts || [];
   const connections = data?.connections || [];
@@ -997,7 +1202,7 @@ async function runSiteAi() {
           {[
             { id: 'overview', icon: '🏠', label: 'Overview' },
             { id: 'site', icon: '📝', label: 'Contenuti' },
-            { id: 'sources', icon: '📱', label: 'Social & Fonti' },
+            { id: 'sources', icon: '📡', label: 'I miei canali' },
             { id: 'settings', icon: '🎨', label: 'Design & Aspetto' },
               { id: 'general', icon: '⚙️', label: 'Impost. Generali' },
             { id: 'seo', icon: '📈', label: 'SEO' },
@@ -1031,7 +1236,7 @@ async function runSiteAi() {
             <h1 style={{ margin: 0, fontSize: '28px', fontWeight: 700, color: 'var(--text)' }}>
               {tab === 'overview' && 'Panoramica'}
               {tab === 'site' && 'Gestione Contenuti'}
-              {tab === 'sources' && 'Social & Fonti'}
+              {tab === 'sources' && 'I miei canali'}
               {tab === 'settings' && 'Design & Aspetto'}
                 {tab === 'general' && 'Impostazioni Generali'}
               {tab === 'seo' && 'SEO & Analisi'}
@@ -1121,216 +1326,292 @@ async function runSiteAi() {
           </div>
         )}
 
-        {/* Tab: Fonti & Import */}
-        {tab === 'sources' && (
-          <div>
-            <div className="card" style={{ marginBottom: '1.25rem' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-                <h3 style={{ margin: 0 }}>I tuoi social</h3>
-              </div>
-              <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '12px' }}>
-                Collega i tuoi account ufficiali. Il sistema estrarrà i tuoi contenuti autentici e li userà per popolare automaticamente il tuo sito web in modo professionale.
-              </p>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: '12px' }}>
-                {['facebook', 'instagram_login', 'tiktok', 'youtube'].map(platform => {
-                  const conn = connByPlatform[platform];
-                  const isConnected = !!conn;
-                  const isOAuthReady = platform === 'facebook' || platform === 'instagram_login';
-                  return (
-                  <div key={platform} style={{ padding: '12px', background: 'var(--bg)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-strong)' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 600 }}>
-                        <SocialIcon platform={platform === 'instagram_login' ? 'instagram' : platform} size={22} />
-                        <div>
-                          <span>{platform === 'facebook' ? 'Meta (Facebook & Instagram)' : platform === 'instagram_login' ? 'Instagram (Accesso Diretto)' : SOCIAL[platform]?.label || platform}</span>
-                          {(platform === 'facebook' || platform === 'instagram_login') && <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 'normal' }}>L'account Instagram deve essere di tipo "Professionale" (Azienda o Creator).</div>}
-                        </div>
-                        {isConnected ? (
-                          <span style={{ fontSize: '12px', background: 'var(--teal-light)', color: 'var(--teal)', padding: '2px 8px', borderRadius: '12px', marginLeft: '8px', alignSelf: 'flex-start' }}>🟢 Collegato come @{conn.handle}</span>
-                        ) : (
-                          <span style={{ fontSize: '12px', background: 'var(--red-light)', color: 'var(--red)', padding: '2px 8px', borderRadius: '12px', marginLeft: '8px', alignSelf: 'flex-start' }}>🔴 Non collegato</span>
-                        )}
-                      </div>
-                      
-                      {!isConnected && isOAuthReady && (
-                        <button onClick={() => window.location.href = `/api/auth/oauth_redirect.php?platform=${platform}&token=${localStorage.getItem('sts_token') || ''}`} className="btn btn-primary" style={{ fontSize: '12px', padding: '6px 12px' }}>
-                          Collega {platform === 'facebook' ? 'Account Meta' : platform === 'instagram_login' ? 'Instagram' : SOCIAL[platform]?.label}
-                        </button>
-                      )}
-                      {!isConnected && !isOAuthReady && (
-                        <button disabled className="btn btn-outline" style={{ fontSize: '12px', padding: '6px 12px', opacity: 0.5, cursor: 'not-allowed' }}>
-                          Prossimamente
-                        </button>
-                      )}
-                      {isConnected && (
-                        <button onClick={async () => {
-                           if(window.confirm('Vuoi davvero disconnettere questo social?')) {
-                             try {
-                               await apiFetch('/api/index.php?action=social-disconnect', {method:'POST', body: JSON.stringify({platform})}, token);
-                               loadData();
-                             } catch(err) { alert(err.message); }
-                           }
-                        }} className="btn btn-outline" style={{ fontSize: '12px', padding: '6px 12px', color: 'var(--red)', borderColor: 'var(--red)' }}>
-                          Disconnetti
-                        </button>
-                      )}
-                    </div>
-                    
-                    {isConnected && (
-                      <div style={{ display: 'grid', gridTemplateColumns: '130px 1fr 100px 120px', gap: '12px', alignItems: 'center', background: 'var(--bg-card)', padding: '10px', borderRadius: '4px' }}>
-                        <span style={{ fontSize: '13px', fontWeight: 500 }}>Impostazioni Sync:</span>
-                        <input type="date" title="Retroattività (Da questa data in poi)" 
-                          defaultValue={conn.since_date || ''}
-                          onBlur={e => saveConnectionSettings(platform, e.target.value, conn.auto_publish ?? 1, conn.max_posts)}
-                          style={{ padding: '6px', fontSize: '13px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)' }} />
-                        <input type="number" title="Max post per import" placeholder="Max post" min="1" max="500"
-                          defaultValue={conn.max_posts || ''}
-                          onBlur={e => saveConnectionSettings(platform, conn.since_date, conn.auto_publish ?? 1, e.target.value)}
-                          style={{ padding: '6px', fontSize: '13px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', width: '100%' }} />
-                        <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', cursor: 'pointer' }}>
-                          <input type="checkbox" 
-                            defaultChecked={(conn.auto_publish ?? 1) === 1}
-                            onChange={e => saveConnectionSettings(platform, conn.since_date, e.target.checked ? 1 : 0, conn.max_posts)} />
-                          Auto-Pubblica
-                        </label>
-                      </div>
+        {/* Tab: I miei canali (UNIFICATO) */}
+        {tab === 'sources' && (() => {
+          // Costruisci lista unificata: prima le connessioni OAuth, poi le sorgenti URL
+          const allChannels = [];
+
+          // Canali OAuth
+          connections.filter(c => c.active).forEach(c => {
+            allChannels.push({
+              key: 'oauth_' + c.platform,
+              type: 'oauth',
+              platform: c.platform === 'instagram_login' ? 'instagram' : c.platform,
+              rawPlatform: c.platform,
+              handle: c.handle,
+              since_date: c.since_date,
+              auto_publish: c.auto_publish,
+              max_posts: c.max_posts,
+              label: c.handle ? `@${c.handle}` : '',
+            });
+          });
+
+          // Sorgenti URL scraping
+          sources.forEach(s => {
+            // Evita duplicati se c'è già un OAuth per la stessa piattaforma
+            const hasOAuth = connections.some(c => c.active && (c.platform === s.platform || (c.platform === 'instagram_login' && s.platform === 'instagram')));
+            allChannels.push({
+              key: 'src_' + s.id,
+              type: 'scraping',
+              platform: s.platform,
+              rawPlatform: s.platform,
+              sourceId: s.id,
+              url: s.url,
+              label: s.label,
+              since_date: s.since_date,
+              auto_publish: s.auto_publish,
+              max_posts: s.max_posts,
+              hasDuplicateOAuth: hasOAuth,
+            });
+          });
+
+
+          const detectedPlatform = detectPlatformFromUrl(addUrl);
+
+          return (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+
+              {/* Form Aggiungi Canale */}
+              <div className="card">
+                <h2 style={{ marginBottom: '0.5rem', fontSize: '18px' }}>➕ Aggiungi un canale</h2>
+                <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '1.25rem' }}>
+                  Incolla il link del tuo profilo social o del tuo sito web. Il sistema riconosce automaticamente la piattaforma e importa i tuoi contenuti.
+                </p>
+                <form onSubmit={handleAddChannel} style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  <div style={{ position: 'relative' }}>
+                    <input
+                      type="url"
+                      placeholder="https://www.instagram.com/nomeutente/ oppure https://tuosito.it"
+                      value={addUrl}
+                      onChange={e => { setAddUrl(e.target.value); setAddMsg(null); }}
+                      style={{ paddingLeft: detectedPlatform ? '40px' : '16px', transition: 'padding 0.2s' }}
+                    />
+                    {detectedPlatform && (
+                      <span style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}>
+                        <img src={SOCIAL[detectedPlatform]?.icon || ''} alt="" style={{ width: 18, height: 18 }} />
+                      </span>
                     )}
                   </div>
-                )})}
-              </div>
-              
-              <div style={{ display: 'flex', justifyContent: 'center', marginTop: '20px', marginBottom: '10px' }}>
-                 <button onClick={async () => {
-                    setSyncMsg({ok: true, text: 'Sincronizzazione in corso (potrebbe impiegare fino a 1-2 minuti)...'});
-                    try {
-                      const res = await apiFetch('/api/index.php?action=sync', {method: 'POST'}, token);
-                      setSyncMsg({ok: true, text: `Sincronizzazione completata! Trovati e importati ${res.imported || 0} nuovi contenuti.`});
-                      loadData();
-                    } catch(err) {
-                      setSyncMsg({ok: false, text: 'Errore: ' + err.message});
-                    }
-                 }} className="btn btn-primary" style={{ padding: '10px 24px', fontSize: '15px' }}>
-                   🔄 Sincronizza Ora (Importa Post)
-                 </button>
-              </div>
-              {syncMsg && (
-                <div style={{ marginBottom: '10px', padding: '8px 12px', borderRadius: 'var(--radius-sm)', fontSize: '13px', textAlign: 'center',
-                  background: syncMsg.ok ? 'var(--teal-light)' : 'var(--red-light)',
-                  color: syncMsg.ok ? '#0F6E56' : 'var(--red)' }}>
-                  {syncMsg.text}
+                  {detectedPlatform && (
+                    <div style={{ fontSize: '12px', color: 'var(--text-muted)', padding: '6px 10px', background: 'var(--purple-light)', borderRadius: 'var(--radius-sm)' }}>
+                      ✓ Rilevato: <strong>{SOCIAL[detectedPlatform]?.label || detectedPlatform}</strong> — {PLATFORM_DESCRIPTIONS[detectedPlatform] || ''}
+                    </div>
+                  )}
+                  <input
+                    type="text"
+                    placeholder="Etichetta (opzionale) — Es: Il mio account principale"
+                    value={addLabel}
+                    onChange={e => setAddLabel(e.target.value)}
+                  />
+                  <button type="submit" className="btn btn-primary" disabled={addLoading || !addUrl.trim()} style={{ alignSelf: 'flex-start', padding: '10px 24px' }}>
+                    {addLoading ? '⟳ Aggiunta in corso...' : '+ Aggiungi canale'}
+                  </button>
+                </form>
+                {addMsg && (
+                  <div style={{ marginTop: '12px', padding: '10px 14px', borderRadius: 'var(--radius-sm)', fontSize: '13px',
+                    background: addMsg.ok ? 'var(--teal-light)' : 'var(--red-light)',
+                    color: addMsg.ok ? '#0F6E56' : 'var(--red)' }}>
+                    {addMsg.text}
+                  </div>
+                )}
+
+                {/* Connessioni OAuth avanzate (YouTube, Facebook) */}
+                <div style={{ marginTop: '1.5rem', paddingTop: '1rem', borderTop: '1px solid var(--border)' }}>
+                  <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                    Oppure collega tramite accesso ufficiale (più affidabile per YouTube e Facebook)
+                  </div>
+                  <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                    {['youtube', 'facebook'].map(platform => {
+                      const conn = connByPlatform[platform];
+                      const isConnected = !!conn && conn.active;
+                      return (
+                        <button key={platform}
+                          onClick={() => !isConnected && connectOAuth(platform)}
+                          disabled={isConnected}
+                          style={{
+                            display: 'flex', alignItems: 'center', gap: '8px',
+                            padding: '8px 16px', borderRadius: 'var(--radius-sm)', fontSize: '13px', fontWeight: 500,
+                            background: isConnected ? 'var(--teal-light)' : 'var(--surface)',
+                            border: `1px solid ${isConnected ? 'var(--teal)' : 'var(--border-strong)'}`,
+                            color: isConnected ? '#0F6E56' : 'var(--text)',
+                            cursor: isConnected ? 'default' : 'pointer',
+                          }}>
+                          <img src={SOCIAL[platform]?.icon} alt="" style={{ width: 16, height: 16 }} />
+                          {isConnected ? `✓ ${SOCIAL[platform]?.label} connesso come @${conn.handle}` : `Connetti ${SOCIAL[platform]?.label}`}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
-              )}
-              <div className="divider" />
-              <div style={{ marginBottom: '12px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                <h3 style={{ marginBottom: '4px' }}>Profilazione Avanzata (Evita Allucinazioni AI)</h3>
-                <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '8px' }}>
-                  Spiega all'Intelligenza Artificiale chi sei e come deve comportarsi per evitare che inventi cose non vere.
+              </div>
+
+              {/* Lista canali attivi */}
+              <div className="card">
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                  <h2 style={{ margin: 0, fontSize: '18px' }}>📡 I tuoi canali ({allChannels.length})</h2>
+                  {allChannels.length > 0 && (
+                    <button onClick={scanSources} disabled={scanning}
+                      className="btn btn-primary" style={{ fontSize: '13px', padding: '8px 18px' }}>
+                      {scanning ? '⟳ Sincronizzazione...' : '🔄 Sincronizza tutti'}
+                    </button>
+                  )}
+                </div>
+
+                {allChannels.length === 0 ? (
+                  <div style={{ textAlign: 'center', padding: '3rem 1rem', color: 'var(--text-muted)' }}>
+                    <div style={{ fontSize: '48px', marginBottom: '1rem', opacity: 0.4 }}>📭</div>
+                    <div style={{ fontWeight: 600, marginBottom: '0.5rem' }}>Nessun canale aggiunto</div>
+                    <div style={{ fontSize: '13px' }}>Incolla il link del tuo profilo nel campo qui sopra per iniziare.</div>
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                    {allChannels.map(channel => (
+                      <div key={channel.key} style={{
+                        padding: '14px 16px', borderRadius: 'var(--radius-sm)',
+                        border: '1px solid var(--border-strong)', background: 'var(--bg)',
+                        display: 'flex', flexDirection: 'column', gap: '10px'
+                      }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                            <img src={SOCIAL[channel.platform]?.icon || SOCIAL['website']?.icon} alt="" style={{ width: 22, height: 22 }} />
+                            <div>
+                              <div style={{ fontWeight: 600, fontSize: '14px' }}>
+                                {channel.label || (SOCIAL[channel.platform]?.label || channel.platform)}
+                                {channel.url && <span style={{ fontWeight: 400, fontSize: '12px', color: 'var(--text-muted)', marginLeft: '8px' }}>
+                                  <a href={channel.url} target="_blank" rel="noopener" style={{ color: 'var(--text-muted)', textDecoration: 'none' }}>
+                                    {channel.url.replace(/^https?:\/\/(www\.)?/, '').replace(/\/$/, '')}
+                                  </a>
+                                </span>}
+                              </div>
+                              <div style={{ fontSize: '11px', display: 'flex', gap: '6px', marginTop: '2px' }}>
+                                <span style={{
+                                  background: channel.type === 'oauth' ? 'var(--teal-light)' : 'var(--purple-light)',
+                                  color: channel.type === 'oauth' ? '#0F6E56' : 'var(--purple-dark)',
+                                  padding: '1px 7px', borderRadius: '10px', fontWeight: 500
+                                }}>
+                                  {channel.type === 'oauth' ? '🔗 Connesso con account' : '🔍 Acquisizione automatica'}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                          <button onClick={() => removeChannel(channel)}
+                            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', fontSize: '18px', padding: '4px 8px', borderRadius: '4px' }}
+                            title="Rimuovi canale">✕</button>
+                        </div>
+
+                        {/* Impostazioni sync inline */}
+                        <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr auto auto', gap: '10px', alignItems: 'center', paddingTop: '8px', borderTop: '1px solid var(--border)' }}>
+                          <span style={{ fontSize: '12px', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>Dal:</span>
+                          <input type="date" defaultValue={channel.since_date || ''}
+                            title="Importa contenuti da questa data in poi"
+                            onBlur={e => {
+                              if (channel.type === 'oauth') saveConnectionSettings(channel.rawPlatform, e.target.value, channel.auto_publish ?? 1, channel.max_posts);
+                              else savePlatformSource(channel.rawPlatform, channel.url, e.target.value, channel.auto_publish ?? 1, channel.max_posts);
+                            }}
+                            style={{ padding: '5px 8px', fontSize: '12px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', width: '100%' }} />
+                          <input type="number" min="1" max="500" placeholder="Max" defaultValue={channel.max_posts || ''}
+                            title="Numero massimo di post da importare"
+                            onBlur={e => {
+                              const val = e.target.value || null;
+                              if (channel.type === 'oauth') saveConnectionSettings(channel.rawPlatform, channel.since_date, channel.auto_publish ?? 1, val);
+                              else savePlatformSource(channel.rawPlatform, channel.url, channel.since_date, channel.auto_publish ?? 1, val);
+                            }}
+                            style={{ padding: '5px 8px', fontSize: '12px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', width: '70px' }} />
+                          <label style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '12px', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                            <input type="checkbox" defaultChecked={(channel.auto_publish ?? 1) === 1}
+                              onChange={e => {
+                                const ap = e.target.checked ? 1 : 0;
+                                if (channel.type === 'oauth') saveConnectionSettings(channel.rawPlatform, channel.since_date, ap, channel.max_posts);
+                                else savePlatformSource(channel.rawPlatform, channel.url, channel.since_date, ap, channel.max_posts);
+                              }} />
+                            Pubblica auto
+                          </label>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {scanMsg && (
+                  <div style={{ marginTop: '10px', padding: '10px 14px', borderRadius: 'var(--radius-sm)', fontSize: '13px',
+                    background: scanMsg.ok ? 'var(--teal-light)' : 'var(--red-light)',
+                    color: scanMsg.ok ? '#0F6E56' : 'var(--red)' }}>
+                    {scanMsg.loading && <span style={{ marginRight: '8px' }}>⟳</span>}{scanMsg.text}
+                  </div>
+                )}
+                {scanProgress.length > 0 && (
+                  <div style={{ marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    {scanProgress.map(s => (
+                      <div key={s.id} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', padding: '6px 10px', background: 'var(--surface)', borderRadius: '4px' }}>
+                        <span style={{ fontWeight: 600 }}>{s.label || s.platform}</span>
+                        <span style={{ color: s.status === 'done' ? 'var(--teal)' : s.status === 'error' ? 'var(--red)' : 'var(--text-muted)' }}>
+                          {s.status === 'pending' && '⏳ In coda'}
+                          {s.status === 'scanning' && '🔍 Lettura in corso...'}
+                          {s.status === 'done' && `✅ ${s.details}`}
+                          {s.status === 'error' && `❌ Errore`}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Profilazione AI */}
+              <div className="card">
+                <h2 style={{ marginBottom: '0.5rem', fontSize: '18px' }}>🧠 Profilo editoriale</h2>
+                <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '1rem' }}>
+                  Spiega all'AI chi sei e come deve comportarsi. Più dettagli dai, migliori saranno gli articoli generati.
                 </p>
-
-                <div>
-                  <label className="label">1. Chi sei e cosa fai?</label>
-                  <textarea value={profileDraft} onChange={e => setProfileDraft(e.target.value)}
-                    placeholder="Es: Sono Marco, un artigiano che crea ceramiche e vende online..."
-                    style={{ width: '100%', minHeight: '60px', resize: 'vertical', padding: '10px 14px', border: '1px solid var(--border-strong)', borderRadius: 'var(--radius-sm)', background: 'var(--surface)', fontFamily: 'inherit', fontSize: '14px' }} />
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  <div>
+                    <label className="label">Chi sei e cosa fai?</label>
+                    <textarea value={profileDraft} onChange={e => setProfileDraft(e.target.value)}
+                      placeholder="Es: Sono Marco, un artigiano che crea ceramiche e vende online..."
+                      style={{ width: '100%', minHeight: '60px', resize: 'vertical', padding: '10px 14px', border: '1px solid var(--border-strong)', borderRadius: 'var(--radius-sm)', background: 'var(--surface)', fontFamily: 'inherit', fontSize: '14px' }} />
+                  </div>
+                  <div>
+                    <label className="label">Pubblico target e obiettivo</label>
+                    <textarea value={roleMissionDraft} onChange={e => setRoleMissionDraft(e.target.value)}
+                      placeholder="Es: Mi rivolgo ad appassionati di design d'interni e voglio vendere i miei vasi..."
+                      style={{ width: '100%', minHeight: '60px', resize: 'vertical', padding: '10px 14px', border: '1px solid var(--border-strong)', borderRadius: 'var(--radius-sm)', background: 'var(--surface)', fontFamily: 'inherit', fontSize: '14px' }} />
+                  </div>
+                  <div>
+                    <label className="label">Tono di voce e regole editoriali</label>
+                    <textarea value={strategyDraft} onChange={e => setStrategyDraft(e.target.value)}
+                      placeholder="Es: Usa un tono ironico. NON parlare mai di argomenti sensibili..."
+                      style={{ width: '100%', minHeight: '60px', resize: 'vertical', padding: '10px 14px', border: '1px solid var(--border-strong)', borderRadius: 'var(--radius-sm)', background: 'var(--surface)', fontFamily: 'inherit', fontSize: '14px' }} />
+                  </div>
+                  <button className="btn btn-outline" onClick={saveProfile} disabled={savingProfile} style={{ alignSelf: 'flex-start' }}>
+                    {savingProfile ? 'Salvataggio...' : '💾 Salva profilo editoriale'}
+                  </button>
                 </div>
-
-                <div>
-                  <label className="label">2. Qual è il tuo pubblico target e il tuo obiettivo?</label>
-                  <textarea value={roleMissionDraft} onChange={e => setRoleMissionDraft(e.target.value)}
-                    placeholder="Es: Mi rivolgo ad appassionati di design d'interni e voglio vendere i miei vasi..."
-                    style={{ width: '100%', minHeight: '60px', resize: 'vertical', padding: '10px 14px', border: '1px solid var(--border-strong)', borderRadius: 'var(--radius-sm)', background: 'var(--surface)', fontFamily: 'inherit', fontSize: '14px' }} />
-                </div>
-
-                <div>
-                  <label className="label">3. Tono di voce e regole editoriali (Importante)</label>
-                  <textarea value={strategyDraft} onChange={e => setStrategyDraft(e.target.value)}
-                    placeholder="Es: Usa un tono ironico. NON parlare mai di argomenti sensibili. Attieniti solo ai fatti del video..."
-                    style={{ width: '100%', minHeight: '60px', resize: 'vertical', padding: '10px 14px', border: '1px solid var(--border-strong)', borderRadius: 'var(--radius-sm)', background: 'var(--surface)', fontFamily: 'inherit', fontSize: '14px' }} />
-                </div>
-
-                <button className="btn btn-outline" onClick={saveProfile} disabled={savingProfile} style={{ marginTop: '4px', alignSelf: 'flex-start' }}>
-                  {savingProfile ? 'Salvataggio in corso...' : '💾 Salva regole editoriali'}
-                </button>
               </div>
-              <button className="btn btn-primary btn-full" onClick={scanSources} disabled={scanning || sources.length === 0}>
-                {scanning ? 'Sincronizzazione ed elaborazione AI in corso...' : 'Scansiona social e pubblica automaticamente'}
-              </button>
-              {scanMsg && (
-                <div style={{ marginTop: '10px', padding: '8px 12px', borderRadius: 'var(--radius-sm)', fontSize: '13px',
-                  background: scanMsg.ok ? 'var(--teal-light)' : 'var(--red-light)',
-                  color: scanMsg.ok ? '#0F6E56' : 'var(--red)' }}>
-                  {scanMsg.text}
-                </div>
-              )}
-              {scanProgress.length > 0 && (
-                 <div style={{ marginTop: '10px', padding: '12px', borderRadius: 'var(--radius-sm)', background: 'var(--surface)', border: '1px solid var(--border)', fontSize: '13px' }}>
-                   <h4 style={{ marginBottom: '8px', fontSize: '14px', color: 'var(--text)' }}>Stato Lettura Profili Social (Scraping)</h4>
-                   <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                     {scanProgress.map(s => (
-                       <div key={s.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 8px', background: 'var(--bg)', borderRadius: '4px', border: '1px solid var(--border-strong)' }}>
-                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                           <SocialIcon platform={s.platform} size={16} />
-                           <span style={{ fontWeight: 600 }}>{s.label || s.platform}</span>
-                         </div>
-                         <div style={{ fontWeight: 600, fontSize: '12px' }}>
-                           {s.status === 'pending' && <span style={{ color: 'var(--text-muted)' }}>⏳ In coda...</span>}
-                           {s.status === 'scanning' && <span style={{ color: 'var(--blue)' }}>🔍 Lettura API in corso...</span>}
-                           {s.status === 'done' && <span style={{ color: 'var(--teal)' }}>✅ {s.details}</span>}
-                           {s.status === 'error' && <span style={{ color: 'var(--red)' }} title={s.details}>❌ Errore API</span>}
-                         </div>
-                       </div>
-                     ))}
-                   </div>
-                 </div>
-              )}
-              {processingQueue.length > 0 && (
-                 <div style={{ marginTop: '10px', padding: '12px', borderRadius: 'var(--radius-sm)', background: 'var(--surface)', border: '1px solid var(--border)', fontSize: '13px' }}>
-                   <h4 style={{ marginBottom: '8px', fontSize: '14px', color: 'var(--text)' }}>Stato Elaborazione AI dei Post Trovati</h4>
-                   <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '200px', overflowY: 'auto' }}>
-                     {processingQueue.map(p => (
-                       <div key={p.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 8px', background: 'var(--bg)', borderRadius: '4px', border: '1px solid var(--border-strong)' }}>
-                         <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '70%' }}>
-                           <span style={{ fontWeight: 600, marginRight: '8px', color: 'var(--text-muted)' }}>{SOCIAL[p.platform]?.label || p.platform}</span>
-                           <a href={p.source_url} target="_blank" rel="noopener" style={{ color: 'var(--purple)', textDecoration: 'none' }}>{p.source_url}</a>
-                         </div>
-                         <div style={{ fontWeight: 600, fontSize: '12px' }}>
-                           {p.status === 'pending' && <span style={{ color: 'var(--text-muted)' }}>⏳ In attesa...</span>}
-                           {p.status === 'processing' && <span style={{ color: 'var(--purple)' }}>🧠 Scrittura AI in corso...</span>}
-                           {p.status === 'done' && <span style={{ color: 'var(--teal)' }}>✅ Completato</span>}
-                           {p.status === 'error' && <span style={{ color: 'var(--red)' }}>❌ Errore</span>}
-                         </div>
-                       </div>
-                     ))}
-                   </div>
-                 </div>
-              )}
-            </div>
 
-            {/* Importa da link (Agente 1) */}
-            <div className="card" style={{ marginBottom: '1.25rem' }}>
-              <h3 style={{ marginBottom: '4px' }}>➕ Importa da un link</h3>
-              <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '12px' }}>
-                Incolla il link di un contenuto specifico: video, audio o post. L'AI lo trascrive, lo interpreta e prepara una bozza.
-              </p>
-              <form onSubmit={doImport} style={{ display: 'flex', gap: '8px' }}>
-                <input type="text" placeholder="https://www.youtube.com/watch?v=..."
-                  value={linkUrl} onChange={e => setLinkUrl(e.target.value)} style={{ flex: 1 }} />
-                <button type="submit" className="btn btn-primary" disabled={importing}>
-                  {importing ? '⟳ Trascrivo...' : 'Importa'}
-                </button>
-              </form>
-              {importMsg && (
-                <div style={{ marginTop: '10px', padding: '8px 12px', borderRadius: 'var(--radius-sm)', fontSize: '13px',
-                  background: importMsg.ok ? 'var(--teal-light)' : 'var(--red-light)',
-                  color: importMsg.ok ? '#0F6E56' : 'var(--red)' }}>
-                  {importMsg.text}
-                </div>
-              )}
+              {/* Importa da link diretto */}
+              <div className="card">
+                <h2 style={{ marginBottom: '0.5rem', fontSize: '18px' }}>🔗 Importa un contenuto specifico</h2>
+                <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '12px' }}>
+                  Incolla il link di un singolo video o post per importarlo e convertirlo subito in articolo.
+                </p>
+                <form onSubmit={doImport} style={{ display: 'flex', gap: '8px' }}>
+                  <input type="text" placeholder="https://www.youtube.com/watch?v=... oppure link Instagram/TikTok"
+                    value={linkUrl} onChange={e => setLinkUrl(e.target.value)} style={{ flex: 1 }} />
+                  <button type="submit" className="btn btn-primary" disabled={importing}>
+                    {importing ? '⟳ Elaborazione...' : 'Importa'}
+                  </button>
+                </form>
+                {importMsg && (
+                  <div style={{ marginTop: '10px', padding: '8px 12px', borderRadius: 'var(--radius-sm)', fontSize: '13px',
+                    background: importMsg.ok ? 'var(--teal-light)' : 'var(--red-light)',
+                    color: importMsg.ok ? '#0F6E56' : 'var(--red)' }}>
+                    {importMsg.text}
+                  </div>
+                )}
+              </div>
 
-              {/* Sezione Bozze manuali rimossa come da richiesta (armonizzazione automatica) */}
             </div>
-          </div>
-        )}
+          );
+        })()}
 
         {/* Tab: Sito */}
         {tab === 'site' && (() => {

@@ -509,8 +509,8 @@ if ($action === 'social-source-create' && $method === 'POST') {
 
     if (!filter_var($url, FILTER_VALIDATE_URL)) jsonError('Link social non valido');
     if (!$platform) jsonError('Piattaforma non riconosciuta');
-    if (!in_array($platform, ['instagram', 'facebook', 'tiktok', 'youtube'], true)) {
-        jsonError('Piattaforma non supportata');
+    if (!in_array($platform, ['instagram', 'facebook', 'tiktok', 'youtube', 'website'], true)) {
+        jsonError('Piattaforma non supportata: ' . $platform);
     }
 
     $sinceDate = trim($b['since_date'] ?? '');
@@ -544,8 +544,8 @@ if ($action === 'social-source-upsert' && $method === 'POST') {
     $maxPosts = isset($b['max_posts']) && $b['max_posts'] !== '' ? (int)$b['max_posts'] : null;
     if ($sinceDate && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $sinceDate)) $sinceDate = null;
 
-    if (!in_array($platform, ['instagram', 'facebook', 'tiktok', 'youtube'], true)) {
-        jsonError('Piattaforma non supportata');
+    if (!in_array($platform, ['instagram', 'facebook', 'tiktok', 'youtube', 'website'], true)) {
+        jsonError('Piattaforma non supportata: ' . $platform);
     }
     if ($url === '') {
         DB::execute('UPDATE social_sources SET active=0 WHERE user_id=? AND platform=?', [$userId, $platform]);
