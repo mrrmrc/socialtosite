@@ -4,7 +4,7 @@ require_once __DIR__ . '/../../config/keys.php';
 
 $platform = $_GET['platform'] ?? '';
 
-if ($platform === 'facebook' || $platform === 'instagram' || $platform === 'instagram_personal' || $platform === 'instagram_login') {
+if ($platform === 'facebook' || $platform === 'instagram' || $platform === 'instagram_personal' || $platform === 'instagram_login' || $platform === 'youtube' || $platform === 'tiktok') {
     // JWT Decoder
     require_once __DIR__ . '/../middleware/jwt.php';
     $token = $_GET['token'] ?? '';
@@ -34,6 +34,23 @@ if ($platform === 'facebook' || $platform === 'instagram' || $platform === 'inst
             'response_type' => 'code',
             'state' => $state,
             'enable_fb_login' => 'false'
+        ]);
+    } elseif ($platform === 'youtube') {
+        $auth_url = 'https://accounts.google.com/o/oauth2/v2/auth?' . http_build_query([
+            'client_id'     => GOOGLE_CLIENT_ID,
+            'redirect_uri'  => GOOGLE_REDIRECT_URI,
+            'scope'         => 'https://www.googleapis.com/auth/youtube.readonly',
+            'response_type' => 'code',
+            'access_type'   => 'offline',
+            'state'         => $state,
+        ]);
+    } elseif ($platform === 'tiktok') {
+        $auth_url = 'https://www.tiktok.com/v2/auth/authorize/?' . http_build_query([
+            'client_key'    => TIKTOK_CLIENT_KEY,
+            'redirect_uri'  => TIKTOK_REDIRECT_URI,
+            'scope'         => 'user.info.basic,video.list',
+            'response_type' => 'code',
+            'state'         => $state,
         ]);
     } else {
         $scopes = ['email', 'public_profile', 'user_posts', 'user_photos', 'user_videos']; 
