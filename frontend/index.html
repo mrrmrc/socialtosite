@@ -18,77 +18,109 @@
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     :root {
-      --primary: #00F0FF; --primary-dark: #7000FF; --primary-light: rgba(0, 240, 255, 0.15);
-      --teal: #10B981; --teal-light: rgba(16, 185, 129, 0.15);
-      --amber: #F59E0B; --amber-light: rgba(245, 158, 11, 0.15);
+      --primary: #CCFF00; /* Fluo Yellow/Green */
+      --primary-dark: #A3CC00;
+      --primary-light: rgba(204, 255, 0, 0.15);
+      --secondary: #9D00FF; /* Fluo Purple */
+      --teal: #00E5FF; /* Cyan */
+      --teal-light: rgba(0, 229, 255, 0.15);
+      --amber: #FF0055; /* Fluo Pink/Red */
+      --amber-light: rgba(255, 0, 85, 0.15);
       --red: #FF3B30; --red-light: rgba(255, 59, 48, 0.15);
       --gray: #8E8E93; --gray-light: #1C1C1E;
-      --text: #F2F2F7; --text-muted: #AEAEB2; --text-faint: #636366;
-      --bg: #000000; --surface: rgba(28, 28, 30, 0.6);
-      --border: rgba(255, 255, 255, 0.1); --border-strong: rgba(255, 255, 255, 0.2);
-      --radius: 20px; --radius-sm: 12px;
+      --text: #FFFFFF; --text-muted: #A0A0A0; --text-faint: #666666;
+      --bg: #050505; --surface: rgba(20, 20, 20, 0.5);
+      --border: rgba(255, 255, 255, 0.08); --border-strong: rgba(255, 255, 255, 0.15);
+      --radius: 24px; --radius-sm: 16px;
     }
-    body { font-family: 'Outfit', system-ui, sans-serif; background: var(--bg); background-image: radial-gradient(circle at 15% 50%, rgba(112, 0, 255, 0.15), transparent 25%), radial-gradient(circle at 85% 30%, rgba(0, 240, 255, 0.15), transparent 25%); color: var(--text); font-size: 16px; line-height: 1.6; min-height: 100vh; overflow-x: hidden; }
+    body { 
+      font-family: 'Outfit', system-ui, sans-serif; 
+      background-color: var(--bg); 
+      background-image: 
+        radial-gradient(circle at 0% 0%, rgba(157, 0, 255, 0.15) 0%, transparent 40%),
+        radial-gradient(circle at 100% 100%, rgba(0, 229, 255, 0.15) 0%, transparent 40%),
+        radial-gradient(circle at 50% 50%, rgba(204, 255, 0, 0.05) 0%, transparent 50%);
+      background-attachment: fixed;
+      color: var(--text); font-size: 16px; line-height: 1.6; min-height: 100vh; overflow-x: hidden; 
+    }
     
-    input, button, select { font-family: inherit; font-size: 16px; }
-    input[type=text], input[type=email], input[type=password] {
+    input, button, select, textarea { font-family: inherit; font-size: 16px; }
+    input[type=text], input[type=email], input[type=password], input[type=number], textarea, select {
       width: 100%; padding: 16px 20px; border: 1px solid var(--border-strong);
-      border-radius: var(--radius-sm); background: rgba(0,0,0,0.4); color: var(--text);
-      outline: none; transition: all .3s ease; box-shadow: inset 0 2px 4px rgba(0,0,0,0.2);
+      border-radius: var(--radius-sm); background: rgba(0,0,0,0.6); color: var(--text);
+      outline: none; transition: all .3s cubic-bezier(0.4, 0, 0.2, 1);
     }
-    input:focus { border-color: var(--primary); box-shadow: 0 0 0 4px var(--primary-light); background: rgba(0,0,0,0.6); }
+    input:focus, textarea:focus { border-color: var(--primary); box-shadow: 0 0 0 4px var(--primary-light); background: rgba(0,0,0,0.8); }
     
-    button { cursor: pointer; border: none; border-radius: var(--radius-sm); transition: all .3s cubic-bezier(0.4, 0, 0.2, 1); display: inline-flex; align-items: center; justify-content: center; gap: 8px; font-weight: 700; }
-    .btn { padding: 14px 24px; letter-spacing: 0.5px; }
-    .btn-primary { background: linear-gradient(135deg, var(--primary-dark), var(--primary)); color: #fff; box-shadow: 0 8px 16px -4px rgba(112, 0, 255, 0.4); text-transform: uppercase; font-size: 14px; }
-    .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 12px 20px -4px rgba(0, 240, 255, 0.5); }
+    button { cursor: pointer; border: none; border-radius: 50px; transition: all .3s cubic-bezier(0.4, 0, 0.2, 1); display: inline-flex; align-items: center; justify-content: center; gap: 8px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; }
+    .btn { padding: 16px 28px; }
+    .btn-primary { background: var(--primary); color: #000; box-shadow: 0 0 20px rgba(204, 255, 0, 0.3); }
+    .btn-primary:hover { transform: translateY(-2px) scale(1.02); box-shadow: 0 0 30px rgba(204, 255, 0, 0.5); background: #E6FF4D; }
     .btn-primary:active { transform: translateY(1px); box-shadow: none; }
-    .btn-primary:disabled { opacity: .5; cursor: not-allowed; transform: none; box-shadow: none; }
-    .btn-outline { background: rgba(255,255,255,0.05); border: 1px solid var(--border); color: var(--text); backdrop-filter: blur(10px); }
-    .btn-outline:hover { background: rgba(255,255,255,0.1); border-color: var(--border-strong); }
+    .btn-primary:disabled { opacity: .5; cursor: not-allowed; transform: none; box-shadow: none; filter: grayscale(1); }
+    .btn-outline { background: rgba(255,255,255,0.03); border: 1px solid var(--border-strong); color: var(--text); backdrop-filter: blur(10px); }
+    .btn-outline:hover { background: rgba(255,255,255,0.1); border-color: var(--text-muted); }
     .btn-full { width: 100%; }
     
-    .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.5rem; box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); transition: transform 0.3s ease, border-color 0.3s ease; }
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.5rem; box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); transition: transform 0.3s ease, border-color 0.3s ease; }
     .card:hover { border-color: var(--border-strong); }
-    .glass-modal { background: rgba(20, 20, 22, 0.85); border: 1px solid var(--border-strong); border-radius: var(--radius); padding: 2rem; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5); backdrop-filter: blur(30px); -webkit-backdrop-filter: blur(30px); }
+    .glass-modal { background: rgba(10, 10, 10, 0.85); border: 1px solid rgba(255,255,255,0.1); border-radius: var(--radius); padding: 2rem; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.8); backdrop-filter: blur(40px); -webkit-backdrop-filter: blur(40px); }
     
-    .badge { display: inline-flex; align-items: center; justify-content: center; font-size: 11px; padding: 4px 10px; border-radius: 20px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; }
-    .badge-green { background: var(--teal-light); color: var(--teal); border: 1px solid rgba(16, 185, 129, 0.3); }
-    .badge-purple { background: var(--primary-light); color: var(--primary); border: 1px solid rgba(0, 240, 255, 0.3); }
-    .badge-amber { background: var(--amber-light); color: var(--amber); border: 1px solid rgba(245, 158, 11, 0.3); }
+    .badge { display: inline-flex; align-items: center; justify-content: center; font-size: 11px; padding: 6px 12px; border-radius: 50px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; }
+    .badge-green { background: var(--teal-light); color: var(--teal); border: 1px solid rgba(0, 229, 255, 0.3); }
+    .badge-purple { background: rgba(157, 0, 255, 0.15); color: #D480FF; border: 1px solid rgba(157, 0, 255, 0.3); }
+    .badge-amber { background: var(--amber-light); color: var(--amber); border: 1px solid rgba(255, 0, 85, 0.3); }
     .badge-red { background: var(--red-light); color: var(--red); border: 1px solid rgba(255, 59, 48, 0.3); }
     
     .divider { height: 1px; background: var(--border); margin: 1.5rem 0; }
-    .label { display: block; font-size: 12px; font-weight: 600; color: var(--text-muted); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px; }
+    .label { display: block; font-size: 13px; font-weight: 700; color: var(--text-muted); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 1px; }
     .form-group { margin-bottom: 1.5rem; }
     
-    h1 { font-size: 28px; font-weight: 800; letter-spacing: -0.5px; margin-bottom: 0.5rem; }
-    h2 { font-size: 20px; font-weight: 700; letter-spacing: -0.3px; }
-    h3 { font-size: 16px; font-weight: 600; }
+    h1 { font-size: 32px; font-weight: 900; letter-spacing: -1px; margin-bottom: 0.5rem; }
+    h2 { font-size: 24px; font-weight: 800; letter-spacing: -0.5px; }
+    h3 { font-size: 18px; font-weight: 700; }
+
+    .dashboard-main { flex: 1; margin-left: 280px; padding: 3rem; transition: margin 0.3s; }
 
     /* Mobile Bottom Tab Bar Styles */
     .mobile-nav { display: none; }
     .desktop-sidebar { display: flex; }
+    .mobile-top-header { display: none; }
     
     @media (max-width: 768px) {
       .desktop-sidebar { display: none !important; }
+      .mobile-top-header { display: flex; justify-content: space-between; align-items: center; padding: 16px; background: rgba(5,5,5,0.8); backdrop-filter: blur(20px); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 100; }
+      
       .mobile-nav { 
         display: flex; position: fixed; bottom: 0; left: 0; right: 0; 
-        background: rgba(20, 20, 22, 0.85); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
-        border-top: 1px solid var(--border); padding: 12px 20px; padding-bottom: calc(12px + env(safe-area-inset-bottom));
-        justify-content: space-around; align-items: center; z-index: 1000;
+        background: rgba(5, 5, 5, 0.85); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+        border-top: 1px solid var(--border-strong); padding: 12px 16px; padding-bottom: calc(12px + env(safe-area-inset-bottom));
+        justify-content: space-between; align-items: center; z-index: 1000;
+        box-shadow: 0 -10px 40px rgba(0,0,0,0.5);
       }
       .mobile-nav-item { 
-        display: flex; flex-direction: column; align-items: center; gap: 4px;
-        color: var(--text-muted); font-size: 10px; font-weight: 600; text-transform: uppercase; text-decoration: none;
+        display: flex; flex-direction: column; align-items: center; gap: 6px;
+        color: var(--text-muted); font-size: 10px; font-weight: 800; text-transform: uppercase; text-decoration: none;
+        flex: 1; transition: color 0.3s; background: transparent; border: none; padding: 0;
       }
       .mobile-nav-item.active { color: var(--primary); }
       .mobile-nav-item svg { width: 24px; height: 24px; }
       
+      .mobile-fab {
+        background: var(--primary); color: #000; width: 56px; height: 56px; border-radius: 50%;
+        display: flex; align-items: center; justify-content: center; font-size: 24px;
+        box-shadow: 0 0 20px rgba(204, 255, 0, 0.4); transform: translateY(-20px);
+        border: none; cursor: pointer;
+      }
+      
       /* Aggiustamenti layout globale per Mobile */
-      .dashboard-main { margin-bottom: 80px; padding: 16px !important; }
-      .card { padding: 1rem; }
-      h1 { font-size: 24px; }
+      .dashboard-main { margin-bottom: 90px; padding: 16px !important; margin-left: 0 !important; width: 100%; }
+      .card { padding: 1.25rem; }
+      h1 { font-size: 28px; }
+      
+      .glass-modal { padding: 1.5rem; border-radius: 32px 32px 0 0; border-bottom: none; width: 100%; max-width: 100% !important; margin-top: 10vh; min-height: 90vh; }
+      @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+      .mobile-bottom-sheet { animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1); align-items: flex-end !important; padding: 0 !important; }
     }
   </style>
 </head>
@@ -1229,7 +1261,7 @@ async function runSiteAi() {
   return (
     <div style={{ minHeight: '100vh', display: 'flex' }}>
       {/* Sidebar Laterale (solo Desktop) */}
-      <div className="desktop-sidebar" style={{ width: '250px', background: 'rgba(28,28,30,0.6)', borderRight: '1px solid var(--border)', flexDirection: 'column', position: 'fixed', height: '100vh', top: 0, left: 0, zIndex: 50, backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)' }}>
+      <div className="desktop-sidebar" style={{ width: '280px', background: 'rgba(5,5,5,0.8)', borderRight: '1px solid var(--border-strong)', flexDirection: 'column', position: 'fixed', height: '100vh', top: 0, left: 0, zIndex: 50, backdropFilter: 'blur(30px)', WebkitBackdropFilter: 'blur(30px)' }}>
         <div style={{ padding: '28px 24px', fontWeight: 800, fontSize: '24px', color: 'var(--primary)', borderBottom: '1px solid var(--border)' }}>
           Social<span style={{ color: 'var(--text)' }}>ToSite</span>
         </div>
@@ -1264,7 +1296,15 @@ async function runSiteAi() {
       </div>
 
       {/* Main Content Area */}
-      <div className="dashboard-main" style={{ flex: 1, marginLeft: '250px', padding: '3rem' }}>
+      <div className="dashboard-main">
+        {/* Mobile Header (Only visible on mobile) */}
+        <div className="mobile-top-header">
+          <div style={{ fontWeight: 800, fontSize: '18px', color: 'var(--primary)' }}>Social<span style={{ color: 'var(--text)' }}>ToSite</span></div>
+          <button className="btn btn-primary" onClick={runSiteAi} disabled={siteAiLoading} style={{ padding: '8px 16px', fontSize: '12px' }}>
+            {siteAiLoading ? '✨' : '✨ SITO AI'}
+          </button>
+        </div>
+
         <div style={{ maxWidth: '1000px', margin: '0 auto' }}>
           {/* Header Action Bar */}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2.5rem' }}>
@@ -2178,10 +2218,10 @@ async function runSiteAi() {
 
         {/* Modal Modifica Post */}
         {editingPost && (
-          <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', zIndex: 1000, padding: '2rem 1rem', overflowY: 'auto' }}>
+          <div className="mobile-bottom-sheet" style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '2rem 1rem', overflowY: 'auto' }}>
             <div className="glass-modal" style={{ width: '100%', maxWidth: '800px', display: 'flex', flexDirection: 'column', gap: '1.5rem', border: '1px solid var(--border)' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border)', paddingBottom: '1rem' }}>
-                <h2 style={{ fontSize: '24px', fontWeight: 800, margin: 0, color: 'var(--primary)' }}>✏️ Modifica Articolo</h2>
+                <h2 style={{ fontSize: '24px', fontWeight: 800, margin: 0, color: 'var(--primary)' }}>✏️ Modifica</h2>
                 <button onClick={() => setEditingPost(null)} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', width: '36px', height: '36px', borderRadius: '50%', fontSize: '16px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text)', transition: 'background 0.2s' }}>✕</button>
               </div>
               
@@ -2220,7 +2260,28 @@ async function runSiteAi() {
           </div>
         )}
       </div>
+
+      {/* Mobile Bottom Navigation */}
+      <div className="mobile-nav">
+        <button className={`mobile-nav-item ${tab === 'overview' ? 'active' : ''}`} onClick={() => setTab('overview')}>
+          <span style={{fontSize: '20px'}}>🏠</span> Home
+        </button>
+        <button className={`mobile-nav-item ${tab === 'site' ? 'active' : ''}`} onClick={() => setTab('site')}>
+          <span style={{fontSize: '20px'}}>📝</span> Articoli
+        </button>
+        
+        <button className="mobile-fab" onClick={syncNow} disabled={syncing}>
+          {syncing ? '⟳' : '↻'}
+        </button>
+        
+        <button className={`mobile-nav-item ${tab === 'sources' ? 'active' : ''}`} onClick={() => setTab('sources')}>
+          <span style={{fontSize: '20px'}}>📡</span> Canali
+        </button>
+        <button className={`mobile-nav-item ${tab === 'settings' ? 'active' : ''}`} onClick={() => setTab('settings')}>
+          <span style={{fontSize: '20px'}}>⚙️</span> Menu
+        </button>
       </div>
+      
     </div>
   );
 }
