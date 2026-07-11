@@ -59,6 +59,9 @@
 
       /* ── Gradiente principale ── */
       --gradient: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
+      /* ── Alias retrocompatibilità ── */
+      --purple: #6366F1;
+      --purple-light: #EEF2FF;
     }
 
     body {
@@ -2784,23 +2787,6 @@ function AdminScreen({ token, currentUser, adminPrompts, updatePrompt }) {
       </div>
       )}
       
-      {/* Bottom Nav Bar (solo Mobile) */}
-      <div className="mobile-nav">
-        {[
-          { id: 'overview', icon: '🏠', label: 'Home' },
-          { id: 'site', icon: '📝', label: 'Articoli' },
-          { id: 'sources', icon: '📡', label: 'Canali' },
-          { id: 'settings', icon: '🎨', label: 'Design' }
-        ].map(item => (
-          <a key={item.id} href="#" onClick={(e) => { e.preventDefault(); setTab(item.id); }}
-            className={`mobile-nav-item ${tab === item.id ? 'active' : ''}`}>
-            <span className="nav-icon-wrap">
-              <span style={{ fontSize: '20px' }}>{item.icon}</span>
-            </span>
-            {item.label}
-          </a>
-        ))}
-      </div>
     </div>
   );
 }
@@ -2812,7 +2798,7 @@ function ProgressBar({ step }) {
     <div style={{ marginBottom: '1.5rem' }}>
       <div style={{ fontSize: '12px', color: 'var(--text-faint)', marginBottom: '6px' }}>Passo {step} di 3</div>
       <div style={{ height: '4px', background: 'var(--gray-light)', borderRadius: '2px', overflow: 'hidden' }}>
-        <div style={{ height: '100%', width: `${pct}%`, background: 'var(--purple)', borderRadius: '2px', transition: 'width .4s' }} />
+        <div style={{ height: '100%', width: `${pct}%`, background: 'var(--gradient)', borderRadius: '2px', transition: 'width .4s' }} />
       </div>
     </div>
   );
