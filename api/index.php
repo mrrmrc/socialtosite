@@ -598,6 +598,15 @@ if ($action === 'social-source-delete' && $method === 'POST') {
     json(['ok' => true]);
 }
 
+if ($action === 'social-disconnect' && $method === 'POST') {
+    $b = body();
+    DB::execute(
+        'UPDATE social_connections SET active=0 WHERE platform=? AND user_id=?',
+        [trim($b['platform'] ?? ''), $userId]
+    );
+    json(['ok' => true]);
+}
+
 if ($action === 'scan-sources' && $method === 'POST') {
     $b = body();
     $limit = $b['limit'] ?? 5;
