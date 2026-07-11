@@ -16,5 +16,5 @@ if (!defined('FB_APP_ID'))      define('FB_APP_ID', '1573081654432555');
 if (!defined('FB_APP_SECRET'))  define('FB_APP_SECRET', '9801c410d5fa6124b0783a7248384bc7');
 
 // Instagram API with Instagram Login (Login Diretto - Solo Creator/Aziende)
-if (!defined('IG_LOGIN_APP_ID'))      define('IG_LOGIN_APP_ID', 'INSERISCI_QUI_IL_TUO_IG_LOGIN_APP_ID');
-if (!defined('IG_LOGIN_APP_SECRET'))  define('IG_LOGIN_APP_SECRET', 'INSERISCI_QUI_IL_TUO_IG_LOGIN_APP_SECRET');
+if (!defined('IG_LOGIN_APP_ID'))      define('IG_LOGIN_APP_ID', FB_APP_ID);
+if (!defined('IG_LOGIN_APP_SECRET'))  define('IG_LOGIN_APP_SECRET', FB_APP_SECRET);
