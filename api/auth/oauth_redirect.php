@@ -4,7 +4,7 @@ require_once __DIR__ . '/../../config/keys.php';
 
 $platform = $_GET['platform'] ?? '';
 
-if ($platform === 'facebook' || $platform === 'instagram' || $platform === 'instagram_personal') {
+if ($platform === 'facebook' || $platform === 'instagram' || $platform === 'instagram_personal' || $platform === 'instagram_login') {
     // JWT Decoder
     require_once __DIR__ . '/../middleware/jwt.php';
     $token = $_GET['token'] ?? '';

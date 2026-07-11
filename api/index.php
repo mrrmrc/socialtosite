@@ -585,7 +585,7 @@ if ($action === 'social-connection-update' && $method === 'POST') {
     $maxPosts = isset($b['max_posts']) && $b['max_posts'] !== '' ? (int)$b['max_posts'] : null;
     if ($sinceDate && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $sinceDate)) $sinceDate = null;
 
-    if (!in_array($platform, ['instagram', 'facebook', 'tiktok', 'youtube'], true)) {
+    if (!in_array($platform, ['instagram', 'instagram_login', 'facebook', 'tiktok', 'youtube'], true)) {
         jsonError('Piattaforma non supportata');
     }
 
