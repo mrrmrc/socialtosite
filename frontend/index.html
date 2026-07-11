@@ -18,46 +18,78 @@
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     :root {
-      --purple: #818CF8; --purple-dark: #6366F1; --purple-light: rgba(129, 140, 248, 0.15);
+      --primary: #00F0FF; --primary-dark: #7000FF; --primary-light: rgba(0, 240, 255, 0.15);
       --teal: #10B981; --teal-light: rgba(16, 185, 129, 0.15);
       --amber: #F59E0B; --amber-light: rgba(245, 158, 11, 0.15);
-      --red: #EF4444; --red-light: rgba(239, 68, 68, 0.15);
-      --gray: #6B7280; --gray-light: #F3F4F6;
-      --text: #1F2937; --text-muted: #6B7280; --text-faint: #9CA3AF;
-      --bg: #F9FAFB; --surface: rgba(255, 255, 255, 0.85);
-      --border: rgba(255, 255, 255, 0.4); --border-strong: rgba(0, 0, 0, 0.1);
-      --radius: 16px; --radius-sm: 8px;
+      --red: #FF3B30; --red-light: rgba(255, 59, 48, 0.15);
+      --gray: #8E8E93; --gray-light: #1C1C1E;
+      --text: #F2F2F7; --text-muted: #AEAEB2; --text-faint: #636366;
+      --bg: #000000; --surface: rgba(28, 28, 30, 0.6);
+      --border: rgba(255, 255, 255, 0.1); --border-strong: rgba(255, 255, 255, 0.2);
+      --radius: 20px; --radius-sm: 12px;
     }
-    body { font-family: 'Outfit', system-ui, sans-serif; background: var(--bg); background-image: radial-gradient(at 0% 0%, hsla(253,16%,7%,0.03) 0, transparent 50%), radial-gradient(at 50% 0%, hsla(225,39%,30%,0.03) 0, transparent 50%), radial-gradient(at 100% 0%, hsla(339,49%,30%,0.03) 0, transparent 50%); color: var(--text); font-size: 15px; line-height: 1.6; min-height: 100vh; }
-    input, button, select { font-family: inherit; font-size: 14px; }
+    body { font-family: 'Outfit', system-ui, sans-serif; background: var(--bg); background-image: radial-gradient(circle at 15% 50%, rgba(112, 0, 255, 0.15), transparent 25%), radial-gradient(circle at 85% 30%, rgba(0, 240, 255, 0.15), transparent 25%); color: var(--text); font-size: 16px; line-height: 1.6; min-height: 100vh; overflow-x: hidden; }
+    
+    input, button, select { font-family: inherit; font-size: 16px; }
     input[type=text], input[type=email], input[type=password] {
-      width: 100%; padding: 12px 16px; border: 1px solid var(--border-strong);
-      border-radius: var(--radius-sm); background: #fff; color: var(--text);
-      outline: none; transition: all .2s; box-shadow: inset 0 2px 4px rgba(0,0,0,0.02);
+      width: 100%; padding: 16px 20px; border: 1px solid var(--border-strong);
+      border-radius: var(--radius-sm); background: rgba(0,0,0,0.4); color: var(--text);
+      outline: none; transition: all .3s ease; box-shadow: inset 0 2px 4px rgba(0,0,0,0.2);
     }
-    input:focus { border-color: var(--purple); box-shadow: 0 0 0 3px var(--purple-light); }
-    button { cursor: pointer; border: none; border-radius: var(--radius-sm); transition: all .2s cubic-bezier(0.4, 0, 0.2, 1); }
-    .btn { display: inline-flex; align-items: center; gap: 8px; padding: 10px 20px; font-weight: 600; letter-spacing: 0.3px; }
-    .btn-primary { background: linear-gradient(135deg, var(--purple), var(--purple-dark)); color: #fff; box-shadow: 0 4px 6px -1px rgba(99, 102, 241, 0.2), 0 2px 4px -1px rgba(99, 102, 241, 0.1); }
-    .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 6px 8px -1px rgba(99, 102, 241, 0.3), 0 4px 6px -1px rgba(99, 102, 241, 0.2); }
-    .btn-primary:active { transform: translateY(0); box-shadow: none; }
-    .btn-primary:disabled { opacity: .6; cursor: not-allowed; transform: none; box-shadow: none; }
-    .btn-outline { background: transparent; border: 1px solid var(--border-strong); color: var(--text); }
-    .btn-outline:hover { background: var(--surface); box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
-    .btn-full { width: 100%; justify-content: center; }
-    .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.75rem; box-shadow: 0 8px 32px rgba(0, 0, 0, 0.04); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }
-    .glass-modal { background: rgba(255, 255, 255, 0.95); border: 1px solid var(--border); border-radius: var(--radius); padding: 2rem; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); }
-    .badge { display: inline-block; font-size: 12px; padding: 3px 9px; border-radius: 20px; font-weight: 500; }
-    .badge-green { background: var(--teal-light); color: #0F6E56; }
-    .badge-purple { background: var(--purple-light); color: var(--purple-dark); }
-    .badge-amber { background: var(--amber-light); color: var(--amber); }
-    .badge-red { background: var(--red-light); color: var(--red); }
-    .divider { height: 1px; background: var(--border); margin: 1rem 0; }
-    .label { display: block; font-size: 13px; font-weight: 500; color: var(--text-muted); margin-bottom: 5px; }
-    .form-group { margin-bottom: 1rem; }
-    h1 { font-size: 22px; font-weight: 600; }
-    h2 { font-size: 18px; font-weight: 600; }
-    h3 { font-size: 15px; font-weight: 600; }
+    input:focus { border-color: var(--primary); box-shadow: 0 0 0 4px var(--primary-light); background: rgba(0,0,0,0.6); }
+    
+    button { cursor: pointer; border: none; border-radius: var(--radius-sm); transition: all .3s cubic-bezier(0.4, 0, 0.2, 1); display: inline-flex; align-items: center; justify-content: center; gap: 8px; font-weight: 700; }
+    .btn { padding: 14px 24px; letter-spacing: 0.5px; }
+    .btn-primary { background: linear-gradient(135deg, var(--primary-dark), var(--primary)); color: #fff; box-shadow: 0 8px 16px -4px rgba(112, 0, 255, 0.4); text-transform: uppercase; font-size: 14px; }
+    .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 12px 20px -4px rgba(0, 240, 255, 0.5); }
+    .btn-primary:active { transform: translateY(1px); box-shadow: none; }
+    .btn-primary:disabled { opacity: .5; cursor: not-allowed; transform: none; box-shadow: none; }
+    .btn-outline { background: rgba(255,255,255,0.05); border: 1px solid var(--border); color: var(--text); backdrop-filter: blur(10px); }
+    .btn-outline:hover { background: rgba(255,255,255,0.1); border-color: var(--border-strong); }
+    .btn-full { width: 100%; }
+    
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.5rem; box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); transition: transform 0.3s ease, border-color 0.3s ease; }
+    .card:hover { border-color: var(--border-strong); }
+    .glass-modal { background: rgba(20, 20, 22, 0.85); border: 1px solid var(--border-strong); border-radius: var(--radius); padding: 2rem; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5); backdrop-filter: blur(30px); -webkit-backdrop-filter: blur(30px); }
+    
+    .badge { display: inline-flex; align-items: center; justify-content: center; font-size: 11px; padding: 4px 10px; border-radius: 20px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; }
+    .badge-green { background: var(--teal-light); color: var(--teal); border: 1px solid rgba(16, 185, 129, 0.3); }
+    .badge-purple { background: var(--primary-light); color: var(--primary); border: 1px solid rgba(0, 240, 255, 0.3); }
+    .badge-amber { background: var(--amber-light); color: var(--amber); border: 1px solid rgba(245, 158, 11, 0.3); }
+    .badge-red { background: var(--red-light); color: var(--red); border: 1px solid rgba(255, 59, 48, 0.3); }
+    
+    .divider { height: 1px; background: var(--border); margin: 1.5rem 0; }
+    .label { display: block; font-size: 12px; font-weight: 600; color: var(--text-muted); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px; }
+    .form-group { margin-bottom: 1.5rem; }
+    
+    h1 { font-size: 28px; font-weight: 800; letter-spacing: -0.5px; margin-bottom: 0.5rem; }
+    h2 { font-size: 20px; font-weight: 700; letter-spacing: -0.3px; }
+    h3 { font-size: 16px; font-weight: 600; }
+
+    /* Mobile Bottom Tab Bar Styles */
+    .mobile-nav { display: none; }
+    .desktop-sidebar { display: flex; }
+    
+    @media (max-width: 768px) {
+      .desktop-sidebar { display: none !important; }
+      .mobile-nav { 
+        display: flex; position: fixed; bottom: 0; left: 0; right: 0; 
+        background: rgba(20, 20, 22, 0.85); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+        border-top: 1px solid var(--border); padding: 12px 20px; padding-bottom: calc(12px + env(safe-area-inset-bottom));
+        justify-content: space-around; align-items: center; z-index: 1000;
+      }
+      .mobile-nav-item { 
+        display: flex; flex-direction: column; align-items: center; gap: 4px;
+        color: var(--text-muted); font-size: 10px; font-weight: 600; text-transform: uppercase; text-decoration: none;
+      }
+      .mobile-nav-item.active { color: var(--primary); }
+      .mobile-nav-item svg { width: 24px; height: 24px; }
+      
+      /* Aggiustamenti layout globale per Mobile */
+      .dashboard-main { margin-bottom: 80px; padding: 16px !important; }
+      .card { padding: 1rem; }
+      h1 { font-size: 24px; }
+    }
   </style>
 </head>
 <body>
@@ -396,51 +428,48 @@ function ConnectScreen({ token, onDone }) {
   const connByPlatform = connections.reduce((acc, c) => ({ ...acc, [c.platform]: c }), {});
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--bg)', padding: '2rem 1rem' }}>
-      <div style={{ maxWidth: '600px', margin: '0 auto' }}>
-        <ProgressBar step={1} />
-        <h1 style={{ marginBottom: '0.25rem' }}>Aggiungi i tuoi canali</h1>
-        <p style={{ color: 'var(--text-muted)', marginBottom: '1.5rem', fontSize: '14px' }}>
-          Incolla i link dei tuoi profili social (Instagram, TikTok, ecc.) o del tuo sito web. L'AI li analizzerà per creare il tuo sito.
-        </p>
+    <div style={{ minHeight: '100vh', padding: '2rem 1rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div style={{ width: '100%', maxWidth: '600px' }}>
+        
+        <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
+          <h1 style={{ fontSize: '32px', color: 'var(--primary)', textShadow: '0 0 10px var(--primary-light)' }}>Incolla i tuoi canali</h1>
+          <p style={{ color: 'var(--text-muted)', fontSize: '16px', fontWeight: 500 }}>
+            Incolla qui i link (Instagram, TikTok, YouTube, ecc.) e lascia che l'AI li trasformi nel tuo sito web in automatico.
+          </p>
+        </div>
 
         {/* Form Aggiungi Canale */}
-        <div className="card" style={{ marginBottom: '1.5rem' }}>
-          <form onSubmit={handleAddChannel} style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+        <div className="glass-modal" style={{ marginBottom: '2rem', padding: '2rem' }}>
+          <form onSubmit={handleAddChannel} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
             <div style={{ position: 'relative' }}>
               <input
                 type="url"
-                placeholder="https://www.instagram.com/nomeutente/ oppure https://tuosito.it"
+                placeholder="es: https://www.instagram.com/tuoprofilo/"
                 value={addUrl}
                 onChange={e => { setAddUrl(e.target.value); setAddMsg(null); }}
-                style={{ paddingLeft: detectedPlatform ? '40px' : '16px', transition: 'padding 0.2s', width: '100%' }}
+                style={{ paddingLeft: detectedPlatform ? '56px' : '20px', fontSize: '18px', padding: '20px', width: '100%' }}
               />
               {detectedPlatform && (
-                <span style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}>
-                  <img src={SOCIAL[detectedPlatform]?.icon || ''} alt="" style={{ width: 18, height: 18 }} />
+                <span style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}>
+                  <img src={SOCIAL[detectedPlatform]?.icon || ''} alt="" style={{ width: 24, height: 24, opacity: 0.8 }} />
                 </span>
               )}
             </div>
+            
             {detectedPlatform && (
-              <div style={{ fontSize: '12px', color: 'var(--text-muted)', padding: '6px 10px', background: 'var(--purple-light)', borderRadius: 'var(--radius-sm)' }}>
-                ✓ Rilevato: <strong>{SOCIAL[detectedPlatform]?.label || detectedPlatform}</strong> — {PLATFORM_DESCRIPTIONS[detectedPlatform] || ''}
+              <div style={{ fontSize: '13px', color: 'var(--primary)', padding: '10px 14px', background: 'var(--primary-light)', borderRadius: 'var(--radius-sm)', fontWeight: 700, border: '1px solid rgba(0,240,255,0.2)' }}>
+                ✓ Perfetto! Rilevato: {SOCIAL[detectedPlatform]?.label || detectedPlatform}
               </div>
             )}
-            <input
-              type="text"
-              placeholder="Etichetta (opzionale) — Es: Il mio account principale"
-              value={addLabel}
-              onChange={e => setAddLabel(e.target.value)}
-              style={{ width: '100%' }}
-            />
-            <button type="submit" className="btn btn-primary" disabled={addLoading || !addUrl.trim()} style={{ alignSelf: 'flex-start', padding: '10px 24px' }}>
-              {addLoading ? '⟳ Aggiunta in corso...' : '+ Aggiungi canale'}
+            
+            <button type="submit" className="btn btn-primary" disabled={addLoading || !addUrl.trim()} style={{ padding: '18px', fontSize: '16px', marginTop: '8px' }}>
+              {addLoading ? '⟳ Attendere...' : '+ AGGIUNGI CANALE'}
             </button>
           </form>
           {addMsg && (
-            <div style={{ marginTop: '12px', padding: '10px 14px', borderRadius: 'var(--radius-sm)', fontSize: '13px',
+            <div style={{ marginTop: '16px', padding: '14px', borderRadius: 'var(--radius-sm)', fontSize: '14px', fontWeight: 600,
               background: addMsg.ok ? 'var(--teal-light)' : 'var(--red-light)',
-              color: addMsg.ok ? '#0F6E56' : 'var(--red)' }}>
+              color: addMsg.ok ? 'var(--teal)' : 'var(--red)', border: `1px solid ${addMsg.ok ? 'rgba(16,185,129,0.3)' : 'rgba(255,59,48,0.3)'}` }}>
               {addMsg.text}
             </div>
           )}
@@ -448,22 +477,23 @@ function ConnectScreen({ token, onDone }) {
 
         {/* Canali Aggiunti */}
         {allChannels.length > 0 && (
-          <div style={{ marginBottom: '1.5rem' }}>
-            <h3 style={{ fontSize: '14px', color: 'var(--text-muted)', marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Canali aggiunti</h3>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          <div style={{ marginBottom: '2rem' }}>
+            <h3 style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '12px', textTransform: 'uppercase', letterSpacing: '1px' }}>I Tuoi Canali</h3>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
               {allChannels.map(channel => (
-                <div key={channel.key} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--surface)', padding: '12px 16px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                    <SocialIcon platform={channel.platform} size={24} />
+                <div key={channel.key} className="glass-modal" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 20px', borderRadius: 'var(--radius)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                    <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <SocialIcon platform={channel.platform} size={28} />
+                    </div>
                     <div>
-                      <div style={{ fontWeight: 600 }}>{channel.label || channel.platform}</div>
-                      <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-                        {channel.type === 'oauth' ? 'Connesso via OAuth' : channel.url}
-                        {channel.hasDuplicateOAuth && <span style={{ color: 'var(--red)', marginLeft: '8px' }}>(Duplicato)</span>}
+                      <div style={{ fontWeight: 800, fontSize: '16px' }}>{channel.label || channel.platform}</div>
+                      <div style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
+                        {channel.type === 'oauth' ? 'Connesso via App Ufficiale' : channel.url}
                       </div>
                     </div>
                   </div>
-                  <button onClick={() => removeChannel(channel)} style={{ background: 'none', border: 'none', color: 'var(--red)', cursor: 'pointer', fontSize: '12px', padding: '4px 8px' }}>
+                  <button onClick={() => removeChannel(channel)} style={{ background: 'var(--red-light)', border: '1px solid rgba(255,59,48,0.3)', color: 'var(--red)', cursor: 'pointer', fontSize: '13px', fontWeight: 700, padding: '8px 16px', borderRadius: '20px' }}>
                     Rimuovi
                   </button>
                 </div>
@@ -473,12 +503,12 @@ function ConnectScreen({ token, onDone }) {
         )}
 
         {/* Connessioni OAuth (YouTube, Facebook) */}
-        <div style={{ marginBottom: '2rem' }}>
-          <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-            Oppure collega tramite accesso ufficiale (consigliato per YouTube e Facebook)
+        <div style={{ marginBottom: '2rem', textAlign: 'center' }}>
+          <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '16px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+            Preferisci il login sicuro ufficiale?
           </div>
-          <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-            {['youtube', 'facebook'].map(platform => {
+          <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap' }}>
+            {['youtube', 'facebook', 'tiktok'].map(platform => {
               const conn = connByPlatform[platform];
               const isConnected = !!conn && conn.active;
               return (
@@ -487,14 +517,15 @@ function ConnectScreen({ token, onDone }) {
                   disabled={isConnected}
                   style={{
                     display: 'flex', alignItems: 'center', gap: '8px',
-                    padding: '8px 16px', borderRadius: 'var(--radius-sm)', fontSize: '13px', fontWeight: 500,
-                    background: isConnected ? 'var(--teal-light)' : 'var(--surface)',
-                    border: `1px solid ${isConnected ? 'var(--teal)' : 'var(--border-strong)'}`,
-                    color: isConnected ? '#0F6E56' : 'var(--text)',
+                    padding: '12px 20px', borderRadius: '20px', fontSize: '14px', fontWeight: 700,
+                    background: isConnected ? 'var(--teal-light)' : 'rgba(255,255,255,0.05)',
+                    border: `1px solid ${isConnected ? 'var(--teal)' : 'var(--border)'}`,
+                    color: isConnected ? 'var(--teal)' : 'var(--text)',
                     cursor: isConnected ? 'default' : 'pointer',
+                    backdropFilter: 'blur(10px)'
                   }}>
-                  <img src={SOCIAL[platform]?.icon} alt="" style={{ width: 16, height: 16 }} />
-                  {isConnected ? `✓ ${SOCIAL[platform]?.label} connesso come @${conn.handle}` : `Connetti ${SOCIAL[platform]?.label}`}
+                  <img src={SOCIAL[platform]?.icon} alt="" style={{ width: 20, height: 20 }} />
+                  {isConnected ? `Collegato` : `Entra con ${SOCIAL[platform]?.label}`}
                 </button>
               );
             })}
@@ -502,8 +533,8 @@ function ConnectScreen({ token, onDone }) {
         </div>
 
         <button className="btn btn-primary btn-full" disabled={connectedCount === 0 || loadingChannels} onClick={onDone}
-          style={{ fontSize: '16px', padding: '14px', background: connectedCount > 0 ? 'linear-gradient(135deg, #7F77DD, #534AB7)' : 'var(--border-strong)' }}>
-          {connectedCount === 0 ? 'Aggiungi almeno 1 canale per continuare' : `Importa e genera il mio sito →`}
+          style={{ fontSize: '18px', padding: '20px', borderRadius: 'var(--radius)' }}>
+          {connectedCount === 0 ? 'Aggiungi un canale per iniziare' : `CREA IL MIO SITO →`}
         </button>
       </div>
     </div>
@@ -542,29 +573,34 @@ function GeneratingScreen({ token, userId, onDone }) {
   }, []);
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--bg)', padding: '2rem 1rem' }}>
-      <div style={{ maxWidth: '500px', margin: '0 auto' }}>
+    <div style={{ minHeight: '100vh', padding: '2rem 1rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div style={{ width: '100%', maxWidth: '500px' }}>
         <ProgressBar step={2} />
-        <h1 style={{ marginBottom: '0.25rem' }}>AI al lavoro...</h1>
-        <p style={{ color: 'var(--text-muted)', marginBottom: '1.5rem', fontSize: '14px' }}>
-          Stiamo analizzando i tuoi contenuti e costruendo il sito. Ci vogliono circa 60 secondi.
-        </p>
-        <div className="card" style={{ fontFamily: 'monospace', fontSize: '13px' }}>
-          {logs.map((log, i) => (
-            <div key={i} style={{ display: 'flex', gap: '10px', alignItems: 'center', marginBottom: '10px',
-              color: log.status === 'done' ? 'var(--teal)' : log.status === 'active' ? 'var(--purple)' : 'var(--text-faint)',
-              transition: 'color .3s' }}>
-              <span>{log.status === 'done' ? '✓' : log.status === 'active' ? '⟳' : '○'}</span>
-              <span>{log.text}</span>
-            </div>
-          ))}
+        
+        <div className="glass-modal" style={{ textAlign: 'center', marginTop: '2rem' }}>
+          <h1 style={{ fontSize: '28px', color: 'var(--primary)', marginBottom: '0.5rem' }}>AI al lavoro...</h1>
+          <p style={{ color: 'var(--text-muted)', marginBottom: '2rem', fontSize: '15px', fontWeight: 500 }}>
+            Stiamo analizzando i tuoi contenuti e costruendo il sito. Ci vogliono circa 60 secondi.
+          </p>
+          
+          <div style={{ background: 'rgba(0,0,0,0.4)', borderRadius: 'var(--radius-sm)', padding: '1.5rem', textAlign: 'left', fontFamily: 'monospace', fontSize: '14px' }}>
+            {logs.map((log, i) => (
+              <div key={i} style={{ display: 'flex', gap: '12px', alignItems: 'center', marginBottom: '12px',
+                color: log.status === 'done' ? 'var(--teal)' : log.status === 'active' ? 'var(--primary)' : 'var(--text-faint)',
+                transition: 'color .3s', fontWeight: 600 }}>
+                <span>{log.status === 'done' ? '✓' : log.status === 'active' ? '⟳' : '○'}</span>
+                <span>{log.text}</span>
+              </div>
+            ))}
+          </div>
+          
+          {done && (
+            <button className="btn btn-primary btn-full" onClick={onDone}
+              style={{ marginTop: '2rem', fontSize: '18px', padding: '16px' }}>
+              VISUALIZZA IL TUO SITO →
+            </button>
+          )}
         </div>
-        {done && (
-          <button className="btn btn-primary btn-full" onClick={onDone}
-            style={{ marginTop: '1rem', fontSize: '15px', padding: '12px' }}>
-            Visualizza il tuo sito →
-          </button>
-        )}
       </div>
     </div>
   );
@@ -615,6 +651,7 @@ const [importMsg, setImportMsg] = useState(null);
   const [footerText, setFooterText] = useState('');
   const [gscVerification, setGscVerification] = useState('');
   const [harmonizeAgent, setHarmonizeAgent] = useState('content_editor');
+  const [accountType, setAccountType] = useState('business');
 
   useEffect(() => { loadData(); loadDrafts(); }, []);
 
@@ -636,6 +673,7 @@ const [importMsg, setImportMsg] = useState(null);
       setFooterText(d.site?.footer_text || '');
       setGscVerification(d.site?.gsc_verification || '');
       setHarmonizeAgent(d.site?.harmonize_agent || 'content_editor');
+      setAccountType(d.site?.account_type || 'business');
       if (d.site?.menu_links) {
         try {
            const arr = JSON.parse(d.site.menu_links);
@@ -954,6 +992,7 @@ const [importMsg, setImportMsg] = useState(null);
           footer_text: footerText,
           gsc_verification: gscVerification,
           harmonize_agent: harmonizeAgent,
+          account_type: accountType,
           menu_links: menuLinksStr.split('\n').filter(x => x.trim()).map(x => {
              const parts = x.split('|');
              return { label: parts[0].trim(), url: parts[1] ? parts[1].trim() : '' };
@@ -1188,42 +1227,44 @@ async function runSiteAi() {
   const siteUrl = `${API.replace('3001', '3000')}/s/${user.slug}`;
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--bg)', display: 'flex' }}>
-      {/* Sidebar Laterale */}
-      <div style={{ width: '250px', background: 'var(--surface)', borderRight: '1px solid var(--border)', display: 'flex', flexDirection: 'column', position: 'fixed', height: '100vh', top: 0, left: 0, zIndex: 50, backdropFilter: 'blur(10px)' }}>
-        <div style={{ padding: '24px 20px', fontWeight: 800, fontSize: '20px', color: 'var(--purple)', borderBottom: '1px solid var(--border-strong)' }}>Social<span style={{ color: 'var(--text)' }}>ToSite</span></div>
-        <div style={{ padding: '20px 10px', display: 'flex', flexDirection: 'column', gap: '4px', flex: 1, overflowY: 'auto' }}>
+    <div style={{ minHeight: '100vh', display: 'flex' }}>
+      {/* Sidebar Laterale (solo Desktop) */}
+      <div className="desktop-sidebar" style={{ width: '250px', background: 'rgba(28,28,30,0.6)', borderRight: '1px solid var(--border)', flexDirection: 'column', position: 'fixed', height: '100vh', top: 0, left: 0, zIndex: 50, backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)' }}>
+        <div style={{ padding: '28px 24px', fontWeight: 800, fontSize: '24px', color: 'var(--primary)', borderBottom: '1px solid var(--border)' }}>
+          Social<span style={{ color: 'var(--text)' }}>ToSite</span>
+        </div>
+        <div style={{ padding: '24px 16px', display: 'flex', flexDirection: 'column', gap: '8px', flex: 1, overflowY: 'auto' }}>
           {[
-            { id: 'overview', icon: '🏠', label: 'Overview' },
-            { id: 'site', icon: '📝', label: 'Contenuti' },
-            { id: 'sources', icon: '📡', label: 'I miei canali' },
-            { id: 'settings', icon: '🎨', label: 'Design & Aspetto' },
-              { id: 'general', icon: '⚙️', label: 'Impost. Generali' },
+            { id: 'overview', icon: '🏠', label: 'Home' },
+            { id: 'site', icon: '📝', label: 'Articoli' },
+            { id: 'sources', icon: '📡', label: 'Canali' },
+            { id: 'settings', icon: '🎨', label: 'Design' },
+            { id: 'general', icon: '⚙️', label: 'Impostazioni' },
             { id: 'seo', icon: '📈', label: 'SEO' },
-            ...(user.role === 'admin' ? [{ id: 'admin', icon: '🛠', label: 'Admin Panel' }] : [])
+            ...(user.role === 'admin' ? [{ id: 'admin', icon: '🛠', label: 'Admin' }] : [])
           ].map(item => (
             <button key={item.id} onClick={() => setTab(item.id)}
               style={{
-                padding: '10px 14px', borderRadius: '8px', textAlign: 'left',
-                background: tab === item.id ? 'var(--purple-light)' : 'transparent',
-                color: tab === item.id ? 'var(--purple-dark)' : 'var(--text-muted)',
-                fontWeight: tab === item.id ? 600 : 500,
-                display: 'flex', alignItems: 'center', gap: '12px',
-                border: 'none', cursor: 'pointer', transition: 'all 0.2s',
-                boxShadow: tab === item.id ? '0 1px 3px rgba(0,0,0,0.05)' : 'none'
+                padding: '14px 16px', borderRadius: '12px', textAlign: 'left',
+                background: tab === item.id ? 'var(--primary-light)' : 'transparent',
+                color: tab === item.id ? 'var(--primary)' : 'var(--text-muted)',
+                fontWeight: tab === item.id ? 700 : 600,
+                display: 'flex', alignItems: 'center', gap: '14px',
+                border: tab === item.id ? '1px solid rgba(0,240,255,0.3)' : '1px solid transparent',
+                cursor: 'pointer', transition: 'all 0.3s ease',
               }}>
-              <span style={{ fontSize: '18px' }}>{item.icon}</span> {item.label}
+              <span style={{ fontSize: '20px', filter: tab === item.id ? 'drop-shadow(0 0 8px rgba(0,240,255,0.8))' : 'none' }}>{item.icon}</span> {item.label}
             </button>
           ))}
         </div>
-        <div style={{ padding: '20px', borderTop: '1px solid var(--border)' }}>
-          <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text)', marginBottom: '8px', overflow: 'hidden', textOverflow: 'ellipsis' }}>{user.email}</div>
-          <button className="btn btn-outline btn-full" onClick={onLogout} style={{ fontSize: '13px', padding: '8px', borderRadius: '8px' }}>Esci</button>
+        <div style={{ padding: '24px', borderTop: '1px solid var(--border)' }}>
+          <div style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text)', marginBottom: '12px', overflow: 'hidden', textOverflow: 'ellipsis' }}>{user.email}</div>
+          <button className="btn btn-outline btn-full" onClick={onLogout} style={{ padding: '12px', borderRadius: '12px', fontWeight: 700, border: '1px solid var(--border-strong)' }}>Esci</button>
         </div>
       </div>
 
       {/* Main Content Area */}
-      <div style={{ flex: 1, marginLeft: '250px', padding: '2rem 3rem' }}>
+      <div className="dashboard-main" style={{ flex: 1, marginLeft: '250px', padding: '3rem' }}>
         <div style={{ maxWidth: '1000px', margin: '0 auto' }}>
           {/* Header Action Bar */}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2.5rem' }}>
@@ -1269,34 +1310,34 @@ async function runSiteAi() {
         )}
         {tab === 'overview' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1.25rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1.25rem' }}>
               {[
-                { n: posts.length, l: 'Contenuti pubblicati', c: 'var(--purple)' },
-                { n: sources.length, l: 'Social collegati', c: 'var(--teal)' },
+                { n: posts.length, l: 'Contenuti elaborati', c: 'var(--primary)' },
+                { n: sources.length, l: 'Canali collegati', c: 'var(--teal)' },
                 { n: site?.seo_score || 0, l: 'Score SEO', c: (site?.seo_score >= 80) ? 'var(--teal)' : 'var(--amber)' },
-                { n: posts.filter(p => p.media_type === 'VIDEO').length, l: 'Video trascritti', c: 'var(--purple-dark)' },
+                { n: posts.filter(p => p.media_type === 'VIDEO').length, l: 'Video trascritti', c: 'var(--primary-dark)' },
               ].map((s, i) => (
-                <div key={i} className="card" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-                  <div style={{ fontSize: '36px', fontWeight: 700, color: s.c, lineHeight: 1 }}>{s.n}</div>
-                  <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '8px', fontWeight: 500 }}>{s.l}</div>
+                <div key={i} className="card" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', justifyContent: 'center', textAlign: 'center' }}>
+                  <div style={{ fontSize: '42px', fontWeight: 800, color: s.c, lineHeight: 1, textShadow: `0 0 15px ${s.c}33` }}>{s.n}</div>
+                  <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '12px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px' }}>{s.l}</div>
                 </div>
               ))}
             </div>
             
-            <div className="card" style={{ background: 'linear-gradient(135deg, var(--purple-dark), var(--purple))', color: '#fff', border: 'none' }}>
-              <h2 style={{ marginBottom: '1rem', color: '#fff', fontSize: '20px' }}>🌍 Il tuo sito è online</h2>
+            <div className="card" style={{ background: 'linear-gradient(135deg, var(--primary-dark), var(--primary))', color: '#fff', border: 'none', boxShadow: '0 10px 30px -10px rgba(0, 240, 255, 0.4)' }}>
+              <h2 style={{ marginBottom: '1rem', color: '#fff', fontSize: '24px', letterSpacing: '-0.5px' }}>🌍 Il tuo sito è online</h2>
               <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
-                <div style={{ background: 'rgba(255,255,255,0.1)', padding: '12px 20px', borderRadius: '8px', fontFamily: 'monospace', fontSize: '15px', flex: 1, minWidth: '250px' }}>
+                <div style={{ background: 'rgba(0,0,0,0.2)', padding: '16px 20px', borderRadius: '12px', fontFamily: 'monospace', fontSize: '16px', flex: 1, minWidth: '250px', border: '1px solid rgba(255,255,255,0.1)' }}>
                   {siteUrl}
                 </div>
-                <div style={{ display: 'flex', gap: '10px' }}>
-                  <a href={siteUrl} target="_blank" rel="noopener" className="btn" style={{ background: '#fff', color: 'var(--purple-dark)', textDecoration: 'none' }}>Apri sito</a>
-                  <button className="btn" onClick={() => navigator.clipboard.writeText(siteUrl).then(() => alert('Copiato!'))} style={{ background: 'rgba(255,255,255,0.2)', color: '#fff' }}>Copia link</button>
+                <div style={{ display: 'flex', gap: '12px' }}>
+                  <a href={siteUrl} target="_blank" rel="noopener" className="btn" style={{ background: '#000', color: '#fff', textDecoration: 'none', borderRadius: '12px' }}>Apri sito</a>
+                  <button className="btn" onClick={() => navigator.clipboard.writeText(siteUrl).then(() => alert('Copiato!'))} style={{ background: 'rgba(255,255,255,0.2)', color: '#fff', borderRadius: '12px' }}>Copia link</button>
                 </div>
               </div>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.5rem' }}>
               <div className="card">
                 <h3 style={{ marginBottom: '1rem' }}>Sincronizzazione automatica</h3>
                 <p style={{ fontSize: '14px', color: 'var(--text-muted)', marginBottom: '1rem' }}>
@@ -1670,97 +1711,116 @@ async function runSiteAi() {
                 <p style={{ fontSize: '14px', marginTop: '0.5rem' }}>Prova a cambiare i filtri di ricerca o clicca "Aggiorna ora".</p>
               </div>
             ) : viewMode === 'grid' ? (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '1.5rem', alignItems: 'start' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2rem' }}>
                 {filteredPosts.map(post => (
-                  <div key={post.id} className="card" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem', position: 'relative', overflow: 'hidden', transition: 'all 0.3s ease' }}>
-                    <div style={{ position: 'absolute', top: 0, left: 0, width: '4px', height: '100%', background: post.published == 1 ? 'var(--teal)' : 'var(--amber)' }} />
-                    <div style={{ position: 'absolute', top: '10px', right: '10px', zIndex: 10 }}>
-                      <input type="checkbox" checked={selectedPosts.includes(post.id)} onChange={() => togglePostSelection(post.id)} style={{ transform: 'scale(1.3)', cursor: 'pointer' }} />
-                    </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <SocialIcon platform={post.platform} size={20} />
-                        <span style={{ fontWeight: 600, fontSize: '14px', color: 'var(--text-muted)' }}>{SOCIAL[post.platform]?.label}</span>
+                  <div key={post.id} className="glass-modal" style={{ width: '100%', maxWidth: '600px', display: 'flex', flexDirection: 'column', position: 'relative', overflow: 'hidden', padding: 0, transition: 'transform 0.3s ease, box-shadow 0.3s ease' }}>
+                    
+                    {/* Badge Stato (Nascoso/Bozza) */}
+                    {post.published != 1 && (
+                      <div style={{ position: 'absolute', top: '12px', left: '12px', zIndex: 10, background: 'rgba(255,149,0,0.9)', color: '#fff', padding: '4px 10px', borderRadius: '20px', fontSize: '11px', fontWeight: 800, backdropFilter: 'blur(10px)', border: '1px solid rgba(255,255,255,0.3)' }}>
+                        BOZZA
                       </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginRight: '20px' }}>
-                        {post.media_type === 'VIDEO' && <span className="badge badge-purple" style={{ padding: '4px 8px' }}>🎥 Video</span>}
-                        <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: post.seo_score >= 80 ? 'var(--teal-light)' : (post.seo_score >= 50 ? 'var(--amber-light)' : 'var(--red-light)'), color: post.seo_score >= 80 ? 'var(--teal)' : (post.seo_score >= 50 ? 'var(--amber)' : 'var(--red)'), display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: '11px', border: `1px solid ${post.seo_score >= 80 ? 'var(--teal)' : (post.seo_score >= 50 ? 'var(--amber)' : 'var(--red)')}` }} title="Score SEO">
+                    )}
+
+                    {/* Checkbox di selezione multipla in alto a destra */}
+                    <div style={{ position: 'absolute', top: '12px', right: '12px', zIndex: 10, background: 'rgba(0,0,0,0.5)', borderRadius: '50%', padding: '6px', backdropFilter: 'blur(10px)', display: 'flex', border: '1px solid rgba(255,255,255,0.1)' }}>
+                      <input type="checkbox" checked={selectedPosts.includes(post.id)} onChange={() => togglePostSelection(post.id)} style={{ transform: 'scale(1.3)', cursor: 'pointer', margin: 0 }} />
+                    </div>
+
+                    {/* Header: Sorgente Social */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 20px', borderBottom: '1px solid var(--border)' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                        <div style={{ background: 'rgba(255,255,255,0.05)', padding: '6px', borderRadius: '50%' }}>
+                          <SocialIcon platform={post.platform} size={24} />
+                        </div>
+                        <span style={{ fontWeight: 700, fontSize: '15px', color: 'var(--text)' }}>{SOCIAL[post.platform]?.label}</span>
+                      </div>
+                      
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        {post.media_type === 'VIDEO' && <span style={{ background: 'var(--primary-dark)', color: '#fff', padding: '4px 10px', borderRadius: '20px', fontSize: '11px', fontWeight: 700 }}>🎥 VIDEO</span>}
+                        <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: post.seo_score >= 80 ? 'var(--teal-light)' : (post.seo_score >= 50 ? 'var(--amber-light)' : 'var(--red-light)'), color: post.seo_score >= 80 ? 'var(--teal)' : (post.seo_score >= 50 ? 'var(--amber)' : 'var(--red)'), display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: '13px', border: `2px solid ${post.seo_score >= 80 ? 'var(--teal)' : (post.seo_score >= 50 ? 'var(--amber)' : 'var(--red)')}`, boxShadow: '0 4px 10px rgba(0,0,0,0.2)' }} title={`Score SEO: ${post.seo_score}`}>
                           {post.seo_score}
                         </div>
                       </div>
                     </div>
                     
-                    <div>
-                      <h4 style={{ fontSize: '16px', fontWeight: 700, marginBottom: '8px', lineHeight: 1.3 }}>{post.generated_title || post.raw_content?.substring(0, 80)}</h4>
-                      <div style={{ fontSize: '13px', color: 'var(--text-muted)', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden', lineHeight: 1.5 }}>
-                        {post.generated_excerpt || post.generated_body?.substring(0, 150)}
+                    {/* Contenuto Testuale */}
+                    <div style={{ padding: '20px', flex: 1, display: 'flex', flexDirection: 'column' }}>
+                      <h4 style={{ fontSize: '20px', fontWeight: 800, marginBottom: '12px', lineHeight: 1.3, color: 'var(--text)' }}>{post.generated_title || post.raw_content?.substring(0, 80)}</h4>
+                      <div style={{ fontSize: '15px', color: 'var(--text-muted)', display: '-webkit-box', WebkitLineClamp: 4, WebkitBoxOrient: 'vertical', overflow: 'hidden', lineHeight: 1.6, fontWeight: 500 }}>
+                        {post.generated_excerpt || post.generated_body?.substring(0, 200)}
                       </div>
+
+                      {post.tags?.length > 0 && (
+                        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '16px' }}>
+                          {post.tags.slice(0, 5).map(t => <span key={t} style={{ color: 'var(--primary)', fontSize: '14px', fontWeight: 700 }}>#{t}</span>)}
+                        </div>
+                      )}
                     </div>
 
-                    {post.tags?.length > 0 && (
-                      <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: 'auto' }}>
-                        {post.tags.slice(0, 5).map(t => <span key={t} className="badge" style={{ background: 'var(--gray-light)', color: 'var(--text)', border: '1px solid var(--border-strong)' }}>#{t}</span>)}
-                        {post.tags.length > 5 && <span className="badge" style={{ background: 'var(--bg)' }}>+{post.tags.length - 5}</span>}
+                    {/* Azioni Fondo Card */}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', padding: '16px', background: 'rgba(0,0,0,0.3)', borderTop: '1px solid var(--border)' }}>
+                      <div style={{ display: 'flex', gap: '12px' }}>
+                        <button onClick={() => togglePublishPost(post.id, post.published)} style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '12px', borderRadius: 'var(--radius)', border: 'none', fontSize: '14px', fontWeight: 800, cursor: 'pointer', background: post.published == 1 ? 'var(--teal)' : 'rgba(255,255,255,0.1)', color: post.published == 1 ? '#000' : 'var(--text-muted)', transition: 'all 0.2s' }}>
+                          {post.published == 1 ? '👁️ VISIBILE' : 'NASCOSTO'}
+                        </button>
+                        <button onClick={() => deletePost(post.id)} style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '12px', borderRadius: 'var(--radius)', border: 'none', fontSize: '14px', fontWeight: 800, cursor: 'pointer', background: 'var(--red)', color: '#fff', transition: 'all 0.2s' }}>
+                          ❌ ELIMINA
+                        </button>
                       </div>
-                    )}
-
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid var(--border-strong)' }}>
-                      <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', cursor: 'pointer', fontSize: '15px', fontWeight: 600, padding: '12px', borderRadius: 'var(--radius)', background: post.published == 1 ? 'var(--teal-light)' : 'var(--amber-light)', color: post.published == 1 ? 'var(--teal)' : 'var(--amber)', border: `2px solid ${post.published == 1 ? 'var(--teal)' : 'var(--amber)'}`, transition: 'all 0.2s' }}>
-                        <input type="checkbox" checked={post.published == 1} onChange={() => togglePublishPost(post.id, post.published)} style={{ transform: 'scale(1.5)' }} />
-                        {post.published == 1 ? '👁️ VISIBILE SUL SITO' : '🚫 NASCOSTO (BOZZA)'}
-                      </label>
-                      <button onClick={() => setEditingPost({id: post.id, title: post.generated_title || '', body: post.edited_body || post.generated_body || '', excerpt: post.generated_excerpt || '', tags: (post.tags || []).join(', ')})} className="btn btn-primary btn-full" style={{ padding: '14px', fontSize: '16px', fontWeight: 700, borderRadius: 'var(--radius)' }}>
+                      
+                      <button onClick={() => setEditingPost({id: post.id, title: post.generated_title || '', body: post.edited_body || post.generated_body || '', excerpt: post.generated_excerpt || '', tags: (post.tags || []).join(', ')})} style={{ padding: '14px', fontSize: '15px', fontWeight: 800, borderRadius: 'var(--radius)', background: 'var(--primary)', color: '#000', border: 'none', cursor: 'pointer' }}>
                         ✏️ MODIFICA ARTICOLO
                       </button>
+                      
                       {post.source_url && (
-                        <a href={post.source_url} target="_blank" rel="noopener" style={{ textAlign: 'center', fontSize: '13px', color: 'var(--purple)', textDecoration: 'none', fontWeight: 600 }}>🔗 Vedi post originale sui social</a>
+                        <a href={post.source_url} target="_blank" rel="noopener" style={{ textAlign: 'center', fontSize: '13px', color: 'var(--text-muted)', textDecoration: 'underline', fontWeight: 600, marginTop: '4px' }}>Vedi originale sui social ↗</a>
                       )}
-                      <button onClick={() => deletePost(post.id)} style={{ background: 'none', border: 'none', color: 'var(--red)', fontSize: '12px', cursor: 'pointer', marginTop: '4px', textDecoration: 'underline' }}>Elimina definitivamente</button>
                     </div>
                   </div>
                 ))}
               </div>
             ) : (
-              <div className="card" style={{ padding: '0', overflowX: 'auto' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
-                  <thead style={{ background: 'var(--surface)', borderBottom: '2px solid var(--border-strong)' }}>
+              <div className="glass-modal" style={{ padding: '0', overflowX: 'auto', background: 'rgba(0,0,0,0.2)' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', color: 'var(--text)' }}>
+                  <thead style={{ background: 'rgba(255,255,255,0.05)', borderBottom: '1px solid var(--border)' }}>
                     <tr>
-                      <th style={{ padding: '12px', width: '40px' }}>
-                        <input type="checkbox" checked={selectedPosts.length === filteredPosts.length && filteredPosts.length > 0} onChange={() => selectAllPosts(filteredPosts)} style={{ cursor: 'pointer' }} />
+                      <th style={{ padding: '16px', width: '40px' }}>
+                        <input type="checkbox" checked={selectedPosts.length === filteredPosts.length && filteredPosts.length > 0} onChange={() => selectAllPosts(filteredPosts)} style={{ cursor: 'pointer', transform: 'scale(1.2)' }} />
                       </th>
-                      <th style={{ padding: '12px', fontSize: '13px', color: 'var(--text-muted)' }}>Status</th>
-                      <th style={{ padding: '12px', fontSize: '13px', color: 'var(--text-muted)' }}>Titolo</th>
-                      <th style={{ padding: '12px', fontSize: '13px', color: 'var(--text-muted)' }}>Social</th>
-                      <th style={{ padding: '12px', fontSize: '13px', color: 'var(--text-muted)' }}>SEO</th>
-                      <th style={{ padding: '12px', fontSize: '13px', color: 'var(--text-muted)' }}>Azioni</th>
+                      <th style={{ padding: '16px', fontSize: '14px', color: 'var(--text-muted)', fontWeight: 800, textTransform: 'uppercase' }}>Status</th>
+                      <th style={{ padding: '16px', fontSize: '14px', color: 'var(--text-muted)', fontWeight: 800, textTransform: 'uppercase' }}>Titolo</th>
+                      <th style={{ padding: '16px', fontSize: '14px', color: 'var(--text-muted)', fontWeight: 800, textTransform: 'uppercase' }}>Social</th>
+                      <th style={{ padding: '16px', fontSize: '14px', color: 'var(--text-muted)', fontWeight: 800, textTransform: 'uppercase' }}>SEO</th>
+                      <th style={{ padding: '16px', fontSize: '14px', color: 'var(--text-muted)', fontWeight: 800, textTransform: 'uppercase' }}>Azioni</th>
                     </tr>
                   </thead>
                   <tbody>
                     {filteredPosts.map(post => (
-                      <tr key={post.id} style={{ borderBottom: '1px solid var(--border)' }}>
-                        <td style={{ padding: '12px' }}>
-                          <input type="checkbox" checked={selectedPosts.includes(post.id)} onChange={() => togglePostSelection(post.id)} style={{ cursor: 'pointer' }} />
+                      <tr key={post.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', transition: 'background 0.2s ease' }} onMouseOver={e => e.currentTarget.style.background = 'rgba(255,255,255,0.02)'} onMouseOut={e => e.currentTarget.style.background = 'transparent'}>
+                        <td style={{ padding: '16px' }}>
+                          <input type="checkbox" checked={selectedPosts.includes(post.id)} onChange={() => togglePostSelection(post.id)} style={{ cursor: 'pointer', transform: 'scale(1.2)' }} />
                         </td>
-                        <td style={{ padding: '12px' }}>
-                           <input type="checkbox" checked={post.published == 1} onChange={() => togglePublishPost(post.id, post.published)} title={post.published == 1 ? "Nascondi" : "Pubblica"} style={{ transform: 'scale(1.2)', cursor: 'pointer' }} />
+                        <td style={{ padding: '16px' }}>
+                           <input type="checkbox" checked={post.published == 1} onChange={() => togglePublishPost(post.id, post.published)} title={post.published == 1 ? "Nascondi" : "Pubblica"} style={{ transform: 'scale(1.4)', cursor: 'pointer' }} />
                         </td>
-                        <td style={{ padding: '12px', fontWeight: 500, fontSize: '14px' }}>
+                        <td style={{ padding: '16px', fontWeight: 600, fontSize: '15px' }}>
                           {post.generated_title || post.raw_content?.substring(0, 40) + '...'}
                         </td>
-                        <td style={{ padding: '12px' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px' }}>
-                            <SocialIcon platform={post.platform} size={16} /> {SOCIAL[post.platform]?.label}
+                        <td style={{ padding: '16px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', fontWeight: 600 }}>
+                            <SocialIcon platform={post.platform} size={20} /> {SOCIAL[post.platform]?.label}
                           </div>
                         </td>
-                        <td style={{ padding: '12px' }}>
-                          <span className="badge" style={{ background: post.seo_score >= 80 ? 'var(--teal-light)' : (post.seo_score >= 50 ? 'var(--amber-light)' : 'var(--red-light)'), color: post.seo_score >= 80 ? 'var(--teal)' : (post.seo_score >= 50 ? 'var(--amber)' : 'var(--red)') }}>
+                        <td style={{ padding: '16px' }}>
+                          <span style={{ background: post.seo_score >= 80 ? 'rgba(0,255,150,0.1)' : (post.seo_score >= 50 ? 'rgba(255,149,0,0.1)' : 'rgba(255,0,50,0.1)'), color: post.seo_score >= 80 ? 'var(--teal)' : (post.seo_score >= 50 ? 'var(--amber)' : 'var(--red)'), padding: '6px 12px', borderRadius: '20px', fontSize: '13px', fontWeight: 800, border: `1px solid ${post.seo_score >= 80 ? 'rgba(0,255,150,0.2)' : (post.seo_score >= 50 ? 'rgba(255,149,0,0.2)' : 'rgba(255,0,50,0.2)')}` }}>
                             {post.seo_score}
                           </span>
                         </td>
-                        <td style={{ padding: '12px' }}>
-                          <div style={{ display: 'flex', gap: '8px' }}>
-                            <button onClick={() => setEditingPost({id: post.id, title: post.generated_title || '', body: post.edited_body || post.generated_body || '', excerpt: post.generated_excerpt || '', tags: (post.tags || []).join(', ')})} style={{ background: 'var(--bg)', border: '1px solid var(--border)', padding: '4px 8px', borderRadius: '4px', cursor: 'pointer', fontSize: '12px' }}>✏️ Modifica</button>
-                            <button onClick={() => deletePost(post.id)} style={{ background: 'var(--red-light)', border: '1px solid var(--red)', color: 'var(--red)', padding: '4px 8px', borderRadius: '4px', cursor: 'pointer', fontSize: '12px' }}>❌ Elimina</button>
+                        <td style={{ padding: '16px' }}>
+                          <div style={{ display: 'flex', gap: '10px' }}>
+                            <button onClick={() => setEditingPost({id: post.id, title: post.generated_title || '', body: post.edited_body || post.generated_body || '', excerpt: post.generated_excerpt || '', tags: (post.tags || []).join(', ')})} style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', color: 'var(--text)', padding: '6px 12px', borderRadius: '6px', cursor: 'pointer', fontSize: '13px', fontWeight: 600 }}>✏️ Modifica</button>
+                            <button onClick={() => deletePost(post.id)} style={{ background: 'rgba(255,0,50,0.1)', border: '1px solid rgba(255,0,50,0.3)', color: 'var(--red)', padding: '6px 12px', borderRadius: '6px', cursor: 'pointer', fontSize: '13px', fontWeight: 600 }}>❌ Elimina</button>
                           </div>
                         </td>
                       </tr>
@@ -1776,46 +1836,50 @@ async function runSiteAi() {
         {/* Tab: SEO */}
         {tab === 'seo' && (
           <div>
-            <div className="card" style={{ marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
+            <div className="glass-modal" style={{ marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '2rem', padding: '2rem' }}>
               <div style={{ textAlign: 'center' }}>
-                <div style={{ fontSize: '48px', fontWeight: 700, color: site?.seo_score >= 70 ? 'var(--teal)' : 'var(--amber)' }}>
+                <div style={{ fontSize: '64px', fontWeight: 800, color: site?.seo_score >= 70 ? 'var(--teal)' : 'var(--amber)', textShadow: '0 0 20px rgba(0,0,0,0.5)' }}>
                   {site?.seo_score || 0}
                 </div>
-                <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Score SEO</div>
+                <div style={{ fontSize: '14px', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px' }}>Score SEO</div>
               </div>
               <div>
-                <h3 style={{ marginBottom: '4px' }}>
-                  {(site?.seo_score || 0) >= 80 ? '🟢 Ottimo' : (site?.seo_score || 0) >= 60 ? '🟡 Buono' : '🔴 Da migliorare'}
+                <h3 style={{ marginBottom: '8px', fontSize: '24px' }}>
+                  {(site?.seo_score || 0) >= 80 ? '🟢 Eccellente' : (site?.seo_score || 0) >= 60 ? '🟡 Buono' : '🔴 Da migliorare'}
                 </h3>
-                <p style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
-                  Basato su {posts.length} contenuti importati. Google potrà trovare il tuo sito.
+                <p style={{ fontSize: '15px', color: 'var(--text-muted)', fontWeight: 500 }}>
+                  Basato su <b>{posts.length}</b> contenuti importati. Questo punteggio indica quanto il tuo sito è ottimizzato per Google.
                 </p>
               </div>
             </div>
 
-            <div className="card" style={{ marginBottom: '1rem' }}>
-              <h2 style={{ marginBottom: '1rem' }}>Bozze in lavorazione</h2>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                {drafts.map(d => (
-                  <div key={d.id} className="card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                      <SocialIcon platform={d.platform} />
+            <div className="glass-modal" style={{ marginBottom: '1.5rem', padding: '1.5rem' }}>
+              <h2 style={{ marginBottom: '1.5rem', color: 'var(--primary)', fontSize: '20px' }}>Bozze in lavorazione</h2>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                {drafts.length === 0 ? (
+                  <p style={{ color: 'var(--text-muted)', fontSize: '14px', fontWeight: 500 }}>Nessun contenuto in elaborazione.</p>
+                ) : drafts.map(d => (
+                  <div key={d.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px', background: 'rgba(0,0,0,0.2)', borderRadius: 'var(--radius)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                      <div style={{ background: 'rgba(255,255,255,0.05)', padding: '8px', borderRadius: '50%' }}>
+                        <SocialIcon platform={d.platform} size={24} />
+                      </div>
                       <div>
-                        <a href={d.source_url} target="_blank" rel="noreferrer" style={{ fontWeight: 500, color: 'var(--text)', textDecoration: 'none' }}>
+                        <a href={d.source_url} target="_blank" rel="noreferrer" style={{ fontWeight: 700, color: 'var(--text)', textDecoration: 'none', fontSize: '15px' }}>
                           {d.source_url}
                         </a>
-                        <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+                        <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '4px' }}>
                           Importato il {d.published_at.substring(0, 10)}
                         </div>
                       </div>
                     </div>
                     <div>
                       {harmonizingId === d.id ? (
-                        <span style={{ fontSize: '13px', color: 'var(--purple)', fontWeight: 500 }}>
-                          ⟳ Elaborazione AI...
+                        <span style={{ fontSize: '13px', color: 'var(--primary)', fontWeight: 800, padding: '6px 12px', background: 'rgba(0,240,255,0.1)', borderRadius: '20px', border: '1px solid rgba(0,240,255,0.2)' }}>
+                          ⟳ Elaborazione AI in corso...
                         </span>
                       ) : (
-                        <span className="badge badge-amber" style={{ fontSize: '13px' }}>
+                        <span style={{ fontSize: '13px', color: 'var(--amber)', fontWeight: 800, padding: '6px 12px', background: 'rgba(255,149,0,0.1)', borderRadius: '20px', border: '1px solid rgba(255,149,0,0.2)' }}>
                           ⟳ In coda AI...
                         </span>
                       )}
@@ -1825,8 +1889,8 @@ async function runSiteAi() {
               </div>
             </div>
 
-            <div className="card">
-              <h3 style={{ marginBottom: '1rem' }}>Cosa l'AI ha fatto per il tuo SEO</h3>
+            <div className="glass-modal" style={{ padding: '1.5rem' }}>
+              <h3 style={{ marginBottom: '1.5rem', color: 'var(--primary)', fontSize: '20px' }}>Cosa l'AI ha fatto per il tuo SEO</h3>
               {[
                 ['✓', 'Trascrizione audio/video con Whisper — i tuoi video ora sono testo leggibile da Google', 'var(--teal)'],
                 ['✓', 'Titoli H1 ottimizzati generati automaticamente per ogni contenuto', 'var(--teal)'],
@@ -1836,9 +1900,9 @@ async function runSiteAi() {
                 ['✓', 'URL slug leggibili da motori di ricerca', 'var(--teal)'],
                 ['✓', 'Tag e parole chiave estratte dal contenuto reale', 'var(--teal)'],
               ].map(([icon, text, color], i) => (
-                <div key={i} style={{ display: 'flex', gap: '10px', marginBottom: '10px', fontSize: '14px' }}>
-                  <span style={{ color, fontWeight: 600 }}>{icon}</span>
-                  <span style={{ color: 'var(--text-muted)' }}>{text}</span>
+                <div key={i} style={{ display: 'flex', gap: '12px', marginBottom: '16px', fontSize: '15px', alignItems: 'center' }}>
+                  <span style={{ color, fontWeight: 800, background: 'rgba(0,255,150,0.1)', padding: '4px', borderRadius: '50%', width: '24px', height: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{icon}</span>
+                  <span style={{ color: 'var(--text)', fontWeight: 500 }}>{text}</span>
                 </div>
               ))}
             </div>
@@ -1848,15 +1912,15 @@ async function runSiteAi() {
         {/* Tab: Impostazioni */}
         {tab === 'settings' && (
           <div>
-            <div className="card" style={{ marginBottom: '1rem', background: 'linear-gradient(135deg, var(--purple-light), #fff)', border: '1px solid var(--purple)' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+            <div className="glass-modal" style={{ marginBottom: '1rem', border: '1px solid var(--primary)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
                 <div>
-                  <h3 style={{ marginBottom: '0.25rem', color: 'var(--purple-dark)' }}>✨ Layout generati dall'AI</h3>
-                  <p style={{ color: 'var(--text-muted)', fontSize: '13px', margin: 0 }}>
+                  <h3 style={{ marginBottom: '0.25rem', color: 'var(--primary)', fontSize: '20px' }}>✨ Layout generati dall'AI</h3>
+                  <p style={{ color: 'var(--text-muted)', fontSize: '14px', margin: 0, fontWeight: 500 }}>
                     Lascia che il Graphic Designer crei proposte su misura in base al tuo profilo.
                   </p>
                 </div>
-                <button className="btn btn-primary" onClick={forceDesignSite} disabled={designingSite}>
+                <button className="btn btn-primary" onClick={forceDesignSite} disabled={designingSite} style={{ padding: '12px 20px', fontSize: '14px' }}>
                   {designingSite ? '⟳ Generazione in corso...' : 'Rigenera Proposte Layout'}
                 </button>
               </div>
@@ -1914,11 +1978,11 @@ async function runSiteAi() {
             </div>
 
 
-            <div className="card" style={{ marginTop: '1rem' }}>
+            <div className="glass-modal" style={{ marginTop: '2rem' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
                 <div>
-                  <h3 style={{ marginBottom: '0.25rem' }}>Libreria Modelli (Manual Selection)</h3>
-                  <p style={{ color: 'var(--text-muted)', fontSize: '13px', margin: 0 }}>
+                  <h3 style={{ marginBottom: '0.5rem', fontSize: '20px' }}>Libreria Modelli (Manual Selection)</h3>
+                  <p style={{ color: 'var(--text-muted)', fontSize: '14px', margin: 0, fontWeight: 500 }}>
                     Scegli uno dei 20 temi premium e clicca "Applica". Il tuo sito verrà aggiornato immediatamente.
                   </p>
                 </div>
@@ -1928,28 +1992,28 @@ async function runSiteAi() {
                 {SITE_LAYOUTS.map(layout => (
                   <div key={layout.id} 
                     style={{ 
-                      border: selectedTheme === layout.id ? '2px solid var(--purple)' : '1px solid var(--border-strong)', 
+                      border: selectedTheme === layout.id ? '2px solid var(--primary)' : '1px solid var(--border-strong)', 
                       borderRadius: 'var(--radius)', 
-                      padding: '1.25rem', 
-                      background: 'var(--surface)', 
+                      padding: '1.5rem', 
+                      background: selectedTheme === layout.id ? 'rgba(0,240,255,0.05)' : 'rgba(255,255,255,0.02)', 
                       position: 'relative', 
                       cursor: 'pointer', 
-                      transition: 'all 0.2s', 
-                      boxShadow: selectedTheme === layout.id ? '0 0 0 4px rgba(124, 58, 237, 0.1)' : '0 2px 5px rgba(0,0,0,0.02)' 
+                      transition: 'all 0.3s ease', 
+                      boxShadow: selectedTheme === layout.id ? '0 0 20px rgba(0, 240, 255, 0.2)' : 'none' 
                     }} 
                     onClick={() => { setPreviewingTheme(layout.id); setActivePreviewUrl(`${siteUrl}?preview_theme=${layout.id}`); }}>
                     
-                    {selectedTheme === layout.id && <div style={{ position: 'absolute', top: 12, right: 12, background: 'var(--purple)', color: '#fff', borderRadius: '50%', width: 24, height: 24, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px', fontWeight: 'bold' }}>✓</div>}
+                    {selectedTheme === layout.id && <div style={{ position: 'absolute', top: 16, right: 16, background: 'var(--primary)', color: '#000', borderRadius: '50%', width: 28, height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '16px', fontWeight: 800, boxShadow: '0 0 10px rgba(0,240,255,0.5)' }}>✓</div>}
                     
-                    <div style={{ fontSize: '2.5rem', marginBottom: '0.75rem' }}>{layout.emoji}</div>
-                    <div style={{ fontWeight: 700, fontSize: '16px', marginBottom: '6px', color: 'var(--text)' }}>{layout.name}</div>
-                    <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '1.25rem', minHeight: '40px', lineHeight: 1.4 }}>{layout.desc}</div>
+                    <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>{layout.emoji}</div>
+                    <div style={{ fontWeight: 800, fontSize: '18px', marginBottom: '8px', color: 'var(--text)' }}>{layout.name}</div>
+                    <div style={{ fontSize: '14px', color: 'var(--text-muted)', marginBottom: '1.5rem', minHeight: '40px', lineHeight: 1.5, fontWeight: 500 }}>{layout.desc}</div>
                     
-                    <div style={{ display: 'flex', gap: '6px', marginBottom: '1.25rem' }}>
-                      {layout.colors.map((c, idx) => <div key={idx} style={{ width: 24, height: 24, borderRadius: '50%', background: c, border: '1px solid rgba(0,0,0,0.1)' }} title={c} />)}
+                    <div style={{ display: 'flex', gap: '8px', marginBottom: '1.5rem' }}>
+                      {layout.colors.map((c, idx) => <div key={idx} style={{ width: 28, height: 28, borderRadius: '50%', background: c, border: '1px solid rgba(255,255,255,0.1)' }} title={c} />)}
                     </div>
                     
-                    <button className={selectedTheme === layout.id ? "btn btn-primary btn-full" : "btn btn-outline btn-full"} style={{ fontSize: '13px', padding: '10px' }}>
+                    <button className={selectedTheme === layout.id ? "btn btn-primary btn-full" : "btn btn-outline btn-full"} style={{ fontSize: '14px', padding: '12px', fontWeight: 700 }}>
                       {selectedTheme === layout.id ? 'Modello Attivo' : 'Anteprima'}
                     </button>
                   </div>
@@ -1959,17 +2023,17 @@ async function runSiteAi() {
 
             {/* Iframe Anteprima Modale */}
             {activePreviewUrl && (
-              <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.8)', zIndex: 9999, display: 'flex', flexDirection: 'column', padding: '20px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#222', color: '#fff', padding: '10px 20px', borderRadius: '10px 10px 0 0' }}>
-                  <span style={{ fontWeight: 600 }}>Anteprima Reale</span>
-                  <div style={{ display: 'flex', gap: '10px' }}>
+              <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.8)', zIndex: 9999, display: 'flex', flexDirection: 'column', padding: '20px', backdropFilter: 'blur(10px)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#111', color: '#fff', padding: '16px 24px', borderRadius: '16px 16px 0 0', border: '1px solid rgba(255,255,255,0.1)' }}>
+                  <span style={{ fontWeight: 800, fontSize: '18px' }}>Anteprima Reale</span>
+                  <div style={{ display: 'flex', gap: '16px' }}>
                     {previewingTheme && (
-                      <button onClick={() => { chooseTheme(previewingTheme); setActivePreviewUrl(null); setPreviewingTheme(null); }} style={{ background: 'var(--purple)', color: '#fff', fontSize: '14px', border: 'none', cursor: 'pointer', padding: '6px 16px', borderRadius: '4px', fontWeight: 'bold' }}>✓ Applica questo Tema</button>
+                      <button onClick={() => { chooseTheme(previewingTheme); setActivePreviewUrl(null); setPreviewingTheme(null); }} style={{ background: 'var(--primary)', color: '#000', fontSize: '15px', border: 'none', cursor: 'pointer', padding: '8px 20px', borderRadius: '20px', fontWeight: 800 }}>✓ APPLICA QUESTO TEMA</button>
                     )}
-                    <button onClick={() => { setActivePreviewUrl(null); setPreviewingTheme(null); }} style={{ background: 'transparent', color: '#fff', fontSize: '18px', border: 'none', cursor: 'pointer' }}>✖ Chiudi</button>
+                    <button onClick={() => { setActivePreviewUrl(null); setPreviewingTheme(null); }} style={{ background: 'transparent', color: '#fff', fontSize: '20px', border: 'none', cursor: 'pointer', opacity: 0.7 }}>✖ Chiudi</button>
                   </div>
                 </div>
-                <iframe src={activePreviewUrl} style={{ width: '100%', flex: 1, background: '#fff', border: 'none', borderRadius: '0 0 10px 10px' }} />
+                <iframe src={activePreviewUrl} style={{ width: '100%', flex: 1, background: '#fff', border: 'none', borderRadius: '0 0 16px 16px' }} />
               </div>
             )}
 
@@ -1980,117 +2044,129 @@ async function runSiteAi() {
         {/* Tab: Impostazioni Generali (General) */}
         {tab === 'general' && (
           <div>
-<div className="card" style={{ marginBottom: '1rem' }}>
-              <h3 style={{ marginBottom: '0.75rem' }}>Configurazione SEO</h3>
+            <div className="glass-modal" style={{ marginBottom: '1.5rem', padding: '1.5rem' }}>
+              <h3 style={{ marginBottom: '1rem', color: 'var(--primary)' }}>Configurazione SEO</h3>
               <div className="form-group">
                 <label className="label">Codice verifica Google Search Console</label>
                 <input type="text" value={gscVerification} onChange={e => setGscVerification(e.target.value)}
-                  placeholder="Es: google-site-verification=XXXXXXXXXXXXXXXXXXXXX" />
-                <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>Incolla il codice di verifica HTML che ti fornisce Google Search Console per indicizzare il tuo sito.</p>
+                  placeholder="Es: google-site-verification=XXXXXXXXXXXXXXXXXXXXX" style={{ background: 'rgba(255,255,255,0.05)', color: 'var(--text)' }} />
+                <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '8px', fontWeight: 500 }}>Incolla il codice di verifica HTML che ti fornisce Google Search Console per indicizzare il tuo sito.</p>
               </div>
-              <button className="btn btn-outline" onClick={saveProfile} disabled={savingProfile}>
-                {savingProfile ? 'Salvataggio...' : 'Salva configurazione SEO'}
+              <button className="btn btn-primary" onClick={saveProfile} disabled={savingProfile} style={{ padding: '12px 20px', fontWeight: 700 }}>
+                {savingProfile ? '⟳ Salvataggio...' : '✓ Salva configurazione SEO'}
               </button>
             </div>
 
-
-
-            <div className="card" style={{ marginBottom: '1rem' }}>
-              <h3 style={{ marginBottom: '0.75rem' }}>Agente editoriale</h3>
+            <div className="glass-modal" style={{ marginBottom: '1.5rem', padding: '1.5rem' }}>
+              <h3 style={{ marginBottom: '1rem', color: 'var(--primary)' }}>Agente editoriale</h3>
               <div className="form-group">
                 <label className="label">Ruolo e missione</label>
                 <textarea value={roleMissionDraft} onChange={e => setRoleMissionDraft(e.target.value)}
                   placeholder="Es: consulente che aiuta PMI locali a trasformare contenuti social in pagine utili per clienti e Google."
-                  style={{ width: '100%', minHeight: '82px', resize: 'vertical', padding: '10px 14px', border: '1px solid var(--border-strong)', borderRadius: 'var(--radius-sm)', background: 'var(--surface)', fontFamily: 'inherit', fontSize: '14px' }} />
+                  style={{ width: '100%', minHeight: '82px', resize: 'vertical', padding: '12px 16px', border: '1px solid var(--border-strong)', borderRadius: 'var(--radius-sm)', background: 'rgba(255,255,255,0.05)', fontFamily: 'inherit', fontSize: '15px', color: 'var(--text)' }} />
               </div>
               <div className="form-group">
                 <label className="label">Strategia di aggregazione</label>
                 <textarea value={strategyDraft} onChange={e => setStrategyDraft(e.target.value)}
                   placeholder="Cosa pubblicare, cosa evitare, tono, temi ricorrenti, pubblico ideale."
-                  style={{ width: '100%', minHeight: '96px', resize: 'vertical', padding: '10px 14px', border: '1px solid var(--border-strong)', borderRadius: 'var(--radius-sm)', background: 'var(--surface)', fontFamily: 'inherit', fontSize: '14px' }} />
+                  style={{ width: '100%', minHeight: '96px', resize: 'vertical', padding: '12px 16px', border: '1px solid var(--border-strong)', borderRadius: 'var(--radius-sm)', background: 'rgba(255,255,255,0.05)', fontFamily: 'inherit', fontSize: '15px', color: 'var(--text)' }} />
               </div>
-              <button className="btn btn-outline" onClick={saveProfile} disabled={savingProfile}>
-                {savingProfile ? 'Salvo...' : 'Salva agente editoriale'}
+              <button className="btn btn-primary" onClick={saveProfile} disabled={savingProfile} style={{ padding: '12px 20px', fontWeight: 700 }}>
+                {savingProfile ? '⟳ Salvo...' : '✓ Salva agente editoriale'}
               </button>
             </div>
 
-            <div className="card" style={{ marginBottom: '1rem' }}>
-              <h3 style={{ marginBottom: '0.75rem' }}>Configurazione Scrittura Articoli</h3>
+            <div className="glass-modal" style={{ marginBottom: '1.5rem', padding: '1.5rem' }}>
+              <h3 style={{ marginBottom: '1rem', color: 'var(--primary)' }}>Configurazione Scrittura Articoli</h3>
               <div className="form-group">
                 <label className="label">Modello di Scrittura AI (Agente)</label>
                 <select value={harmonizeAgent} onChange={e => setHarmonizeAgent(e.target.value)}
-                  style={{ width: '100%', padding: '10px 14px', border: '1px solid var(--border-strong)', borderRadius: 'var(--radius-sm)', background: 'var(--surface)', fontSize: '14px', color: 'var(--text)' }}>
+                  style={{ width: '100%', padding: '12px 16px', border: '1px solid var(--border-strong)', borderRadius: 'var(--radius-sm)', background: '#111', fontSize: '15px', color: 'var(--text)' }}>
                   <option value="content_editor">Scrittore Standard (Copywriter)</option>
                   <option value="topical_authority_architect">Scrittore Ottimizzato (Topical Authority Architect)</option>
                 </select>
-                <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '6px', lineHeight: '1.4' }}>
+                <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '8px', lineHeight: '1.5', fontWeight: 500 }}>
                   Seleziona "Topical Authority Architect" per generare articoli che mostrano maggiore competenza ed esperienza e rompono i pattern tradizionali delle AI (Quality Rater friendly).
                 </p>
               </div>
-              <button className="btn btn-outline" onClick={saveProfile} disabled={savingProfile}>
-                {savingProfile ? 'Salvataggio...' : 'Salva configurazione scrittura'}
+              <div className="form-group">
+                <label className="label">Tipologia Profilo</label>
+                <div style={{ display: 'flex', gap: '16px', background: 'rgba(0,0,0,0.4)', padding: '8px', borderRadius: 'var(--radius-sm)' }}>
+                  <button onClick={() => setAccountType('business')} style={{ flex: 1, padding: '12px', borderRadius: 'var(--radius-sm)', background: accountType === 'business' ? 'var(--primary)' : 'transparent', color: accountType === 'business' ? '#000' : 'var(--text)', border: 'none', fontWeight: 700, transition: 'all 0.3s ease' }}>
+                    🏢 Account Business
+                  </button>
+                  <button onClick={() => setAccountType('personal')} style={{ flex: 1, padding: '12px', borderRadius: 'var(--radius-sm)', background: accountType === 'personal' ? 'var(--primary)' : 'transparent', color: accountType === 'personal' ? '#000' : 'var(--text)', border: 'none', fontWeight: 700, transition: 'all 0.3s ease' }}>
+                    🧑 Account Personale
+                  </button>
+                </div>
+                <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '8px', lineHeight: '1.5', fontWeight: 500 }}>
+                  Questo aiuterà l'AI a generare articoli più adatti: orientati alla conversione e alla vendita per i Business, orientati all'empatia e allo storytelling per i Profili Personali.
+                </p>
+              </div>
+              <button className="btn btn-primary" onClick={saveProfile} disabled={savingProfile} style={{ padding: '12px 20px', fontWeight: 700 }}>
+                {savingProfile ? '⟳ Salvataggio...' : '✓ Salva configurazione scrittura'}
               </button>
             </div>
 
-            <div className="card" style={{ marginBottom: '1rem' }}>
-              <h3 style={{ marginBottom: '1rem' }}>Link social inseriti</h3>
+            <div className="glass-modal" style={{ marginBottom: '1.5rem', padding: '1.5rem' }}>
+              <h3 style={{ marginBottom: '1rem', color: 'var(--primary)' }}>Link social inseriti</h3>
               {sources.length === 0 ? (
-                <p style={{ color: 'var(--text-muted)', fontSize: '13px' }}>Nessun link social inserito.</p>
+                <p style={{ color: 'var(--text-muted)', fontSize: '14px', fontWeight: 500 }}>Nessun link social inserito.</p>
               ) : sources.map(s => (
-                <div key={s.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px', gap: '12px' }}>
+                <div key={s.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px', gap: '16px', background: 'rgba(0,0,0,0.2)', padding: '12px', borderRadius: 'var(--radius)' }}>
                   <div style={{ minWidth: 0 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 500, fontSize: '14px' }}><SocialIcon platform={s.platform} size={16} /> {s.label || SOCIAL[s.platform]?.label || s.platform}</div>
-                    <a href={s.url} target="_blank" rel="noopener" style={{ display: 'block', fontSize: '12px', color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.url}</a>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontWeight: 700, fontSize: '15px', color: 'var(--text)' }}><SocialIcon platform={s.platform} size={20} /> {s.label || SOCIAL[s.platform]?.label || s.platform}</div>
+                    <a href={s.url} target="_blank" rel="noopener" style={{ display: 'block', fontSize: '13px', color: 'var(--primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginTop: '4px' }}>{s.url}</a>
                   </div>
-                  <span className="badge badge-green">Attivo</span>
+                  <span style={{ background: 'var(--teal-light)', color: 'var(--teal)', padding: '4px 10px', borderRadius: '20px', fontSize: '11px', fontWeight: 800 }}>ATTIVO</span>
                 </div>
               ))}
             </div>
 
-            <div className="card" style={{ marginBottom: '1rem' }}>
-              <h3 style={{ marginBottom: '1rem' }}>Social connessi</h3>
+            <div className="glass-modal" style={{ marginBottom: '1.5rem', padding: '1.5rem' }}>
+              <h3 style={{ marginBottom: '1rem', color: 'var(--primary)' }}>Social connessi</h3>
               {connections.length === 0 ? (
-                <p style={{ color: 'var(--text-muted)', fontSize: '13px' }}>Nessun social connesso.</p>
+                <p style={{ color: 'var(--text-muted)', fontSize: '14px', fontWeight: 500 }}>Nessun social connesso.</p>
               ) : connections.map(c => (
-                <div key={c.platform} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <SocialIcon platform={c.platform} size={18} />
+                <div key={c.platform} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px', background: 'rgba(0,0,0,0.2)', padding: '12px', borderRadius: 'var(--radius)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <SocialIcon platform={c.platform} size={24} />
                     <div>
-                      <div style={{ fontWeight: 500, fontSize: '14px' }}>{SOCIAL[c.platform]?.label}</div>
-                      {c.handle && <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{c.handle}</div>}
+                      <div style={{ fontWeight: 700, fontSize: '15px', color: 'var(--text)' }}>{SOCIAL[c.platform]?.label}</div>
+                      {c.handle && <div style={{ fontSize: '13px', color: 'var(--text-muted)' }}>{c.handle}</div>}
                     </div>
                   </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                     <input type="date" title="Retroattività" 
                       defaultValue={c.since_date || ''}
                       onBlur={e => saveConnectionSinceDate(c.platform, e.target.value)}
-                      style={{ padding: '6px', fontSize: '13px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)' }} />
-                    <span className={`badge ${c.active ? 'badge-green' : 'badge-red'}`}>
-                      {c.active ? 'Attivo' : 'Inattivo'}
+                      style={{ padding: '8px', fontSize: '14px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-strong)', background: '#111', color: 'var(--text)' }} />
+                    <span style={{ background: c.active ? 'var(--teal-light)' : 'var(--red-light)', color: c.active ? 'var(--teal)' : 'var(--red)', padding: '4px 10px', borderRadius: '20px', fontSize: '11px', fontWeight: 800 }}>
+                      {c.active ? 'ATTIVO' : 'INATTIVO'}
                     </span>
                   </div>
                 </div>
               ))}
             </div>
 
-            <div className="card" style={{ marginBottom: '1rem' }}>
-              <h3 style={{ marginBottom: '0.5rem' }}>Sincronizzazione automatica</h3>
-              <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '0.75rem' }}>
+            <div className="glass-modal" style={{ marginBottom: '1.5rem', padding: '1.5rem' }}>
+              <h3 style={{ marginBottom: '0.5rem', color: 'var(--primary)' }}>Sincronizzazione automatica</h3>
+              <p style={{ fontSize: '14px', color: 'var(--text-muted)', marginBottom: '0.75rem', fontWeight: 500 }}>
                 Il tuo sito si aggiorna automaticamente ogni 6 ore quando pubblichi nuovi contenuti sui social.
               </p>
               {site?.last_sync && (
-                <p style={{ fontSize: '13px', color: 'var(--text-faint)' }}>
+                <p style={{ fontSize: '14px', color: 'var(--primary-dark)', fontWeight: 700 }}>
                   Ultima sincronizzazione: {new Date(site.last_sync).toLocaleString('it-IT')}
                 </p>
               )}
             </div>
 
-            <div className="card">
-              <h3 style={{ marginBottom: '0.75rem' }}>🌍 Il tuo sito pubblico</h3>
-              <div style={{ background: 'var(--gray-light)', padding: '10px 14px', borderRadius: 'var(--radius-sm)', fontFamily: 'monospace', fontSize: '13px', marginBottom: '10px', wordBreak: 'break-all' }}>{siteUrl}</div>
-              <div style={{ display: 'flex', gap: '10px' }}>
-                <a href={siteUrl} target="_blank" rel="noopener" className="btn btn-primary" style={{ textDecoration: 'none' }}>🌍 Apri sito</a>
-                <a href={`${siteUrl}/sitemap.xml`} target="_blank" className="btn btn-outline" style={{ textDecoration: 'none', fontSize: '13px' }}>Sitemap</a>
+            <div className="glass-modal" style={{ padding: '1.5rem' }}>
+              <h3 style={{ marginBottom: '1rem', color: 'var(--primary)' }}>🌍 Il tuo sito pubblico</h3>
+              <div style={{ background: 'rgba(0,240,255,0.05)', border: '1px solid rgba(0,240,255,0.2)', padding: '14px 18px', borderRadius: 'var(--radius-sm)', fontFamily: 'monospace', fontSize: '15px', marginBottom: '16px', wordBreak: 'break-all', color: 'var(--text)' }}>{siteUrl}</div>
+              <div style={{ display: 'flex', gap: '12px' }}>
+                <a href={siteUrl} target="_blank" rel="noopener" className="btn btn-primary" style={{ textDecoration: 'none', padding: '12px 20px', fontWeight: 700 }}>🌍 APRI SITO</a>
+                <a href={`${siteUrl}/sitemap.xml`} target="_blank" className="btn btn-outline" style={{ textDecoration: 'none', fontSize: '14px', padding: '12px 20px', fontWeight: 700 }}>Sitemap XML</a>
               </div>
             </div>
           </div>
@@ -2102,50 +2178,41 @@ async function runSiteAi() {
 
         {/* Modal Modifica Post */}
         {editingPost && (
-          <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', zIndex: 1000, padding: '2rem 1rem', overflowY: 'auto' }}>
-            <div style={{ width: '100%', maxWidth: '800px', background: '#fff', borderRadius: '16px', boxShadow: '0 20px 40px rgba(0,0,0,0.3)', padding: '2rem', display: 'flex', flexDirection: 'column', gap: '2rem' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '2px solid var(--gray-light)', paddingBottom: '1rem' }}>
-                <h2 style={{ fontSize: '28px', fontWeight: 800, margin: 0, color: 'var(--text)' }}>✏️ Modifica Articolo</h2>
-                <button onClick={() => setEditingPost(null)} style={{ background: 'var(--gray-light)', border: 'none', width: '44px', height: '44px', borderRadius: '50%', fontSize: '20px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text)', transition: 'background 0.2s' }}>✕</button>
+          <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', zIndex: 1000, padding: '2rem 1rem', overflowY: 'auto' }}>
+            <div className="glass-modal" style={{ width: '100%', maxWidth: '800px', display: 'flex', flexDirection: 'column', gap: '1.5rem', border: '1px solid var(--border)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border)', paddingBottom: '1rem' }}>
+                <h2 style={{ fontSize: '24px', fontWeight: 800, margin: 0, color: 'var(--primary)' }}>✏️ Modifica Articolo</h2>
+                <button onClick={() => setEditingPost(null)} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', width: '36px', height: '36px', borderRadius: '50%', fontSize: '16px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text)', transition: 'background 0.2s' }}>✕</button>
               </div>
               
               <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
                 <div>
-                  <label style={{ display: 'block', fontSize: '18px', fontWeight: 700, marginBottom: '8px', color: 'var(--text)' }}>Titolo Principale dell'Articolo</label>
-                  <input type="text" value={editingPost.title} onChange={e => setEditingPost({...editingPost, title: e.target.value})} style={{ width: '100%', fontSize: '22px', fontWeight: 600, padding: '16px', borderRadius: '8px', border: '2px solid var(--border-strong)', background: '#f9f9f9', color: 'var(--text)' }} />
+                  <label style={{ display: 'block', fontSize: '15px', fontWeight: 700, marginBottom: '8px', color: 'var(--text)' }}>Titolo Principale</label>
+                  <input type="text" value={editingPost.title} onChange={e => setEditingPost({...editingPost, title: e.target.value})} style={{ width: '100%', fontSize: '18px', fontWeight: 600, padding: '14px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-strong)', background: 'rgba(0,0,0,0.4)', color: 'var(--text)' }} />
                 </div>
                 
                 <div>
-                  <label style={{ display: 'block', fontSize: '18px', fontWeight: 700, marginBottom: '8px', color: 'var(--text)' }}>Testo dell'Articolo</label>
-                  <div style={{ padding: '10px', background: '#ffebee', color: '#c62828', marginBottom: '10px', borderRadius: '4px' }}>
-                    DEBUG (Lunghezza dati ricevuti dal server): {editingPost.body ? editingPost.body.length : 0} caratteri
-                  </div>
-                  <QuillEditor value={editingPost.body} onChange={val => setEditingPost({...editingPost, body: val})} style={{ background: '#fff', border: '2px solid var(--border-strong)', borderRadius: '8px', marginBottom: '20px' }} />
-                  <textarea 
-                    value={editingPost.body || ''} 
-                    onChange={e => setEditingPost({...editingPost, body: e.target.value})} 
-                    style={{ width: '100%', height: '100px', fontFamily: 'monospace', fontSize: '12px', border: '1px solid #ccc' }}
-                    placeholder="Debug Testo Grezzo..."
-                  />
+                  <label style={{ display: 'block', fontSize: '15px', fontWeight: 700, marginBottom: '8px', color: 'var(--text)' }}>Testo dell'Articolo</label>
+                  <QuillEditor value={editingPost.body} onChange={val => setEditingPost({...editingPost, body: val})} style={{ background: '#fff', color: '#000', border: '2px solid var(--border-strong)', borderRadius: 'var(--radius-sm)', marginBottom: '8px' }} />
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
-                  <div>
-                    <label style={{ display: 'block', fontSize: '16px', fontWeight: 700, marginBottom: '8px', color: 'var(--text)' }}>Piccolo Riassunto (Opzionale)</label>
-                    <textarea value={editingPost.excerpt} onChange={e => setEditingPost({...editingPost, excerpt: e.target.value})} style={{ width: '100%', minHeight: '120px', padding: '12px', borderRadius: '8px', border: '2px solid var(--border-strong)', fontSize: '15px', background: '#f9f9f9', resize: 'vertical' }} />
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1.5rem' }}>
+                  <div style={{ flex: '1 1 300px' }}>
+                    <label style={{ display: 'block', fontSize: '15px', fontWeight: 700, marginBottom: '8px', color: 'var(--text)' }}>Breve Riassunto (Opzionale)</label>
+                    <textarea value={editingPost.excerpt} onChange={e => setEditingPost({...editingPost, excerpt: e.target.value})} style={{ width: '100%', minHeight: '100px', padding: '12px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-strong)', fontSize: '14px', background: 'rgba(0,0,0,0.4)', color: 'var(--text)', resize: 'vertical' }} />
                   </div>
-                  <div>
-                    <label style={{ display: 'block', fontSize: '16px', fontWeight: 700, marginBottom: '8px', color: 'var(--text)' }}>Parole Chiave (Tag separati da virgola)</label>
-                    <textarea value={editingPost.tags} onChange={e => setEditingPost({...editingPost, tags: e.target.value})} placeholder="Es: cucina, ricette, estate" style={{ width: '100%', minHeight: '120px', padding: '12px', borderRadius: '8px', border: '2px solid var(--border-strong)', fontSize: '15px', background: '#f9f9f9', resize: 'vertical' }} />
+                  <div style={{ flex: '1 1 300px' }}>
+                    <label style={{ display: 'block', fontSize: '15px', fontWeight: 700, marginBottom: '8px', color: 'var(--text)' }}>Parole Chiave (separate da virgola)</label>
+                    <textarea value={editingPost.tags} onChange={e => setEditingPost({...editingPost, tags: e.target.value})} placeholder="Es: cucina, ricette, estate" style={{ width: '100%', minHeight: '100px', padding: '12px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-strong)', fontSize: '14px', background: 'rgba(0,0,0,0.4)', color: 'var(--text)', resize: 'vertical' }} />
                   </div>
                 </div>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '1rem', marginTop: '1rem' }}>
-                <button onClick={savePostEdit} disabled={cmsSaving} style={{ background: 'var(--teal)', color: '#fff', border: 'none', padding: '18px', fontSize: '20px', fontWeight: 700, borderRadius: '8px', cursor: 'pointer', transition: 'background 0.2s', boxShadow: '0 4px 12px rgba(20,184,166,0.3)' }}>
-                  {cmsSaving ? '⏳ Salvataggio...' : '✅ SALVA MODIFICHE'}
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem', marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid var(--border)' }}>
+                <button onClick={savePostEdit} disabled={cmsSaving} style={{ flex: '2 1 200px', background: 'var(--primary)', color: '#000', border: 'none', padding: '16px', fontSize: '16px', fontWeight: 800, borderRadius: 'var(--radius-sm)', cursor: 'pointer', transition: 'background 0.2s', boxShadow: '0 4px 12px rgba(0,240,255,0.2)' }}>
+                  {cmsSaving ? '⏳ Salvataggio in corso...' : '✅ SALVA MODIFICHE'}
                 </button>
-                <button onClick={() => setEditingPost(null)} style={{ background: 'var(--surface)', color: 'var(--text)', border: '2px solid var(--border-strong)', padding: '18px', fontSize: '18px', fontWeight: 600, borderRadius: '8px', cursor: 'pointer', transition: 'background 0.2s' }}>
+                <button onClick={() => setEditingPost(null)} style={{ flex: '1 1 100px', background: 'transparent', color: 'var(--text)', border: '1px solid var(--border-strong)', padding: '16px', fontSize: '16px', fontWeight: 600, borderRadius: 'var(--radius-sm)', cursor: 'pointer', transition: 'background 0.2s' }}>
                   ❌ ANNULLA
                 </button>
               </div>
@@ -2497,6 +2564,21 @@ function AdminScreen({ token, currentUser, adminPrompts, updatePrompt }) {
         </div>
       </div>
       )}
+      
+      {/* Bottom Nav Bar (solo Mobile) */}
+      <div className="mobile-nav">
+        {[
+          { id: 'overview', icon: '🏠', label: 'Home' },
+          { id: 'site', icon: '📝', label: 'Articoli' },
+          { id: 'sources', icon: '📡', label: 'Canali' },
+          { id: 'settings', icon: '🎨', label: 'Design' }
+        ].map(item => (
+          <a key={item.id} href="#" onClick={(e) => { e.preventDefault(); setTab(item.id); }} className={`mobile-nav-item ${tab === item.id ? 'active' : ''}`}>
+            <span style={{ fontSize: '24px', filter: tab === item.id ? 'drop-shadow(0 0 8px rgba(0,240,255,0.8))' : 'none' }}>{item.icon}</span>
+            {item.label}
+          </a>
+        ))}
+      </div>
     </div>
   );
 }

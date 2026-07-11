@@ -62,6 +62,33 @@ Restituisci SOLO la nuova memoria aggiornata (testo semplice), nient'altro.";
         return trim(self::gemini([['text' => $prompt]]));
     }
 
+    // ── AGENTE VISIONE: Analisi Immagini (OCR + Descrittore) ───────────────
+    public static function analyzeImage(string $imageUrl): string {
+        try {
+            $bytes = @file_get_contents($imageUrl);
+            if ($bytes === false || $bytes === '') return '';
+            
+            $finfo = new finfo(FILEINFO_MIME_TYPE);
+            $mime = $finfo->buffer($bytes) ?: 'image/jpeg';
+
+            $prompt = "Analizza attentamente questa immagine. \n"
+                    . "1. Descrivi dettagliatamente cosa c'è nella foto (soggetti, contesto, colori, atmosfera).\n"
+                    . "2. Se c'è del testo scritto sull'immagine (infografica, meme, screenshot), TRASCRIVILO ACCURATAMENTE (OCR).\n"
+                    . "3. Qual è il messaggio emotivo o commerciale che l'autore vuole trasmettere?\n"
+                    . "Restituisci un testo fluido che unisca queste informazioni, pronto per essere usato come base per scrivere un articolo. Niente elenchi puntati se non necessari.";
+
+            return trim(self::gemini([
+                ['inlineData' => ['mimeType' => $mime, 'data' => base64_encode($bytes)]],
+                ['text' => $prompt]
+            ], [
+                'temperature'    => 0.4,
+                'maxOutputTokens'=> 2048,
+            ]));
+        } catch (Exception $e) {
+            return ''; // Se fallisce (es. url protetto o invalido), ignora in modo silente per non bloccare il flusso
+        }
+    }
+
     // ── AGENTE 1 (Ingestione): trascrivi un video YouTube da link ──────────
     // Gemini accetta direttamente l'URL YouTube: niente download né Whisper.
     public static function transcribeYouTube(string $youtubeUrl): string {
@@ -93,18 +120,23 @@ Restituisci SOLO la nuova memoria aggiornata (testo semplice), nient'altro.";
     }
 
     // ── AGENTE 2 (Armonizzatore): testo grezzo → articolo SEO (Gemini) ─────
-    public static function harmonize(string $rawText, string $platform = '', string $caption = '', string $sourceContext = '', string $agentName = 'content_editor'): array {
+    public static function harmonize(string $rawText, string $platform = '', string $caption = '', string $sourceContext = '', string $agentName = 'content_editor', string $accountType = 'business'): array {
         $source = $caption
             ? "Didascalia social: \"$caption\"\n\nTrascrizione: \"$rawText\""
             : "Contenuto: \"$rawText\"";
         $context = $sourceContext ? "\n\nContesto dei canali/profili dell'utente:\n$sourceContext\n" : '';
+
+        $typePrompt = $accountType === 'business'
+            ? "TIPOLOGIA ACCOUNT: BUSINESS. Il tuo obiettivo è convertire i lettori in clienti, fare lead generation o brand awareness aziendale. Usa Call to Action chiare e un tono professionale ma coinvolgente."
+            : "TIPOLOGIA ACCOUNT: PERSONALE/CREATOR. Il tuo obiettivo è creare una forte connessione emotiva col lettore, engagement e storytelling. Usa un tono confidenziale, empatico e racconta il dietro le quinte.";
 
         $fallback = "Sei il copywriter e curatore editoriale ufficiale di questo utente/brand. "
             . "Il tuo compito è trasformare il seguente contenuto" . ($platform ? " (estratto da $platform)" : '') . " in un articolo professionale per il suo sito web.\n\n"
             . "REGOLE FONDAMENTALI (PENA IL FALLIMENTO DEL TASK):\n"
             . "1. ADERENZA AL FATTO: Basati ESCLUSIVAMENTE sulle informazioni fornite nel Contenuto. NON inventare dettagli, NON aggiungere tendenze, challenge, fenomeni virali o notizie esterne se non esplicitamente menzionate nella Trascrizione/Didascalia.\n"
             . "2. RISPETTO DELLA PROFILAZIONE: Adatta il tono di voce e lo stile esattamente come indicato nel 'Contesto dei canali/profili dell'utente' (Target, Strategia, Tono). Se il contesto richiede un tono specifico, usalo.\n"
-            . "3. PRESERVAZIONE: Se il contenuto originale contiene umorismo, sarcasmo, barzellette o sketch comici, PRESERVA ASSOLUTAMENTE LA COMICITA'. Non trasformare una barzelletta in un testo accademico.\n\n"
+            . "3. PRESERVAZIONE: Se il contenuto originale contiene umorismo, sarcasmo, barzellette o sketch comici, PRESERVA ASSOLUTAMENTE LA COMICITA'. Non trasformare una barzelletta in un testo accademico.\n"
+            . "4. " . $typePrompt . "\n\n"
             . "PRIMA analizza il Contesto dell'Utente per capire chi sta parlando e a chi si rivolge. POI leggi il Contenuto e scrivi l'articolo.\n"
             . "{sourceContext}\n{source}\n\n"
             . "Rispondi SOLO con JSON valido con questa forma:\n"

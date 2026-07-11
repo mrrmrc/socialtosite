@@ -798,6 +798,9 @@ if ($action === 'hide-post' && $method === 'POST') {
 if ($action === 'site-update' && $method === 'POST') {
     $b = body();
     
+    // Auto-patch database for account_type (se non esiste)
+    try { DB::execute("ALTER TABLE sites ADD COLUMN account_type VARCHAR(50) DEFAULT 'business'"); } catch (\Exception $e) {}
+    
     $fields = [];
     $params = [];
     if (array_key_exists('title', $b)) { $fields[] = 'title = ?'; $params[] = $b['title']; }
@@ -824,6 +827,7 @@ if (array_key_exists('theme', $b)) {
     if (array_key_exists('gsc_verification', $b)) { $fields[] = 'gsc_verification = ?'; $params[] = $b['gsc_verification']; }
     if (array_key_exists('site_ai_data', $b)) { $fields[] = 'site_ai_data = ?'; $params[] = is_array($b['site_ai_data']) ? json_encode($b['site_ai_data'], JSON_UNESCAPED_UNICODE) : $b['site_ai_data']; }
     if (array_key_exists('harmonize_agent', $b)) { $fields[] = 'harmonize_agent = ?'; $params[] = $b['harmonize_agent']; }
+    if (array_key_exists('account_type', $b)) { $fields[] = 'account_type = ?'; $params[] = $b['account_type']; }
 
     if (!empty($fields)) {
         $params[] = $userId;
@@ -1037,26 +1041,34 @@ if ($action === 'process-pending' && $method === 'POST') {
     try {
         require_once __DIR__ . '/services/ai.php';
         
-        // 1. Trascrizione eventuale se video
+        // 1. Analisi Media (Trascrizione se Video, OCR/Descrittore se Immagine)
         $transcript = trim($post['transcript'] ?? '');
-        if (!$transcript && !empty($post['media_url']) && strtoupper($post['media_type']) === 'VIDEO') {
-            // Verifica cache nel database
-            $cache = DB::fetch('SELECT transcript FROM posts WHERE (source_url=? OR media_url=?) AND transcript IS NOT NULL AND transcript != "" LIMIT 1', [$post['source_url'], $post['media_url']]);
-            if ($cache) {
-                $transcript = $cache['transcript'];
-            } else {
-                if ($post['platform'] === 'youtube') {
-                    $transcript = AI::transcribeYouTube($post['media_url'] ?: $post['source_url']);
+        if (!$transcript && !empty($post['media_url'])) {
+            if (strtoupper($post['media_type']) === 'VIDEO') {
+                // Verifica cache nel database
+                $cache = DB::fetch('SELECT transcript FROM posts WHERE (source_url=? OR media_url=?) AND transcript IS NOT NULL AND transcript != "" LIMIT 1', [$post['source_url'], $post['media_url']]);
+                if ($cache) {
+                    $transcript = $cache['transcript'];
                 } else {
-                    // Trascrive dal file locale se salvato, altrimenti url
-                    $parsedUrl = parse_url($post['media_url']);
-                    $path = __DIR__ . '/../../' . ltrim($parsedUrl['path'], '/');
-                    if (file_exists($path)) {
-                        $transcript = AI::transcribeFile($path, 'video/mp4');
+                    if ($post['platform'] === 'youtube') {
+                        $transcript = AI::transcribeYouTube($post['media_url'] ?: $post['source_url']);
                     } else {
-                        $transcript = AI::transcribeUrl($post['media_url']);
+                        // Trascrive dal file locale se salvato, altrimenti url
+                        $parsedUrl = parse_url($post['media_url']);
+                        $path = __DIR__ . '/../../' . ltrim($parsedUrl['path'], '/');
+                        if (file_exists($path)) {
+                            $transcript = AI::transcribeFile($path, 'video/mp4');
+                        } else {
+                            $transcript = AI::transcribeFile($post['media_url'], 'video/mp4');
+                        }
                     }
                 }
+            } elseif (strtoupper($post['media_type']) === 'IMAGE' || strtoupper($post['media_type']) === 'PHOTO') {
+                // Analisi Immagine (OCR + Descrizione via Gemini)
+                $parsedUrl = parse_url($post['media_url']);
+                $path = __DIR__ . '/../../' . ltrim($parsedUrl['path'], '/');
+                $imageSrc = file_exists($path) ? $path : $post['media_url'];
+                $transcript = AI::analyzeImage($imageSrc);
             }
         }
         
