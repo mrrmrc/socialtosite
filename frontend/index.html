@@ -352,10 +352,7 @@ function ConnectScreen({ token, onDone }) {
   }
 
   async function connectOAuth(platform) {
-    try {
-      const data = await apiFetch(`/api/index.php?action=social-auth-url&platform=${platform}`, {}, token);
-      window.location.href = data.url;
-    } catch (e) { alert('Errore connessione: ' + e.message); }
+    window.location.href = `/api/auth/oauth_redirect.php?platform=${platform}&token=${localStorage.getItem('sts_token') || ''}`;
   }
 
   async function removeChannel(channel) {
@@ -1168,10 +1165,7 @@ async function runSiteAi() {
   }
 
   async function connectOAuth(platform) {
-    try {
-      const data = await apiFetch(`/api/index.php?action=social-auth-url&platform=${platform}`, {}, token);
-      window.location.href = data.url;
-    } catch (e) { alert('Errore connessione: ' + e.message); }
+    window.location.href = `/api/auth/oauth_redirect.php?platform=${platform}&token=${localStorage.getItem('sts_token') || ''}`;
   }
 
   async function removeChannel(channel) {
