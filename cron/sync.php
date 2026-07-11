@@ -15,9 +15,11 @@ if (php_sapi_name() !== 'cli' && ($_SERVER['REMOTE_ADDR'] ?? '') !== '127.0.0.1'
 
 echo "[" . date('Y-m-d H:i:s') . "] Avvio sync automatico...\n";
 
-$users = DB::fetchAll(
-    'SELECT DISTINCT user_id FROM social_connections WHERE active=1'
-);
+$users = DB::fetchAll('
+    SELECT DISTINCT user_id FROM social_connections WHERE active=1
+    UNION
+    SELECT DISTINCT user_id FROM social_sources WHERE active=1
+');
 
 foreach ($users as $row) {
     $userId = $row['user_id'];

@@ -384,6 +384,31 @@ class Sync {
             $totalNew += $res['new'] ?? 0;
         }
 
+        // Sincronizza anche social_sources (canali aggiunti tramite URL)
+        require_once __DIR__ . '/ingest.php';
+        $sources = DB::fetchAll('SELECT * FROM social_sources WHERE user_id=? AND active=1', [$userId]);
+        $site = DB::fetch('SELECT profile_summary, role_mission, content_strategy FROM sites WHERE user_id=?', [$userId]);
+        
+        foreach ($sources as $src) {
+            try {
+                $res = Ingest::scanSources($userId, $maxPosts, $site['profile_summary'] ?? '', $site['role_mission'] ?? '', $site['content_strategy'] ?? '', $src['id']);
+                
+                $imported = $res['imported'] ?? 0;
+                $duplicate = $res['duplicate'] ?? 0;
+                $totalNew += $imported;
+                
+                $results[] = ['platform' => $src['platform'], 'new' => $imported, 'found' => $imported + $duplicate, 'error' => null];
+                
+                DB::execute('INSERT INTO sync_log (user_id, platform, status, posts_found, posts_new, error) VALUES (?,?,?,?,?,?)', [
+                    $userId, $src['platform'], 'ok', $imported + $duplicate, $imported, null
+                ]);
+            } catch (Throwable $e) {
+                DB::execute('INSERT INTO sync_log (user_id, platform, status, posts_found, posts_new, error) VALUES (?,?,?,?,?,?)', [
+                    $userId, $src['platform'], 'error', 0, 0, $e->getMessage()
+                ]);
+            }
+        }
+
         // Aggiorna cover_url se vuoto
         $site = DB::fetch('SELECT cover_url FROM sites WHERE user_id=?', [$userId]);
         if (empty($site['cover_url'])) {
