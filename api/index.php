@@ -1292,4 +1292,95 @@ if ($action === 'admin-logs' && $method === 'GET') {
     json(['logs' => $logs]);
 }
 
+// ── ADMIN: USERS ──────────────────────────────────────────────────────────
+if ($action === 'admin-users' && $method === 'GET') {
+    requireAdmin($isAdmin);
+    $users = DB::fetchAll(
+        'SELECT u.id, u.email, u.name, u.role, u.plan,
+                (SELECT COUNT(*) FROM posts WHERE user_id = u.id) as posts_count,
+                (SELECT COUNT(*) FROM social_connections WHERE user_id = u.id) as connections_count,
+                s.slug, s.role_mission, s.content_strategy
+         FROM users u
+         LEFT JOIN sites s ON u.id = s.user_id
+         ORDER BY u.id DESC'
+    );
+    foreach ($users as &$u) {
+        $u['sources'] = DB::fetchAll('SELECT platform, url FROM social_sources WHERE user_id=? AND active=1', [$u['id']]);
+    }
+    json(['users' => $users]);
+}
+
+if ($action === 'admin-create-user' && $method === 'POST') {
+    requireAdmin($isAdmin);
+    $b = body();
+    $name = trim($b['name'] ?? '');
+    $email = trim($b['email'] ?? '');
+    $password = password_hash($b['password'] ?? '', PASSWORD_DEFAULT);
+    $role = $b['role'] ?? 'user';
+    DB::execute('INSERT INTO users (name, email, password, role) VALUES (?, ?, ?, ?)', [$name, $email, $password, $role]);
+    json(['ok' => true]);
+}
+
+if ($action === 'admin-update-user' && $method === 'POST') {
+    requireAdmin($isAdmin);
+    $b = body();
+    $uid = (int)($b['id'] ?? 0);
+    if (isset($b['role'])) DB::execute('UPDATE users SET role=? WHERE id=?', [$b['role'], $uid]);
+    if (isset($b['plan'])) DB::execute('UPDATE users SET plan=? WHERE id=?', [$b['plan'], $uid]);
+    
+    if (isset($b['role_mission']) || isset($b['content_strategy'])) {
+        $site = DB::fetch('SELECT id FROM sites WHERE user_id=?', [$uid]);
+        if ($site) {
+            if (isset($b['role_mission'])) DB::execute('UPDATE sites SET role_mission=? WHERE user_id=?', [$b['role_mission'], $uid]);
+            if (isset($b['content_strategy'])) DB::execute('UPDATE sites SET content_strategy=? WHERE user_id=?', [$b['content_strategy'], $uid]);
+        } else {
+            $slug = uniqid();
+            DB::execute('INSERT INTO sites (user_id, slug, role_mission, content_strategy) VALUES (?, ?, ?, ?)', 
+                        [$uid, $slug, $b['role_mission'] ?? '', $b['content_strategy'] ?? '']);
+        }
+    }
+    json(['ok' => true]);
+}
+
+if ($action === 'admin-delete-user' && $method === 'POST') {
+    requireAdmin($isAdmin);
+    $b = body();
+    $uid = (int)($b['id'] ?? 0);
+    if ($uid !== $userId) {
+        DB::execute('DELETE FROM users WHERE id=?', [$uid]);
+    }
+    json(['ok' => true]);
+}
+
+if ($action === 'admin-impersonate' && $method === 'POST') {
+    requireAdmin($isAdmin);
+    $b = body();
+    $uid = (int)($b['id'] ?? 0);
+    $target = DB::fetch('SELECT id, email, name, role FROM users WHERE id=?', [$uid]);
+    if (!$target) jsonError('Utente non trovato');
+    
+    $token = bin2hex(random_bytes(32));
+    DB::execute('UPDATE users SET token=? WHERE id=?', [$token, $uid]);
+    
+    json(['ok' => true, 'token' => $token, 'user' => ['id' => $target['id'], 'email' => $target['email'], 'name' => $target['name'], 'role' => $target['role']]]);
+}
+
+if ($action === 'admin-prompts' && $method === 'GET') {
+    requireAdmin($isAdmin);
+    $prompts = [];
+    try {
+        $prompts = DB::fetchAll('SELECT * FROM agent_prompts ORDER BY id ASC');
+    } catch(Throwable $e) {}
+    json(['prompts' => $prompts]);
+}
+
+if ($action === 'admin-update-prompt' && $method === 'POST') {
+    requireAdmin($isAdmin);
+    $b = body();
+    try {
+        DB::execute('UPDATE agent_prompts SET instructions=? WHERE agent_name=?', [$b['instructions'], $b['agent_name']]);
+    } catch(Throwable $e) {}
+    json(['ok' => true]);
+}
+
 jsonError('Endpoint non trovato', 404);

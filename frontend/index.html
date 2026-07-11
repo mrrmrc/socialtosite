@@ -252,9 +252,14 @@ function QuillEditor({ value, onChange, style }) {
 function LandingScreen({ onGetStarted }) {
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg)', color: 'var(--text)', overflowX: 'hidden' }}>
-      <header style={{ padding: '20px 40px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(255,255,255,0.8)', backdropFilter: 'blur(20px)', position: 'sticky', top: 0, zIndex: 100, borderBottom: '1px solid var(--border)' }}>
-        <div style={{ fontSize: '24px', fontWeight: 800, color: 'var(--primary)' }}>Social<span style={{ color: 'var(--text)' }}>ToSite</span></div>
-        <button className="btn btn-primary" onClick={onGetStarted}>Accedi / Registrati</button>
+      <header style={{ padding: '20px 40px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--surface)', position: 'sticky', top: 0, zIndex: 100, borderBottom: '3px solid var(--border)', boxShadow: '0 4px 0px var(--border)' }}>
+        <div style={{ fontSize: '24px', fontWeight: 900, color: 'var(--primary)', textShadow: '2px 2px 0px var(--border)' }}>Social<span style={{ color: 'var(--text)' }}>ToSite</span></div>
+        <button className="btn btn-primary" onClick={() => {
+          if (localStorage.getItem('sts_token')) window.location.href = '/?app';
+          else onGetStarted();
+        }}>
+          {localStorage.getItem('sts_token') ? 'Dashboard ➔' : 'Accedi / Registrati'}
+        </button>
       </header>
 
       <main style={{ maxWidth: '1200px', margin: '0 auto', padding: '80px 20px', textAlign: 'center' }}>
@@ -267,7 +272,15 @@ function LandingScreen({ onGetStarted }) {
             Aumenta la tua visibilità organica su Google, mentre tu continui a fare ciò che ami.
           </p>
           <div style={{ display: 'flex', gap: '16px', justifyContent: 'center', flexWrap: 'wrap' }}>
-            <button className="btn btn-primary" onClick={onGetStarted} style={{ fontSize: '18px', padding: '18px 36px' }}>Inizia Gratis Ora ✨</button>
+            <button className="btn btn-primary" onClick={() => {
+              if (localStorage.getItem('sts_token')) {
+                window.location.href = '/?app';
+              } else {
+                onGetStarted();
+              }
+            }} style={{ fontSize: '18px', padding: '18px 36px' }}>
+              {localStorage.getItem('sts_token') ? 'Vai alla Dashboard ➔' : 'Inizia Gratis Ora ✨'}
+            </button>
             <button className="btn btn-outline" onClick={() => document.getElementById('features').scrollIntoView({behavior: 'smooth'})} style={{ fontSize: '18px', padding: '18px 36px' }}>Scopri come funziona</button>
           </div>
         </div>
