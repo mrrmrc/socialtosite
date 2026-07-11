@@ -261,7 +261,9 @@ function LandingScreen({ onGetStarted }) {
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg)', color: 'var(--text)', overflowX: 'hidden' }}>
       <header style={{ padding: '20px 40px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--surface)', position: 'sticky', top: 0, zIndex: 100, borderBottom: '1px solid var(--border)', boxShadow: 'var(--shadow-sm)' }}>
-        <div style={{ fontSize: '24px', fontWeight: 800, color: 'var(--primary)' }}>Social<span style={{ color: 'var(--text)' }}>ToSite</span></div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <img src="https://i.imgur.com/uT2MvX3.png" alt="AllSocialToWeb" style={{ height: '40px' }} />
+        </div>
         <button className="btn btn-primary" onClick={() => {
           if (localStorage.getItem('sts_token')) window.location.href = '/?app';
           else onGetStarted();
@@ -313,7 +315,7 @@ function LandingScreen({ onGetStarted }) {
       </main>
       
       <footer style={{ padding: '40px 20px', textAlign: 'center', color: 'var(--text-muted)', borderTop: '1px solid var(--border)' }}>
-        <p>© 2026 SocialToSite. Tutti i diritti riservati.</p>
+        <p>© 2026 AllSocialToWeb. Tutti i diritti riservati.</p>
       </footer>
     </div>
   );
