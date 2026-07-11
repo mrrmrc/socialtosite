@@ -3,10 +3,10 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SocialToSite — Il tuo sito si aggiorna dai social</title>
+  <title>AllSocialToWeb — Il tuo Content Manager guidato dall'AI</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <script src="https://unpkg.com/react@18.3.1/umd/react.development.js"></script>
   <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js"></script>
   <!-- Babel pinnato alla v7: usa la "classic runtime" (React.createElement),
@@ -350,11 +350,9 @@ function AuthScreen({ onAuth }) {
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
       <div style={{ width: '100%', maxWidth: '400px' }}>
         <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
-          <div style={{ fontSize: '28px', fontWeight: 700, color: 'var(--purple)', marginBottom: '0.25rem' }}>
-            Social<span style={{ color: 'var(--text)' }}>ToSite</span>
-          </div>
+          <div style={{ fontSize: '26px', fontWeight: 800, color: 'var(--primary)', marginBottom: '4px' }}>allsocialto<span style={{ color: 'var(--text-muted)' }}>web</span><span style={{ fontSize: '14px', color: 'var(--text-faint)', fontWeight: 400 }}>.com</span></div>
           <div style={{ color: 'var(--text-muted)', fontSize: '14px' }}>
-            Il tuo sito si aggiorna automaticamente dai social
+            Il tuo Content Manager guidato dall'AI
           </div>
         </div>
 
@@ -1335,9 +1333,9 @@ async function runSiteAi() {
   return (
     <div style={{ minHeight: '100vh', display: 'flex' }}>
       {/* Sidebar Laterale (solo Desktop) */}
-      <div className="desktop-sidebar" style={{ width: '280px', background: 'var(--surface)', borderRight: '3px solid var(--border)', flexDirection: 'column', position: 'fixed', height: '100vh', top: 0, left: 0, zIndex: 50, boxShadow: '4px 0 0 var(--border)' }}>
-        <div style={{ padding: '28px 24px', fontWeight: 800, fontSize: '24px', color: 'var(--primary)', borderBottom: '1px solid var(--border)' }}>
-          Social<span style={{ color: 'var(--text)' }}>ToSite</span>
+      <div className="desktop-sidebar" style={{ width: '280px', background: 'var(--surface)', borderRight: '1px solid var(--border)', flexDirection: 'column', position: 'fixed', height: '100vh', top: 0, left: 0, zIndex: 50, boxShadow: 'var(--shadow)' }}>
+        <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--border)' }}>
+          <div style={{ fontWeight: 800, fontSize: '20px', color: 'var(--primary)' }}>allsocialto<span style={{ color: 'var(--text-muted)' }}>web</span><span style={{ fontSize: '12px', color: 'var(--text-faint)', fontWeight: 400 }}>.com</span></div>
         </div>
         <div style={{ padding: '24px 16px', display: 'flex', flexDirection: 'column', gap: '8px', flex: 1, overflowY: 'auto' }}>
           {[
@@ -1356,10 +1354,10 @@ async function runSiteAi() {
                 color: tab === item.id ? 'var(--primary)' : 'var(--text-muted)',
                 fontWeight: tab === item.id ? 700 : 600,
                 display: 'flex', alignItems: 'center', gap: '14px',
-                border: tab === item.id ? '1px solid rgba(0,240,255,0.3)' : '1px solid transparent',
-                cursor: 'pointer', transition: 'all 0.3s ease',
+                border: tab === item.id ? '1px solid var(--primary-light)' : '1px solid transparent',
+                cursor: 'pointer', transition: 'all 0.2s ease',
               }}>
-              <span style={{ fontSize: '20px', filter: tab === item.id ? 'drop-shadow(0 0 8px rgba(0,240,255,0.8))' : 'none' }}>{item.icon}</span> {item.label}
+              <span style={{ fontSize: '20px' }}>{item.icon}</span> {item.label}
             </button>
           ))}
         </div>
@@ -1373,7 +1371,7 @@ async function runSiteAi() {
       <div className="dashboard-main">
         {/* Mobile Header (Only visible on mobile) */}
         <div className="mobile-top-header">
-          <div style={{ fontWeight: 800, fontSize: '18px', color: 'var(--primary)' }}>Social<span style={{ color: 'var(--text)' }}>ToSite</span></div>
+          <div style={{ fontWeight: 800, fontSize: '16px', color: 'var(--primary)' }}>allsocialto<span style={{ color: 'var(--text-muted)' }}>web</span><span style={{ fontSize: '11px', color: 'var(--text-faint)', fontWeight: 400 }}>.com</span></div>
           <button className="btn btn-primary" onClick={runSiteAi} disabled={siteAiLoading} style={{ padding: '8px 16px', fontSize: '12px' }}>
             {siteAiLoading ? '✨' : '✨ SITO AI'}
           </button>

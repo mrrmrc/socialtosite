@@ -1383,4 +1383,26 @@ if ($action === 'admin-update-prompt' && $method === 'POST') {
     json(['ok' => true]);
 }
 
+// ── ADMIN: Processi pendenti ───────────────────────────────────────────────
+if ($action === 'admin-processes' && $method === 'GET') {
+    requireAdmin($isAdmin);
+    $processes = DB::fetchAll(
+        'SELECT p.id, p.platform, p.source_url, p.published_at, u.email, u.name
+         FROM posts p
+         LEFT JOIN users u ON p.user_id = u.id
+         WHERE p.seo_score = -1
+         ORDER BY p.id ASC
+         LIMIT 100'
+    );
+    json(['processes' => $processes]);
+}
+
+if ($action === 'admin-kill-process' && $method === 'POST') {
+    requireAdmin($isAdmin);
+    $b = body();
+    $id = (int)($b['id'] ?? 0);
+    DB::execute('DELETE FROM posts WHERE id=? AND seo_score=-1', [$id]);
+    json(['ok' => true]);
+}
+
 jsonError('Endpoint non trovato', 404);
