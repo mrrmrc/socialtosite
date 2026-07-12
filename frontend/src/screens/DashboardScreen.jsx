@@ -1230,51 +1230,69 @@ async function runSiteAi() {
         {/* Tab: SEO */}
         {tab === 'seo' && (
           <div>
-            <div className="glass-modal" style={{ marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '2rem', padding: '2rem' }}>
-              <div style={{ textAlign: 'center' }}>
-                <div style={{ fontSize: '64px', fontWeight: 800, color: site?.seo_score >= 70 ? 'var(--teal)' : 'var(--amber)', textShadow: '0 0 20px rgba(0,0,0,0.5)' }}>
-                  {site?.seo_score || 0}
+            <div className="glass-modal" style={{ marginBottom: '2rem', padding: '0', background: 'var(--gradient)', color: '#fff', border: 'none', display: 'flex', flexWrap: 'wrap', overflow: 'hidden' }}>
+              <div style={{ flex: '1 1 300px', padding: '3rem', position: 'relative', zIndex: 1 }}>
+                <h2 style={{ fontSize: '28px', fontWeight: 800, marginBottom: '12px', color: '#fff', letterSpacing: '-0.5px' }}>Ottimizzazione Google</h2>
+                <div style={{ fontSize: '16px', color: 'rgba(255,255,255,0.85)', fontWeight: 500, maxWidth: '420px', lineHeight: 1.6 }}>
+                  Basato su <b>{posts.length}</b> contenuti importati. Questo punteggio indica quanto la struttura del tuo sito è sana e leggibile dai motori di ricerca.
                 </div>
-                <div style={{ fontSize: '14px', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px' }}>Score SEO</div>
               </div>
-              <div>
-                <h3 style={{ marginBottom: '8px', fontSize: '24px' }}>
-                  {(site?.seo_score || 0) >= 80 ? '🟢 Eccellente' : (site?.seo_score || 0) >= 60 ? '🟡 Buono' : '🔴 Da migliorare'}
-                </h3>
-                <p style={{ fontSize: '15px', color: 'var(--text-muted)', fontWeight: 500 }}>
-                  Basato su <b>{posts.length}</b> contenuti importati. Questo punteggio indica quanto il tuo sito è ottimizzato per Google.
-                </p>
+              <div style={{ padding: '3rem', display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '24px', background: 'rgba(0,0,0,0.15)', backdropFilter: 'blur(10px)', flex: '1 1 300px' }}>
+                <div style={{ width: '130px', height: '130px', borderRadius: '50%', background: 'rgba(255,255,255,0.1)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', border: '4px solid rgba(255,255,255,0.3)', boxShadow: '0 8px 32px rgba(0,0,0,0.15)' }}>
+                  <div style={{ fontSize: '56px', fontWeight: 800, lineHeight: 1 }}>{site?.seo_score || 0}</div>
+                  <div style={{ fontSize: '12px', fontWeight: 700, letterSpacing: '2px', opacity: 0.8, marginTop: '6px' }}>SCORE</div>
+                </div>
+                <div>
+                  <h3 style={{ fontSize: '32px', fontWeight: 800, marginBottom: '8px' }}>
+                    {(site?.seo_score || 0) >= 80 ? 'Eccellente 🚀' : (site?.seo_score || 0) >= 60 ? 'Buono 👍' : 'Da migliorare ⚠️'}
+                  </h3>
+                  <div style={{ display: 'flex', gap: '6px' }}>
+                    {[...Array(5)].map((_, i) => (
+                      <div key={i} style={{ width: 14, height: 14, borderRadius: '50%', background: i < ((site?.seo_score || 0) / 20) ? '#fff' : 'rgba(255,255,255,0.2)' }} />
+                    ))}
+                  </div>
+                </div>
               </div>
             </div>
 
-            <div className="glass-modal" style={{ marginBottom: '1.5rem', padding: '1.5rem' }}>
-              <h2 style={{ marginBottom: '1.5rem', color: 'var(--primary)', fontSize: '20px' }}>Bozze in lavorazione</h2>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            <div className="glass-modal" style={{ marginBottom: '2rem', padding: '2.5rem 2rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '2rem' }}>
+                <div style={{ width: 48, height: 48, borderRadius: '14px', background: 'var(--amber-light)', color: 'var(--amber)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '24px' }}>⏳</div>
+                <div>
+                  <h2 style={{ color: 'var(--text)', fontSize: '24px', margin: 0, fontWeight: 800 }}>Coda di Elaborazione AI</h2>
+                  <p style={{ color: 'var(--text-muted)', fontSize: '14px', margin: '4px 0 0', fontWeight: 500 }}>I contenuti grezzi scaricati dai social che l'AI sta elaborando per il tuo sito.</p>
+                </div>
+              </div>
+              
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                 {drafts.length === 0 ? (
-                  <p style={{ color: 'var(--text-muted)', fontSize: '14px', fontWeight: 500 }}>Nessun contenuto in elaborazione.</p>
+                  <div style={{ padding: '4rem 2rem', textAlign: 'center', background: 'var(--bg)', borderRadius: 'var(--radius)', border: '2px dashed var(--border-strong)' }}>
+                    <div style={{ fontSize: '32px', marginBottom: '12px', opacity: 0.5 }}>📭</div>
+                    <p style={{ color: 'var(--text-muted)', fontSize: '16px', fontWeight: 600, margin: 0 }}>Nessun contenuto in coda al momento.</p>
+                  </div>
                 ) : drafts.map(d => (
-                  <div key={d.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px', background: 'rgba(0,0,0,0.2)', borderRadius: 'var(--radius)' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                      <div style={{ background: 'rgba(255,255,255,0.05)', padding: '8px', borderRadius: '50%' }}>
+                  <div key={d.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px', padding: '20px 24px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', transition: 'all 0.2s', boxShadow: 'var(--shadow-sm)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '20px', overflow: 'hidden', flex: 1 }}>
+                      <div style={{ background: 'var(--bg)', padding: '12px', borderRadius: '50%', border: '1px solid var(--border-strong)', flexShrink: 0, boxShadow: 'var(--shadow-sm)' }}>
                         <SocialIcon platform={d.platform} size={24} />
                       </div>
-                      <div>
-                        <a href={d.source_url} target="_blank" rel="noreferrer" style={{ fontWeight: 700, color: 'var(--text)', textDecoration: 'none', fontSize: '15px' }}>
+                      <div style={{ overflow: 'hidden' }}>
+                        <a href={d.source_url} target="_blank" rel="noreferrer" style={{ fontWeight: 800, color: 'var(--text)', textDecoration: 'none', fontSize: '15px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', display: 'block', maxWidth: '400px' }}>
                           {d.source_url}
                         </a>
-                        <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '4px' }}>
-                          Importato il {d.published_at.substring(0, 10)}
+                        <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '6px', fontWeight: 500 }}>
+                          Acquisito il {d.published_at.substring(0, 10)}
                         </div>
                       </div>
                     </div>
-                    <div>
+                    <div style={{ flexShrink: 0 }}>
                       {harmonizingId === d.id ? (
-                        <span style={{ fontSize: '13px', color: 'var(--primary)', fontWeight: 800, padding: '6px 12px', background: 'rgba(0,240,255,0.1)', borderRadius: '20px', border: '1px solid rgba(0,240,255,0.2)' }}>
-                          ⟳ Elaborazione AI in corso...
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: 'var(--primary-dark)', fontWeight: 800, padding: '10px 16px', background: 'var(--primary-light)', borderRadius: '30px', boxShadow: '0 4px 12px rgba(99,102,241,0.15)' }}>
+                          <span style={{ animation: 'spin 1.5s linear infinite', display: 'inline-block' }}>⟳</span> Trascrizione e SEO in corso...
                         </span>
                       ) : (
-                        <span style={{ fontSize: '13px', color: 'var(--amber)', fontWeight: 800, padding: '6px 12px', background: 'rgba(255,149,0,0.1)', borderRadius: '20px', border: '1px solid rgba(255,149,0,0.2)' }}>
-                          ⟳ In coda AI...
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: 'var(--amber)', fontWeight: 800, padding: '10px 16px', background: 'var(--amber-light)', borderRadius: '30px' }}>
+                          ⏳ In coda
                         </span>
                       )}
                     </div>
@@ -1283,22 +1301,28 @@ async function runSiteAi() {
               </div>
             </div>
 
-            <div className="glass-modal" style={{ padding: '1.5rem' }}>
-              <h3 style={{ marginBottom: '1.5rem', color: 'var(--primary)', fontSize: '20px' }}>Cosa l'AI ha fatto per il tuo SEO</h3>
-              {[
-                ['✓', 'Trascrizione audio/video con Whisper — i tuoi video ora sono testo leggibile da Google', 'var(--teal)'],
-                ['✓', 'Titoli H1 ottimizzati generati automaticamente per ogni contenuto', 'var(--teal)'],
-                ['✓', 'Meta description unica per ogni post (max 155 caratteri)', 'var(--teal)'],
-                ['✓', 'Sitemap XML automatica e aggiornata ad ogni sync', 'var(--teal)'],
-                ['✓', 'Schema markup JSON-LD per rich snippet Google', 'var(--teal)'],
-                ['✓', 'URL slug leggibili da motori di ricerca', 'var(--teal)'],
-                ['✓', 'Tag e parole chiave estratte dal contenuto reale', 'var(--teal)'],
-              ].map(([icon, text, color], i) => (
-                <div key={i} style={{ display: 'flex', gap: '12px', marginBottom: '16px', fontSize: '15px', alignItems: 'center' }}>
-                  <span style={{ color, fontWeight: 800, background: 'rgba(0,255,150,0.1)', padding: '4px', borderRadius: '50%', width: '24px', height: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{icon}</span>
-                  <span style={{ color: 'var(--text)', fontWeight: 500 }}>{text}</span>
-                </div>
-              ))}
+            <div className="glass-modal" style={{ padding: '2.5rem 2rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '2rem' }}>
+                <div style={{ width: 48, height: 48, borderRadius: '14px', background: 'var(--teal-light)', color: 'var(--teal)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '24px' }}>✨</div>
+                <h3 style={{ color: 'var(--text)', fontSize: '24px', margin: 0, fontWeight: 800 }}>Cosa l'AI ha fatto per il tuo SEO</h3>
+              </div>
+              
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '20px' }}>
+                {[
+                  ['📝', 'Trascrizione Audio/Video', 'I tuoi video di YouTube o TikTok vengono trascritti e resi testi leggibili e indicizzabili da Google.'],
+                  ['🎯', 'Titoli H1 Ottimizzati', 'Titoli di pagina accattivanti e strutturati con gerarchia logica, generati in automatico per ogni post.'],
+                  ['🔍', 'Meta Description', 'Riassunti unici di massimo 155 caratteri per un posizionamento perfetto nei risultati di ricerca.'],
+                  ['🗺️', 'Sitemap XML', 'Mappa del sito generata e aggiornata istantaneamente ad ogni nuova sincronizzazione.'],
+                  ['📊', 'Schema JSON-LD', 'Rich snippets strutturati nascosti nel codice per farti preferire dall\'algoritmo di Google.'],
+                  ['🏷️', 'Tag Keyword', 'Parole chiave e argomenti pertinenti estratti dal contenuto reale del tuo video/post.'],
+                ].map(([icon, title, desc], i) => (
+                  <div key={i} style={{ background: 'var(--bg)', padding: '24px', borderRadius: 'var(--radius)', border: '1px solid var(--border-strong)', boxShadow: 'var(--shadow-sm)', transition: 'transform 0.2s', cursor: 'default' }} onMouseOver={e => e.currentTarget.style.transform = 'translateY(-4px)'} onMouseOut={e => e.currentTarget.style.transform = 'translateY(0)'}>
+                    <div style={{ width: 44, height: 44, borderRadius: '12px', background: 'var(--surface)', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '22px', marginBottom: '16px', boxShadow: 'var(--shadow-sm)' }}>{icon}</div>
+                    <div style={{ fontWeight: 800, fontSize: '16px', marginBottom: '8px', color: 'var(--text)' }}>{title}</div>
+                    <div style={{ fontSize: '14px', color: 'var(--text-muted)', lineHeight: 1.6, fontWeight: 500 }}>{desc}</div>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         )}
