@@ -33,6 +33,18 @@ jobs:
           }
           EOF
 
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Build frontend (Vite)
+        run: |
+          cd frontend
+          npm install
+          npm run build
+          cd ..
+
       - name: Carica i file via SFTP
         # Le credenziali vivono in config/deploy.env (committato: repo PRIVATO).
         # Il file viene ESCLUSO dal mirror, così non finisce mai sul server web.
@@ -45,8 +57,8 @@ jobs:
           : "${FTP_PASS:?manca FTP_PASS in config/deploy.env}"
           echo "Credenziali lette da config/deploy.env (HOST=$FTP_HOST USER=$FTP_USER)"
 
-          # La dashboard React (frontend/index.html) va servita come / del dominio.
-          cp frontend/index.html index.html
+          # Sposta la build di Vite (dist) nella root per il mirror
+          cp -r frontend/dist/* ./
 
           lftp -c "
           set sftp:auto-confirm yes;
@@ -59,6 +71,8 @@ jobs:
             --exclude config/config.php \
             --exclude config/deploy.env \
             --exclude db/ \
+            --exclude frontend/ \
             --exclude README.md \
+            --exclude CLAUDE.md \
             ./ public_html/;
           "

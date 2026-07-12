@@ -16,3 +16,5 @@ vendor/
 Thumbs.db
 .idea/
 .vscode/
+
+frontend/dist
