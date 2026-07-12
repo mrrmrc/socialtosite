@@ -161,7 +161,7 @@ function AdminScreen({ token, currentUser, adminPrompts, updatePrompt }) {
         <div className="card">
           <h3 style={{ marginBottom: '1rem' }}>Lista Utenti</h3>
           {users.map(u => {
-            const siteUrl = `${API.replace('3001', '3000')}/s/${u.slug}`;
+            const siteUrl = `${(window.API_BASE || '').replace('3001', '3000')}/s/${u.slug}`;
             return (
               <div key={u.id} style={{ padding: '12px 0', borderBottom: '1px solid var(--border)' }}>
                 <div style={{ display: 'grid', gridTemplateColumns: '1.4fr .8fr .7fr auto', gap: '12px', alignItems: 'center' }}>
