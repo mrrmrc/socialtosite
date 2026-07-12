@@ -32,3 +32,10 @@ RewriteRule ^s/([^/]+)/([^/]+)/?$ public/site.php?slug=$1&post=$2 [L,QSA]
 
 # Niente listing delle cartelle
 Options -Indexes
+
+# ── SPA Fallback (React Router) ─────────────────────────────────────────────
+# Se il file o la directory richiesta non esiste, redirigi tutto a index.html
+# in modo che React Router possa gestire la rotta lato client (es. /dashboard)
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^ index.html [L]
