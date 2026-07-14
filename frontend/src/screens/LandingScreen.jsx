@@ -130,7 +130,7 @@ export function LandingScreen({ onGetStarted }) {
 
       {/* Footer */}
       <footer style={{ position: 'relative', zIndex: 1, padding: '32px 24px', textAlign: 'center', color: 'var(--text-faint)', fontSize: '13px', borderTop: '1px solid var(--border)' }}>
-        <div style={{ marginBottom: '8px', fontWeight: 700, color: 'var(--text-muted)', fontSize: '14px' }}>✦ SocialToSite</div>
+        <div style={{ marginBottom: '8px', fontWeight: 700, color: 'var(--text-muted)', fontSize: '14px' }}><img src="/logo.png" alt="SocialToSite" style={{ height: '24px' }} /></div>
         <p>© 2026 SocialToSite. Tutti i diritti riservati. · Piano gratuito · Fino a 3 social · Nessuna carta richiesta</p>
       </footer>
     </div>

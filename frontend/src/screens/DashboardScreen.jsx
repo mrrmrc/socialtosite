@@ -101,7 +101,7 @@ const [importMsg, setImportMsg] = useState(null);
     } catch {}
   }
 
-  // AGENTE 1 — Ingestione: importa e trascrive da link
+  // AGENTE 1 â€” Ingestione: importa e trascrive da link
   async function doImport(e) {
     e.preventDefault();
     if (!linkUrl.trim()) return;
@@ -110,7 +110,7 @@ const [importMsg, setImportMsg] = useState(null);
       const r = await apiFetch('/api/index.php?action=ingest-url',
         { method: 'POST', body: JSON.stringify({ url: linkUrl.trim() }) }, token);
       if (r.duplicate) {
-        setImportMsg({ ok: true, text: 'Questo contenuto era già stato importato.' });
+        setImportMsg({ ok: true, text: 'Questo contenuto era giÃ  stato importato.' });
       } else {
         setImportMsg({ ok: true, text: 'Acquisizione completata! Elaborazione AI in corso...' });
         // Avvia elaborazione in background automaticamente
@@ -125,7 +125,7 @@ const [importMsg, setImportMsg] = useState(null);
     setImporting(false);
   }
 
-  // AGENTE 2 — Armonizzatore: bozza → articolo pubblicato
+  // AGENTE 2 â€” Armonizzatore: bozza â†’ articolo pubblicato
   async function doHarmonize(id) {
     setHarmonizingId(id);
     try {
@@ -238,7 +238,7 @@ const [importMsg, setImportMsg] = useState(null);
   }
 
   async function deletePost(id) {
-    if (!window.confirm("Sei sicuro di voler eliminare definitivamente questo post? Verrà rimosso anche dal sito pubblico.")) return;
+    if (!window.confirm("Sei sicuro di voler eliminare definitivamente questo post? VerrÃ  rimosso anche dal sito pubblico.")) return;
     await apiFetch('/api/index.php?action=delete-post', { method: 'POST', body: JSON.stringify({ id }) }, token);
     setData(prev => ({ ...prev, posts: prev.posts.filter(p => p.id !== id) }));
     setSelectedPosts(prev => prev.filter(pId => pId !== id));
@@ -519,7 +519,7 @@ const [importMsg, setImportMsg] = useState(null);
     if (tab === 'admin' && user?.role === 'admin') loadAdminPrompts();
   }, [tab]);
 
-  // ── SITO AI ──────────────────────────────────────────────────────────────
+  // â”€â”€ SITO AI â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const [siteAiLoading, setSiteAiLoading] = useState(false);
   const [siteAiResult, setSiteAiResult] = useState(null);
 
@@ -537,10 +537,10 @@ const [importMsg, setImportMsg] = useState(null);
 
 async function runSiteAi() {
     if (!data?.site?.profile_summary && !data?.site?.bio) {
-      alert('Prima esegui una scansione dei social per generare il profilo. Vai in "Fonti" → Scansiona social.');
+      alert('Prima esegui una scansione dei social per generare il profilo. Vai in "Fonti" â†’ Scansiona social.');
       return;
     }
-    if (!confirm('L\'AI genererà un sito completamente personalizzato al tuo profilo (tema, colori, testi, CSS). Sovrascriverà le impostazioni attuali. Procedere?')) return;
+    if (!confirm('L\'AI genererÃ  un sito completamente personalizzato al tuo profilo (tema, colori, testi, CSS). SovrascriverÃ  le impostazioni attuali. Procedere?')) return;
     setSiteAiLoading(true);
     try {
       const res = await apiFetch('/api/index.php?action=site-ai', { method: 'POST' }, token);
@@ -552,7 +552,7 @@ async function runSiteAi() {
     setSiteAiLoading(false);
   }
 
-  // ── CMS Editoriale ───────────────────────────────────────────────────────
+  // â”€â”€ CMS Editoriale â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const [editingPost, setEditingPost] = useState(null); // {id, title, body, excerpt, tags}
   const [cmsSaving, setCmsSaving] = useState(false);
   const [cmsFilter, setCmsFilter] = useState('all');
@@ -585,7 +585,7 @@ async function runSiteAi() {
     await loadData();
   }
 
-  // ── Funzioni gestione canali (tab "I miei canali") ─────────────────────
+  // â”€â”€ Funzioni gestione canali (tab "I miei canali") â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   async function handleAddChannel(e) {
     e.preventDefault();
     setAddMsg(null);
@@ -602,7 +602,7 @@ async function runSiteAi() {
         method: 'POST',
         body: JSON.stringify({ platform, label: addLabel || (SOCIAL[platform]?.label || platform), url })
       }, token);
-      setAddMsg({ ok: true, text: `✅ Profilo ${SOCIAL[platform]?.label || platform} aggiunto! Clicca "Sincronizza tutti" per importare i contenuti.` });
+      setAddMsg({ ok: true, text: `âœ… Profilo ${SOCIAL[platform]?.label || platform} aggiunto! Clicca "Sincronizza tutti" per importare i contenuti.` });
       setAddUrl('');
       setAddLabel('');
       await loadData();
@@ -640,19 +640,19 @@ async function runSiteAi() {
       {/* Sidebar Laterale (solo Desktop) */}
       <div className="desktop-sidebar" style={{ width: '280px', background: 'var(--surface)', borderRight: '1px solid var(--border)', flexDirection: 'column', position: 'fixed', height: '100vh', top: 0, left: 0, zIndex: 50, boxShadow: 'var(--shadow)' }}>
         <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--border)' }}>
-          <div style={{ fontWeight: 800, fontSize: '20px', color: 'var(--primary)' }}>allsocialto<span style={{ color: 'var(--text-muted)' }}>web</span><span style={{ fontSize: '12px', color: 'var(--text-faint)', fontWeight: 400 }}>.com</span></div>
+          <div style={{ fontWeight: 800, fontSize: '20px', color: 'var(--primary)' }}><img src="/logo.png" alt="allsocialtoweb.com" style={{ height: '32px' }} /></div>
         </div>
         <div style={{ padding: '24px 16px', display: 'flex', flexDirection: 'column', gap: '8px', flex: 1, overflowY: 'auto' }}>
           {[
-            { id: 'overview', icon: '🏠', label: 'Home' },
-            { id: 'site', icon: '📝', label: 'Articoli' },
-            { id: 'sources', icon: '📡', label: 'Canali' },
+            { id: 'overview', icon: 'ðŸ ', label: 'Home' },
+            { id: 'site', icon: 'ðŸ“', label: 'Articoli' },
+            { id: 'sources', icon: 'ðŸ“¡', label: 'Canali' },
             ...(user?.role === 'admin' ? [
-              { id: 'settings', icon: '🎨', label: 'Design' },
-              { id: 'general', icon: '⚙️', label: 'Impostazioni' }
+              { id: 'settings', icon: 'ðŸŽ¨', label: 'Design' },
+              { id: 'general', icon: 'âš™ï¸', label: 'Impostazioni' }
             ] : []),
-            { id: 'seo', icon: '📈', label: 'SEO' },
-            ...(user?.role === 'admin' ? [{ id: 'admin', icon: '🛠', label: 'Admin' }] : [])
+            { id: 'seo', icon: 'ðŸ“ˆ', label: 'SEO' },
+            ...(user?.role === 'admin' ? [{ id: 'admin', icon: 'ðŸ› ', label: 'Admin' }] : [])
           ].map(item => (
             <button key={item.id} onClick={() => setTab(item.id)}
               style={{
@@ -678,9 +678,9 @@ async function runSiteAi() {
       <div className="dashboard-main">
         {/* Mobile Header (Only visible on mobile) */}
         <div className="mobile-top-header">
-          <div style={{ fontWeight: 800, fontSize: '16px', color: 'var(--primary)' }}>allsocialto<span style={{ color: 'var(--text-muted)' }}>web</span><span style={{ fontSize: '11px', color: 'var(--text-faint)', fontWeight: 400 }}>.com</span></div>
+          <div style={{ fontWeight: 800, fontSize: '16px', color: 'var(--primary)' }}><img src="/logo.png" alt="allsocialtoweb.com" style={{ height: '24px' }} /></div>
           <button className="btn btn-primary" onClick={runSiteAi} disabled={siteAiLoading} style={{ padding: '8px 16px', fontSize: '12px' }}>
-            {siteAiLoading ? '✨' : '✨ SITO AI'}
+            {siteAiLoading ? 'âœ¨' : 'âœ¨ SITO AI'}
           </button>
         </div>
 
@@ -698,10 +698,10 @@ async function runSiteAi() {
             </h1>
             <div style={{ display: 'flex', gap: '12px' }}>
               <button className="btn btn-primary" onClick={runSiteAi} disabled={siteAiLoading} style={{ background: siteAiLoading ? 'var(--purple-dark)' : 'linear-gradient(135deg, #7F77DD, #534AB7)', fontSize: '14px', fontWeight: 600, boxShadow: '0 4px 12px rgba(127,119,221,0.3)', padding: '10px 20px', borderRadius: '10px' }} title="L'AI genera il tuo sito personalizzato al 100% in base al tuo profilo">
-                {siteAiLoading ? '✨ Generazione...' : '✨ Genera SITO AI'}
+                {siteAiLoading ? 'âœ¨ Generazione...' : 'âœ¨ Genera SITO AI'}
               </button>
               <button className="btn btn-outline" onClick={syncNow} disabled={syncing} style={{ background: 'var(--surface)', border: '1px solid var(--border-strong)', padding: '10px 20px', borderRadius: '10px' }}>
-                {syncing ? '⟳ Sync...' : '↻ Aggiorna Social'}
+                {syncing ? 'âŸ³ Sync...' : 'â†» Aggiorna Social'}
               </button>
             </div>
           </div>
@@ -709,12 +709,12 @@ async function runSiteAi() {
         {siteAiResult && (
           <div style={{ background: 'linear-gradient(135deg,#534AB7,#7F77DD)', color: '#fff', borderRadius: 'var(--radius)', padding: '1.25rem 1.5rem', marginBottom: '1.25rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap' }}>
             <div>
-              <div style={{ fontWeight: 700, fontSize: '15px', marginBottom: '4px' }}>✨ Sito AI generato con successo!</div>
-              <div style={{ fontSize: '13px', opacity: 0.85 }}>Tema: <b>{siteAiResult.theme}</b> · Colore: <b>{siteAiResult.accent_color}</b> · Tagline: "{siteAiResult.hero_tagline}"</div>
+              <div style={{ fontWeight: 700, fontSize: '15px', marginBottom: '4px' }}>âœ¨ Sito AI generato con successo!</div>
+              <div style={{ fontSize: '13px', opacity: 0.85 }}>Tema: <b>{siteAiResult.theme}</b> Â· Colore: <b>{siteAiResult.accent_color}</b> Â· Tagline: "{siteAiResult.hero_tagline}"</div>
             </div>
             <div style={{ display: 'flex', gap: '8px' }}>
-              <a href={siteUrl} target="_blank" rel="noopener" style={{ background: 'rgba(255,255,255,0.2)', color: '#fff', padding: '7px 16px', borderRadius: 'var(--radius-sm)', fontSize: '13px', fontWeight: 600, textDecoration: 'none' }}>🌍 Vedi sito</a>
-              <button onClick={() => setSiteAiResult(null)} style={{ background: 'transparent', color: 'rgba(255,255,255,0.6)', border: 'none', cursor: 'pointer', fontSize: '18px' }}>✕</button>
+              <a href={siteUrl} target="_blank" rel="noopener" style={{ background: 'rgba(255,255,255,0.2)', color: '#fff', padding: '7px 16px', borderRadius: 'var(--radius-sm)', fontSize: '13px', fontWeight: 600, textDecoration: 'none' }}>ðŸŒ Vedi sito</a>
+              <button onClick={() => setSiteAiResult(null)} style={{ background: 'transparent', color: 'rgba(255,255,255,0.6)', border: 'none', cursor: 'pointer', fontSize: '18px' }}>âœ•</button>
             </div>
           </div>
         )}
@@ -723,8 +723,8 @@ async function runSiteAi() {
             background: syncMsg.ok ? (syncMsg.loading ? 'var(--blue-light)' : 'var(--teal-light)') : 'var(--red-light)',
             color: syncMsg.ok ? (syncMsg.loading ? '#1E40AF' : '#0F6E56') : 'var(--red)',
             display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div>{syncMsg.loading && <span style={{display:'inline-block', marginRight:'8px'}}>⟳</span>}{syncMsg.text}</div>
-            {!syncMsg.loading && <button onClick={() => setSyncMsg(null)} style={{background:'none', border:'none', cursor:'pointer', fontSize:'16px'}}>✕</button>}
+            <div>{syncMsg.loading && <span style={{display:'inline-block', marginRight:'8px'}}>âŸ³</span>}{syncMsg.text}</div>
+            {!syncMsg.loading && <button onClick={() => setSyncMsg(null)} style={{background:'none', border:'none', cursor:'pointer', fontSize:'16px'}}>âœ•</button>}
           </div>
         )}
         {tab === 'overview' && (
@@ -745,7 +745,7 @@ async function runSiteAi() {
 
             {brandVoiceProfile && (
               <div className="card" style={{ padding: '1.5rem', background: 'var(--surface)' }}>
-                <h3 style={{ marginBottom: '1rem', color: 'var(--primary)' }}>🧠 Profilo Brand Voice (AI)</h3>
+                <h3 style={{ marginBottom: '1rem', color: 'var(--primary)' }}>ðŸ§  Profilo Brand Voice (AI)</h3>
                 <div style={{ background: 'var(--bg)', padding: '1rem', borderRadius: 'var(--radius)', fontFamily: 'monospace', fontSize: '13px', color: 'var(--text-muted)', whiteSpace: 'pre-wrap', border: '1px solid var(--border)' }}>
                   {brandVoiceProfile}
                 </div>
@@ -754,7 +754,7 @@ async function runSiteAi() {
 
             {seoAnalytics.length > 0 && (
               <div className="card" style={{ padding: '1.5rem', background: 'var(--surface)' }}>
-                <h3 style={{ marginBottom: '1rem', color: 'var(--teal)' }}>📈 Andamento Traffico (Google Search Console)</h3>
+                <h3 style={{ marginBottom: '1rem', color: 'var(--teal)' }}>ðŸ“ˆ Andamento Traffico (Google Search Console)</h3>
                 <div style={{ display: 'flex', alignItems: 'flex-end', height: '200px', gap: '4px', padding: '10px 0', borderBottom: '1px solid var(--border)' }}>
                   {seoAnalytics.map((day, i) => {
                      const maxClicks = Math.max(...seoAnalytics.map(a => a.clicks), 1);
@@ -772,7 +772,7 @@ async function runSiteAi() {
             )}
             
             <div className="card" style={{ background: 'linear-gradient(135deg, var(--primary-dark), var(--primary))', color: '#fff', border: 'none', boxShadow: '0 10px 30px -10px rgba(0, 240, 255, 0.4)' }}>
-              <h2 style={{ marginBottom: '1rem', color: '#fff', fontSize: '24px', letterSpacing: '-0.5px' }}>🌍 Il tuo sito è online</h2>
+              <h2 style={{ marginBottom: '1rem', color: '#fff', fontSize: '24px', letterSpacing: '-0.5px' }}>ðŸŒ Il tuo sito Ã¨ online</h2>
               <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
                 <div style={{ background: 'rgba(0,0,0,0.2)', padding: '16px 20px', borderRadius: '12px', fontFamily: 'monospace', fontSize: '16px', flex: 1, minWidth: '250px', border: '1px solid rgba(255,255,255,0.1)' }}>
                   {siteUrl}
@@ -799,9 +799,9 @@ async function runSiteAi() {
               <div className="card">
                 <h3 style={{ marginBottom: '1rem' }}>Scorciatoie veloci</h3>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  <button onClick={() => setTab('settings')} className="btn btn-outline" style={{ justifyContent: 'flex-start' }}>🎨 Modifica i colori e il font</button>
-                  <button onClick={() => setTab('sources')} className="btn btn-outline" style={{ justifyContent: 'flex-start' }}>➕ Aggiungi un nuovo canale social</button>
-                  <button onClick={() => setTab('site')} className="btn btn-outline" style={{ justifyContent: 'flex-start' }}>✏️ Rivedi un articolo pubblicato</button>
+                  <button onClick={() => setTab('settings')} className="btn btn-outline" style={{ justifyContent: 'flex-start' }}>ðŸŽ¨ Modifica i colori e il font</button>
+                  <button onClick={() => setTab('sources')} className="btn btn-outline" style={{ justifyContent: 'flex-start' }}>âž• Aggiungi un nuovo canale social</button>
+                  <button onClick={() => setTab('site')} className="btn btn-outline" style={{ justifyContent: 'flex-start' }}>âœï¸ Rivedi un articolo pubblicato</button>
                 </div>
               </div>
             </div>
@@ -830,7 +830,7 @@ async function runSiteAi() {
 
           // Sorgenti URL scraping
           sources.forEach(s => {
-            // Evita duplicati se c'è già un OAuth per la stessa piattaforma
+            // Evita duplicati se c'Ã¨ giÃ  un OAuth per la stessa piattaforma
             const hasOAuth = connections.some(c => c.active && (c.platform === s.platform || (c.platform === 'instagram_login' && s.platform === 'instagram')));
             allChannels.push({
               key: 'src_' + s.id,
@@ -855,7 +855,7 @@ async function runSiteAi() {
 
               {/* Form Aggiungi Canale */}
               <div className="card">
-                <h2 style={{ marginBottom: '0.5rem', fontSize: '18px' }}>➕ Aggiungi un canale</h2>
+                <h2 style={{ marginBottom: '0.5rem', fontSize: '18px' }}>âž• Aggiungi un canale</h2>
                 <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '1.25rem' }}>
                   Incolla il link del tuo profilo social o del tuo sito web. Il sistema riconosce automaticamente la piattaforma e importa i tuoi contenuti.
                 </p>
@@ -876,17 +876,17 @@ async function runSiteAi() {
                   </div>
                   {detectedPlatform && (
                     <div style={{ fontSize: '12px', color: 'var(--text-muted)', padding: '6px 10px', background: 'var(--purple-light)', borderRadius: 'var(--radius-sm)' }}>
-                      ✓ Rilevato: <strong>{SOCIAL[detectedPlatform]?.label || detectedPlatform}</strong> — {PLATFORM_DESCRIPTIONS[detectedPlatform] || ''}
+                      âœ“ Rilevato: <strong>{SOCIAL[detectedPlatform]?.label || detectedPlatform}</strong> â€” {PLATFORM_DESCRIPTIONS[detectedPlatform] || ''}
                     </div>
                   )}
                   <input
                     type="text"
-                    placeholder="Etichetta (opzionale) — Es: Il mio account principale"
+                    placeholder="Etichetta (opzionale) â€” Es: Il mio account principale"
                     value={addLabel}
                     onChange={e => setAddLabel(e.target.value)}
                   />
                   <button type="submit" className="btn btn-primary" disabled={addLoading || !addUrl.trim()} style={{ alignSelf: 'flex-start', padding: '10px 24px' }}>
-                    {addLoading ? '⟳ Aggiunta in corso...' : '+ Aggiungi canale'}
+                    {addLoading ? 'âŸ³ Aggiunta in corso...' : '+ Aggiungi canale'}
                   </button>
                 </form>
                 {addMsg && (
@@ -900,7 +900,7 @@ async function runSiteAi() {
                 {/* Connessioni OAuth avanzate (YouTube, Facebook) */}
                 <div style={{ marginTop: '1.5rem', paddingTop: '1rem', borderTop: '1px solid var(--border)' }}>
                   <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                    Oppure collega tramite accesso ufficiale (più affidabile per YouTube e Facebook)
+                    Oppure collega tramite accesso ufficiale (piÃ¹ affidabile per YouTube e Facebook)
                   </div>
                   <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
                     {['youtube', 'facebook'].map(platform => {
@@ -919,7 +919,7 @@ async function runSiteAi() {
                             cursor: isConnected ? 'default' : 'pointer',
                           }}>
                           <img src={SOCIAL[platform]?.icon} alt="" style={{ width: 16, height: 16 }} />
-                          {isConnected ? `✓ ${SOCIAL[platform]?.label} connesso come @${conn.handle}` : `Connetti ${SOCIAL[platform]?.label}`}
+                          {isConnected ? `âœ“ ${SOCIAL[platform]?.label} connesso come @${conn.handle}` : `Connetti ${SOCIAL[platform]?.label}`}
                         </button>
                       );
                     })}
@@ -930,18 +930,18 @@ async function runSiteAi() {
               {/* Lista canali attivi */}
               <div className="card">
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-                  <h2 style={{ margin: 0, fontSize: '18px' }}>📡 I tuoi canali ({allChannels.length})</h2>
+                  <h2 style={{ margin: 0, fontSize: '18px' }}>ðŸ“¡ I tuoi canali ({allChannels.length})</h2>
                   {allChannels.length > 0 && (
                     <button onClick={scanSources} disabled={scanning}
                       className="btn btn-primary" style={{ fontSize: '13px', padding: '8px 18px' }}>
-                      {scanning ? '⟳ Sincronizzazione...' : '🔄 Sincronizza tutti'}
+                      {scanning ? 'âŸ³ Sincronizzazione...' : 'ðŸ”„ Sincronizza tutti'}
                     </button>
                   )}
                 </div>
 
                 {allChannels.length === 0 ? (
                   <div style={{ textAlign: 'center', padding: '3rem 1rem', color: 'var(--text-muted)' }}>
-                    <div style={{ fontSize: '48px', marginBottom: '1rem', opacity: 0.4 }}>📭</div>
+                    <div style={{ fontSize: '48px', marginBottom: '1rem', opacity: 0.4 }}>ðŸ“­</div>
                     <div style={{ fontWeight: 600, marginBottom: '0.5rem' }}>Nessun canale aggiunto</div>
                     <div style={{ fontSize: '13px' }}>Incolla il link del tuo profilo nel campo qui sopra per iniziare.</div>
                   </div>
@@ -971,14 +971,14 @@ async function runSiteAi() {
                                   color: channel.type === 'oauth' ? '#0F6E56' : 'var(--purple-dark)',
                                   padding: '1px 7px', borderRadius: '10px', fontWeight: 500
                                 }}>
-                                  {channel.type === 'oauth' ? '🔗 Connesso con account' : '🔍 Acquisizione automatica'}
+                                  {channel.type === 'oauth' ? 'ðŸ”— Connesso con account' : 'ðŸ” Acquisizione automatica'}
                                 </span>
                               </div>
                             </div>
                           </div>
                           <button onClick={() => removeChannel(channel)}
                             style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', fontSize: '18px', padding: '4px 8px', borderRadius: '4px' }}
-                            title="Rimuovi canale">✕</button>
+                            title="Rimuovi canale">âœ•</button>
                         </div>
 
                         {/* Impostazioni sync inline */}
@@ -1018,7 +1018,7 @@ async function runSiteAi() {
                   <div style={{ marginTop: '10px', padding: '10px 14px', borderRadius: 'var(--radius-sm)', fontSize: '13px',
                     background: scanMsg.ok ? 'var(--teal-light)' : 'var(--red-light)',
                     color: scanMsg.ok ? '#0F6E56' : 'var(--red)' }}>
-                    {scanMsg.loading && <span style={{ marginRight: '8px' }}>⟳</span>}{scanMsg.text}
+                    {scanMsg.loading && <span style={{ marginRight: '8px' }}>âŸ³</span>}{scanMsg.text}
                   </div>
                 )}
                 {scanProgress.length > 0 && (
@@ -1027,10 +1027,10 @@ async function runSiteAi() {
                       <div key={s.id} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', padding: '6px 10px', background: 'var(--surface)', borderRadius: '4px' }}>
                         <span style={{ fontWeight: 600 }}>{s.label || s.platform}</span>
                         <span style={{ color: s.status === 'done' ? 'var(--teal)' : s.status === 'error' ? 'var(--red)' : 'var(--text-muted)' }}>
-                          {s.status === 'pending' && '⏳ In coda'}
-                          {s.status === 'scanning' && '🔍 Lettura in corso...'}
-                          {s.status === 'done' && `✅ ${s.details}`}
-                          {s.status === 'error' && `❌ Errore`}
+                          {s.status === 'pending' && 'â³ In coda'}
+                          {s.status === 'scanning' && 'ðŸ” Lettura in corso...'}
+                          {s.status === 'done' && `âœ… ${s.details}`}
+                          {s.status === 'error' && `âŒ Errore`}
                         </span>
                       </div>
                     ))}
@@ -1040,9 +1040,9 @@ async function runSiteAi() {
 
               {/* Profilazione AI */}
               <div className="card">
-                <h2 style={{ marginBottom: '0.5rem', fontSize: '18px' }}>🧠 Profilo editoriale</h2>
+                <h2 style={{ marginBottom: '0.5rem', fontSize: '18px' }}>ðŸ§  Profilo editoriale</h2>
                 <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '1rem' }}>
-                  Spiega all'AI chi sei e come deve comportarsi. Più dettagli dai, migliori saranno gli articoli generati.
+                  Spiega all'AI chi sei e come deve comportarsi. PiÃ¹ dettagli dai, migliori saranno gli articoli generati.
                 </p>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                   <div>
@@ -1064,14 +1064,14 @@ async function runSiteAi() {
                       style={{ width: '100%', minHeight: '60px', resize: 'vertical', padding: '10px 14px', border: '1px solid var(--border-strong)', borderRadius: 'var(--radius-sm)', background: 'var(--surface)', fontFamily: 'inherit', fontSize: '14px' }} />
                   </div>
                   <button className="btn btn-outline" onClick={saveProfile} disabled={savingProfile} style={{ alignSelf: 'flex-start' }}>
-                    {savingProfile ? 'Salvataggio...' : '💾 Salva profilo editoriale'}
+                    {savingProfile ? 'Salvataggio...' : 'ðŸ’¾ Salva profilo editoriale'}
                   </button>
                 </div>
               </div>
 
               {/* Importa da link diretto */}
               <div className="card">
-                <h2 style={{ marginBottom: '0.5rem', fontSize: '18px' }}>🔗 Importa un contenuto specifico</h2>
+                <h2 style={{ marginBottom: '0.5rem', fontSize: '18px' }}>ðŸ”— Importa un contenuto specifico</h2>
                 <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '12px' }}>
                   Incolla il link di un singolo video o post per importarlo e convertirlo subito in articolo.
                 </p>
@@ -1079,7 +1079,7 @@ async function runSiteAi() {
                   <input type="text" placeholder="https://www.youtube.com/watch?v=... oppure link Instagram/TikTok"
                     value={linkUrl} onChange={e => setLinkUrl(e.target.value)} style={{ flex: 1 }} />
                   <button type="submit" className="btn btn-primary" disabled={importing}>
-                    {importing ? '⟳ Elaborazione...' : 'Importa'}
+                    {importing ? 'âŸ³ Elaborazione...' : 'Importa'}
                   </button>
                 </form>
                 {importMsg && (
@@ -1108,7 +1108,7 @@ async function runSiteAi() {
           return (
           <div>
             <div style={{ marginBottom: '1.5rem', background: 'var(--surface)', padding: '1rem', borderRadius: 'var(--radius)', border: '1px solid var(--border)', display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center', boxShadow: '0 4px 6px rgba(0,0,0,0.02)' }}>
-              <input type="text" placeholder="🔍 Cerca contenuti per titolo o testo..." style={{ flex: '1 1 250px', border: '1px solid var(--border-strong)', padding: '10px 16px', borderRadius: '20px', background: 'var(--bg)' }} onChange={(e) => {
+              <input type="text" placeholder="ðŸ” Cerca contenuti per titolo o testo..." style={{ flex: '1 1 250px', border: '1px solid var(--border-strong)', padding: '10px 16px', borderRadius: '20px', background: 'var(--bg)' }} onChange={(e) => {
                 const term = e.target.value.toLowerCase();
                 if (term) setDashboardFilter('search-' + term);
                 else setDashboardFilter('all');
@@ -1131,29 +1131,29 @@ async function runSiteAi() {
               <div style={{ display: 'flex', gap: '8px' }}>
                 <a href={siteUrl} target="_blank" rel="noopener"
                   style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '8px 14px', background: 'var(--purple)', color: '#fff', borderRadius: 'var(--radius-sm)', textDecoration: 'none', fontSize: '13px', fontWeight: 500 }}>
-                  🌍 Apri sito pubblico
+                  ðŸŒ Apri sito pubblico
                 </a>
                 <a href={`${siteUrl}/sitemap.xml`} target="_blank" rel="noopener"
                   style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '8px 14px', background: 'var(--surface)', border: '1px solid var(--border-strong)', color: 'var(--text)', borderRadius: 'var(--radius-sm)', textDecoration: 'none', fontSize: '13px' }}>
-                  🗺 Sitemap XML
+                  ðŸ—º Sitemap XML
                 </a>
               </div>
               <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                 {selectedPosts.length > 0 && (
                   <button onClick={bulkDeletePosts} style={{ background: 'var(--red)', color: 'white', border: 'none', padding: '8px 14px', borderRadius: 'var(--radius-sm)', fontSize: '13px', cursor: 'pointer', fontWeight: 500 }}>
-                    🗑 Elimina {selectedPosts.length} selezionati
+                    ðŸ—‘ Elimina {selectedPosts.length} selezionati
                   </button>
                 )}
                 <div style={{ display: 'flex', background: 'var(--bg)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-strong)', overflow: 'hidden' }}>
-                  <button onClick={() => setViewMode('grid')} style={{ background: viewMode === 'grid' ? 'var(--gray-light)' : 'transparent', border: 'none', padding: '6px 12px', cursor: 'pointer' }}>🔲</button>
-                  <button onClick={() => setViewMode('table')} style={{ background: viewMode === 'table' ? 'var(--gray-light)' : 'transparent', border: 'none', padding: '6px 12px', cursor: 'pointer' }}>📄</button>
+                  <button onClick={() => setViewMode('grid')} style={{ background: viewMode === 'grid' ? 'var(--gray-light)' : 'transparent', border: 'none', padding: '6px 12px', cursor: 'pointer' }}>ðŸ”²</button>
+                  <button onClick={() => setViewMode('table')} style={{ background: viewMode === 'table' ? 'var(--gray-light)' : 'transparent', border: 'none', padding: '6px 12px', cursor: 'pointer' }}>ðŸ“„</button>
                 </div>
               </div>
             </div>
 
             {filteredPosts.length === 0 ? (
               <div className="card" style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '4rem 2rem' }}>
-                <div style={{ fontSize: '48px', marginBottom: '1rem', opacity: 0.5 }}>📭</div>
+                <div style={{ fontSize: '48px', marginBottom: '1rem', opacity: 0.5 }}>ðŸ“­</div>
                 <h3 style={{ fontSize: '18px' }}>Nessun contenuto trovato</h3>
                 <p style={{ fontSize: '14px', marginTop: '0.5rem' }}>Prova a cambiare i filtri di ricerca o clicca "Aggiorna ora".</p>
               </div>
@@ -1180,7 +1180,7 @@ async function runSiteAi() {
                       </div>
                       
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        {post.media_type === 'VIDEO' && <span style={{ background: 'var(--primary-light)', color: 'var(--primary-dark)', padding: '4px 10px', borderRadius: '20px', fontSize: '11px', fontWeight: 700, whiteSpace: 'nowrap' }}>🎥 VIDEO</span>}
+                        {post.media_type === 'VIDEO' && <span style={{ background: 'var(--primary-light)', color: 'var(--primary-dark)', padding: '4px 10px', borderRadius: '20px', fontSize: '11px', fontWeight: 700, whiteSpace: 'nowrap' }}>ðŸŽ¥ VIDEO</span>}
                         <div style={{ width: '32px', height: '32px', borderRadius: '50%', flexShrink: 0, background: post.seo_score >= 80 ? 'var(--teal-light)' : (post.seo_score >= 50 ? 'var(--amber-light)' : 'var(--red-light)'), color: post.seo_score >= 80 ? 'var(--teal)' : (post.seo_score >= 50 ? 'var(--amber)' : 'var(--red)'), display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: '12px', border: `2px solid ${post.seo_score >= 80 ? 'var(--teal)' : (post.seo_score >= 50 ? 'var(--amber)' : 'var(--red)')}`, boxShadow: '0 4px 10px rgba(0,0,0,0.05)' }} title={`Score SEO: ${post.seo_score}`}>
                           {post.seo_score}
                         </div>
@@ -1206,13 +1206,13 @@ async function runSiteAi() {
                     {/* Azioni Fondo Card */}
                     <div className="article-card-footer">
                       <button onClick={() => setEditingPost({id: post.id, title: post.generated_title || '', body: post.edited_body || post.generated_body || '', excerpt: post.generated_excerpt || '', tags: (post.tags || []).join(', ')})} style={{ flex: '1', padding: '10px', fontSize: '13px', fontWeight: 800, borderRadius: 'var(--radius-sm)', background: 'var(--primary)', color: '#fff', border: 'none', cursor: 'pointer', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '6px', transition: 'all 0.2s', boxShadow: '0 4px 12px rgba(99,102,241,0.3)' }}>
-                        ✏️ MODIFICA
+                        âœï¸ MODIFICA
                       </button>
                       <button onClick={() => togglePublishPost(post.id, post.published)} title={post.published == 1 ? "Nascondi dal sito" : "Pubblica sul sito"} style={{ padding: '10px', borderRadius: 'var(--radius-sm)', border: 'none', fontSize: '16px', cursor: 'pointer', background: post.published == 1 ? 'var(--teal-light)' : 'var(--surface)', color: post.published == 1 ? 'var(--teal)' : 'var(--text-muted)', border: post.published == 1 ? '1px solid rgba(16,185,129,0.3)' : '1px solid var(--border-strong)', transition: 'all 0.2s', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-                        {post.published == 1 ? '👁️' : '🚫'}
+                        {post.published == 1 ? 'ðŸ‘ï¸' : 'ðŸš«'}
                       </button>
                       <button onClick={() => deletePost(post.id)} title="Elimina" style={{ padding: '10px', borderRadius: 'var(--radius-sm)', border: 'none', fontSize: '16px', cursor: 'pointer', background: 'var(--red-light)', color: 'var(--red)', border: '1px solid rgba(239,68,68,0.3)', transition: 'all 0.2s', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-                        ❌
+                        âŒ
                       </button>
                     </div>
                   </div>
@@ -1257,8 +1257,8 @@ async function runSiteAi() {
                         </td>
                         <td style={{ padding: '16px' }}>
                           <div style={{ display: 'flex', gap: '10px' }}>
-                            <button onClick={() => setEditingPost({id: post.id, title: post.generated_title || '', body: post.edited_body || post.generated_body || '', excerpt: post.generated_excerpt || '', tags: (post.tags || []).join(', ')})} style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', color: 'var(--text)', padding: '6px 12px', borderRadius: '6px', cursor: 'pointer', fontSize: '13px', fontWeight: 600 }}>✏️ Modifica</button>
-                            <button onClick={() => deletePost(post.id)} style={{ background: 'rgba(255,0,50,0.1)', border: '1px solid rgba(255,0,50,0.3)', color: 'var(--red)', padding: '6px 12px', borderRadius: '6px', cursor: 'pointer', fontSize: '13px', fontWeight: 600 }}>❌ Elimina</button>
+                            <button onClick={() => setEditingPost({id: post.id, title: post.generated_title || '', body: post.edited_body || post.generated_body || '', excerpt: post.generated_excerpt || '', tags: (post.tags || []).join(', ')})} style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', color: 'var(--text)', padding: '6px 12px', borderRadius: '6px', cursor: 'pointer', fontSize: '13px', fontWeight: 600 }}>âœï¸ Modifica</button>
+                            <button onClick={() => deletePost(post.id)} style={{ background: 'rgba(255,0,50,0.1)', border: '1px solid rgba(255,0,50,0.3)', color: 'var(--red)', padding: '6px 12px', borderRadius: '6px', cursor: 'pointer', fontSize: '13px', fontWeight: 600 }}>âŒ Elimina</button>
                           </div>
                         </td>
                       </tr>
@@ -1274,6 +1274,55 @@ async function runSiteAi() {
         {/* Tab: SEO */}
         {tab === 'seo' && (
           <div>
+            <div className="glass-modal" style={{ marginBottom: '2rem', padding: '0', background: 'var(--gradient)', color: '#fff', border: 'none', display: 'flex', flexWrap: 'wrap', overflow: 'hidden' }}>
+              <div style={{ flex: '1 1 300px', padding: '3rem', position: 'relative', zIndex: 1 }}>
+                <h2 style={{ fontSize: '28px', fontWeight: 800, marginBottom: '12px', color: '#fff', letterSpacing: '-0.5px' }}>Ottimizzazione Google</h2>
+                <div style={{ fontSize: '16px', color: 'rgba(255,255,255,0.85)', fontWeight: 500, maxWidth: '420px', lineHeight: 1.6 }}>
+                  Basato su <b>{posts.length}</b> contenuti importati. Questo punteggio indica quanto la struttura del tuo sito è sana e leggibile dai motori di ricerca.
+                </div>
+              </div>
+              <div style={{ padding: '3rem', display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '24px', background: 'rgba(0,0,0,0.15)', backdropFilter: 'blur(10px)', flex: '1 1 300px' }}>
+                <div style={{ width: '130px', height: '130px', borderRadius: '50%', background: 'rgba(255,255,255,0.1)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', border: '4px solid rgba(255,255,255,0.3)', boxShadow: '0 8px 32px rgba(0,0,0,0.15)' }}>
+                  <div style={{ fontSize: '56px', fontWeight: 800, lineHeight: 1 }}>{site?.seo_score || 0}</div>
+                  <div style={{ fontSize: '12px', fontWeight: 700, letterSpacing: '2px', opacity: 0.8, marginTop: '6px' }}>SCORE</div>
+                </div>
+                <div>
+                  <h3 style={{ fontSize: '32px', fontWeight: 800, marginBottom: '8px' }}>
+                    {(site?.seo_score || 0) >= 80 ? 'Eccellente 🚀' : (site?.seo_score || 0) >= 60 ? 'Buono ⭐' : 'Da migliorare ⚠️'}
+                  </h3>
+                  <div style={{ display: 'flex', gap: '6px' }}>
+                    {[...Array(5)].map((_, i) => (
+                      <div key={i} style={{ width: 14, height: 14, borderRadius: '50%', background: i < ((site?.seo_score || 0) / 20) ? '#fff' : 'rgba(255,255,255,0.2)' }} />
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="glass-modal" style={{ padding: '2.5rem 2rem', marginBottom: '2rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '2rem' }}>
+                <div style={{ width: 48, height: 48, borderRadius: '14px', background: 'var(--teal-light)', color: 'var(--teal)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '24px' }}>✨</div>
+                <h3 style={{ color: 'var(--text)', fontSize: '24px', margin: 0, fontWeight: 800 }}>Cosa l'AI ha fatto per il tuo SEO</h3>
+              </div>
+              
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '20px' }}>
+                {[
+                  ['🎙️', 'Trascrizione Audio/Video', 'I tuoi video di YouTube o TikTok vengono trascritti e resi testi leggibili e indicizzabili da Google.'],
+                  ['📝', 'Titoli H1 Ottimizzati', 'Titoli di pagina accattivanti e strutturati con gerarchia logica, generati in automatico per ogni post.'],
+                  ['✨', 'Meta Description', 'Riassunti unici di massimo 155 caratteri per un posizionamento perfetto nei risultati di ricerca.'],
+                  ['🗺️', 'Sitemap XML', 'Mappa del sito generata e aggiornata istantaneamente ad ogni nuova sincronizzazione.'],
+                  ['🧠', 'Schema JSON-LD', 'Rich snippets strutturati nascosti nel codice per farti preferire dall\'algoritmo di Google.'],
+                  ['🏷️', 'Tag Keyword', 'Parole chiave e argomenti pertinenti estratti dal contenuto reale del tuo video/post.'],
+                ].map(([icon, title, desc], i) => (
+                  <div key={i} style={{ background: 'var(--bg)', padding: '24px', borderRadius: 'var(--radius)', border: '1px solid var(--border-strong)', boxShadow: 'var(--shadow-sm)', transition: 'transform 0.2s', cursor: 'default' }} onMouseOver={e => e.currentTarget.style.transform = 'translateY(-4px)'} onMouseOut={e => e.currentTarget.style.transform = 'translateY(0)'}>
+                    <div style={{ width: 44, height: 44, borderRadius: '12px', background: 'var(--surface)', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '22px', marginBottom: '16px', boxShadow: 'var(--shadow-sm)' }}>{icon}</div>
+                    <div style={{ fontWeight: 800, fontSize: '16px', marginBottom: '8px', color: 'var(--text)' }}>{title}</div>
+                    <div style={{ fontSize: '14px', color: 'var(--text-muted)', lineHeight: 1.6, fontWeight: 500 }}>{desc}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
             <div className="glass-modal" style={{ marginBottom: '1.5rem', padding: '1.5rem' }}>
               <h3 style={{ marginBottom: '1rem', color: 'var(--primary)' }}>Configurazione SEO</h3>
               <div className="form-group">
@@ -1286,7 +1335,7 @@ async function runSiteAi() {
                 </p>
               </div>
               <button className="btn btn-primary" onClick={saveProfile} disabled={savingProfile} style={{ padding: '12px 20px', fontWeight: 700 }}>
-                {savingProfile ? '⟳ Salvataggio...' : '✓ Salva configurazione SEO'}
+                {savingProfile ? 'âŸ³ Salvataggio...' : 'âœ“ Salva configurazione SEO'}
               </button>
             </div>
 
@@ -1334,13 +1383,13 @@ async function runSiteAi() {
             <div className="glass-modal" style={{ marginBottom: '1rem', border: '1px solid var(--primary)' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
                 <div>
-                  <h3 style={{ marginBottom: '0.25rem', color: 'var(--primary)', fontSize: '20px' }}>✨ Layout generati dall'AI</h3>
+                  <h3 style={{ marginBottom: '0.25rem', color: 'var(--primary)', fontSize: '20px' }}>âœ¨ Layout generati dall'AI</h3>
                   <p style={{ color: 'var(--text-muted)', fontSize: '14px', margin: 0, fontWeight: 500 }}>
                     Lascia che il Graphic Designer crei proposte su misura in base al tuo profilo.
                   </p>
                 </div>
                 <button className="btn btn-primary" onClick={forceDesignSite} disabled={designingSite} style={{ padding: '12px 20px', fontSize: '14px' }}>
-                  {designingSite ? '⟳ Generazione in corso...' : 'Rigenera Proposte Layout'}
+                  {designingSite ? 'âŸ³ Generazione in corso...' : 'Rigenera Proposte Layout'}
                 </button>
               </div>
 
@@ -1380,13 +1429,13 @@ async function runSiteAi() {
                         </div>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                           <button className="btn btn-outline btn-full" onClick={() => { setPreviewingTheme(null); setActivePreviewUrl(`${siteUrl}?preview_index=${i}`); }} style={{ fontSize: '12px', padding: '6px' }}>
-                            👁️ Anteprima
+                            ðŸ‘ï¸ Anteprima
                           </button>
                           <button className="btn btn-primary btn-full" onClick={() => applyLayout(i)} style={{ fontSize: '12px', padding: '6px' }}>
-                            ✓ Applica
+                            âœ“ Applica
                           </button>
                           <button className="btn btn-outline btn-full" onClick={() => removeGeneratedLayout(i)} style={{ fontSize: '12px', padding: '6px', color: 'var(--red)', borderColor: 'var(--red-light)' }}>
-                            ❌ Elimina
+                            âŒ Elimina
                           </button>
                         </div>
                       </div>
@@ -1402,7 +1451,7 @@ async function runSiteAi() {
                 <div>
                   <h3 style={{ marginBottom: '0.5rem', fontSize: '20px' }}>Libreria Modelli (Manual Selection)</h3>
                   <p style={{ color: 'var(--text-muted)', fontSize: '14px', margin: 0, fontWeight: 500 }}>
-                    Scegli uno dei 20 temi premium e clicca "Applica". Il tuo sito verrà aggiornato immediatamente.
+                    Scegli uno dei 20 temi premium e clicca "Applica". Il tuo sito verrÃ  aggiornato immediatamente.
                   </p>
                 </div>
               </div>
@@ -1422,7 +1471,7 @@ async function runSiteAi() {
                     }} 
                     onClick={() => { setPreviewingTheme(layout.id); setActivePreviewUrl(`${siteUrl}?preview_theme=${layout.id}`); }}>
                     
-                    {selectedTheme === layout.id && <div style={{ position: 'absolute', top: 16, right: 16, background: 'var(--primary)', color: '#000', borderRadius: '50%', width: 28, height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '16px', fontWeight: 800, boxShadow: '0 0 10px rgba(0,240,255,0.5)' }}>✓</div>}
+                    {selectedTheme === layout.id && <div style={{ position: 'absolute', top: 16, right: 16, background: 'var(--primary)', color: '#000', borderRadius: '50%', width: 28, height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '16px', fontWeight: 800, boxShadow: '0 0 10px rgba(0,240,255,0.5)' }}>âœ“</div>}
                     
                     <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>{layout.emoji}</div>
                     <div style={{ fontWeight: 800, fontSize: '18px', marginBottom: '8px', color: 'var(--text)' }}>{layout.name}</div>
@@ -1447,9 +1496,9 @@ async function runSiteAi() {
                   <span style={{ fontWeight: 800, fontSize: '18px' }}>Anteprima Reale</span>
                   <div style={{ display: 'flex', gap: '16px' }}>
                     {previewingTheme && (
-                      <button onClick={() => { chooseTheme(previewingTheme); setActivePreviewUrl(null); setPreviewingTheme(null); }} style={{ background: 'var(--primary)', color: '#000', fontSize: '15px', border: 'none', cursor: 'pointer', padding: '8px 20px', borderRadius: '20px', fontWeight: 800 }}>✓ APPLICA QUESTO TEMA</button>
+                      <button onClick={() => { chooseTheme(previewingTheme); setActivePreviewUrl(null); setPreviewingTheme(null); }} style={{ background: 'var(--primary)', color: '#000', fontSize: '15px', border: 'none', cursor: 'pointer', padding: '8px 20px', borderRadius: '20px', fontWeight: 800 }}>âœ“ APPLICA QUESTO TEMA</button>
                     )}
-                    <button onClick={() => { setActivePreviewUrl(null); setPreviewingTheme(null); }} style={{ background: 'transparent', color: '#fff', fontSize: '20px', border: 'none', cursor: 'pointer', opacity: 0.7 }}>✖ Chiudi</button>
+                    <button onClick={() => { setActivePreviewUrl(null); setPreviewingTheme(null); }} style={{ background: 'transparent', color: '#fff', fontSize: '20px', border: 'none', cursor: 'pointer', opacity: 0.7 }}>âœ– Chiudi</button>
                   </div>
                 </div>
                 <iframe src={activePreviewUrl} style={{ width: '100%', flex: 1, background: '#fff', border: 'none', borderRadius: '0 0 16px 16px' }} />
@@ -1480,7 +1529,7 @@ async function runSiteAi() {
                       style={{ width: '100%', minHeight: '96px', resize: 'vertical', padding: '12px 16px', border: '1px solid var(--border-strong)', borderRadius: 'var(--radius-sm)', background: 'var(--bg)', fontFamily: 'inherit', fontSize: '15px', color: 'var(--text)' }} />
                   </div>
                   <button className="btn btn-primary" onClick={saveProfile} disabled={savingProfile} style={{ padding: '12px 20px', fontWeight: 700 }}>
-                    {savingProfile ? '⟳ Salvo...' : '✓ Salva agente editoriale'}
+                    {savingProfile ? 'âŸ³ Salvo...' : 'âœ“ Salva agente editoriale'}
                   </button>
                 </div>
 
@@ -1501,18 +1550,18 @@ async function runSiteAi() {
                     <label className="label">Tipologia Profilo</label>
                     <div style={{ display: 'flex', gap: '16px', background: 'var(--gray-light)', padding: '8px', borderRadius: 'var(--radius-sm)' }}>
                       <button onClick={() => setAccountType('business')} style={{ flex: 1, padding: '12px', borderRadius: 'var(--radius-sm)', background: accountType === 'business' ? 'var(--primary)' : 'transparent', color: accountType === 'business' ? '#fff' : 'var(--text)', border: 'none', fontWeight: 700, transition: 'all 0.3s ease' }}>
-                        🏢 Account Business
+                        ðŸ¢ Account Business
                       </button>
                       <button onClick={() => setAccountType('personal')} style={{ flex: 1, padding: '12px', borderRadius: 'var(--radius-sm)', background: accountType === 'personal' ? 'var(--primary)' : 'transparent', color: accountType === 'personal' ? '#fff' : 'var(--text)', border: 'none', fontWeight: 700, transition: 'all 0.3s ease' }}>
-                        🧑 Account Personale
+                        ðŸ§‘ Account Personale
                       </button>
                     </div>
                     <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '8px', lineHeight: '1.5', fontWeight: 500 }}>
-                      Questo aiuterà l'AI a generare articoli più adatti: orientati alla conversione e alla vendita per i Business, orientati all'empatia e allo storytelling per i Profili Personali.
+                      Questo aiuterÃ  l'AI a generare articoli piÃ¹ adatti: orientati alla conversione e alla vendita per i Business, orientati all'empatia e allo storytelling per i Profili Personali.
                     </p>
                   </div>
                   <button className="btn btn-primary" onClick={saveProfile} disabled={savingProfile} style={{ padding: '12px 20px', fontWeight: 700 }}>
-                    {savingProfile ? '⟳ Salvataggio...' : '✓ Salva configurazione scrittura'}
+                    {savingProfile ? 'âŸ³ Salvataggio...' : 'âœ“ Salva configurazione scrittura'}
                   </button>
                 </div>
               </>
@@ -1547,7 +1596,7 @@ async function runSiteAi() {
                     </div>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                    <input type="date" title="Retroattività" 
+                    <input type="date" title="RetroattivitÃ " 
                       defaultValue={c.since_date || ''}
                       onBlur={e => saveConnectionSinceDate(c.platform, e.target.value)}
                       style={{ padding: '8px', fontSize: '14px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-strong)', background: '#111', color: 'var(--text)' }} />
@@ -1572,10 +1621,10 @@ async function runSiteAi() {
             </div>
 
             <div className="glass-modal" style={{ padding: '1.5rem' }}>
-              <h3 style={{ marginBottom: '1rem', color: 'var(--primary)' }}>🌍 Il tuo sito pubblico</h3>
+              <h3 style={{ marginBottom: '1rem', color: 'var(--primary)' }}>ðŸŒ Il tuo sito pubblico</h3>
               <div style={{ background: 'rgba(0,240,255,0.05)', border: '1px solid rgba(0,240,255,0.2)', padding: '14px 18px', borderRadius: 'var(--radius-sm)', fontFamily: 'monospace', fontSize: '15px', marginBottom: '16px', wordBreak: 'break-all', color: 'var(--text)' }}>{siteUrl}</div>
               <div style={{ display: 'flex', gap: '12px' }}>
-                <a href={siteUrl} target="_blank" rel="noopener" className="btn btn-primary" style={{ textDecoration: 'none', padding: '12px 20px', fontWeight: 700 }}>🌍 APRI SITO</a>
+                <a href={siteUrl} target="_blank" rel="noopener" className="btn btn-primary" style={{ textDecoration: 'none', padding: '12px 20px', fontWeight: 700 }}>ðŸŒ APRI SITO</a>
                 <a href={`${siteUrl}/sitemap.xml`} target="_blank" className="btn btn-outline" style={{ textDecoration: 'none', fontSize: '14px', padding: '12px 20px', fontWeight: 700 }}>Sitemap XML</a>
               </div>
             </div>
@@ -1591,8 +1640,8 @@ async function runSiteAi() {
           <div className="mobile-bottom-sheet" style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '2rem 1rem', overflowY: 'auto' }}>
             <div className="glass-modal" style={{ width: '100%', maxWidth: '800px', display: 'flex', flexDirection: 'column', gap: '1.5rem', border: '1px solid var(--border)' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border)', paddingBottom: '1rem' }}>
-                <h2 style={{ fontSize: '24px', fontWeight: 800, margin: 0, color: 'var(--primary)' }}>✏️ Modifica</h2>
-                <button onClick={() => setEditingPost(null)} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', width: '36px', height: '36px', borderRadius: '50%', fontSize: '16px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text)', transition: 'background 0.2s' }}>✕</button>
+                <h2 style={{ fontSize: '24px', fontWeight: 800, margin: 0, color: 'var(--primary)' }}>âœï¸ Modifica</h2>
+                <button onClick={() => setEditingPost(null)} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', width: '36px', height: '36px', borderRadius: '50%', fontSize: '16px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text)', transition: 'background 0.2s' }}>âœ•</button>
               </div>
               
               <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
@@ -1620,10 +1669,10 @@ async function runSiteAi() {
 
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem', marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid var(--border)' }}>
                 <button onClick={savePostEdit} disabled={cmsSaving} style={{ flex: '2 1 200px', background: 'var(--primary)', color: '#000', border: 'none', padding: '16px', fontSize: '16px', fontWeight: 800, borderRadius: 'var(--radius-sm)', cursor: 'pointer', transition: 'background 0.2s', boxShadow: '0 4px 12px rgba(0,240,255,0.2)' }}>
-                  {cmsSaving ? '⏳ Salvataggio in corso...' : '✅ SALVA MODIFICHE'}
+                  {cmsSaving ? 'â³ Salvataggio in corso...' : 'âœ… SALVA MODIFICHE'}
                 </button>
                 <button onClick={() => setEditingPost(null)} style={{ flex: '1 1 100px', background: 'transparent', color: 'var(--text)', border: '1px solid var(--border-strong)', padding: '16px', fontSize: '16px', fontWeight: 600, borderRadius: 'var(--radius-sm)', cursor: 'pointer', transition: 'background 0.2s' }}>
-                  ❌ ANNULLA
+                  âŒ ANNULLA
                 </button>
               </div>
             </div>
@@ -1635,26 +1684,26 @@ async function runSiteAi() {
       {/* Mobile Bottom Navigation */}
       <div className="mobile-nav">
         <button className={`mobile-nav-item ${tab === 'overview' ? 'active' : ''}`} onClick={() => setTab('overview')}>
-          <span style={{fontSize: '20px'}}>🏠</span> Home
+          <span style={{fontSize: '20px'}}>ðŸ </span> Home
         </button>
         <button className={`mobile-nav-item ${tab === 'site' ? 'active' : ''}`} onClick={() => setTab('site')}>
-          <span style={{fontSize: '20px'}}>📝</span> Articoli
+          <span style={{fontSize: '20px'}}>ðŸ“</span> Articoli
         </button>
         
         <button className="mobile-fab" onClick={syncNow} disabled={syncing}>
-          {syncing ? '⟳' : '↻'}
+          {syncing ? 'âŸ³' : 'â†»'}
         </button>
         
         <button className={`mobile-nav-item ${tab === 'sources' ? 'active' : ''}`} onClick={() => setTab('sources')}>
-          <span style={{fontSize: '20px'}}>📡</span> Canali
+          <span style={{fontSize: '20px'}}>ðŸ“¡</span> Canali
         </button>
         {user?.role === 'admin' ? (
           <button className={`mobile-nav-item ${tab === 'settings' ? 'active' : ''}`} onClick={() => setTab('settings')}>
-            <span style={{fontSize: '20px'}}>⚙️</span> Menu
+            <span style={{fontSize: '20px'}}>âš™ï¸</span> Menu
           </button>
         ) : (
           <button className={`mobile-nav-item ${tab === 'seo' ? 'active' : ''}`} onClick={() => setTab('seo')}>
-            <span style={{fontSize: '20px'}}>📈</span> SEO
+            <span style={{fontSize: '20px'}}>ðŸ“ˆ</span> SEO
           </button>
         )}
       </div>
