@@ -74,5 +74,5 @@ jobs:
             --exclude frontend/ \
             --exclude README.md \
             --exclude CLAUDE.md \
-            ./ public_html/;
+            ./ httpdocs/;
           "
