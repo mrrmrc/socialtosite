@@ -2,12 +2,18 @@ import React, { useState, useEffect } from 'react';
 import { apiFetch, SOCIAL, SITE_LAYOUTS } from '../utils/api';
 import { SocialIcon } from '../components/SocialIcon';
 import { QuillEditor } from '../components/QuillEditor';
+import { AdminScreen } from './AdminScreen';
 
 export 
 function DashboardScreen({ token, user, onLogout }) {
   const [tab, setTab] = useState('overview');
   const [dashboardFilter, setDashboardFilter] = useState('all');
   const [data, setData] = useState(null);
+  const [seoAnalytics, setSeoAnalytics] = useState([]);
+  const [adminSeoStats, setAdminSeoStats] = useState([]);
+  const isAdmin = user?.role === 'admin';
+
+  const [brandVoiceProfile, setBrandVoiceProfile] = useState('');
   const [viewMode, setViewMode] = useState('grid');
   const [selectedPosts, setSelectedPosts] = useState([]);
   const [syncing, setSyncing] = useState(false);
@@ -55,6 +61,8 @@ const [importMsg, setImportMsg] = useState(null);
       const d = await apiFetch('/api/index.php?action=site', {}, token);
       setData(d);
       setProfileDraft(d.site?.profile_summary || d.site?.bio || '');
+      setBrandVoiceProfile(d.site?.brand_voice_profile || '');
+      setSeoAnalytics(d.seo_analytics || []);
       setRoleMissionDraft(d.site?.role_mission || '');
       setStrategyDraft(d.site?.content_strategy || '');
       setSelectedTheme(d.site?.theme || 'classic');
@@ -74,6 +82,12 @@ const [importMsg, setImportMsg] = useState(null);
            const arr = JSON.parse(d.site.menu_links);
            setMenuLinksStr(arr.map(x => `${x.label}|${x.url}`).join('\n'));
         } catch { setMenuLinksStr(d.site.menu_links); }
+      }
+      
+      if (user?.role === 'admin') {
+        apiFetch('/api/index.php?action=admin-seo', {}, token)
+          .then(res => setAdminSeoStats(res.stats || []))
+          .catch(e => console.error(e));
       }
     } catch (err) {
       alert("ERRORE CARICAMENTO DASHBOARD: " + err.message);
@@ -633,8 +647,10 @@ async function runSiteAi() {
             { id: 'overview', icon: '🏠', label: 'Home' },
             { id: 'site', icon: '📝', label: 'Articoli' },
             { id: 'sources', icon: '📡', label: 'Canali' },
-            { id: 'settings', icon: '🎨', label: 'Design' },
-            { id: 'general', icon: '⚙️', label: 'Impostazioni' },
+            ...(user.role === 'admin' ? [
+              { id: 'settings', icon: '🎨', label: 'Design' },
+              { id: 'general', icon: '⚙️', label: 'Impostazioni' }
+            ] : []),
             { id: 'seo', icon: '📈', label: 'SEO' },
             ...(user.role === 'admin' ? [{ id: 'admin', icon: '🛠', label: 'Admin' }] : [])
           ].map(item => (
@@ -726,6 +742,34 @@ async function runSiteAi() {
                 </div>
               ))}
             </div>
+
+            {brandVoiceProfile && (
+              <div className="card" style={{ padding: '1.5rem', background: 'var(--surface)' }}>
+                <h3 style={{ marginBottom: '1rem', color: 'var(--primary)' }}>🧠 Profilo Brand Voice (AI)</h3>
+                <div style={{ background: 'var(--bg)', padding: '1rem', borderRadius: 'var(--radius)', fontFamily: 'monospace', fontSize: '13px', color: 'var(--text-muted)', whiteSpace: 'pre-wrap', border: '1px solid var(--border)' }}>
+                  {brandVoiceProfile}
+                </div>
+              </div>
+            )}
+
+            {seoAnalytics.length > 0 && (
+              <div className="card" style={{ padding: '1.5rem', background: 'var(--surface)' }}>
+                <h3 style={{ marginBottom: '1rem', color: 'var(--teal)' }}>📈 Andamento Traffico (Google Search Console)</h3>
+                <div style={{ display: 'flex', alignItems: 'flex-end', height: '200px', gap: '4px', padding: '10px 0', borderBottom: '1px solid var(--border)' }}>
+                  {seoAnalytics.map((day, i) => {
+                     const maxClicks = Math.max(...seoAnalytics.map(a => a.clicks), 1);
+                     const h = (day.clicks / maxClicks) * 100;
+                     return (
+                       <div key={i} title={`${day.record_date}: ${day.clicks} clic, ${day.impressions} impr`} style={{ flex: 1, background: 'var(--teal)', height: `${Math.max(h, 2)}%`, minHeight: '4px', borderRadius: '4px 4px 0 0', cursor: 'pointer', transition: 'background 0.2s' }} onMouseOver={e => e.currentTarget.style.background='var(--primary)'} onMouseOut={e => e.currentTarget.style.background='var(--teal)'}></div>
+                     )
+                  })}
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: 'var(--text-muted)', marginTop: '8px' }}>
+                  <span>{seoAnalytics[0]?.record_date}</span>
+                  <span>{seoAnalytics[seoAnalytics.length-1]?.record_date}</span>
+                </div>
+              </div>
+            )}
             
             <div className="card" style={{ background: 'linear-gradient(135deg, var(--primary-dark), var(--primary))', color: '#fff', border: 'none', boxShadow: '0 10px 30px -10px rgba(0, 240, 255, 0.4)' }}>
               <h2 style={{ marginBottom: '1rem', color: '#fff', fontSize: '24px', letterSpacing: '-0.5px' }}>🌍 Il tuo sito è online</h2>
@@ -1230,100 +1274,57 @@ async function runSiteAi() {
         {/* Tab: SEO */}
         {tab === 'seo' && (
           <div>
-            <div className="glass-modal" style={{ marginBottom: '2rem', padding: '0', background: 'var(--gradient)', color: '#fff', border: 'none', display: 'flex', flexWrap: 'wrap', overflow: 'hidden' }}>
-              <div style={{ flex: '1 1 300px', padding: '3rem', position: 'relative', zIndex: 1 }}>
-                <h2 style={{ fontSize: '28px', fontWeight: 800, marginBottom: '12px', color: '#fff', letterSpacing: '-0.5px' }}>Ottimizzazione Google</h2>
-                <div style={{ fontSize: '16px', color: 'rgba(255,255,255,0.85)', fontWeight: 500, maxWidth: '420px', lineHeight: 1.6 }}>
-                  Basato su <b>{posts.length}</b> contenuti importati. Questo punteggio indica quanto la struttura del tuo sito è sana e leggibile dai motori di ricerca.
-                </div>
+            <div className="glass-modal" style={{ marginBottom: '1.5rem', padding: '1.5rem' }}>
+              <h3 style={{ marginBottom: '1rem', color: 'var(--primary)' }}>Configurazione SEO</h3>
+              <div className="form-group">
+                <label className="label">Codice verifica Google Search Console</label>
+                <input type="text" value={gscVerification} onChange={e => setGscVerification(e.target.value)}
+                  placeholder="Es: BVF6O77EIb-WwlRh7ctbZBSP8YCnJ67zIEH7icKJMYw" style={{ background: 'var(--bg)', color: 'var(--text)' }} />
+                <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '8px', fontWeight: 500 }}>
+                  Incolla il codice di verifica HTML che ti fornisce Google Search Console per indicizzare il tuo sito.
+                  Una volta salvato, torna su Google Search Console e clicca su "Verifica".
+                </p>
               </div>
-              <div style={{ padding: '3rem', display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '24px', background: 'rgba(0,0,0,0.15)', backdropFilter: 'blur(10px)', flex: '1 1 300px' }}>
-                <div style={{ width: '130px', height: '130px', borderRadius: '50%', background: 'rgba(255,255,255,0.1)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', border: '4px solid rgba(255,255,255,0.3)', boxShadow: '0 8px 32px rgba(0,0,0,0.15)' }}>
-                  <div style={{ fontSize: '56px', fontWeight: 800, lineHeight: 1 }}>{site?.seo_score || 0}</div>
-                  <div style={{ fontSize: '12px', fontWeight: 700, letterSpacing: '2px', opacity: 0.8, marginTop: '6px' }}>SCORE</div>
-                </div>
-                <div>
-                  <h3 style={{ fontSize: '32px', fontWeight: 800, marginBottom: '8px' }}>
-                    {(site?.seo_score || 0) >= 80 ? 'Eccellente 🚀' : (site?.seo_score || 0) >= 60 ? 'Buono 👍' : 'Da migliorare ⚠️'}
-                  </h3>
-                  <div style={{ display: 'flex', gap: '6px' }}>
-                    {[...Array(5)].map((_, i) => (
-                      <div key={i} style={{ width: 14, height: 14, borderRadius: '50%', background: i < ((site?.seo_score || 0) / 20) ? '#fff' : 'rgba(255,255,255,0.2)' }} />
-                    ))}
-                  </div>
-                </div>
-              </div>
+              <button className="btn btn-primary" onClick={saveProfile} disabled={savingProfile} style={{ padding: '12px 20px', fontWeight: 700 }}>
+                {savingProfile ? '⟳ Salvataggio...' : '✓ Salva configurazione SEO'}
+              </button>
             </div>
 
-            <div className="glass-modal" style={{ marginBottom: '2rem', padding: '2.5rem 2rem' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '2rem' }}>
-                <div style={{ width: 48, height: 48, borderRadius: '14px', background: 'var(--amber-light)', color: 'var(--amber)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '24px' }}>⏳</div>
-                <div>
-                  <h2 style={{ color: 'var(--text)', fontSize: '24px', margin: 0, fontWeight: 800 }}>Coda di Elaborazione AI</h2>
-                  <p style={{ color: 'var(--text-muted)', fontSize: '14px', margin: '4px 0 0', fontWeight: 500 }}>I contenuti grezzi scaricati dai social che l'AI sta elaborando per il tuo sito.</p>
+            {isAdmin && (
+              <div className="glass-modal" style={{ marginBottom: '1.5rem', padding: '1.5rem' }}>
+                <h3 style={{ marginBottom: '1rem', color: 'var(--primary)' }}>Statistiche SEO Globali (Admin)</h3>
+                <div style={{ overflowX: 'auto' }}>
+                  <table className="table" style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+                    <thead>
+                      <tr>
+                        <th style={{ padding: '12px', borderBottom: '1px solid var(--border)' }}>Utente</th>
+                        <th style={{ padding: '12px', borderBottom: '1px solid var(--border)' }}>Sito</th>
+                        <th style={{ padding: '12px', borderBottom: '1px solid var(--border)' }}>Data</th>
+                        <th style={{ padding: '12px', borderBottom: '1px solid var(--border)' }}>Impression</th>
+                        <th style={{ padding: '12px', borderBottom: '1px solid var(--border)' }}>Clic</th>
+                        <th style={{ padding: '12px', borderBottom: '1px solid var(--border)' }}>CTR</th>
+                        <th style={{ padding: '12px', borderBottom: '1px solid var(--border)' }}>Pos.</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {adminSeoStats.length === 0 ? (
+                        <tr><td colSpan="7" style={{ padding: '12px', textAlign: 'center' }}>Nessuna statistica disponibile</td></tr>
+                      ) : adminSeoStats.map((st, i) => (
+                        <tr key={i}>
+                          <td style={{ padding: '12px', borderBottom: '1px solid var(--border)' }}>{st.email}</td>
+                          <td style={{ padding: '12px', borderBottom: '1px solid var(--border)' }}>{st.title}</td>
+                          <td style={{ padding: '12px', borderBottom: '1px solid var(--border)' }}>{st.record_date}</td>
+                          <td style={{ padding: '12px', borderBottom: '1px solid var(--border)' }}>{st.impressions}</td>
+                          <td style={{ padding: '12px', borderBottom: '1px solid var(--border)' }}>{st.clicks}</td>
+                          <td style={{ padding: '12px', borderBottom: '1px solid var(--border)' }}>{st.ctr ? (st.ctr * 100).toFixed(2) + '%' : '-'}</td>
+                          <td style={{ padding: '12px', borderBottom: '1px solid var(--border)' }}>{st.position ? parseFloat(st.position).toFixed(1) : '-'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
               </div>
-              
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                {drafts.length === 0 ? (
-                  <div style={{ padding: '4rem 2rem', textAlign: 'center', background: 'var(--bg)', borderRadius: 'var(--radius)', border: '2px dashed var(--border-strong)' }}>
-                    <div style={{ fontSize: '32px', marginBottom: '12px', opacity: 0.5 }}>📭</div>
-                    <p style={{ color: 'var(--text-muted)', fontSize: '16px', fontWeight: 600, margin: 0 }}>Nessun contenuto in coda al momento.</p>
-                  </div>
-                ) : drafts.map(d => (
-                  <div key={d.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px', padding: '20px 24px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', transition: 'all 0.2s', boxShadow: 'var(--shadow-sm)' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '20px', overflow: 'hidden', flex: 1 }}>
-                      <div style={{ background: 'var(--bg)', padding: '12px', borderRadius: '50%', border: '1px solid var(--border-strong)', flexShrink: 0, boxShadow: 'var(--shadow-sm)' }}>
-                        <SocialIcon platform={d.platform} size={24} />
-                      </div>
-                      <div style={{ overflow: 'hidden' }}>
-                        <a href={d.source_url} target="_blank" rel="noreferrer" style={{ fontWeight: 800, color: 'var(--text)', textDecoration: 'none', fontSize: '15px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', display: 'block', maxWidth: '400px' }}>
-                          {d.source_url}
-                        </a>
-                        <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '6px', fontWeight: 500 }}>
-                          Acquisito il {d.published_at.substring(0, 10)}
-                        </div>
-                      </div>
-                    </div>
-                    <div style={{ flexShrink: 0 }}>
-                      {harmonizingId === d.id ? (
-                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: 'var(--primary-dark)', fontWeight: 800, padding: '10px 16px', background: 'var(--primary-light)', borderRadius: '30px', boxShadow: '0 4px 12px rgba(99,102,241,0.15)' }}>
-                          <span style={{ animation: 'spin 1.5s linear infinite', display: 'inline-block' }}>⟳</span> Trascrizione e SEO in corso...
-                        </span>
-                      ) : (
-                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: 'var(--amber)', fontWeight: 800, padding: '10px 16px', background: 'var(--amber-light)', borderRadius: '30px' }}>
-                          ⏳ In coda
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="glass-modal" style={{ padding: '2.5rem 2rem' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '2rem' }}>
-                <div style={{ width: 48, height: 48, borderRadius: '14px', background: 'var(--teal-light)', color: 'var(--teal)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '24px' }}>✨</div>
-                <h3 style={{ color: 'var(--text)', fontSize: '24px', margin: 0, fontWeight: 800 }}>Cosa l'AI ha fatto per il tuo SEO</h3>
-              </div>
-              
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '20px' }}>
-                {[
-                  ['📝', 'Trascrizione Audio/Video', 'I tuoi video di YouTube o TikTok vengono trascritti e resi testi leggibili e indicizzabili da Google.'],
-                  ['🎯', 'Titoli H1 Ottimizzati', 'Titoli di pagina accattivanti e strutturati con gerarchia logica, generati in automatico per ogni post.'],
-                  ['🔍', 'Meta Description', 'Riassunti unici di massimo 155 caratteri per un posizionamento perfetto nei risultati di ricerca.'],
-                  ['🗺️', 'Sitemap XML', 'Mappa del sito generata e aggiornata istantaneamente ad ogni nuova sincronizzazione.'],
-                  ['📊', 'Schema JSON-LD', 'Rich snippets strutturati nascosti nel codice per farti preferire dall\'algoritmo di Google.'],
-                  ['🏷️', 'Tag Keyword', 'Parole chiave e argomenti pertinenti estratti dal contenuto reale del tuo video/post.'],
-                ].map(([icon, title, desc], i) => (
-                  <div key={i} style={{ background: 'var(--bg)', padding: '24px', borderRadius: 'var(--radius)', border: '1px solid var(--border-strong)', boxShadow: 'var(--shadow-sm)', transition: 'transform 0.2s', cursor: 'default' }} onMouseOver={e => e.currentTarget.style.transform = 'translateY(-4px)'} onMouseOut={e => e.currentTarget.style.transform = 'translateY(0)'}>
-                    <div style={{ width: 44, height: 44, borderRadius: '12px', background: 'var(--surface)', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '22px', marginBottom: '16px', boxShadow: 'var(--shadow-sm)' }}>{icon}</div>
-                    <div style={{ fontWeight: 800, fontSize: '16px', marginBottom: '8px', color: 'var(--text)' }}>{title}</div>
-                    <div style={{ fontSize: '14px', color: 'var(--text-muted)', lineHeight: 1.6, fontWeight: 500 }}>{desc}</div>
-                  </div>
-                ))}
-              </div>
-            </div>
+            )}
           </div>
         )}
 
@@ -1462,69 +1463,60 @@ async function runSiteAi() {
         {/* Tab: Impostazioni Generali (General) */}
         {tab === 'general' && (
           <div>
-            <div className="glass-modal" style={{ marginBottom: '1.5rem', padding: '1.5rem' }}>
-              <h3 style={{ marginBottom: '1rem', color: 'var(--primary)' }}>Configurazione SEO</h3>
-              <div className="form-group">
-                <label className="label">Codice verifica Google Search Console</label>
-                <input type="text" value={gscVerification} onChange={e => setGscVerification(e.target.value)}
-                  placeholder="Es: google-site-verification=XXXXXXXXXXXXXXXXXXXXX" style={{ background: 'var(--bg)', color: 'var(--text)' }} />
-                <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '8px', fontWeight: 500 }}>Incolla il codice di verifica HTML che ti fornisce Google Search Console per indicizzare il tuo sito.</p>
-              </div>
-              <button className="btn btn-primary" onClick={saveProfile} disabled={savingProfile} style={{ padding: '12px 20px', fontWeight: 700 }}>
-                {savingProfile ? '⟳ Salvataggio...' : '✓ Salva configurazione SEO'}
-              </button>
-            </div>
-
-            <div className="glass-modal" style={{ marginBottom: '1.5rem', padding: '1.5rem' }}>
-              <h3 style={{ marginBottom: '1rem', color: 'var(--primary)' }}>Agente editoriale</h3>
-              <div className="form-group">
-                <label className="label">Ruolo e missione</label>
-                <textarea value={roleMissionDraft} onChange={e => setRoleMissionDraft(e.target.value)}
-                  placeholder="Es: consulente che aiuta PMI locali a trasformare contenuti social in pagine utili per clienti e Google."
-                  style={{ width: '100%', minHeight: '82px', resize: 'vertical', padding: '12px 16px', border: '1px solid var(--border-strong)', borderRadius: 'var(--radius-sm)', background: 'var(--bg)', fontFamily: 'inherit', fontSize: '15px', color: 'var(--text)' }} />
-              </div>
-              <div className="form-group">
-                <label className="label">Strategia di aggregazione</label>
-                <textarea value={strategyDraft} onChange={e => setStrategyDraft(e.target.value)}
-                  placeholder="Cosa pubblicare, cosa evitare, tono, temi ricorrenti, pubblico ideale."
-                  style={{ width: '100%', minHeight: '96px', resize: 'vertical', padding: '12px 16px', border: '1px solid var(--border-strong)', borderRadius: 'var(--radius-sm)', background: 'var(--bg)', fontFamily: 'inherit', fontSize: '15px', color: 'var(--text)' }} />
-              </div>
-              <button className="btn btn-primary" onClick={saveProfile} disabled={savingProfile} style={{ padding: '12px 20px', fontWeight: 700 }}>
-                {savingProfile ? '⟳ Salvo...' : '✓ Salva agente editoriale'}
-              </button>
-            </div>
-
-            <div className="glass-modal" style={{ marginBottom: '1.5rem', padding: '1.5rem' }}>
-              <h3 style={{ marginBottom: '1rem', color: 'var(--primary)' }}>Configurazione Scrittura Articoli</h3>
-              <div className="form-group">
-                <label className="label">Modello di Scrittura AI (Agente)</label>
-                <select value={harmonizeAgent} onChange={e => setHarmonizeAgent(e.target.value)}
-                  style={{ width: '100%', padding: '12px 16px', border: '1px solid var(--border-strong)', borderRadius: 'var(--radius-sm)', background: 'var(--bg)', fontSize: '15px', color: 'var(--text)' }}>
-                  <option value="content_editor">Scrittore Standard (Copywriter)</option>
-                  <option value="topical_authority_architect">Scrittore Ottimizzato (Topical Authority Architect)</option>
-                </select>
-                <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '8px', lineHeight: '1.5', fontWeight: 500 }}>
-                  Seleziona "Topical Authority Architect" per generare articoli che mostrano maggiore competenza ed esperienza e rompono i pattern tradizionali delle AI (Quality Rater friendly).
-                </p>
-              </div>
-              <div className="form-group">
-                <label className="label">Tipologia Profilo</label>
-                <div style={{ display: 'flex', gap: '16px', background: 'var(--gray-light)', padding: '8px', borderRadius: 'var(--radius-sm)' }}>
-                  <button onClick={() => setAccountType('business')} style={{ flex: 1, padding: '12px', borderRadius: 'var(--radius-sm)', background: accountType === 'business' ? 'var(--primary)' : 'transparent', color: accountType === 'business' ? '#fff' : 'var(--text)', border: 'none', fontWeight: 700, transition: 'all 0.3s ease' }}>
-                    🏢 Account Business
-                  </button>
-                  <button onClick={() => setAccountType('personal')} style={{ flex: 1, padding: '12px', borderRadius: 'var(--radius-sm)', background: accountType === 'personal' ? 'var(--primary)' : 'transparent', color: accountType === 'personal' ? '#fff' : 'var(--text)', border: 'none', fontWeight: 700, transition: 'all 0.3s ease' }}>
-                    🧑 Account Personale
+            {isAdmin && (
+              <>
+                <div className="glass-modal" style={{ marginBottom: '1.5rem', padding: '1.5rem' }}>
+                  <h3 style={{ marginBottom: '1rem', color: 'var(--primary)' }}>Agente editoriale</h3>
+                  <div className="form-group">
+                    <label className="label">Ruolo e missione</label>
+                    <textarea value={roleMissionDraft} onChange={e => setRoleMissionDraft(e.target.value)}
+                      placeholder="Es: consulente che aiuta PMI locali a trasformare contenuti social in pagine utili per clienti e Google."
+                      style={{ width: '100%', minHeight: '82px', resize: 'vertical', padding: '12px 16px', border: '1px solid var(--border-strong)', borderRadius: 'var(--radius-sm)', background: 'var(--bg)', fontFamily: 'inherit', fontSize: '15px', color: 'var(--text)' }} />
+                  </div>
+                  <div className="form-group">
+                    <label className="label">Strategia di aggregazione</label>
+                    <textarea value={strategyDraft} onChange={e => setStrategyDraft(e.target.value)}
+                      placeholder="Cosa pubblicare, cosa evitare, tono, temi ricorrenti, pubblico ideale."
+                      style={{ width: '100%', minHeight: '96px', resize: 'vertical', padding: '12px 16px', border: '1px solid var(--border-strong)', borderRadius: 'var(--radius-sm)', background: 'var(--bg)', fontFamily: 'inherit', fontSize: '15px', color: 'var(--text)' }} />
+                  </div>
+                  <button className="btn btn-primary" onClick={saveProfile} disabled={savingProfile} style={{ padding: '12px 20px', fontWeight: 700 }}>
+                    {savingProfile ? '⟳ Salvo...' : '✓ Salva agente editoriale'}
                   </button>
                 </div>
-                <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '8px', lineHeight: '1.5', fontWeight: 500 }}>
-                  Questo aiuterà l'AI a generare articoli più adatti: orientati alla conversione e alla vendita per i Business, orientati all'empatia e allo storytelling per i Profili Personali.
-                </p>
-              </div>
-              <button className="btn btn-primary" onClick={saveProfile} disabled={savingProfile} style={{ padding: '12px 20px', fontWeight: 700 }}>
-                {savingProfile ? '⟳ Salvataggio...' : '✓ Salva configurazione scrittura'}
-              </button>
-            </div>
+
+                <div className="glass-modal" style={{ marginBottom: '1.5rem', padding: '1.5rem' }}>
+                  <h3 style={{ marginBottom: '1rem', color: 'var(--primary)' }}>Configurazione Scrittura Articoli</h3>
+                  <div className="form-group">
+                    <label className="label">Modello di Scrittura AI (Agente)</label>
+                    <select value={harmonizeAgent} onChange={e => setHarmonizeAgent(e.target.value)}
+                      style={{ width: '100%', padding: '12px 16px', border: '1px solid var(--border-strong)', borderRadius: 'var(--radius-sm)', background: 'var(--bg)', fontSize: '15px', color: 'var(--text)' }}>
+                      <option value="content_editor">Scrittore Standard (Copywriter)</option>
+                      <option value="topical_authority_architect">Scrittore Ottimizzato (Topical Authority Architect)</option>
+                    </select>
+                    <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '8px', lineHeight: '1.5', fontWeight: 500 }}>
+                      Seleziona "Topical Authority Architect" per generare articoli che mostrano maggiore competenza ed esperienza e rompono i pattern tradizionali delle AI (Quality Rater friendly).
+                    </p>
+                  </div>
+                  <div className="form-group">
+                    <label className="label">Tipologia Profilo</label>
+                    <div style={{ display: 'flex', gap: '16px', background: 'var(--gray-light)', padding: '8px', borderRadius: 'var(--radius-sm)' }}>
+                      <button onClick={() => setAccountType('business')} style={{ flex: 1, padding: '12px', borderRadius: 'var(--radius-sm)', background: accountType === 'business' ? 'var(--primary)' : 'transparent', color: accountType === 'business' ? '#fff' : 'var(--text)', border: 'none', fontWeight: 700, transition: 'all 0.3s ease' }}>
+                        🏢 Account Business
+                      </button>
+                      <button onClick={() => setAccountType('personal')} style={{ flex: 1, padding: '12px', borderRadius: 'var(--radius-sm)', background: accountType === 'personal' ? 'var(--primary)' : 'transparent', color: accountType === 'personal' ? '#fff' : 'var(--text)', border: 'none', fontWeight: 700, transition: 'all 0.3s ease' }}>
+                        🧑 Account Personale
+                      </button>
+                    </div>
+                    <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '8px', lineHeight: '1.5', fontWeight: 500 }}>
+                      Questo aiuterà l'AI a generare articoli più adatti: orientati alla conversione e alla vendita per i Business, orientati all'empatia e allo storytelling per i Profili Personali.
+                    </p>
+                  </div>
+                  <button className="btn btn-primary" onClick={saveProfile} disabled={savingProfile} style={{ padding: '12px 20px', fontWeight: 700 }}>
+                    {savingProfile ? '⟳ Salvataggio...' : '✓ Salva configurazione scrittura'}
+                  </button>
+                </div>
+              </>
+            )}
 
             <div className="glass-modal" style={{ marginBottom: '1.5rem', padding: '1.5rem' }}>
               <h3 style={{ marginBottom: '1rem', color: 'var(--primary)' }}>Link social inseriti</h3>
@@ -1656,9 +1648,15 @@ async function runSiteAi() {
         <button className={`mobile-nav-item ${tab === 'sources' ? 'active' : ''}`} onClick={() => setTab('sources')}>
           <span style={{fontSize: '20px'}}>📡</span> Canali
         </button>
-        <button className={`mobile-nav-item ${tab === 'settings' ? 'active' : ''}`} onClick={() => setTab('settings')}>
-          <span style={{fontSize: '20px'}}>⚙️</span> Menu
-        </button>
+        {user.role === 'admin' ? (
+          <button className={`mobile-nav-item ${tab === 'settings' ? 'active' : ''}`} onClick={() => setTab('settings')}>
+            <span style={{fontSize: '20px'}}>⚙️</span> Menu
+          </button>
+        ) : (
+          <button className={`mobile-nav-item ${tab === 'seo' ? 'active' : ''}`} onClick={() => setTab('seo')}>
+            <span style={{fontSize: '20px'}}>📈</span> SEO
+          </button>
+        )}
       </div>
       
     </div>
