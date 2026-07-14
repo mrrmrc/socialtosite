@@ -633,7 +633,7 @@ async function runSiteAi() {
   const sources = data?.sources || [];
   const sourceByPlatform = sources.reduce((acc, source) => ({ ...acc, [source.platform]: source }), {});
   const connByPlatform = connections.reduce((acc, c) => ({ ...acc, [c.platform]: c }), {});
-  const siteUrl = `${(window.API_BASE || '').replace('3001', '3000')}/${user.slug}`;
+  const siteUrl = `${window.location.origin}/${user?.slug}`;
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex' }}>
