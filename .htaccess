@@ -17,13 +17,31 @@ RewriteRule ^robots\.txt$ robots.txt [L]
 RewriteRule ^sitemap\.xml$ public/sitemap.php [L,QSA]
 
 # Sitemap, Feed, e llms.txt
-RewriteRule ^s/([^/]+)/sitemap\.xml$ public/site.php?slug=$1&action=sitemap [L,QSA]
-RewriteRule ^s/([^/]+)/feed\.xml$ public/site.php?slug=$1&action=feed [L,QSA]
-RewriteRule ^s/([^/]+)/llms\.txt$ public/site.php?slug=$1&action=llms [L,QSA]
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteCond %{REQUEST_URI} !^/(api|cron|db|frontend|public|node_modules|assets|login|dashboard|connect|generating) [NC]
+RewriteRule ^([^/]+)/sitemap\.xml$ public/site.php?slug=$1&action=sitemap [L,QSA]
 
-# Pagina pubblica:  /s/<slug>  e  /s/<slug>/<post-slug>
-RewriteRule ^s/([^/]+)/?$ public/site.php?slug=$1 [L,QSA]
-RewriteRule ^s/([^/]+)/([^/]+)/?$ public/site.php?slug=$1&post=$2 [L,QSA]
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteCond %{REQUEST_URI} !^/(api|cron|db|frontend|public|node_modules|assets|login|dashboard|connect|generating) [NC]
+RewriteRule ^([^/]+)/feed\.xml$ public/site.php?slug=$1&action=feed [L,QSA]
+
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteCond %{REQUEST_URI} !^/(api|cron|db|frontend|public|node_modules|assets|login|dashboard|connect|generating) [NC]
+RewriteRule ^([^/]+)/llms\.txt$ public/site.php?slug=$1&action=llms [L,QSA]
+
+# Pagina pubblica:  /<slug>  e  /<slug>/<post-slug>
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteCond %{REQUEST_URI} !^/(api|cron|db|frontend|public|node_modules|assets|login|dashboard|connect|generating) [NC]
+RewriteRule ^([^/]+)/?$ public/site.php?slug=$1 [L,QSA]
+
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteCond %{REQUEST_URI} !^/(api|cron|db|frontend|public|node_modules|assets|login|dashboard|connect|generating) [NC]
+RewriteRule ^([^/]+)/([^/]+)/?$ public/site.php?slug=$1&post=$2 [L,QSA]
 
 # ── Sicurezza: blocca accesso diretto a file sensibili ─────────────────────
 <FilesMatch "(?i)(config\.php|keys\.php|.*\.env|.*\.sql|.*\.example\.php)$">

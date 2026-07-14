@@ -55,7 +55,7 @@ if ($postSlug) {
 // ── Sitemap XML ─────────────────────────────────────────────────────────────
 if ($action === 'sitemap') {
     header('Content-Type: application/xml; charset=utf-8');
-    $base = BASE_URL . '/s/' . $slug;
+    $base = BASE_URL . '/' . $slug;
     echo '<?xml version="1.0" encoding="UTF-8"?>' . "\n";
     echo '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">' . "\n";
     echo "  <url><loc>$base</loc><changefreq>daily</changefreq><priority>1.0</priority></url>\n";
@@ -87,7 +87,7 @@ if ($action === 'sitemap') {
 // ── RSS / Atom Feed ─────────────────────────────────────────────────────────
 if ($action === 'feed') {
     header('Content-Type: application/atom+xml; charset=utf-8');
-    $base = BASE_URL . '/s/' . $slug;
+    $base = BASE_URL . '/' . $slug;
     $titleXml = htmlspecialchars($site['title'] ?? $user['name'] ?? '', ENT_XML1, 'UTF-8');
     $bioXml = htmlspecialchars($site['profile_summary'] ?: ($site['bio'] ?? ''), ENT_XML1, 'UTF-8');
     $updated = !empty($posts) ? date(DATE_ATOM, strtotime($posts[0]['published_at'] ?? 'now')) : date(DATE_ATOM);
@@ -131,7 +131,7 @@ if ($action === 'feed') {
 // ── llms.txt (AI Discoverability) ───────────────────────────────────────────
 if ($action === 'llms') {
     header('Content-Type: text/plain; charset=utf-8');
-    $base = BASE_URL . '/s/' . $slug;
+    $base = BASE_URL . '/' . $slug;
     $titlePlain = $site['title'] ?? $user['name'] ?? '';
     $bioPlain = $site['profile_summary'] ?: ($site['bio'] ?? '');
     
@@ -172,7 +172,7 @@ function h(?string $s): string { return htmlspecialchars(html_entity_decode((str
 
 $title      = h($site['title'] ?? $user['name'] ?? '');
 $bio        = h(($site['profile_summary'] ?? '') ?: ($site['bio'] ?? ''));
-$siteUrl    = BASE_URL . '/s/' . $slug;
+$siteUrl    = BASE_URL . '/' . $slug;
 $validThemes = ['classic', 'authority', 'portfolio', 'magazine', 'brutalist', 'ecommerce', 'wedding', 'fitness', 'restaurant', 'agency', 'zen', 'vaporwave', 'realestate', 'blogger', 'darkphoto', 'medical', 'education', 'gamer', 'startup', 'lawyer'];
 $theme      = $site['theme'] ?? 'classic';
 if (!in_array($theme, $validThemes, true)) {

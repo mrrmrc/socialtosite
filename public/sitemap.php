@@ -17,7 +17,7 @@ echo '<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">' . "\n"
 
 foreach ($users as $user) {
     // Genera l\'URL della sitemap specifica dell\'utente
-    $loc = BASE_URL . '/s/' . urlencode($user['slug']) . '/sitemap.xml';
+    $loc = BASE_URL . '/' . urlencode($user['slug']) . '/sitemap.xml';
     
     echo "  <sitemap>\n";
     echo "    <loc>" . htmlspecialchars($loc, ENT_XML1, 'UTF-8') . "</loc>\n";

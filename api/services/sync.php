@@ -439,7 +439,7 @@ class Sync {
     public static function pingGoogle(int $userId): void {
         $user = DB::fetch('SELECT slug FROM users WHERE id=?', [$userId]);
         if ($user && !empty($user['slug'])) {
-            $sitemapUrl = BASE_URL . "/s/" . $user['slug'] . "/sitemap.xml";
+            $sitemapUrl = BASE_URL . "/" . $user['slug'] . "/sitemap.xml";
             $pingUrl = "http://www.google.com/ping?sitemap=" . urlencode($sitemapUrl);
             $ch = curl_init($pingUrl);
             curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
