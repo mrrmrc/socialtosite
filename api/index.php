@@ -368,6 +368,21 @@ if ($action === 'admin-users' && $method === 'GET') {
     json(['users' => $users]);
 }
 
+if ($action === 'admin-seo' && $method === 'GET') {
+    requireAdmin($isAdmin);
+    // Ottieni le ultime statistiche SEO per ogni utente
+    $stats = DB::fetchAll('
+        SELECT u.id, u.email, u.slug, s.title, sa.record_date, sa.impressions, sa.clicks, sa.ctr, sa.position
+        FROM users u
+        LEFT JOIN sites s ON s.user_id = u.id
+        LEFT JOIN seo_analytics sa ON sa.user_id = u.id AND sa.record_date = (
+            SELECT MAX(record_date) FROM seo_analytics WHERE user_id = u.id
+        )
+        ORDER BY sa.clicks DESC, u.created_at DESC
+    ');
+    json(['stats' => $stats]);
+}
+
 if ($action === 'admin-impersonate' && $method === 'POST') {
     requireAdmin($isAdmin);
     $b = body();
@@ -732,7 +747,8 @@ if ($action === 'site' && $method === 'GET') {
             }
             $p['tags'] = array_filter(array_map('trim', $decoded));
         }
-        json(['site' => $site, 'posts' => $posts, 'connections' => $connections, 'sources' => $sources]);
+        $seoAnalytics = DB::fetchAll('SELECT record_date, impressions, clicks, ctr, position FROM seo_analytics WHERE user_id=? ORDER BY record_date ASC LIMIT 30', [$userId]);
+        json(['site' => $site, 'posts' => $posts, 'connections' => $connections, 'sources' => $sources, 'seo_analytics' => $seoAnalytics]);
     } catch (Throwable $e) {
         file_put_contents(__DIR__ . '/site_error.log', $e->getMessage() . "\n" . $e->getTraceAsString());
         jsonError($e->getMessage());

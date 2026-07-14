@@ -211,9 +211,12 @@ class Ingest {
             'SELECT platform, label, url, topic_summary FROM social_sources WHERE user_id=? AND active=1 ORDER BY platform, id',
             [$userId]
         );
-        $site = DB::fetch('SELECT profile_summary, bio, rag_knowledge, harmonize_agent, account_type FROM sites WHERE user_id=?', [$userId]);
+        $site = DB::fetch('SELECT profile_summary, bio, rag_knowledge, harmonize_agent, account_type, brand_voice_profile FROM sites WHERE user_id=?', [$userId]);
         $profileSummary = trim($site['profile_summary'] ?? ($site['bio'] ?? ''));
         $sourceContext = '';
+        if (!empty($site['brand_voice_profile'])) {
+            $sourceContext .= "Profilo Brand Voice (Tono di voce e Topic Clusters):\n" . $site['brand_voice_profile'] . "\n\n";
+        }
         if ($profileSummary !== '') {
             $sourceContext .= "Profilo utente/brand:\n" . $profileSummary . "\n\n";
         }
@@ -284,6 +287,9 @@ class Ingest {
 
         $report = ['sources' => count($sources), 'found' => 0, 'imported' => 0, 'published' => 0, 'skipped' => 0, 'duplicates' => 0, 'filtered_by_date' => 0, 'errors' => []];
         $seenUrls = [];
+        $collectedTextsForBrandVoice = [];
+        $siteRecord = DB::fetch('SELECT brand_voice_profile FROM sites WHERE user_id=?', [$userId]);
+        $needsBrandVoice = empty($siteRecord['brand_voice_profile']);
 
         foreach ($sources as $source) {
             try {
@@ -321,6 +327,9 @@ class Ingest {
                     }
                     $seenUrls[$normalizedUrl] = true;
                     try {
+                        if ($needsBrandVoice && !empty($item['caption'])) {
+                            $collectedTextsForBrandVoice[] = $item['caption'];
+                        }
                         $ingested = self::url($userId, $sourceUrl, $item);
                         if (!empty($ingested['duplicate'])) {
                             $report['duplicates']++;
@@ -342,6 +351,16 @@ class Ingest {
         
         Logger::info('scan', 'scanSources completato', $report);
 
+        if ($needsBrandVoice && count($collectedTextsForBrandVoice) > 0) {
+            try {
+                Logger::info('scan', 'Generazione Brand Voice Profile...');
+                $brandVoiceJson = AI::generateBrandVoiceProfile($collectedTextsForBrandVoice);
+                DB::execute('UPDATE sites SET brand_voice_profile=? WHERE user_id=?', [$brandVoiceJson, $userId]);
+                Logger::info('scan', 'Brand Voice Profile generato con successo');
+            } catch (Throwable $e) {
+                Logger::error('scan', 'Errore generazione Brand Voice', ['error' => $e->getMessage()]);
+            }
+        }
 
         // L'orchestrazione globale (Caporedattore, SEO, Graphic Designer) 
         // è stata spostata all'endpoint finalize-sync per essere eseguita a fine batch.

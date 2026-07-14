@@ -647,12 +647,12 @@ async function runSiteAi() {
             { id: 'overview', icon: '🏠', label: 'Home' },
             { id: 'site', icon: '📝', label: 'Articoli' },
             { id: 'sources', icon: '📡', label: 'Canali' },
-            ...(user.role === 'admin' ? [
+            ...(user?.role === 'admin' ? [
               { id: 'settings', icon: '🎨', label: 'Design' },
               { id: 'general', icon: '⚙️', label: 'Impostazioni' }
             ] : []),
             { id: 'seo', icon: '📈', label: 'SEO' },
-            ...(user.role === 'admin' ? [{ id: 'admin', icon: '🛠', label: 'Admin' }] : [])
+            ...(user?.role === 'admin' ? [{ id: 'admin', icon: '🛠', label: 'Admin' }] : [])
           ].map(item => (
             <button key={item.id} onClick={() => setTab(item.id)}
               style={{
@@ -1582,7 +1582,7 @@ async function runSiteAi() {
           </div>
         )}
 
-        {tab === 'admin' && user.role === 'admin' && (
+        {tab === 'admin' && user?.role === 'admin' && (
           <AdminScreen token={token} currentUser={user} adminPrompts={adminPrompts} updatePrompt={updatePrompt} />
         )}
 
@@ -1648,7 +1648,7 @@ async function runSiteAi() {
         <button className={`mobile-nav-item ${tab === 'sources' ? 'active' : ''}`} onClick={() => setTab('sources')}>
           <span style={{fontSize: '20px'}}>📡</span> Canali
         </button>
-        {user.role === 'admin' ? (
+        {user?.role === 'admin' ? (
           <button className={`mobile-nav-item ${tab === 'settings' ? 'active' : ''}`} onClick={() => setTab('settings')}>
             <span style={{fontSize: '20px'}}>⚙️</span> Menu
           </button>

@@ -706,7 +706,35 @@ Restituisci SOLO la nuova memoria aggiornata (testo semplice), nient'altro.";
         return $text;
     }
 
+    // ── Genera il Profilo di Brand Voice ──────────────────────────────────────
+    public static function generateBrandVoiceProfile(array $texts): string {
+        $joined = implode("\n\n---\n\n", array_map(function($t) { return mb_substr(trim($t), 0, 1000); }, $texts));
+        $prompt = "Sei un analista linguistico ed esperto SEO. Analizza i seguenti post social di un creatore di contenuti.
+Crea un profilo dettagliato del suo 'Tono di Voce' (Brand Voice).
+Cerca di identificare:
+1. Il livello di formalità (informale, professionale, amichevole, tecnico).
+2. L'uso di emoji, abbreviazioni o espressioni tipiche.
+3. Se si rivolge al pubblico dando del 'tu', del 'voi' o in terza persona.
+4. I 3-5 argomenti principali ricorrenti (Topic Clusters).
 
+Restituisci ESCLUSIVAMENTE un oggetto JSON valido (senza markdown o altri testi) con questa struttura:
+{
+  \"tone\": \"descrizione del tono\",
+  \"formality\": \"informal/professional/etc\",
+  \"vocabulary_traits\": [\"lista\", \"di\", \"caratteristiche\"],
+  \"pronouns\": \"tu/voi\",
+  \"topic_clusters\": [\"topic1\", \"topic2\", \"topic3\"],
+  \"custom_instructions\": \"istruzioni specifiche per l'AI che genererà futuri articoli (es. usa le emoji a fine frase, fai domande provocatorie)\"
+}
+
+Testi da analizzare:
+" . $joined;
+
+        $response = self::gemini([['text' => $prompt]], ['responseMimeType' => 'application/json']);
+        $decoded = json_decode($response, true);
+        if (!$decoded) return '{}';
+        return json_encode($decoded, JSON_UNESCAPED_UNICODE);
+    }
 
     // ── Trascrivi URL video con Whisper ────────────────────────────────────
     public static function transcribeUrl(string $videoUrl): string {

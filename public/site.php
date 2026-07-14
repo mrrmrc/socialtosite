@@ -813,8 +813,13 @@ header('Link: <' . $siteUrl . '/feed.xml>; rel="alternate"; type="application/at
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <?php if (!empty($site['gsc_verification'])): ?>
-    <meta name="google-site-verification" content="<?= h($site['gsc_verification']) ?>" />
+  <?php 
+    if (!empty($site['gsc_verification'])): 
+      $gsc = trim($site['gsc_verification']);
+      if (preg_match('/content="([^"]+)"/i', $gsc, $m)) $gsc = $m[1];
+      else if (stripos($gsc, 'google-site-verification=') === 0) $gsc = substr($gsc, 25);
+  ?>
+    <meta name="google-site-verification" content="<?= h($gsc) ?>" />
   <?php endif; ?>
   <?php if ($single): ?>
     <title><?= h(postTitle($single)) ?> - <?= $title ?></title>
