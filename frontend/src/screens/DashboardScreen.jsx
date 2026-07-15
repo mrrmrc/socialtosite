@@ -54,6 +54,17 @@ const [importMsg, setImportMsg] = useState(null);
   const [harmonizeAgent, setHarmonizeAgent] = useState('content_editor');
   const [accountType, setAccountType] = useState('business');
 
+  // ── Tema chiaro/scuro ──────────────────────────────────────────────────
+  const [theme, setThemeState] = useState(() =>
+    (typeof document !== 'undefined' && document.documentElement.getAttribute('data-theme')) || 'dark'
+  );
+  function toggleTheme() {
+    const next = theme === 'dark' ? 'light' : 'dark';
+    document.documentElement.setAttribute('data-theme', next);
+    localStorage.setItem('sts_theme', next);
+    setThemeState(next);
+  }
+
   useEffect(() => { loadData(); loadDrafts(); }, []);
 
   async function loadData() {
@@ -670,6 +681,9 @@ async function runSiteAi() {
         </div>
         <div style={{ padding: '24px', borderTop: '1px solid var(--border)' }}>
           <div style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text)', marginBottom: '12px', overflow: 'hidden', textOverflow: 'ellipsis' }}>{user.email}</div>
+          <button className="btn btn-outline btn-full" onClick={toggleTheme} style={{ padding: '12px', borderRadius: '12px', fontWeight: 700, border: '1px solid var(--border-strong)', marginBottom: '10px' }}>
+            {theme === 'dark' ? '☀️ Tema chiaro' : '🌙 Tema scuro'}
+          </button>
           <button className="btn btn-outline btn-full" onClick={onLogout} style={{ padding: '12px', borderRadius: '12px', fontWeight: 700, border: '1px solid var(--border-strong)' }}>Esci</button>
         </div>
       </div>

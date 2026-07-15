@@ -43,6 +43,51 @@
   /* ── Alias retrocompatibilità ── */
   --purple: #6366F1;
   --purple-light: #EEF2FF;
+
+  /* Superficie sidebar (resa variabile per il tema) */
+  --sidebar-bg: rgba(11, 15, 25, 0.7);
+}
+
+/* ═══════════ TEMA CHIARO — attivo con <html data-theme="light"> ═══════════ */
+:root[data-theme="light"] {
+  --primary: #4F46E5;
+  --primary-dark: #4338CA;
+  --primary-light: rgba(79, 70, 229, 0.10);
+  --accent: #7C3AED;
+  --accent-2: #0891B2;
+  --teal: #059669;
+  --teal-light: rgba(16, 185, 129, 0.12);
+  --amber: #B45309;
+  --amber-light: rgba(245, 158, 11, 0.16);
+  --red: #DC2626;
+  --red-light: rgba(239, 68, 68, 0.10);
+  --gray: #6B7280;
+  --gray-light: rgba(15, 23, 42, 0.04);
+
+  --text: #0F172A;
+  --text-muted: #475569;
+  --text-faint: #94A3B8;
+
+  --bg: #F1F5F9;
+  --surface: rgba(255, 255, 255, 0.88);
+  --border: rgba(15, 23, 42, 0.10);
+  --border-strong: rgba(15, 23, 42, 0.18);
+
+  --shadow-sm: 0 1px 3px rgba(15, 23, 42, 0.08);
+  --shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
+  --shadow-lg: 0 16px 48px rgba(15, 23, 42, 0.12), 0 0 20px rgba(99, 102, 241, 0.10);
+  --shadow-colored: 0 6px 20px rgba(79, 70, 229, 0.25);
+
+  --purple-light: #EEF2FF;
+  --sidebar-bg: rgba(255, 255, 255, 0.85);
+}
+
+/* Logo: su tema scuro il suo testo blu scuro sparirebbe → chip chiaro dietro */
+:root[data-theme="dark"] img[alt="allsocialtoweb.com"],
+:root[data-theme="dark"] img[alt="AllSocialToWeb"] {
+  background: #fff;
+  padding: 3px 8px;
+  border-radius: 8px;
 }
 
 body {
@@ -127,7 +172,7 @@ h3 { font-size: 18px; font-weight: 600; }
 .btn-primary:disabled { opacity: .55; cursor: not-allowed; transform: none; }
 
 .dashboard-main { flex: 1; margin-left: 280px; padding: 3rem; transition: margin 0.3s; position: relative; z-index: 1; }
-.desktop-sidebar { display: flex; background: rgba(11, 15, 25, 0.7) !important; backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); border-right: 1px solid var(--border) !important; z-index: 50; }
+.desktop-sidebar { display: flex; background: var(--sidebar-bg) !important; backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); border-right: 1px solid var(--border) !important; z-index: 50; }
 .mobile-top-header { display: none; }
 
 /* ── Mobile Nav ── */
@@ -138,13 +183,13 @@ h3 { font-size: 18px; font-weight: 600; }
   .mobile-top-header {
     display: flex; justify-content: space-between; align-items: center;
     padding: 14px 20px;
-    background: rgba(255,255,255,0.85); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+    background: var(--sidebar-bg); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
     border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 100;
     box-shadow: 0 2px 16px rgba(99,102,241,0.08);
   }
   .mobile-nav {
     display: flex; position: fixed; bottom: 0; left: 0; right: 0;
-    background: rgba(255,255,255,0.88); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
+    background: var(--sidebar-bg); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
     border-top: 1px solid var(--border);
     padding: 10px 16px; padding-bottom: calc(10px + env(safe-area-inset-bottom));
     justify-content: space-between; align-items: center; z-index: 1000;

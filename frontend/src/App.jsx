@@ -59,7 +59,7 @@ function AppContent() {
       <footer style={{
         textAlign: 'center', padding: '12px 20px', fontSize: '11px',
         color: 'var(--text-faint)', borderTop: '1px solid var(--border)',
-        background: 'rgba(11,15,25,0.4)', backdropFilter: 'blur(8px)',
+        background: 'var(--sidebar-bg)', backdropFilter: 'blur(8px)',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         gap: '16px', flexWrap: 'wrap',
         position: 'relative', zIndex: 10,
