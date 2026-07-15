@@ -56,12 +56,29 @@ function AppContent() {
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>
       
-      {deployInfo && (
-        <footer style={{ textAlign: 'center', padding: '18px 12px', fontSize: '12px', color: 'var(--text-faint)' }}>
-          Deploy {deployInfo.deployed_day || ''} {deployInfo.deployed_at || ''}
-          {deployInfo.release ? ` · ${deployInfo.release}` : ''}
-        </footer>
-      )}
+      <footer style={{
+        textAlign: 'center', padding: '12px 20px', fontSize: '11px',
+        color: 'var(--text-faint)', borderTop: '1px solid var(--border)',
+        background: 'rgba(11,15,25,0.4)', backdropFilter: 'blur(8px)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        gap: '16px', flexWrap: 'wrap',
+        position: 'relative', zIndex: 10,
+      }}>
+        <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+          <img src="/logo.png" alt="AllSocialToWeb" style={{ height: '14px', opacity: 0.5 }} />
+          <span style={{ opacity: 0.6 }}>allsocialtoweb.com</span>
+        </span>
+        <span style={{ opacity: 0.3 }}>·</span>
+        {deployInfo ? (
+          <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+            <span style={{ opacity: 0.5 }}>🚀</span>
+            <span>Deploy: <strong style={{ color: 'var(--primary)', opacity: 0.8 }}>{deployInfo.deployed_day} {deployInfo.deployed_at}</strong></span>
+            {deployInfo.release && <span style={{ opacity: 0.4 }}>· {deployInfo.release}</span>}
+          </span>
+        ) : (
+          <span style={{ opacity: 0.5 }}>⚙️ Dev build — {new Date().toLocaleString('it-IT')}</span>
+        )}
+      </footer>
     </>
   );
 }
