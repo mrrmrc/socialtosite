@@ -734,10 +734,10 @@ if ($action === 'site' && $method === 'GET') {
         );
         file_put_contents(__DIR__ . '/../public/debug.json', json_encode(array_map(function($p) { return ['id' => $p['id'], 'title' => $p['generated_title'], 'gen_body_len' => strlen($p['generated_body'] ?? ''), 'edited_body_len' => strlen($p['edited_body'] ?? '')]; }, array_slice($posts, 0, 10))));
         $connections = DB::fetchAll(
-            'SELECT platform, handle, active, since_date, max_posts FROM social_connections WHERE user_id=?', [$userId]
+            'SELECT platform, handle, active, since_date, auto_publish, max_posts FROM social_connections WHERE user_id=?', [$userId]
         );
         $sources = DB::fetchAll(
-            'SELECT id, platform, label, url, topic_summary, active, since_date, max_posts FROM social_sources WHERE user_id=? AND active=1 ORDER BY platform, id DESC',
+            'SELECT id, platform, label, url, topic_summary, active, since_date, auto_publish, max_posts FROM social_sources WHERE user_id=? AND active=1 ORDER BY platform, id DESC',
             [$userId]
         );
         foreach ($posts as &$p) {
@@ -1269,36 +1269,6 @@ if ($action === 'finalize-sync' && $method === 'POST') {
     json(['ok' => true]);
 }
 
-// ── Sincronizzazione Social Manuale ──────────────────────────────────────
-if ($action === 'sync' && $method === 'POST') {
-    require_once __DIR__ . '/services/sync.php';
-    require_once __DIR__ . '/services/ingest.php';
-    try {
-        $results = Sync::syncUser($userId, 20); // Sync default up to 20 per social unless overridden by connection settings
-        
-        $totalImported = 0;
-        foreach ($results as $res) {
-            $totalImported += $res['new'] ?? 0;
-        }
-
-        // Armonizzazione automatica dei post appena importati (se autoPublish era 1 o se l'utente vuole l'automazione)
-        // Poiché i post inseriti da Sync hanno published=$autoPublish ma manca la generazione (seo_score=0),
-        // Li selezioniamo tutti e li passiamo ad Ingest::harmonize.
-        $drafts = DB::fetchAll('SELECT id FROM posts WHERE user_id=? AND (seo_score <= 0 OR seo_score IS NULL) AND published=1', [$userId]);
-        foreach ($drafts as $d) {
-            try {
-                Ingest::harmonize($userId, $d['id'], 1);
-            } catch (Exception $e) {
-                // Ignore single errors to avoid breaking the entire batch
-            }
-        }
-        
-        json(['ok' => true, 'imported' => $totalImported]);
-    } catch (Throwable $e) {
-        jsonError($e->getMessage());
-    }
-}
-
 // ── ADMIN: GET admin-logs (sync_log table) ────────────────────────────────
 if ($action === 'admin-logs' && $method === 'GET') {
     requireAdmin($isAdmin);
@@ -1306,119 +1276,6 @@ if ($action === 'admin-logs' && $method === 'GET') {
         'SELECT l.*, u.email FROM sync_log l LEFT JOIN users u ON l.user_id = u.id ORDER BY l.ran_at DESC LIMIT 100'
     );
     json(['logs' => $logs]);
-}
-
-// ── ADMIN: USERS ──────────────────────────────────────────────────────────
-if ($action === 'admin-users' && $method === 'GET') {
-    requireAdmin($isAdmin);
-    $users = DB::fetchAll(
-        'SELECT u.id, u.email, u.name, u.role, u.plan,
-                (SELECT COUNT(*) FROM posts WHERE user_id = u.id) as posts_count,
-                (SELECT COUNT(*) FROM social_connections WHERE user_id = u.id) as connections_count,
-                s.slug, s.role_mission, s.content_strategy
-         FROM users u
-         LEFT JOIN sites s ON u.id = s.user_id
-         ORDER BY u.id DESC'
-    );
-    foreach ($users as &$u) {
-        $u['sources'] = DB::fetchAll('SELECT platform, url FROM social_sources WHERE user_id=? AND active=1', [$u['id']]);
-    }
-    json(['users' => $users]);
-}
-
-if ($action === 'admin-create-user' && $method === 'POST') {
-    requireAdmin($isAdmin);
-    $b = body();
-    $name = trim($b['name'] ?? '');
-    $email = trim($b['email'] ?? '');
-    $password = password_hash($b['password'] ?? '', PASSWORD_DEFAULT);
-    $role = $b['role'] ?? 'user';
-    DB::execute('INSERT INTO users (name, email, password, role) VALUES (?, ?, ?, ?)', [$name, $email, $password, $role]);
-    json(['ok' => true]);
-}
-
-if ($action === 'admin-update-user' && $method === 'POST') {
-    requireAdmin($isAdmin);
-    $b = body();
-    $uid = (int)($b['id'] ?? 0);
-    if (isset($b['role'])) DB::execute('UPDATE users SET role=? WHERE id=?', [$b['role'], $uid]);
-    if (isset($b['plan'])) DB::execute('UPDATE users SET plan=? WHERE id=?', [$b['plan'], $uid]);
-    
-    if (isset($b['role_mission']) || isset($b['content_strategy'])) {
-        $site = DB::fetch('SELECT id FROM sites WHERE user_id=?', [$uid]);
-        if ($site) {
-            if (isset($b['role_mission'])) DB::execute('UPDATE sites SET role_mission=? WHERE user_id=?', [$b['role_mission'], $uid]);
-            if (isset($b['content_strategy'])) DB::execute('UPDATE sites SET content_strategy=? WHERE user_id=?', [$b['content_strategy'], $uid]);
-        } else {
-            $slug = uniqid();
-            DB::execute('INSERT INTO sites (user_id, slug, role_mission, content_strategy) VALUES (?, ?, ?, ?)', 
-                        [$uid, $slug, $b['role_mission'] ?? '', $b['content_strategy'] ?? '']);
-        }
-    }
-    json(['ok' => true]);
-}
-
-if ($action === 'admin-delete-user' && $method === 'POST') {
-    requireAdmin($isAdmin);
-    $b = body();
-    $uid = (int)($b['id'] ?? 0);
-    if ($uid !== $userId) {
-        DB::execute('DELETE FROM users WHERE id=?', [$uid]);
-    }
-    json(['ok' => true]);
-}
-
-if ($action === 'admin-impersonate' && $method === 'POST') {
-    requireAdmin($isAdmin);
-    $b = body();
-    $uid = (int)($b['id'] ?? 0);
-    $target = DB::fetch('SELECT id, email, name, role FROM users WHERE id=?', [$uid]);
-    if (!$target) jsonError('Utente non trovato');
-    
-    $token = bin2hex(random_bytes(32));
-    DB::execute('UPDATE users SET token=? WHERE id=?', [$token, $uid]);
-    
-    json(['ok' => true, 'token' => $token, 'user' => ['id' => $target['id'], 'email' => $target['email'], 'name' => $target['name'], 'role' => $target['role']]]);
-}
-
-if ($action === 'admin-prompts' && $method === 'GET') {
-    requireAdmin($isAdmin);
-    $prompts = [];
-    try {
-        $prompts = DB::fetchAll('SELECT * FROM agent_prompts ORDER BY id ASC');
-    } catch(Throwable $e) {}
-    json(['prompts' => $prompts]);
-}
-
-if ($action === 'admin-update-prompt' && $method === 'POST') {
-    requireAdmin($isAdmin);
-    $b = body();
-    try {
-        DB::execute('UPDATE agent_prompts SET instructions=? WHERE agent_name=?', [$b['instructions'], $b['agent_name']]);
-    } catch(Throwable $e) {}
-    json(['ok' => true]);
-}
-
-// ── ADMIN: Processi pendenti ───────────────────────────────────────────────
-if ($action === 'admin-processes' && $method === 'GET') {
-    requireAdmin($isAdmin);
-    $processes = DB::fetchAll(
-        'SELECT p.id, p.platform, p.source_url, p.published_at, u.email, u.name
-         FROM posts p
-         LEFT JOIN users u ON p.user_id = u.id
-         WHERE p.seo_score = -1
-         ORDER BY p.id ASC
-         LIMIT 100'
-    );
-    json(['processes' => $processes]);
-}
-
-if ($action === 'admin-kill-process' && $method === 'POST') {
-    requireAdmin($isAdmin);
-    $b = body();
-    $id = (int)($b['id'] ?? 0);
-    DB::execute('DELETE FROM posts WHERE id=? AND seo_score=-1', [$id]);
-    json(['ok' => true]);
 }
 
 jsonError('Endpoint non trovato', 404);

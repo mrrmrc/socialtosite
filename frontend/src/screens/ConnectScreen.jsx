@@ -35,7 +35,7 @@ export function ConnectScreen({ token, onDone }) {
     try {
       const [connData, srcData] = await Promise.all([
         apiFetch('/api/index.php?action=social-connections', {}, token),
-        apiFetch('/api/index.php?action=social-sources-get', {}, token)
+        apiFetch('/api/index.php?action=social-sources', {}, token)
       ]);
       setConnections(connData);
       setSources(srcData);
