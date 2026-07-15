@@ -1,30 +1,30 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 :root {
-  /* ── Palette principale ── */
-  --primary: #6366F1;
+  /* ── Palette principale (Vibrant & Neon) ── */
+  --primary: #818CF8;
   --primary-dark: #4F46E5;
-  --primary-light: #EEF2FF;
-  --accent: #8B5CF6;
-  --accent-2: #06B6D4;
-  --teal: #10B981;
-  --teal-light: #D1FAE5;
-  --amber: #F59E0B;
-  --amber-light: #FEF3C7;
-  --red: #EF4444;
-  --red-light: #FEE2E2;
+  --primary-light: rgba(99, 102, 241, 0.15);
+  --accent: #C084FC;
+  --accent-2: #22D3EE;
+  --teal: #34D399;
+  --teal-light: rgba(16, 185, 129, 0.15);
+  --amber: #FBBF24;
+  --amber-light: rgba(245, 158, 11, 0.15);
+  --red: #F87171;
+  --red-light: rgba(239, 68, 68, 0.15);
   --gray: #9CA3AF;
-  --gray-light: #F1F5F9;
+  --gray-light: rgba(255, 255, 255, 0.05);
 
-  /* ── Testo ── */
-  --text: #0F172A;
-  --text-muted: #64748B;
-  --text-faint: #94A3B8;
+  /* ── Testo (Dark Theme) ── */
+  --text: #F8FAFC;
+  --text-muted: #94A3B8;
+  --text-faint: #475569;
 
-  /* ── Superfici ── */
-  --bg: #F8FAFF;
-  --surface: #FFFFFF;
-  --border: #E8EEFF;
-  --border-strong: #C7D2FE;
+  /* ── Superfici (Dark & Glassmorphism) ── */
+  --bg: #0B0F19; /* Very dark blue/black */
+  --surface: rgba(17, 24, 39, 0.65);
+  --border: rgba(255, 255, 255, 0.08);
+  --border-strong: rgba(255, 255, 255, 0.15);
 
   /* ── Radii ── */
   --radius: 16px;
@@ -32,11 +32,11 @@
   --radius-lg: 24px;
   --radius-xl: 32px;
 
-  /* ── Shadows colorate ── */
-  --shadow-sm: 0 1px 3px rgba(99,102,241,0.07), 0 1px 2px rgba(0,0,0,0.04);
-  --shadow: 0 4px 24px rgba(99,102,241,0.10), 0 1px 4px rgba(0,0,0,0.05);
-  --shadow-lg: 0 12px 48px rgba(99,102,241,0.15), 0 4px 16px rgba(0,0,0,0.06);
-  --shadow-colored: 0 8px 32px rgba(99,102,241,0.28);
+  /* ── Shadows colorate (Glow) ── */
+  --shadow-sm: 0 2px 4px rgba(0,0,0,0.3);
+  --shadow: 0 8px 32px rgba(0,0,0,0.4);
+  --shadow-lg: 0 16px 48px rgba(0,0,0,0.5), 0 0 20px rgba(129, 140, 248, 0.2);
+  --shadow-colored: 0 0 24px rgba(129, 140, 248, 0.4);
 
   /* ── Gradiente principale ── */
   --gradient: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
@@ -65,9 +65,9 @@ button { cursor: pointer; border: 1px solid transparent; border-radius: var(--ra
 .btn-primary:hover { transform: translateY(-1px); }
 .btn-outline { background: var(--surface); color: var(--primary); border: 1.5px solid var(--border-strong); }
 
-.card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 1.5rem; box-shadow: var(--shadow); transition: transform 0.25s, box-shadow 0.25s; }
-.card:hover { transform: translateY(-3px); box-shadow: var(--shadow-lg); }
-.glass-modal { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 2rem; box-shadow: var(--shadow-lg); }
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 1.5rem; box-shadow: var(--shadow); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); transition: transform 0.3s cubic-bezier(0.25, 0.8, 0.25, 1), box-shadow 0.3s cubic-bezier(0.25, 0.8, 0.25, 1), border-color 0.3s; }
+.card:hover { transform: translateY(-4px); box-shadow: var(--shadow-lg); border-color: rgba(129, 140, 248, 0.4); }
+.glass-modal { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 2rem; box-shadow: var(--shadow-lg); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); }
 
 /* --- Nuovi stili per Article Cards --- */
 .article-card {
@@ -126,8 +126,8 @@ h3 { font-size: 18px; font-weight: 600; }
 .btn-primary:active { transform: translateY(0px); }
 .btn-primary:disabled { opacity: .55; cursor: not-allowed; transform: none; }
 
-.dashboard-main { flex: 1; margin-left: 280px; padding: 3rem; transition: margin 0.3s; }
-.desktop-sidebar { display: flex; }
+.dashboard-main { flex: 1; margin-left: 280px; padding: 3rem; transition: margin 0.3s; position: relative; z-index: 1; }
+.desktop-sidebar { display: flex; background: rgba(11, 15, 25, 0.7) !important; backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); border-right: 1px solid var(--border) !important; z-index: 50; }
 .mobile-top-header { display: none; }
 
 /* ── Mobile Nav ── */

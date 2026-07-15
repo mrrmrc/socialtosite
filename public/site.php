@@ -1166,7 +1166,7 @@ ob_start();
   </div>
   <?php endif; ?>
   <div class="footer-bottom">
-    <span>&copy; <?= date('Y') ?> <?= $title ?>. Creato con <a href="<?= BASE_URL ?>">allsocialtoweb.com</a>.</span>
+    <span>&copy; <?= date('Y') ?> <?= $title ?>. Creato con <a href="<?= BASE_URL ?>">SocialToSite</a>.</span>
     <a href="<?= $siteUrl ?>/sitemap.xml">Sitemap</a>
   </div>
 <?php

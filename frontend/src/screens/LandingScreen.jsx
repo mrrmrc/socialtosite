@@ -15,10 +15,10 @@ export function LandingScreen({ onGetStarted }) {
       </div>
 
       {/* Navbar */}
-      <header style={{ padding: '16px 40px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(255,255,255,0.80)', backdropFilter: 'blur(24px)', WebkitBackdropFilter: 'blur(24px)', position: 'sticky', top: 0, zIndex: 100, borderBottom: '1px solid rgba(99,102,241,0.12)', boxShadow: '0 2px 20px rgba(99,102,241,0.08)' }}>
+      <header style={{ padding: '16px 40px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(11, 15, 25, 0.8)', backdropFilter: 'blur(24px)', WebkitBackdropFilter: 'blur(24px)', position: 'sticky', top: 0, zIndex: 100, borderBottom: '1px solid rgba(255,255,255,0.05)', boxShadow: '0 2px 20px rgba(0,0,0,0.2)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           <div style={{ width: 36, height: 36, borderRadius: '10px', background: 'var(--gradient)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px', boxShadow: '0 4px 12px rgba(99,102,241,0.35)' }}>✦</div>
-          <span style={{ fontWeight: 800, fontSize: '18px', letterSpacing: '-0.5px' }}>Social<span className="gradient-text">ToSite</span></span>
+          <span style={{ fontWeight: 800, fontSize: '18px', letterSpacing: '-0.5px' }}>AllSocial<span className="gradient-text">ToWeb</span></span>
         </div>
         <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
           {!isLoggedIn && <button className="btn btn-outline" onClick={onGetStarted} style={{ padding: '8px 20px', fontSize: '14px' }}>Accedi</button>}
@@ -82,7 +82,7 @@ export function LandingScreen({ onGetStarted }) {
       </section>
 
       {/* Social Proof Bar */}
-      <div style={{ position: 'relative', zIndex: 1, borderTop: '1px solid var(--border)', borderBottom: '1px solid var(--border)', background: 'rgba(255,255,255,0.6)', backdropFilter: 'blur(10px)', padding: '20px 24px', textAlign: 'center' }}>
+      <div style={{ position: 'relative', zIndex: 1, borderTop: '1px solid var(--border)', borderBottom: '1px solid var(--border)', background: 'rgba(11, 15, 25, 0.6)', backdropFilter: 'blur(10px)', padding: '20px 24px', textAlign: 'center' }}>
         <div style={{ display: 'flex', gap: '32px', justifyContent: 'center', alignItems: 'center', flexWrap: 'wrap', fontSize: '14px', color: 'var(--text-muted)', fontWeight: 600 }}>
           <span>⭐⭐⭐⭐⭐ <strong style={{ color: 'var(--text)' }}>4.9/5</strong> dalle recensioni</span>
           <span style={{ opacity: 0.3 }}>|</span>
@@ -130,8 +130,8 @@ export function LandingScreen({ onGetStarted }) {
 
       {/* Footer */}
       <footer style={{ position: 'relative', zIndex: 1, padding: '32px 24px', textAlign: 'center', color: 'var(--text-faint)', fontSize: '13px', borderTop: '1px solid var(--border)' }}>
-        <div style={{ marginBottom: '8px', fontWeight: 700, color: 'var(--text-muted)', fontSize: '14px' }}><img src="/logo.png" alt="SocialToSite" style={{ height: '24px' }} /></div>
-        <p>© 2026 SocialToSite. Tutti i diritti riservati. · Piano gratuito · Fino a 3 social · Nessuna carta richiesta</p>
+        <div style={{ marginBottom: '8px', fontWeight: 700, color: 'var(--text-muted)', fontSize: '14px' }}><img src="/logo.png" alt="AllSocialToWeb" style={{ height: '24px' }} /></div>
+        <p>© 2026 AllSocialToWeb. Tutti i diritti riservati. · Piano gratuito · Fino a 3 social · Nessuna carta richiesta</p>
       </footer>
     </div>
   );
