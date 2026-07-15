@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { apiFetch, SOCIAL, SITE_LAYOUTS, detectPlatformFromUrl } from '../utils/api';
+import { apiFetch, SOCIAL, SITE_LAYOUTS, detectPlatformFromUrl, PLATFORM_DESCRIPTIONS } from '../utils/api';
 import { SocialIcon } from '../components/SocialIcon';
 import { QuillEditor } from '../components/QuillEditor';
 import { AdminScreen } from './AdminScreen';
@@ -1549,7 +1549,7 @@ async function runSiteAi() {
                   <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                     <input type="date" title="Retroattività" 
                       defaultValue={c.since_date || ''}
-                      onBlur={e => saveConnectionSinceDate(c.platform, e.target.value)}
+                      onBlur={e => saveConnectionSettings(c.platform, e.target.value, c.auto_publish ?? 1, c.max_posts)}
                       style={{ padding: '8px', fontSize: '14px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-strong)', background: '#111', color: 'var(--text)' }} />
                     <span style={{ background: c.active ? 'var(--teal-light)' : 'var(--red-light)', color: c.active ? 'var(--teal)' : 'var(--red)', padding: '4px 10px', borderRadius: '20px', fontSize: '11px', fontWeight: 800 }}>
                       {c.active ? 'ATTIVO' : 'INATTIVO'}
