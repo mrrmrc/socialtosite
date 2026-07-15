@@ -60,11 +60,17 @@ jobs:
           # Sposta la build di Vite (dist) nella root per il mirror
           cp -r frontend/dist/* ./
 
+          # Aruba (ProFTPD) espone solo FTP/FTPS su porta 21: NON SFTP (22 chiusa).
+          # Usiamo FTP con TLS opportunistico (AUTH TLS) e verifica certificato off.
           lftp -c "
-          set sftp:auto-confirm yes;
+          set ftp:ssl-allow true;
+          set ftp:ssl-force false;
+          set ftp:ssl-protect-data true;
+          set ssl:verify-certificate no;
           set net:max-retries 3;
           set net:timeout 20;
-          open -u \"$FTP_USER\",\"$FTP_PASS\" sftp://$FTP_HOST;
+          set net:persist-retries 3;
+          open -u \"$FTP_USER\",\"$FTP_PASS\" ftp://$FTP_HOST;
           mirror -R --verbose \
             --exclude-glob .git* \
             --exclude .github/ \
