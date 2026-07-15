@@ -28,10 +28,41 @@ class Sync {
     // ── Inserisce post nel DB (salta duplicati) ────────────────────────────
     private static function upsert(int $userId, string $platform, string $postId, array $d, int $autoPublish = 1): bool {
         $exists = DB::fetch(
-            'SELECT id FROM posts WHERE user_id=? AND platform=? AND platform_post_id=?',
+            'SELECT id, media_url FROM posts WHERE user_id=? AND platform=? AND platform_post_id=?',
             [$userId, $platform, $postId]
         );
-        if ($exists) return false;
+
+        // ── Media in locale: gli URL CDN dei social (Instagram/Facebook) sono
+        //    firmati e SCADONO dopo poche ore. Se non li scarichiamo, immagini
+        //    e video spariscono dal sito. saveMedia() ritorna un URL locale
+        //    persistente (/public/media/...). ─────────────────────────────────
+        $mUrl  = trim($d['media_url'] ?? '');
+        $mType = strtolower($d['media_type'] ?? '');
+        $isRemoteMedia = $mUrl && str_starts_with($mUrl, 'http') && in_array($mType, ['image', 'video'], true);
+
+        // Auto-heal: post già presente ma con media ancora remoto (CDN scaduto)
+        // → riscaricalo dall'URL fresco appena ottenuto dall'API e aggiorna.
+        if ($exists) {
+            $curUrl = $exists['media_url'] ?? '';
+            $curIsLocal = strpos($curUrl, '/public/media/') !== false;
+            if ($isRemoteMedia && !$curIsLocal) {
+                require_once __DIR__ . '/ingest.php';
+                $saved = Ingest::saveMedia($mUrl, $platform, $postId, $mType === 'video' ? 'mp4' : 'jpg');
+                if ($saved && !empty($saved['url'])) {
+                    DB::execute('UPDATE posts SET media_url=? WHERE id=?', [$saved['url'], $exists['id']]);
+                }
+            }
+            return false;
+        }
+
+        // Nuovo post: scarica il media prima dell'INSERT (fallback: URL remoto).
+        if ($isRemoteMedia) {
+            require_once __DIR__ . '/ingest.php';
+            $saved = Ingest::saveMedia($mUrl, $platform, $postId, $mType === 'video' ? 'mp4' : 'jpg');
+            if ($saved && !empty($saved['url'])) {
+                $d['media_url'] = $saved['url'];
+            }
+        }
 
         DB::execute('
             INSERT INTO posts

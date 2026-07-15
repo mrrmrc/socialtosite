@@ -171,7 +171,7 @@ class Ingest {
 
     // ── Scarica e conserva un media nel sito (public/media) ────────────────
     // Ritorna ['url'=>pubblico, 'path'=>locale, 'size'=>byte] oppure null.
-    private static function saveMedia(string $src, string $platform, string $postId, string $ext): ?array {
+    public static function saveMedia(string $src, string $platform, string $postId, string $ext): ?array {
         $dir = __DIR__ . '/../../public/media';
         if (!is_dir($dir)) @mkdir($dir, 0775, true);
         if (!is_dir($dir) || !is_writable($dir)) return null;
