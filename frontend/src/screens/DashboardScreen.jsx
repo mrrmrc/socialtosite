@@ -123,6 +123,8 @@ const [importMsg, setImportMsg] = useState(null);
   const [accountType, setAccountType] = useState('business');
   const [templateStudio, setTemplateStudio] = useState(() => normalizeStudioData(null));
   const [savingTemplateStudio, setSavingTemplateStudio] = useState(false);
+  const [studioWorkspaceOpen, setStudioWorkspaceOpen] = useState(false);
+  const [studioSourceLabel, setStudioSourceLabel] = useState('Workspace corrente');
 
   // ── Tema chiaro/scuro ──────────────────────────────────────────────────
   const [theme, setThemeState] = useState(() =>
@@ -607,10 +609,18 @@ const [importMsg, setImportMsg] = useState(null);
     }
   }
 
-  function loadTemplateIntoStudio(layout) {
+  function openStudioWorkspace(layout, sourceLabel = 'Workspace corrente') {
     const normalized = normalizeStudioData(layout, layout?.design_archetype || layout?.theme || selectedTheme);
     setTemplateStudio(normalized);
     setSelectedTheme(normalized.design_archetype || selectedTheme);
+    setStudioSourceLabel(sourceLabel);
+    setActivePreviewUrl(null);
+    setPreviewingTheme(null);
+    setStudioWorkspaceOpen(true);
+  }
+
+  function loadTemplateIntoStudio(layout) {
+    openStudioWorkspace(layout, `Proposta AI: ${layout?.design_archetype || layout?.theme || 'custom'}`);
   }
 
   function loadPresetIntoStudio(layout) {
@@ -624,8 +634,7 @@ const [importMsg, setImportMsg] = useState(null);
       base_models: layout.base_models,
       custom_css: '',
     };
-    setSelectedTheme(layout.id);
-    setTemplateStudio(normalizeStudioData(presetData, layout.id));
+    openStudioWorkspace(presetData, `Template base: ${layout.name}`);
   }
 
   function updateStudio(path, value) {
@@ -1596,161 +1605,37 @@ async function runSiteAi() {
 
 
             <div className="glass-modal" style={{ marginTop: '2rem', border: '1px solid var(--border-strong)' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', flexWrap: 'wrap', marginBottom: '1.5rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
                 <div>
                   <h3 style={{ marginBottom: '0.35rem', fontSize: '20px' }}>Template Studio</h3>
                   <p style={{ color: 'var(--text-muted)', fontSize: '14px', margin: 0, fontWeight: 500 }}>
-                    Parti da un template o da una proposta AI, poi regola palette, tipografia e composizione secondo i tuoi gusti.
+                    Lo studio ora si apre in una workspace dedicata del frontend: dentro trovi solo gli strumenti per modellare il sito.
                   </p>
                 </div>
-                <button className="btn btn-primary" onClick={saveTemplateStudio} disabled={savingTemplateStudio} style={{ padding: '12px 20px', fontWeight: 700 }}>
-                  {savingTemplateStudio ? 'Applico...' : 'Applica Template Studio'}
+                <button
+                  className="btn btn-primary"
+                  onClick={() => openStudioWorkspace(templateStudio, 'Workspace corrente')}
+                  style={{ padding: '12px 20px', fontWeight: 700 }}
+                >
+                  Apri Studio
                 </button>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem', marginBottom: '1.5rem' }}>
-                {SITE_LAYOUTS.map(layout => (
-                  <button
-                    key={layout.id}
-                    className="btn btn-outline"
-                    onClick={() => loadPresetIntoStudio(layout)}
-                    style={{
-                      justifyContent: 'flex-start',
-                      padding: '0.9rem 1rem',
-                      borderRadius: 'var(--radius)',
-                      borderColor: templateStudio.base_models?.[0] === layout.id ? 'var(--primary)' : 'var(--border-strong)',
-                      background: templateStudio.base_models?.[0] === layout.id ? 'rgba(0,240,255,0.05)' : 'var(--surface)',
-                      textAlign: 'left',
-                    }}>
-                    <span style={{ fontSize: '1.2rem' }}>{layout.emoji}</span>
-                    <span>
-                      <strong style={{ display: 'block', color: 'var(--text)' }}>{layout.name}</strong>
-                      <span style={{ display: 'block', color: 'var(--text-muted)', fontSize: '12px' }}>{layout.desc}</span>
-                    </span>
-                  </button>
-                ))}
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '1rem' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem', marginTop: '1.5rem' }}>
                 <div className="card" style={{ padding: '1.25rem' }}>
-                  <h4 style={{ marginBottom: '1rem' }}>Modelli base</h4>
-                  <div className="form-group">
-                    <label className="label">Modello principale</label>
-                    <select value={templateStudio.base_models?.[0] || ''} onChange={e => updateStudio('base_models.0', e.target.value)}>
-                      {SITE_LAYOUTS.map(layout => <option key={layout.id} value={layout.id}>{layout.name}</option>)}
-                    </select>
-                  </div>
-                  <div className="form-group">
-                    <label className="label">Secondo modello</label>
-                    <select value={templateStudio.base_models?.[1] || ''} onChange={e => updateStudio('base_models.1', e.target.value)}>
-                      <option value="">Nessuno</option>
-                      {SITE_LAYOUTS.map(layout => <option key={layout.id} value={layout.id}>{layout.name}</option>)}
-                    </select>
-                  </div>
-                  <div className="form-group" style={{ marginBottom: 0 }}>
-                    <label className="label">Archetipo</label>
-                    <input type="text" value={templateStudio.design_archetype || ''} onChange={e => updateStudio('design_archetype', e.target.value)} />
-                  </div>
+                  <div style={{ fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>Sorgente attiva</div>
+                  <div style={{ fontWeight: 700, fontSize: '16px', color: 'var(--text)' }}>{studioSourceLabel}</div>
                 </div>
-
                 <div className="card" style={{ padding: '1.25rem' }}>
-                  <h4 style={{ marginBottom: '1rem' }}>Composizione</h4>
-                  <div className="form-group">
-                    <label className="label">Hero</label>
-                    <select value={templateStudio.layout_recipe?.hero || 'product'} onChange={e => updateStudio('layout_recipe.hero', e.target.value)}>
-                      <option value="editorial">Editorial</option>
-                      <option value="split">Split</option>
-                      <option value="immersive">Immersive</option>
-                      <option value="human">Human</option>
-                      <option value="product">Product</option>
-                    </select>
-                  </div>
-                  <div className="form-group">
-                    <label className="label">Navbar</label>
-                    <select value={templateStudio.layout_recipe?.nav || 'solid'} onChange={e => updateStudio('layout_recipe.nav', e.target.value)}>
-                      <option value="transparent">Transparent</option>
-                      <option value="solid">Solid</option>
-                      <option value="floating">Floating</option>
-                    </select>
-                  </div>
-                  <div className="form-group">
-                    <label className="label">Card</label>
-                    <select value={templateStudio.layout_recipe?.cards || 'product'} onChange={e => updateStudio('layout_recipe.cards', e.target.value)}>
-                      <option value="editorial">Editorial</option>
-                      <option value="bold">Bold</option>
-                      <option value="soft">Soft</option>
-                      <option value="product">Product</option>
-                      <option value="cinematic">Cinematic</option>
-                    </select>
-                  </div>
-                  <div className="form-group" style={{ marginBottom: 0 }}>
-                    <label className="label">Densita</label>
-                    <select value={templateStudio.layout_recipe?.density || 'balanced'} onChange={e => updateStudio('layout_recipe.density', e.target.value)}>
-                      <option value="airy">Airy</option>
-                      <option value="balanced">Balanced</option>
-                      <option value="compact">Compact</option>
-                    </select>
-                  </div>
+                  <div style={{ fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>Archetipo</div>
+                  <div style={{ fontWeight: 700, fontSize: '16px', color: 'var(--text)' }}>{templateStudio.design_archetype || 'custom'}</div>
                 </div>
-
                 <div className="card" style={{ padding: '1.25rem' }}>
-                  <h4 style={{ marginBottom: '1rem' }}>Tipografia e UI</h4>
-                  <div className="form-group">
-                    <label className="label">Font titoli</label>
-                    <input type="text" value={templateStudio.font_heading || ''} onChange={e => updateStudio('font_heading', e.target.value)} />
+                  <div style={{ fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>Palette primaria</div>
+                  <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                    <div style={{ width: '28px', height: '28px', borderRadius: '999px', background: templateStudio.color_palette?.primary || '#2563eb', border: '1px solid var(--border-strong)' }} />
+                    <strong>{templateStudio.color_palette?.primary || '#2563eb'}</strong>
                   </div>
-                  <div className="form-group">
-                    <label className="label">Font testi</label>
-                    <input type="text" value={templateStudio.font_body || ''} onChange={e => updateStudio('font_body', e.target.value)} />
-                  </div>
-                  <div className="form-group">
-                    <label className="label">Radius</label>
-                    <input type="text" value={templateStudio.ui_style?.radius || ''} onChange={e => updateStudio('ui_style.radius', e.target.value)} />
-                  </div>
-                  <div className="form-group">
-                    <label className="label">Ombra card</label>
-                    <input type="text" value={templateStudio.ui_style?.card_shadow || ''} onChange={e => updateStudio('ui_style.card_shadow', e.target.value)} />
-                  </div>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '14px', fontWeight: 600 }}>
-                    <input type="checkbox" checked={!!templateStudio.ui_style?.glassmorphism} onChange={e => updateStudio('ui_style.glassmorphism', e.target.checked)} />
-                    Attiva glassmorphism
-                  </label>
-                </div>
-
-                <div className="card" style={{ padding: '1.25rem', gridColumn: '1 / -1' }}>
-                  <h4 style={{ marginBottom: '1rem' }}>Palette</h4>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '1rem' }}>
-                    {[
-                      ['background', 'Background'],
-                      ['surface', 'Surface'],
-                      ['text', 'Text'],
-                      ['text_muted', 'Text muted'],
-                      ['primary', 'Primary'],
-                      ['secondary', 'Secondary'],
-                    ].map(([key, label]) => (
-                      <div key={key} className="form-group" style={{ marginBottom: 0 }}>
-                        <label className="label">{label}</label>
-                        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                          <input type="color" value={templateStudio.color_palette?.[key] || '#000000'} onChange={e => updateStudio(`color_palette.${key}`, e.target.value)} style={{ width: '50px', minWidth: '50px', padding: '4px', height: '44px' }} />
-                          <input type="text" value={templateStudio.color_palette?.[key] || ''} onChange={e => updateStudio(`color_palette.${key}`, e.target.value)} />
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                  <div className="form-group" style={{ marginTop: '1rem', marginBottom: 0 }}>
-                    <label className="label">Primary gradient</label>
-                    <input type="text" value={templateStudio.color_palette?.primary_gradient || ''} onChange={e => updateStudio('color_palette.primary_gradient', e.target.value)} />
-                  </div>
-                </div>
-
-                <div className="card" style={{ padding: '1.25rem', gridColumn: '1 / -1' }}>
-                  <h4 style={{ marginBottom: '1rem' }}>Custom CSS</h4>
-                  <textarea
-                    value={templateStudio.custom_css || ''}
-                    onChange={e => updateStudio('custom_css', e.target.value)}
-                    placeholder="Micro-animazioni, hover, dettagli extra..."
-                    style={{ width: '100%', minHeight: '120px', resize: 'vertical', padding: '12px 16px', border: '1px solid var(--border-strong)', borderRadius: 'var(--radius-sm)', background: 'var(--bg)', fontFamily: 'inherit', fontSize: '14px', color: 'var(--text)' }}
-                  />
                 </div>
               </div>
             </div>
@@ -1805,7 +1690,7 @@ async function runSiteAi() {
 
             {/* Iframe Anteprima Modale */}
             {activePreviewUrl && (
-              <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.8)', zIndex: 9999, display: 'flex', flexDirection: 'column', padding: '20px', backdropFilter: 'blur(10px)' }}>
+              <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.8)', zIndex: 11000, display: 'flex', flexDirection: 'column', padding: '20px', backdropFilter: 'blur(10px)' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#111', color: '#fff', padding: '16px 24px', borderRadius: '16px 16px 0 0', border: '1px solid rgba(255,255,255,0.1)' }}>
                   <span style={{ fontWeight: 800, fontSize: '18px' }}>Anteprima Reale</span>
                   <div style={{ display: 'flex', gap: '16px' }}>
@@ -1816,6 +1701,245 @@ async function runSiteAi() {
                   </div>
                 </div>
                 <iframe src={activePreviewUrl} style={{ width: '100%', flex: 1, background: '#fff', border: 'none', borderRadius: '0 0 16px 16px' }} />
+              </div>
+            )}
+
+            {studioWorkspaceOpen && (
+              <div style={{ position: 'fixed', inset: 0, background: 'rgba(4,10,22,0.92)', zIndex: 10000, display: 'flex', flexDirection: 'column', backdropFilter: 'blur(18px)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', padding: '18px 24px', borderBottom: '1px solid rgba(255,255,255,0.08)', background: 'rgba(10,16,30,0.92)' }}>
+                  <div>
+                    <div style={{ fontSize: '12px', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.55)', marginBottom: '4px' }}>Frontend Studio</div>
+                    <div style={{ fontSize: '24px', fontWeight: 800, color: '#fff' }}>Template Studio</div>
+                    <div style={{ fontSize: '13px', color: 'rgba(255,255,255,0.65)', marginTop: '4px' }}>{studioSourceLabel}</div>
+                  </div>
+                  <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                    <button
+                      className="btn btn-outline"
+                      onClick={() => {
+                        setStudioWorkspaceOpen(false);
+                        setPreviewingTheme(null);
+                        setActivePreviewUrl(`${siteUrl}?preview_theme=${templateStudio.design_archetype || selectedTheme}`);
+                      }}
+                      style={{ padding: '10px 16px', fontWeight: 700, color: '#fff', borderColor: 'rgba(255,255,255,0.18)' }}
+                    >
+                      Anteprima reale
+                    </button>
+                    <button
+                      className="btn btn-primary"
+                      onClick={saveTemplateStudio}
+                      disabled={savingTemplateStudio}
+                      style={{ padding: '10px 18px', fontWeight: 800 }}
+                    >
+                      {savingTemplateStudio ? 'Applico...' : 'Applica modifiche'}
+                    </button>
+                    <button
+                      className="btn btn-outline"
+                      onClick={() => setStudioWorkspaceOpen(false)}
+                      style={{ padding: '10px 16px', fontWeight: 700, color: '#fff', borderColor: 'rgba(255,255,255,0.18)' }}
+                    >
+                      Chiudi Studio
+                    </button>
+                  </div>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: 'minmax(320px, 420px) minmax(0, 1fr)', gap: '0', minHeight: 0, flex: 1 }}>
+                  <div style={{ overflowY: 'auto', padding: '24px', borderRight: '1px solid rgba(255,255,255,0.08)', background: 'rgba(6,12,24,0.84)' }}>
+                    <div className="card" style={{ padding: '1.25rem', marginBottom: '1rem', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
+                      <h4 style={{ marginBottom: '1rem', color: '#fff' }}>Template di partenza</h4>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '0.75rem' }}>
+                        {SITE_LAYOUTS.map(layout => (
+                          <button
+                            key={layout.id}
+                            className="btn btn-outline"
+                            onClick={() => loadPresetIntoStudio(layout)}
+                            style={{
+                              justifyContent: 'flex-start',
+                              padding: '0.9rem 1rem',
+                              borderRadius: 'var(--radius)',
+                              borderColor: templateStudio.base_models?.[0] === layout.id ? 'var(--primary)' : 'rgba(255,255,255,0.12)',
+                              background: templateStudio.base_models?.[0] === layout.id ? 'rgba(0,240,255,0.08)' : 'rgba(255,255,255,0.02)',
+                              textAlign: 'left',
+                              color: '#fff',
+                            }}>
+                            <span style={{ fontSize: '1.2rem' }}>{layout.emoji}</span>
+                            <span>
+                              <strong style={{ display: 'block', color: '#fff' }}>{layout.name}</strong>
+                              <span style={{ display: 'block', color: 'rgba(255,255,255,0.6)', fontSize: '12px' }}>{layout.desc}</span>
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '1rem' }}>
+                      <div className="card" style={{ padding: '1.25rem', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
+                        <h4 style={{ marginBottom: '1rem', color: '#fff' }}>Modelli base</h4>
+                        <div className="form-group">
+                          <label className="label">Modello principale</label>
+                          <select value={templateStudio.base_models?.[0] || ''} onChange={e => updateStudio('base_models.0', e.target.value)}>
+                            {SITE_LAYOUTS.map(layout => <option key={layout.id} value={layout.id}>{layout.name}</option>)}
+                          </select>
+                        </div>
+                        <div className="form-group">
+                          <label className="label">Secondo modello</label>
+                          <select value={templateStudio.base_models?.[1] || ''} onChange={e => updateStudio('base_models.1', e.target.value)}>
+                            <option value="">Nessuno</option>
+                            {SITE_LAYOUTS.map(layout => <option key={layout.id} value={layout.id}>{layout.name}</option>)}
+                          </select>
+                        </div>
+                        <div className="form-group" style={{ marginBottom: 0 }}>
+                          <label className="label">Archetipo</label>
+                          <input type="text" value={templateStudio.design_archetype || ''} onChange={e => updateStudio('design_archetype', e.target.value)} />
+                        </div>
+                      </div>
+
+                      <div className="card" style={{ padding: '1.25rem', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
+                        <h4 style={{ marginBottom: '1rem', color: '#fff' }}>Composizione</h4>
+                        <div className="form-group">
+                          <label className="label">Hero</label>
+                          <select value={templateStudio.layout_recipe?.hero || 'product'} onChange={e => updateStudio('layout_recipe.hero', e.target.value)}>
+                            <option value="editorial">Editorial</option>
+                            <option value="split">Split</option>
+                            <option value="immersive">Immersive</option>
+                            <option value="human">Human</option>
+                            <option value="product">Product</option>
+                          </select>
+                        </div>
+                        <div className="form-group">
+                          <label className="label">Navbar</label>
+                          <select value={templateStudio.layout_recipe?.nav || 'solid'} onChange={e => updateStudio('layout_recipe.nav', e.target.value)}>
+                            <option value="transparent">Transparent</option>
+                            <option value="solid">Solid</option>
+                            <option value="floating">Floating</option>
+                          </select>
+                        </div>
+                        <div className="form-group">
+                          <label className="label">Card</label>
+                          <select value={templateStudio.layout_recipe?.cards || 'product'} onChange={e => updateStudio('layout_recipe.cards', e.target.value)}>
+                            <option value="editorial">Editorial</option>
+                            <option value="bold">Bold</option>
+                            <option value="soft">Soft</option>
+                            <option value="product">Product</option>
+                            <option value="cinematic">Cinematic</option>
+                          </select>
+                        </div>
+                        <div className="form-group" style={{ marginBottom: 0 }}>
+                          <label className="label">Densita</label>
+                          <select value={templateStudio.layout_recipe?.density || 'balanced'} onChange={e => updateStudio('layout_recipe.density', e.target.value)}>
+                            <option value="airy">Airy</option>
+                            <option value="balanced">Balanced</option>
+                            <option value="compact">Compact</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      <div className="card" style={{ padding: '1.25rem', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
+                        <h4 style={{ marginBottom: '1rem', color: '#fff' }}>Tipografia e UI</h4>
+                        <div className="form-group">
+                          <label className="label">Font titoli</label>
+                          <input type="text" value={templateStudio.font_heading || ''} onChange={e => updateStudio('font_heading', e.target.value)} />
+                        </div>
+                        <div className="form-group">
+                          <label className="label">Font testi</label>
+                          <input type="text" value={templateStudio.font_body || ''} onChange={e => updateStudio('font_body', e.target.value)} />
+                        </div>
+                        <div className="form-group">
+                          <label className="label">Radius</label>
+                          <input type="text" value={templateStudio.ui_style?.radius || ''} onChange={e => updateStudio('ui_style.radius', e.target.value)} />
+                        </div>
+                        <div className="form-group">
+                          <label className="label">Ombra card</label>
+                          <input type="text" value={templateStudio.ui_style?.card_shadow || ''} onChange={e => updateStudio('ui_style.card_shadow', e.target.value)} />
+                        </div>
+                        <label style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '14px', fontWeight: 600, color: '#fff' }}>
+                          <input type="checkbox" checked={!!templateStudio.ui_style?.glassmorphism} onChange={e => updateStudio('ui_style.glassmorphism', e.target.checked)} />
+                          Attiva glassmorphism
+                        </label>
+                      </div>
+
+                      <div className="card" style={{ padding: '1.25rem', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
+                        <h4 style={{ marginBottom: '1rem', color: '#fff' }}>Palette</h4>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '1rem' }}>
+                          {[
+                            ['background', 'Background'],
+                            ['surface', 'Surface'],
+                            ['text', 'Text'],
+                            ['text_muted', 'Text muted'],
+                            ['primary', 'Primary'],
+                            ['secondary', 'Secondary'],
+                          ].map(([key, label]) => (
+                            <div key={key} className="form-group" style={{ marginBottom: 0 }}>
+                              <label className="label">{label}</label>
+                              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                                <input type="color" value={templateStudio.color_palette?.[key] || '#000000'} onChange={e => updateStudio(`color_palette.${key}`, e.target.value)} style={{ width: '50px', minWidth: '50px', padding: '4px', height: '44px' }} />
+                                <input type="text" value={templateStudio.color_palette?.[key] || ''} onChange={e => updateStudio(`color_palette.${key}`, e.target.value)} />
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                        <div className="form-group" style={{ marginTop: '1rem', marginBottom: 0 }}>
+                          <label className="label">Primary gradient</label>
+                          <input type="text" value={templateStudio.color_palette?.primary_gradient || ''} onChange={e => updateStudio('color_palette.primary_gradient', e.target.value)} />
+                        </div>
+                      </div>
+
+                      <div className="card" style={{ padding: '1.25rem', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
+                        <h4 style={{ marginBottom: '1rem', color: '#fff' }}>Custom CSS</h4>
+                        <textarea
+                          value={templateStudio.custom_css || ''}
+                          onChange={e => updateStudio('custom_css', e.target.value)}
+                          placeholder="Micro-animazioni, hover, dettagli extra..."
+                          style={{ width: '100%', minHeight: '160px', resize: 'vertical', padding: '12px 16px', border: '1px solid var(--border-strong)', borderRadius: 'var(--radius-sm)', background: 'var(--bg)', fontFamily: 'inherit', fontSize: '14px', color: 'var(--text)' }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div style={{ overflowY: 'auto', padding: '24px', background: 'linear-gradient(180deg, rgba(8,14,28,0.96), rgba(16,24,42,0.96))' }}>
+                    <div className="card" style={{ padding: '1.5rem', marginBottom: '1rem', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
+                      <div style={{ fontSize: '12px', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.5)', marginBottom: '0.5rem' }}>Workspace attiva</div>
+                      <h3 style={{ marginBottom: '0.5rem', color: '#fff' }}>{templateStudio.design_archetype || 'custom'}</h3>
+                      <p style={{ margin: 0, color: 'rgba(255,255,255,0.68)', lineHeight: 1.6 }}>
+                        Qui dentro trovi solo gli strumenti di modifica del sito. Parti da una proposta AI o da un template, regola i parametri e poi applica le modifiche quando sei soddisfatto.
+                      </p>
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '1rem', marginBottom: '1rem' }}>
+                      <div className="card" style={{ padding: '1.25rem', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
+                        <div style={{ fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.08em', color: 'rgba(255,255,255,0.5)', marginBottom: '0.5rem' }}>Hero</div>
+                        <strong style={{ color: '#fff' }}>{templateStudio.layout_recipe?.hero || 'product'}</strong>
+                      </div>
+                      <div className="card" style={{ padding: '1.25rem', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
+                        <div style={{ fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.08em', color: 'rgba(255,255,255,0.5)', marginBottom: '0.5rem' }}>Navbar</div>
+                        <strong style={{ color: '#fff' }}>{templateStudio.layout_recipe?.nav || 'solid'}</strong>
+                      </div>
+                      <div className="card" style={{ padding: '1.25rem', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
+                        <div style={{ fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.08em', color: 'rgba(255,255,255,0.5)', marginBottom: '0.5rem' }}>Card UI</div>
+                        <strong style={{ color: '#fff' }}>{templateStudio.layout_recipe?.cards || 'product'}</strong>
+                      </div>
+                    </div>
+
+                    <div className="card" style={{ padding: '1.5rem', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
+                      <h4 style={{ marginBottom: '1rem', color: '#fff' }}>Palette attiva</h4>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '1rem' }}>
+                        {[
+                          ['background', 'Background'],
+                          ['surface', 'Surface'],
+                          ['text', 'Text'],
+                          ['text_muted', 'Text muted'],
+                          ['primary', 'Primary'],
+                          ['secondary', 'Secondary'],
+                        ].map(([key, label]) => (
+                          <div key={key} style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '16px', padding: '1rem' }}>
+                            <div style={{ width: '100%', height: '42px', borderRadius: '12px', background: templateStudio.color_palette?.[key] || '#000', marginBottom: '0.75rem', border: '1px solid rgba(255,255,255,0.08)' }} />
+                            <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.58)', marginBottom: '0.25rem' }}>{label}</div>
+                            <strong style={{ color: '#fff', fontSize: '13px' }}>{templateStudio.color_palette?.[key] || '-'}</strong>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
             )}
 
