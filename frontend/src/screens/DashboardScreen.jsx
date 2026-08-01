@@ -4,6 +4,73 @@ import { SocialIcon } from '../components/SocialIcon';
 import { QuillEditor } from '../components/QuillEditor';
 import { AdminScreen } from './AdminScreen';
 
+const STUDIO_DEFAULTS = {
+  font_heading: 'Outfit',
+  font_body: 'Inter',
+  color_palette: {
+    background: '#f8fafc',
+    surface: '#ffffff',
+    text: '#16202a',
+    text_muted: '#64748b',
+    primary: '#2563eb',
+    secondary: '#dbe8ff',
+    primary_gradient: 'linear-gradient(135deg, #4f8cff, #1d4ed8)',
+  },
+  ui_style: {
+    radius: '16px',
+    card_shadow: '0 10px 30px rgba(15,23,42,0.08)',
+    glassmorphism: false,
+  },
+  layout_recipe: {
+    hero: 'product',
+    nav: 'solid',
+    cards: 'product',
+    density: 'balanced',
+  },
+  base_models: ['tech-clarity'],
+  custom_css: '',
+  design_archetype: 'tech-clarity',
+};
+
+function normalizeStudioData(raw, selectedTheme = 'tech-clarity') {
+  const preset = SITE_LAYOUTS.find(layout => layout.id === selectedTheme) || SITE_LAYOUTS[0];
+  const source = raw && typeof raw === 'object' ? raw : {};
+  const palette = source.color_palette || {};
+  const uiStyle = source.ui_style || {};
+  const recipe = source.layout_recipe || {};
+  const baseModels = Array.isArray(source.base_models)
+    ? source.base_models
+    : source.base_models ? [source.base_models] : (preset?.base_models || STUDIO_DEFAULTS.base_models);
+
+  return {
+    design_archetype: source.design_archetype || preset?.id || selectedTheme || STUDIO_DEFAULTS.design_archetype,
+    font_heading: source.font_heading || preset?.font_heading || STUDIO_DEFAULTS.font_heading,
+    font_body: source.font_body || preset?.font_body || STUDIO_DEFAULTS.font_body,
+    color_palette: {
+      background: palette.background || palette.bg || preset?.color_palette?.background || STUDIO_DEFAULTS.color_palette.background,
+      surface: palette.surface || preset?.color_palette?.surface || STUDIO_DEFAULTS.color_palette.surface,
+      text: palette.text || preset?.color_palette?.text || STUDIO_DEFAULTS.color_palette.text,
+      text_muted: palette.text_muted || preset?.color_palette?.text_muted || STUDIO_DEFAULTS.color_palette.text_muted,
+      primary: palette.primary || source.accent_color || preset?.color_palette?.primary || STUDIO_DEFAULTS.color_palette.primary,
+      secondary: palette.secondary || preset?.color_palette?.secondary || STUDIO_DEFAULTS.color_palette.secondary,
+      primary_gradient: palette.primary_gradient || preset?.color_palette?.primary_gradient || STUDIO_DEFAULTS.color_palette.primary_gradient,
+    },
+    ui_style: {
+      radius: uiStyle.radius || preset?.ui_style?.radius || STUDIO_DEFAULTS.ui_style.radius,
+      card_shadow: uiStyle.card_shadow || preset?.ui_style?.card_shadow || STUDIO_DEFAULTS.ui_style.card_shadow,
+      glassmorphism: typeof uiStyle.glassmorphism === 'boolean' ? uiStyle.glassmorphism : (preset?.ui_style?.glassmorphism ?? STUDIO_DEFAULTS.ui_style.glassmorphism),
+    },
+    layout_recipe: {
+      hero: recipe.hero || preset?.layout_recipe?.hero || STUDIO_DEFAULTS.layout_recipe.hero,
+      nav: recipe.nav || preset?.layout_recipe?.nav || STUDIO_DEFAULTS.layout_recipe.nav,
+      cards: recipe.cards || preset?.layout_recipe?.cards || STUDIO_DEFAULTS.layout_recipe.cards,
+      density: recipe.density || preset?.layout_recipe?.density || STUDIO_DEFAULTS.layout_recipe.density,
+    },
+    base_models: baseModels.slice(0, 2),
+    custom_css: source.custom_css || '',
+  };
+}
+
 export 
 function DashboardScreen({ token, user, onLogout }) {
   const [tab, setTab] = useState('overview');
@@ -29,6 +96,7 @@ const [importMsg, setImportMsg] = useState(null);
   const [addMsg, setAddMsg] = useState(null);
   const [addLoading, setAddLoading] = useState(false);
   const [scanning, setScanning] = useState(false);
+  const [repairingMedia, setRepairingMedia] = useState(false);
   const [scanMsg, setScanMsg] = useState(null);
   const [scanProgress, setScanProgress] = useState([]);
   const [processingQueue, setProcessingQueue] = useState([]);
@@ -53,6 +121,8 @@ const [importMsg, setImportMsg] = useState(null);
   const [gscVerification, setGscVerification] = useState('');
   const [harmonizeAgent, setHarmonizeAgent] = useState('content_editor');
   const [accountType, setAccountType] = useState('business');
+  const [templateStudio, setTemplateStudio] = useState(() => normalizeStudioData(null));
+  const [savingTemplateStudio, setSavingTemplateStudio] = useState(false);
 
   // ── Tema chiaro/scuro ──────────────────────────────────────────────────
   const [theme, setThemeState] = useState(() =>
@@ -88,6 +158,15 @@ const [importMsg, setImportMsg] = useState(null);
       setGscVerification(d.site?.gsc_verification || '');
       setHarmonizeAgent(d.site?.harmonize_agent || 'content_editor');
       setAccountType(d.site?.account_type || 'business');
+      let parsedSiteAiData = null;
+      if (d.site?.site_ai_data) {
+        try {
+          parsedSiteAiData = typeof d.site.site_ai_data === 'string' ? JSON.parse(d.site.site_ai_data) : d.site.site_ai_data;
+        } catch (e) {
+          console.error('Errore parse site_ai_data:', e);
+        }
+      }
+      setTemplateStudio(normalizeStudioData(parsedSiteAiData, d.site?.theme || 'tech-clarity'));
       if (d.site?.menu_links) {
         try {
            const arr = JSON.parse(d.site.menu_links);
@@ -392,6 +471,30 @@ const [importMsg, setImportMsg] = useState(null);
     setScanning(false);
   }
 
+  async function repairMedia() {
+    if (!data?.posts?.some(post => post.media_url)) {
+      alert('Non ci sono media da riparare.');
+      return;
+    }
+    setRepairingMedia(true);
+    setScanMsg({ ok: true, text: 'Controllo e riparazione media in corso...', loading: true });
+    try {
+      const res = await apiFetch('/api/index.php?action=repair-media', {
+        method: 'POST',
+        body: JSON.stringify({ limit: Math.max(parseInt(syncLimit, 10) || 20, 50) })
+      }, token);
+      const report = res.report || {};
+      await loadData();
+      setScanMsg({
+        ok: true,
+        text: `Media controllati: ${report.checked || 0}. Scaricati: ${report.downloaded || 0}. Normalizzati: ${report.normalized || 0}.`
+      });
+    } catch (err) {
+      setScanMsg({ ok: false, text: err.message });
+    }
+    setRepairingMedia(false);
+  }
+
   async function saveProfile() {
     setSavingProfile(true);
     try {
@@ -433,6 +536,7 @@ const [importMsg, setImportMsg] = useState(null);
         method: 'POST',
         body: JSON.stringify({ theme })
       }, token);
+      setTemplateStudio(prev => normalizeStudioData(prev, theme));
       await loadData();
     } catch (err) {
       setScanMsg({ ok: false, text: err.message });
@@ -481,6 +585,7 @@ const [importMsg, setImportMsg] = useState(null);
           site_ai_data: layout
         })
       }, token);
+      setTemplateStudio(normalizeStudioData(layout, layout.design_archetype || layout.theme || selectedTheme));
       await loadData();
       setActivePreviewUrl(null);
       alert("Layout applicato con successo!");
@@ -500,6 +605,72 @@ const [importMsg, setImportMsg] = useState(null);
     } catch (err) {
       alert("Errore eliminazione: " + err.message);
     }
+  }
+
+  function loadTemplateIntoStudio(layout) {
+    const normalized = normalizeStudioData(layout, layout?.design_archetype || layout?.theme || selectedTheme);
+    setTemplateStudio(normalized);
+    setSelectedTheme(normalized.design_archetype || selectedTheme);
+  }
+
+  function loadPresetIntoStudio(layout) {
+    const presetData = {
+      design_archetype: layout.id,
+      font_heading: layout.font_heading,
+      font_body: layout.font_body,
+      color_palette: layout.color_palette,
+      ui_style: layout.ui_style,
+      layout_recipe: layout.layout_recipe,
+      base_models: layout.base_models,
+      custom_css: '',
+    };
+    setSelectedTheme(layout.id);
+    setTemplateStudio(normalizeStudioData(presetData, layout.id));
+  }
+
+  function updateStudio(path, value) {
+    setTemplateStudio(prev => {
+      if (path.startsWith('color_palette.')) {
+        const key = path.split('.')[1];
+        return { ...prev, color_palette: { ...prev.color_palette, [key]: value } };
+      }
+      if (path.startsWith('ui_style.')) {
+        const key = path.split('.')[1];
+        return { ...prev, ui_style: { ...prev.ui_style, [key]: value } };
+      }
+      if (path.startsWith('layout_recipe.')) {
+        const key = path.split('.')[1];
+        return { ...prev, layout_recipe: { ...prev.layout_recipe, [key]: value } };
+      }
+      if (path === 'base_models.0' || path === 'base_models.1') {
+        const next = [...(prev.base_models || [])];
+        next[path === 'base_models.0' ? 0 : 1] = value;
+        return { ...prev, base_models: next.filter(Boolean).slice(0, 2) };
+      }
+      return { ...prev, [path]: value };
+    });
+  }
+
+  async function saveTemplateStudio() {
+    setSavingTemplateStudio(true);
+    try {
+      const payload = {
+        theme: templateStudio.design_archetype || selectedTheme,
+        design_archetype: templateStudio.design_archetype || selectedTheme,
+        accent_color: templateStudio.color_palette?.primary || accentColor,
+        custom_css: templateStudio.custom_css || '',
+        site_ai_data: templateStudio,
+      };
+      await apiFetch('/api/index.php?action=site-update', {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      }, token);
+      await loadData();
+      alert('Template Studio applicato con successo!');
+    } catch (err) {
+      alert(err.message);
+    }
+    setSavingTemplateStudio(false);
   }
 
   // --- Funzioni Admin Prompts ---
@@ -946,10 +1117,20 @@ async function runSiteAi() {
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
                   <h2 style={{ margin: 0, fontSize: '18px' }}>📡 I tuoi canali ({allChannels.length})</h2>
                   {allChannels.length > 0 && (
-                    <button onClick={scanSources} disabled={scanning}
-                      className="btn btn-primary" style={{ fontSize: '13px', padding: '8px 18px' }}>
-                      {scanning ? '⟳ Sincronizzazione...' : '🔄 Sincronizza tutti'}
-                    </button>
+                    <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                      <button
+                        onClick={repairMedia}
+                        disabled={repairingMedia || scanning}
+                        className="btn btn-outline"
+                        style={{ fontSize: '13px', padding: '8px 18px' }}
+                      >
+                        {repairingMedia ? 'Riparazione media...' : 'Ripara immagini'}
+                      </button>
+                      <button onClick={scanSources} disabled={scanning || repairingMedia}
+                        className="btn btn-primary" style={{ fontSize: '13px', padding: '8px 18px' }}>
+                        {scanning ? '⟳ Sincronizzazione...' : '🔄 Sincronizza tutti'}
+                      </button>
+                    </div>
                   )}
                 </div>
 
@@ -1396,6 +1577,9 @@ async function runSiteAi() {
                           <button className="btn btn-outline btn-full" onClick={() => { setPreviewingTheme(null); setActivePreviewUrl(`${siteUrl}?preview_index=${i}`); }} style={{ fontSize: '12px', padding: '6px' }}>
                             👁️ Anteprima
                           </button>
+                          <button className="btn btn-outline btn-full" onClick={() => loadTemplateIntoStudio(layout)} style={{ fontSize: '12px', padding: '6px' }}>
+                            Apri nello Studio
+                          </button>
                           <button className="btn btn-primary btn-full" onClick={() => applyLayout(i)} style={{ fontSize: '12px', padding: '6px' }}>
                             ✓ Applica
                           </button>
@@ -1410,6 +1594,166 @@ async function runSiteAi() {
               })()}
             </div>
 
+
+            <div className="glass-modal" style={{ marginTop: '2rem', border: '1px solid var(--border-strong)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', flexWrap: 'wrap', marginBottom: '1.5rem' }}>
+                <div>
+                  <h3 style={{ marginBottom: '0.35rem', fontSize: '20px' }}>Template Studio</h3>
+                  <p style={{ color: 'var(--text-muted)', fontSize: '14px', margin: 0, fontWeight: 500 }}>
+                    Parti da un template o da una proposta AI, poi regola palette, tipografia e composizione secondo i tuoi gusti.
+                  </p>
+                </div>
+                <button className="btn btn-primary" onClick={saveTemplateStudio} disabled={savingTemplateStudio} style={{ padding: '12px 20px', fontWeight: 700 }}>
+                  {savingTemplateStudio ? 'Applico...' : 'Applica Template Studio'}
+                </button>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem', marginBottom: '1.5rem' }}>
+                {SITE_LAYOUTS.map(layout => (
+                  <button
+                    key={layout.id}
+                    className="btn btn-outline"
+                    onClick={() => loadPresetIntoStudio(layout)}
+                    style={{
+                      justifyContent: 'flex-start',
+                      padding: '0.9rem 1rem',
+                      borderRadius: 'var(--radius)',
+                      borderColor: templateStudio.base_models?.[0] === layout.id ? 'var(--primary)' : 'var(--border-strong)',
+                      background: templateStudio.base_models?.[0] === layout.id ? 'rgba(0,240,255,0.05)' : 'var(--surface)',
+                      textAlign: 'left',
+                    }}>
+                    <span style={{ fontSize: '1.2rem' }}>{layout.emoji}</span>
+                    <span>
+                      <strong style={{ display: 'block', color: 'var(--text)' }}>{layout.name}</strong>
+                      <span style={{ display: 'block', color: 'var(--text-muted)', fontSize: '12px' }}>{layout.desc}</span>
+                    </span>
+                  </button>
+                ))}
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '1rem' }}>
+                <div className="card" style={{ padding: '1.25rem' }}>
+                  <h4 style={{ marginBottom: '1rem' }}>Modelli base</h4>
+                  <div className="form-group">
+                    <label className="label">Modello principale</label>
+                    <select value={templateStudio.base_models?.[0] || ''} onChange={e => updateStudio('base_models.0', e.target.value)}>
+                      {SITE_LAYOUTS.map(layout => <option key={layout.id} value={layout.id}>{layout.name}</option>)}
+                    </select>
+                  </div>
+                  <div className="form-group">
+                    <label className="label">Secondo modello</label>
+                    <select value={templateStudio.base_models?.[1] || ''} onChange={e => updateStudio('base_models.1', e.target.value)}>
+                      <option value="">Nessuno</option>
+                      {SITE_LAYOUTS.map(layout => <option key={layout.id} value={layout.id}>{layout.name}</option>)}
+                    </select>
+                  </div>
+                  <div className="form-group" style={{ marginBottom: 0 }}>
+                    <label className="label">Archetipo</label>
+                    <input type="text" value={templateStudio.design_archetype || ''} onChange={e => updateStudio('design_archetype', e.target.value)} />
+                  </div>
+                </div>
+
+                <div className="card" style={{ padding: '1.25rem' }}>
+                  <h4 style={{ marginBottom: '1rem' }}>Composizione</h4>
+                  <div className="form-group">
+                    <label className="label">Hero</label>
+                    <select value={templateStudio.layout_recipe?.hero || 'product'} onChange={e => updateStudio('layout_recipe.hero', e.target.value)}>
+                      <option value="editorial">Editorial</option>
+                      <option value="split">Split</option>
+                      <option value="immersive">Immersive</option>
+                      <option value="human">Human</option>
+                      <option value="product">Product</option>
+                    </select>
+                  </div>
+                  <div className="form-group">
+                    <label className="label">Navbar</label>
+                    <select value={templateStudio.layout_recipe?.nav || 'solid'} onChange={e => updateStudio('layout_recipe.nav', e.target.value)}>
+                      <option value="transparent">Transparent</option>
+                      <option value="solid">Solid</option>
+                      <option value="floating">Floating</option>
+                    </select>
+                  </div>
+                  <div className="form-group">
+                    <label className="label">Card</label>
+                    <select value={templateStudio.layout_recipe?.cards || 'product'} onChange={e => updateStudio('layout_recipe.cards', e.target.value)}>
+                      <option value="editorial">Editorial</option>
+                      <option value="bold">Bold</option>
+                      <option value="soft">Soft</option>
+                      <option value="product">Product</option>
+                      <option value="cinematic">Cinematic</option>
+                    </select>
+                  </div>
+                  <div className="form-group" style={{ marginBottom: 0 }}>
+                    <label className="label">Densita</label>
+                    <select value={templateStudio.layout_recipe?.density || 'balanced'} onChange={e => updateStudio('layout_recipe.density', e.target.value)}>
+                      <option value="airy">Airy</option>
+                      <option value="balanced">Balanced</option>
+                      <option value="compact">Compact</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="card" style={{ padding: '1.25rem' }}>
+                  <h4 style={{ marginBottom: '1rem' }}>Tipografia e UI</h4>
+                  <div className="form-group">
+                    <label className="label">Font titoli</label>
+                    <input type="text" value={templateStudio.font_heading || ''} onChange={e => updateStudio('font_heading', e.target.value)} />
+                  </div>
+                  <div className="form-group">
+                    <label className="label">Font testi</label>
+                    <input type="text" value={templateStudio.font_body || ''} onChange={e => updateStudio('font_body', e.target.value)} />
+                  </div>
+                  <div className="form-group">
+                    <label className="label">Radius</label>
+                    <input type="text" value={templateStudio.ui_style?.radius || ''} onChange={e => updateStudio('ui_style.radius', e.target.value)} />
+                  </div>
+                  <div className="form-group">
+                    <label className="label">Ombra card</label>
+                    <input type="text" value={templateStudio.ui_style?.card_shadow || ''} onChange={e => updateStudio('ui_style.card_shadow', e.target.value)} />
+                  </div>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '14px', fontWeight: 600 }}>
+                    <input type="checkbox" checked={!!templateStudio.ui_style?.glassmorphism} onChange={e => updateStudio('ui_style.glassmorphism', e.target.checked)} />
+                    Attiva glassmorphism
+                  </label>
+                </div>
+
+                <div className="card" style={{ padding: '1.25rem', gridColumn: '1 / -1' }}>
+                  <h4 style={{ marginBottom: '1rem' }}>Palette</h4>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '1rem' }}>
+                    {[
+                      ['background', 'Background'],
+                      ['surface', 'Surface'],
+                      ['text', 'Text'],
+                      ['text_muted', 'Text muted'],
+                      ['primary', 'Primary'],
+                      ['secondary', 'Secondary'],
+                    ].map(([key, label]) => (
+                      <div key={key} className="form-group" style={{ marginBottom: 0 }}>
+                        <label className="label">{label}</label>
+                        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                          <input type="color" value={templateStudio.color_palette?.[key] || '#000000'} onChange={e => updateStudio(`color_palette.${key}`, e.target.value)} style={{ width: '50px', minWidth: '50px', padding: '4px', height: '44px' }} />
+                          <input type="text" value={templateStudio.color_palette?.[key] || ''} onChange={e => updateStudio(`color_palette.${key}`, e.target.value)} />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="form-group" style={{ marginTop: '1rem', marginBottom: 0 }}>
+                    <label className="label">Primary gradient</label>
+                    <input type="text" value={templateStudio.color_palette?.primary_gradient || ''} onChange={e => updateStudio('color_palette.primary_gradient', e.target.value)} />
+                  </div>
+                </div>
+
+                <div className="card" style={{ padding: '1.25rem', gridColumn: '1 / -1' }}>
+                  <h4 style={{ marginBottom: '1rem' }}>Custom CSS</h4>
+                  <textarea
+                    value={templateStudio.custom_css || ''}
+                    onChange={e => updateStudio('custom_css', e.target.value)}
+                    placeholder="Micro-animazioni, hover, dettagli extra..."
+                    style={{ width: '100%', minHeight: '120px', resize: 'vertical', padding: '12px 16px', border: '1px solid var(--border-strong)', borderRadius: 'var(--radius-sm)', background: 'var(--bg)', fontFamily: 'inherit', fontSize: '14px', color: 'var(--text)' }}
+                  />
+                </div>
+              </div>
+            </div>
 
             <div className="glass-modal" style={{ marginTop: '2rem' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
@@ -1446,9 +1790,14 @@ async function runSiteAi() {
                       {layout.colors.map((c, idx) => <div key={idx} style={{ width: 28, height: 28, borderRadius: '50%', background: c, border: '1px solid rgba(255,255,255,0.1)' }} title={c} />)}
                     </div>
                     
-                    <button className={selectedTheme === layout.id ? "btn btn-primary btn-full" : "btn btn-outline btn-full"} style={{ fontSize: '14px', padding: '12px', fontWeight: 700 }}>
-                      {selectedTheme === layout.id ? 'Modello Attivo' : 'Anteprima'}
-                    </button>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      <button className={selectedTheme === layout.id ? "btn btn-primary btn-full" : "btn btn-outline btn-full"} style={{ fontSize: '14px', padding: '12px', fontWeight: 700 }}>
+                        {selectedTheme === layout.id ? 'Modello Attivo' : 'Anteprima'}
+                      </button>
+                      <button className="btn btn-outline btn-full" onClick={(e) => { e.stopPropagation(); loadPresetIntoStudio(layout); }} style={{ fontSize: '13px', padding: '10px', fontWeight: 700 }}>
+                        Apri nello Studio
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>

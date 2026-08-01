@@ -631,6 +631,13 @@ if ($action === 'scan-sources' && $method === 'POST') {
 }
 
 // ── GET social/auth-url?platform=xxx ─────────────────────────────────────
+if ($action === 'repair-media' && $method === 'POST') {
+    $b = body();
+    $limit = isset($b['limit']) ? (int)$b['limit'] : 50;
+    $report = Sync::repairMediaLibrary($userId, max(20, $limit));
+    json(['ok' => true, 'report' => $report]);
+}
+
 if ($action === 'social-auth-url' && $method === 'GET') {
     $platform = $_GET['platform'] ?? '';
     $state    = base64_encode(json_encode(['userId' => $userId, 'platform' => $platform]));

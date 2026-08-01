@@ -170,6 +170,20 @@ if ($action === 'llms') {
 // ── Variabili base ───────────────────────────────────────────────────────────
 function h(?string $s): string { return htmlspecialchars(html_entity_decode((string)$s, ENT_QUOTES, 'UTF-8'), ENT_QUOTES, 'UTF-8'); }
 
+function normalizeMediaUrl(?string $url): string {
+    $url = trim((string)$url);
+    if ($url === '') return '';
+    if (strpos($url, '/public/media/') !== false) {
+        $path = parse_url($url, PHP_URL_PATH) ?: '';
+        $name = basename($path);
+        if ($name === '' || $name === '.' || $name === '..') return '';
+        $localPath = __DIR__ . '/media/' . $name;
+        if (!file_exists($localPath)) return '';
+        return rtrim(BASE_URL, '/') . '/public/media/' . $name;
+    }
+    return $url;
+}
+
 $title      = h($site['title'] ?? $user['name'] ?? '');
 $bio        = h(($site['profile_summary'] ?? '') ?: ($site['bio'] ?? ''));
 $siteUrl    = BASE_URL . '/' . $slug;
@@ -185,6 +199,16 @@ $icons      = ['instagram' => '📸', 'tiktok' => '🎵', 'youtube' => '▶️',
 $menuLinks    = !empty($site['menu_links']) ? json_decode($site['menu_links'], true) : [];
 $accentColor  = $site['accent_color'] ?? '';
 $accentSecondary = $site['accent_secondary'] ?? $site['accent_color'] ?? '';
+$logoUrl      = normalizeMediaUrl($site['logo_url'] ?? '');
+$coverUrl     = normalizeMediaUrl($site['cover_url'] ?? '');
+
+foreach ($posts as &$p) {
+    $p['media_url'] = normalizeMediaUrl($p['media_url'] ?? '');
+}
+unset($p);
+if ($single) {
+    $single['media_url'] = normalizeMediaUrl($single['media_url'] ?? '');
+}
 
 // ── Raccogli tutti i tag reali dei post pubblicati (con conteggio) ───────
 $tagCounts = [];
@@ -221,8 +245,6 @@ if (empty($menuLinks) && !empty($tagCounts)) {
         $menuLinks[] = ['label' => ucfirst($tag), 'url' => '/?tag=' . urlencode($tag)];
     }
 }
-$logoUrl      = $site['logo_url'] ?? '';
-$coverUrl     = $site['cover_url'] ?? '';
 $footerText   = $site['footer_text'] ?? '';
 $customCss    = $site['custom_css'] ?? '';
 $heroTagline  = h($site['hero_tagline'] ?? '');

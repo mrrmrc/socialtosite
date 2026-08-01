@@ -7,6 +7,26 @@ require_once __DIR__ . '/../middleware/response.php';
 require_once __DIR__ . '/../middleware/crypto.php';
 
 class Sync {
+    private static function isLocalMediaUrl(string $url): bool {
+        return $url !== '' && strpos($url, '/public/media/') !== false;
+    }
+
+    private static function localMediaPathFromUrl(string $url): ?string {
+        if (!self::isLocalMediaUrl($url)) return null;
+        $path = parse_url($url, PHP_URL_PATH) ?: '';
+        $name = basename($path);
+        if ($name === '' || $name === '.' || $name === '..') return null;
+        return __DIR__ . '/../../public/media/' . $name;
+    }
+
+    private static function normalizeLocalMediaUrl(string $url): string {
+        if (!self::isLocalMediaUrl($url)) return trim($url);
+        $path = parse_url($url, PHP_URL_PATH) ?: '';
+        $name = basename($path);
+        if ($name === '' || $name === '.' || $name === '..') return trim($url);
+        $base = defined('BASE_URL') ? rtrim(BASE_URL, '/') : '';
+        return $base . '/public/media/' . $name;
+    }
 
     // ── Chiama un'API social con curl ──────────────────────────────────────
     private static function get(string $url, string $token = '', array $params = []): array {
@@ -44,7 +64,7 @@ class Sync {
         // → riscaricalo dall'URL fresco appena ottenuto dall'API e aggiorna.
         if ($exists) {
             $curUrl = $exists['media_url'] ?? '';
-            $curIsLocal = strpos($curUrl, '/public/media/') !== false;
+            $curIsLocal = self::isLocalMediaUrl($curUrl);
             if ($isRemoteMedia && !$curIsLocal) {
                 require_once __DIR__ . '/ingest.php';
                 $saved = Ingest::saveMedia($mUrl, $platform, $postId, $mType === 'video' ? 'mp4' : 'jpg');
@@ -90,6 +110,72 @@ class Sync {
     }
 
     // ── Processa un contenuto: salva bozza per AI ─────────────
+    public static function repairMediaLibrary(int $userId, int $maxPosts = 50): array {
+        $posts = DB::fetchAll(
+            'SELECT id, platform, platform_post_id, media_url, media_type
+             FROM posts
+             WHERE user_id=? AND media_url IS NOT NULL AND media_url != ""',
+            [$userId]
+        );
+
+        $stats = [
+            'checked' => count($posts),
+            'normalized' => 0,
+            'downloaded' => 0,
+            'healthy_local' => 0,
+            'missing_local' => 0,
+            'remote_pending_refresh' => 0,
+            'sync_sources' => 0,
+        ];
+
+        foreach ($posts as $post) {
+            $mediaUrl = trim($post['media_url'] ?? '');
+            if ($mediaUrl === '') continue;
+
+            if (self::isLocalMediaUrl($mediaUrl)) {
+                $normalizedUrl = self::normalizeLocalMediaUrl($mediaUrl);
+                if ($normalizedUrl !== $mediaUrl) {
+                    DB::execute('UPDATE posts SET media_url=? WHERE id=?', [$normalizedUrl, $post['id']]);
+                    $stats['normalized']++;
+                    $mediaUrl = $normalizedUrl;
+                }
+
+                $localPath = self::localMediaPathFromUrl($mediaUrl);
+                if ($localPath && file_exists($localPath)) {
+                    $stats['healthy_local']++;
+                } else {
+                    $stats['missing_local']++;
+                }
+                continue;
+            }
+
+            $mediaType = strtolower($post['media_type'] ?? '');
+            if (!str_starts_with($mediaUrl, 'http') || !in_array($mediaType, ['image', 'video'], true)) {
+                continue;
+            }
+
+            $saved = Ingest::saveMedia(
+                $mediaUrl,
+                (string)$post['platform'],
+                (string)($post['platform_post_id'] ?: $post['id']),
+                $mediaType === 'video' ? 'mp4' : 'jpg'
+            );
+            if ($saved && !empty($saved['url'])) {
+                DB::execute('UPDATE posts SET media_url=? WHERE id=?', [$saved['url'], $post['id']]);
+                $stats['downloaded']++;
+            } else {
+                $stats['remote_pending_refresh']++;
+            }
+        }
+
+        if ($stats['missing_local'] > 0 || $stats['remote_pending_refresh'] > 0) {
+            $results = self::syncUser($userId, max(20, $maxPosts), null);
+            $stats['sync_sources'] = count($results);
+        }
+
+        return $stats;
+    }
+
     private static function process(int $userId, string $platform, string $postId, string $text, string $mediaUrl, string $mediaType, string $publishedAt, int $autoPublish = 1): bool {
         if (!trim($text) && !$mediaUrl) return false;
 
