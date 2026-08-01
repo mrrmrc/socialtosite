@@ -234,13 +234,20 @@ if (!is_array($aiData)) $aiData = [];
 $fontHeading = $aiData['font_heading'] ?? 'Inter';
 $fontBody    = $aiData['font_body'] ?? 'Inter';
 $palette     = $aiData['color_palette'] ?? [];
+$uiStyle     = $aiData['ui_style'] ?? [];
+$layoutRecipe = $aiData['layout_recipe'] ?? [];
+$baseModels   = $aiData['base_models'] ?? [];
 if (!is_array($palette)) $palette = [];
+if (!is_array($uiStyle)) $uiStyle = [];
+if (!is_array($layoutRecipe)) $layoutRecipe = [];
+if (!is_array($baseModels)) $baseModels = is_string($baseModels) && $baseModels !== '' ? [$baseModels] : [];
 if (!isset($palette['background']) && isset($palette['bg'])) $palette['background'] = $palette['bg'];
 if (!isset($palette['secondary']) && isset($palette['surface'])) $palette['secondary'] = $palette['surface'];
 
 $palPrimary   = $palette['primary']   ?? $accentColor ?: '#7F77DD';
 $palSecondary = $palette['secondary'] ?? '#5C54C4';
 $palBg        = $palette['background']?? '#FAFAFA';
+$palSurface   = $palette['surface']   ?? '#FFFFFF';
 $palText      = $palette['text']      ?? '#1a1a24';
 
 // ── Override per Anteprima (preview_theme oppure preview_index) ──────────────
@@ -260,6 +267,9 @@ if (isset($_GET['preview_index']) && !empty($site['generated_layouts'])) {
         if (isset($p2['font_heading'])) $fontHeading = $p2['font_heading'];
         if (isset($p2['font_body'])) $fontBody = $p2['font_body'];
         if (isset($p2['color_palette'])) $palette = $p2['color_palette'];
+        if (isset($p2['ui_style']) && is_array($p2['ui_style'])) $uiStyle = $p2['ui_style'];
+        if (isset($p2['layout_recipe']) && is_array($p2['layout_recipe'])) $layoutRecipe = $p2['layout_recipe'];
+        if (isset($p2['base_models'])) $baseModels = is_array($p2['base_models']) ? $p2['base_models'] : [$p2['base_models']];
         if (!isset($palette['background']) && isset($palette['bg'])) $palette['background'] = $palette['bg'];
         if (!isset($palette['secondary']) && isset($palette['surface'])) $palette['secondary'] = $palette['surface'];
     }
@@ -268,7 +278,56 @@ if (isset($_GET['preview_index']) && !empty($site['generated_layouts'])) {
 $palPrimary   = $palette['primary']   ?? $accentColor ?: '#7F77DD';
 $palSecondary = $palette['secondary'] ?? '#5C54C4';
 $palBg        = $palette['background']?? '#FAFAFA';
+$palSurface   = $palette['surface']   ?? '#FFFFFF';
 $palText      = $palette['text']      ?? '#1a1a24';
+$heroMode     = $layoutRecipe['hero'] ?? '';
+$navMode      = $layoutRecipe['nav'] ?? '';
+$cardsMode    = $layoutRecipe['cards'] ?? '';
+$densityMode  = $layoutRecipe['density'] ?? '';
+$primaryModel = $baseModels[0] ?? '';
+$secondaryModel = $baseModels[1] ?? '';
+
+if ($heroMode === '' || $navMode === '' || $cardsMode === '' || $densityMode === '') {
+    switch ($primaryModel) {
+        case 'neo-brutal-pop':
+            $heroMode = $heroMode ?: 'split';
+            $navMode = $navMode ?: 'solid';
+            $cardsMode = $cardsMode ?: 'bold';
+            $densityMode = $densityMode ?: 'balanced';
+            break;
+        case 'dark-cinematic':
+            $heroMode = $heroMode ?: 'immersive';
+            $navMode = $navMode ?: 'transparent';
+            $cardsMode = $cardsMode ?: 'cinematic';
+            $densityMode = $densityMode ?: 'airy';
+            break;
+        case 'warm-humanist':
+            $heroMode = $heroMode ?: 'human';
+            $navMode = $navMode ?: 'floating';
+            $cardsMode = $cardsMode ?: 'soft';
+            $densityMode = $densityMode ?: 'airy';
+            break;
+        case 'tech-clarity':
+            $heroMode = $heroMode ?: 'product';
+            $navMode = $navMode ?: 'solid';
+            $cardsMode = $cardsMode ?: 'product';
+            $densityMode = $densityMode ?: 'balanced';
+            break;
+        default:
+            $heroMode = $heroMode ?: 'editorial';
+            $navMode = $navMode ?: 'transparent';
+            $cardsMode = $cardsMode ?: 'editorial';
+            $densityMode = $densityMode ?: 'airy';
+            break;
+    }
+}
+
+$radius = $uiStyle['radius'] ?? ($primaryModel === 'neo-brutal-pop' ? '8px' : ($primaryModel === 'warm-humanist' ? '24px' : '18px'));
+$cardShadow = $uiStyle['card_shadow'] ?? ($primaryModel === 'dark-cinematic' ? '0 20px 60px rgba(0,0,0,0.28)' : '0 12px 40px rgba(0,0,0,0.08)');
+$glassmorphism = !empty($uiStyle['glassmorphism']);
+$contentWidth = $densityMode === 'compact' ? '1040px' : ($densityMode === 'balanced' ? '1160px' : '1240px');
+$heroPadding = $densityMode === 'compact' ? '6rem 1.5rem 4rem' : ($densityMode === 'balanced' ? '7rem 1.5rem 5rem' : '9rem 1.5rem 6rem');
+$gridMin = $cardsMode === 'cinematic' ? '360px' : ($cardsMode === 'product' ? '300px' : '320px');
 
 // ── Post per lo Slider (Top 3) ───────────────────────────────────────────────
 $sliderPosts = [];
@@ -766,39 +825,117 @@ $themeCSS = [
 // Se abbiamo dati AI (fonts dinamici), sovrascriviamo il CSS di base
 $fontHeadingUrl = urlencode($fontHeading);
 $fontBodyUrl = urlencode($fontBody);
+$navCss = '';
+if ($navMode === 'solid') {
+    $navCss = ".navbar { background: {$palSurface} !important; backdrop-filter: none; -webkit-backdrop-filter: none; box-shadow: 0 6px 24px rgba(0,0,0,0.06); }";
+} elseif ($navMode === 'floating') {
+    $navCss = ".navbar { width: min(calc(100% - 24px), 1180px); margin: 14px auto 0; border-radius: 999px; background: rgba(255,255,255,0.72) !important; box-shadow: 0 14px 45px rgba(0,0,0,0.08); }";
+}
+
+$heroCss = '';
+if ($heroMode === 'split') {
+    $heroCss = ".hero { padding: {$heroPadding}; text-align: left; display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(260px, 0.8fr); gap: 2rem; align-items: end; }
+      .hero h1, .hero .bio, .hero .hero-cta { max-width: 720px; margin-left: 0; }
+      .hero::after { content: ''; justify-self: end; width: min(32vw, 360px); height: min(32vw, 360px); border-radius: 28px; background: {$palette['primary_gradient']}; opacity: 0.18; filter: blur(8px); }";
+} elseif ($heroMode === 'immersive') {
+    $heroCss = ".hero { padding: 11rem 1.5rem 7rem; text-align: left; background:
+        radial-gradient(circle at 20% 20%, rgba(255,255,255,0.08), transparent 26%),
+        linear-gradient(180deg, rgba(255,255,255,0.02), rgba(0,0,0,0.12));
+      border-bottom: 1px solid rgba(255,255,255,0.08); }
+      .hero::before { background: radial-gradient(circle, rgba(255,255,255,0.08) 0%, transparent 55%); animation: none; }
+      .hero h1, .hero .bio, .hero .hero-cta { max-width: 760px; margin-left: 0; }";
+} elseif ($heroMode === 'human') {
+    $heroCss = ".hero { padding: {$heroPadding}; text-align: left; }
+      .hero h1, .hero .bio, .hero .hero-cta { max-width: 760px; margin-left: 0; }
+      .hero::before { background: radial-gradient(circle, rgba(61,139,109,0.10) 0%, transparent 58%); }";
+} elseif ($heroMode === 'product') {
+    $heroCss = ".hero { padding: {$heroPadding}; text-align: center; }
+      .hero h1 { max-width: 900px; margin-left: auto; margin-right: auto; }
+      .hero .bio { max-width: 720px; }";
+} else {
+    $heroCss = ".hero { padding: {$heroPadding}; text-align: left; }
+      .hero h1, .hero .bio, .hero .hero-cta { max-width: 720px; margin-left: 0; }";
+}
+
+$cardsCss = '';
+if ($cardsMode === 'bold') {
+    $cardsCss = ".post-grid { grid-template-columns: repeat(auto-fill, minmax({$gridMin}, 1fr)); gap: 1.4rem; max-width: {$contentWidth}; margin: 0 auto; }
+      .post { background: {$palSurface}; border: 2px solid {$palText}; border-radius: {$radius}; box-shadow: 8px 8px 0 {$palPrimary}; }
+      .post:hover { transform: translateY(-6px); box-shadow: 12px 12px 0 {$palPrimary}; }
+      .post h2 { text-transform: uppercase; letter-spacing: -0.03em; }";
+} elseif ($cardsMode === 'cinematic') {
+    $cardsCss = ".post-grid { grid-template-columns: repeat(auto-fit, minmax({$gridMin}, 1fr)); gap: 1.25rem; max-width: {$contentWidth}; margin: 0 auto; }
+      .post { background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.05)); border-radius: {$radius}; overflow: hidden; padding: 0; min-height: 420px; display: flex; flex-direction: column; justify-content: flex-end; box-shadow: {$cardShadow}; }
+      .post .media { margin: 0; height: 240px; }
+      .post .media img, .post .media video { height: 100%; object-fit: cover; }
+      .post-body { padding: 1.5rem; background: linear-gradient(180deg, rgba(0,0,0,0), rgba(0,0,0,0.65)); }";
+} elseif ($cardsMode === 'soft') {
+    $cardsCss = ".post-grid { grid-template-columns: repeat(auto-fill, minmax({$gridMin}, 1fr)); gap: 1.8rem; max-width: {$contentWidth}; margin: 0 auto; }
+      .post { background: {$palSurface}; border-radius: {$radius}; box-shadow: {$cardShadow}; border: 1px solid rgba(0,0,0,0.04); }
+      .post:hover { transform: translateY(-4px); }";
+} elseif ($cardsMode === 'product') {
+    $cardsCss = ".post-grid { grid-template-columns: repeat(auto-fill, minmax({$gridMin}, 1fr)); gap: 1.6rem; max-width: {$contentWidth}; margin: 0 auto; }
+      .post { background: {$palSurface}; border-radius: {$radius}; box-shadow: {$cardShadow}; border: 1px solid rgba(15,23,42,0.08); }
+      .post .meta { text-transform: uppercase; letter-spacing: 0.08em; font-size: 0.78rem; }";
+} else {
+    $cardsCss = ".post-grid { grid-template-columns: repeat(auto-fill, minmax({$gridMin}, 1fr)); gap: 2rem; max-width: {$contentWidth}; margin: 0 auto; }
+      .post { background: {$palSurface}; border-radius: {$radius}; box-shadow: {$cardShadow}; border: 1px solid rgba(0,0,0,0.05); }";
+}
+
+$modelBlendCss = '';
+if ($secondaryModel === 'editorial-luxe') {
+    $modelBlendCss .= ".hero h1, .post h2, .nav-brand { font-family: '{$fontHeading}', serif; }";
+}
+if ($secondaryModel === 'neo-brutal-pop') {
+    $modelBlendCss .= ".btn, .chip, .cta, .hero .hero-cta a { border-width: 2px; text-transform: uppercase; }";
+}
+if ($secondaryModel === 'dark-cinematic') {
+    $modelBlendCss .= ".hero::before { opacity: 0.9; } .post .media img { filter: saturate(0.96) contrast(1.04); }";
+}
+if ($secondaryModel === 'warm-humanist') {
+    $modelBlendCss .= ".hero .bio, .post .excerpt { line-height: 1.75; }";
+}
+if ($secondaryModel === 'tech-clarity') {
+    $modelBlendCss .= ".nav-links a, .post .meta { font-weight: 600; }";
+}
+
 $dynamicBaseCss = "
   :root { 
       --accent: {$palPrimary}; 
       --accent-secondary: {$palSecondary}; 
       --bg: {$palBg}; 
       --text: {$palText}; 
-      --card-bg: rgba(255, 255, 255, 0.7); 
+      --card-bg: {$palSurface}; 
       --border: rgba(0,0,0,0.05); 
-      --radius: 20px; 
+      --radius: {$radius}; 
   }
   @import url('https://fonts.googleapis.com/css2?family={$fontHeadingUrl}:wght@400;600;700;800&family={$fontBodyUrl}:wght@300;400;500;600&display=swap');
   
   body { font-family: '{$fontBody}', sans-serif; background: var(--bg); color: var(--text); overflow-x: hidden; }
   h1, h2, h3, h4, h5, h6, .nav-brand { font-family: '{$fontHeading}', sans-serif; }
   
-  .navbar { background: rgba(255, 255, 255, 0.6); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); border-bottom: 1px solid rgba(0,0,0,0.05); padding: 1rem 2rem; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100; transition: all 0.3s ease; }
+  .navbar { background: rgba(255, 255, 255, " . ($glassmorphism ? "0.6" : "0.92") . "); backdrop-filter: " . ($glassmorphism ? "blur(24px)" : "none") . "; -webkit-backdrop-filter: " . ($glassmorphism ? "blur(24px)" : "none") . "; border-bottom: 1px solid rgba(0,0,0,0.05); padding: 1rem 2rem; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100; transition: all 0.3s ease; }
   .nav-brand { font-weight: 800; font-size: 1.25rem; color: var(--text); display: flex; align-items: center; gap: 0.75rem; letter-spacing: -0.02em; }
   .nav-links { display: flex; gap: 2rem; } .nav-links a { color: var(--text); opacity: 0.7; font-size: 0.95rem; font-weight: 600; transition: opacity 0.3s; position: relative; }
   .nav-links a:hover { opacity: 1; color: var(--accent); }
   
-  .hero { padding: 8rem 1.5rem; text-align: center; border-bottom: 1px solid var(--border); position: relative; overflow: hidden; }
+  .hero { padding: {$heroPadding}; text-align: center; border-bottom: 1px solid var(--border); position: relative; overflow: hidden; max-width: {$contentWidth}; margin: 0 auto; }
   .hero::before { content: ''; position: absolute; top: -50%; left: -50%; width: 200%; height: 200%; background: radial-gradient(circle, rgba(127,119,221,0.05) 0%, transparent 60%); z-index: -1; animation: rotate 30s linear infinite; }
   @keyframes rotate { 100% { transform: rotate(360deg); } }
   .hero h1 { font-size: clamp(3rem, 6vw, 5rem); font-weight: 800; letter-spacing: -0.03em; margin-bottom: 1.2rem; color: var(--text); line-height: 1.1; }
   .hero .bio { font-size: 1.25rem; color: var(--text); opacity: 0.75; max-width: 680px; margin: 0 auto 2rem; line-height: 1.6; }
   
-  .post-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 2rem; align-items: start; }
-  .post { background: var(--card-bg); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid var(--border); border-radius: var(--radius); padding: 2rem; transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
-  .post:hover { transform: translateY(-8px) scale(1.02); box-shadow: 0 20px 40px rgba(0,0,0,0.08); border-color: var(--accent); z-index: 2; }
+  .post-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax({$gridMin}, 1fr)); gap: 2rem; align-items: start; }
+  .post { background: var(--card-bg); backdrop-filter: " . ($glassmorphism ? "blur(12px)" : "none") . "; -webkit-backdrop-filter: " . ($glassmorphism ? "blur(12px)" : "none") . "; border: 1px solid var(--border); border-radius: var(--radius); padding: 2rem; transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); box-shadow: {$cardShadow}; }
+  .post:hover { transform: translateY(-8px) scale(1.02); box-shadow: {$cardShadow}; border-color: var(--accent); z-index: 2; }
   .post h2 { font-size: 1.5rem; margin-bottom: 0.75rem; font-weight: 800; line-height: 1.3; letter-spacing: -0.01em; }
   .post h2 a { color: var(--text); transition: color 0.3s; } .post h2 a:hover { color: var(--accent); }
   .post .media img { border-radius: 12px; transition: transform 0.6s cubic-bezier(0.165, 0.84, 0.44, 1); }
   .post:hover .media img { transform: scale(1.05); }
+  {$navCss}
+  {$heroCss}
+  {$cardsCss}
+  {$modelBlendCss}
 ";
 
 // Selezione CSS tema + inject accent color

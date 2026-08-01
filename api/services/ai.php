@@ -67,6 +67,58 @@ class AI {
         return $normalized;
     }
 
+    private static function recommendDesignModels(string $profileSummary, string $roleMission, string $contentStrategy): array {
+        $text = mb_strtolower(trim($profileSummary . ' ' . $roleMission . ' ' . $contentStrategy));
+        $scores = [
+            'editorial-luxe' => 0,
+            'neo-brutal-pop' => 0,
+            'dark-cinematic' => 0,
+            'warm-humanist' => 0,
+            'tech-clarity' => 0,
+        ];
+
+        $keywords = [
+            'editorial-luxe' => ['editoriale', 'magazine', 'giornal', 'writer', 'scritt', 'consulen', 'luxury', 'elegan', 'beauty', 'fashion', 'brand personale'],
+            'neo-brutal-pop' => ['creator', 'tiktok', 'street', 'bold', 'viral', 'performance', 'advertising', 'marketing', 'agency', 'energi', 'sport', 'fitness'],
+            'dark-cinematic' => ['video', 'film', 'cinema', 'fotograf', 'music', 'artista', 'visual', 'premium', 'luxury', 'night', 'dark'],
+            'warm-humanist' => ['coach', 'wellness', 'psicolog', 'terap', 'famiglia', 'education', 'educa', 'bambin', 'salute', 'human', 'cura', 'community'],
+            'tech-clarity' => ['ai', 'software', 'saas', 'tech', 'startup', 'developer', 'engineer', 'data', 'prodotto', 'b2b', 'automation', 'digital'],
+        ];
+
+        foreach ($keywords as $model => $terms) {
+            foreach ($terms as $term) {
+                if ($text !== '' && mb_strpos($text, $term) !== false) {
+                    $scores[$model] += 3;
+                }
+            }
+        }
+
+        if (preg_match('/\b(avvocat|law|legal|studio legale|notai)\b/u', $text)) $scores['editorial-luxe'] += 2;
+        if (preg_match('/\b(ristor|chef|food|cucina)\b/u', $text)) $scores['warm-humanist'] += 2;
+        if (preg_match('/\b(creator|streamer|gaming|gamer)\b/u', $text)) $scores['neo-brutal-pop'] += 2;
+        if (preg_match('/\b(product|ux|ui|design system)\b/u', $text)) $scores['tech-clarity'] += 2;
+        if (preg_match('/\b(photo|photojournal|director|regista)\b/u', $text)) $scores['dark-cinematic'] += 2;
+
+        arsort($scores);
+        $top = array_slice(array_keys($scores), 0, 2);
+        if (($scores[$top[0]] ?? 0) <= 0) {
+            return ['warm-humanist', 'tech-clarity'];
+        }
+        if (($scores[$top[1]] ?? 0) <= 0) {
+            return [$top[0]];
+        }
+        return $top;
+    }
+
+    private static function buildDesignRecommendationPrompt(string $profileSummary, string $roleMission, string $contentStrategy): string {
+        $recommended = self::recommendDesignModels($profileSummary, $roleMission, $contentStrategy);
+        if (empty($recommended)) return '';
+        return "\n\nRACCOMANDAZIONI DEL SISTEMA\n"
+            . "Per questo profilo i modelli locali piu coerenti sono, in ordine: "
+            . implode(', ', $recommended)
+            . ". Usa questi modelli come base del design e, se serve, assemblane massimo 2.\n";
+    }
+
     // ── Chiamata generica a Gemini (generateContent) ───────────────────────
     // $parts: array di "part" Gemini. $config: opzioni generationConfig.
     public static function gemini(array $parts, array $config = []): string {
@@ -939,13 +991,16 @@ Testi da analizzare:
             . "3. 'font_body': Google Font testi (es. 'Inter', 'Lora').\n"
             . "4. 'color_palette': oggetto con { 'background': '#hex', 'surface': '#hex', 'text': '#hex', 'text_muted': '#hex', 'primary': '#hex', 'secondary': '#hex', 'primary_gradient': 'linear-gradient(...)' }.\n"
             . "5. 'ui_style': oggetto con { 'radius': 'px', 'card_shadow': 'css string', 'glassmorphism': bool }.\n"
-            . "6. 'custom_css': CSS aggiuntivo ultra-raffinato (micro-animazioni, hover). Max 300 char.\n\n"
+            . "6. 'layout_recipe': oggetto con { 'hero': 'editorial|split|immersive|human|product', 'nav': 'transparent|solid|floating', 'cards': 'editorial|bold|soft|product|cinematic', 'density': 'airy|balanced|compact' }.\n"
+            . "7. 'base_models': array con 1 o 2 ID presi SOLO dalla libreria locale.\n"
+            . "8. 'custom_css': CSS aggiuntivo ultra-raffinato (micro-animazioni, hover). Max 300 char.\n\n"
             . "Le 3 proposte devono essere curate, credibili e molto diverse fra loro, ma sempre ancorate alla libreria modelli fornita.\n"
             . "Esempio output:\n"
-            . '{"proposals": [{"design_archetype":"Minimal","font_heading":"Inter","font_body":"Inter","color_palette":{"background":"#ffffff","surface":"#f8f9fa","text":"#111111","text_muted":"#666666","primary":"#000000","secondary":"#f3f4f6","primary_gradient":"linear-gradient(to right, #333, #000)"},"ui_style":{"radius":"4px","card_shadow":"none","glassmorphism":false},"custom_css":""}]}';
+            . '{"proposals": [{"design_archetype":"Minimal","font_heading":"Inter","font_body":"Inter","color_palette":{"background":"#ffffff","surface":"#f8f9fa","text":"#111111","text_muted":"#666666","primary":"#000000","secondary":"#f3f4f6","primary_gradient":"linear-gradient(to right, #333, #000)"},"ui_style":{"radius":"4px","card_shadow":"none","glassmorphism":false},"layout_recipe":{"hero":"product","nav":"solid","cards":"product","density":"balanced"},"base_models":["tech-clarity"],"custom_css":""}]}';
 
         $prompt = self::getAgentPrompt('graphic_designer', $fallback);
         $prompt .= self::buildDesignLibraryPrompt();
+        $prompt .= self::buildDesignRecommendationPrompt($profileSummary, $roleMission, $contentStrategy);
         $prompt = str_replace(['{profileSummary}', '{roleMission}', '{contentStrategy}'], [$profileSummary, $roleMission, $contentStrategy], $prompt);
 
         $text = self::gemini([['text' => $prompt]], [
@@ -961,12 +1016,20 @@ Testi da analizzare:
                     'font_heading' => 'Outfit', 'font_body' => 'Inter',
                     'color_palette' => ['background'=>'#F5F1EA', 'surface'=>'#FFFDF9', 'text'=>'#201A17', 'text_muted'=>'#6E6258', 'primary'=>'#A06A42', 'secondary'=>'#FFF7EE', 'primary_gradient'=>'linear-gradient(135deg, #C79063, #8A5634)'],
                     'ui_style' => ['radius'=>'16px', 'card_shadow'=>'0 10px 30px rgba(0,0,0,0.05)', 'glassmorphism'=>false],
+                    'layout_recipe' => ['hero' => 'editorial', 'nav' => 'transparent', 'cards' => 'editorial', 'density' => 'airy'],
+                    'base_models' => ['editorial-luxe'],
                     'custom_css' => ''
                 ]
             ];
         }
         foreach ($result['proposals'] as &$proposal) {
             $proposal['color_palette'] = self::normalizeColorPalette($proposal['color_palette'] ?? []);
+            if (empty($proposal['base_models']) || !is_array($proposal['base_models'])) {
+                $proposal['base_models'] = self::recommendDesignModels($profileSummary, $roleMission, $contentStrategy);
+            }
+            if (empty($proposal['layout_recipe']) || !is_array($proposal['layout_recipe'])) {
+                $proposal['layout_recipe'] = ['hero' => 'editorial', 'nav' => 'transparent', 'cards' => 'editorial', 'density' => 'airy'];
+            }
         }
         unset($proposal);
         return $result['proposals'];
@@ -1003,6 +1066,13 @@ Testi da analizzare:
             . '    "card_shadow": "ombra CSS premium (es. 0 10px 30px rgba(0,0,0,0.05))",' . "\n"
             . '    "glassmorphism": true o false (se usare backdrop-filter)' . "\n"
             . '  },' . "\n"
+            . '  "layout_recipe": {' . "\n"
+            . '    "hero": "editorial|split|immersive|human|product",' . "\n"
+            . '    "nav": "transparent|solid|floating",' . "\n"
+            . '    "cards": "editorial|bold|soft|product|cinematic",' . "\n"
+            . '    "density": "airy|balanced|compact"' . "\n"
+            . '  },' . "\n"
+            . '  "base_models": ["id_modello_1", "id_modello_2 opzionale"],' . "\n"
             . '  "menu_links": [{"label":"Home","url":"/"},{"label":"Categoria Esistente","url":"/?tag=tag_reale"}],' . "\n"
             . '  "footer_text": "Testo footer",' . "\n"
             . '  "hero_tagline": "Frase impatto max 80 char",' . "\n"
@@ -1013,6 +1083,7 @@ Testi da analizzare:
 
         $prompt = self::getAgentPrompt('site_ai', $fallback);
         $prompt .= self::buildDesignLibraryPrompt();
+        $prompt .= self::buildDesignRecommendationPrompt($profileSummary, $roleMission, $contentStrategy);
         $prompt = str_replace(
             ['{profileSummary}', '{roleMission}', '{contentStrategy}', '{recentPosts}', '{tagsContext}'],
             [$profileSummary, $roleMission, $contentStrategy, $recentPosts ?: 'Nessun post ancora disponibile', $tagsContext ?: 'Nessun tag disponibile'],
@@ -1035,6 +1106,8 @@ Testi da analizzare:
                 'font_body'     => 'Inter',
                 'color_palette' => ['background'=>'#F5F1EA', 'surface'=>'#FFFDF9', 'text'=>'#201A17', 'text_muted'=>'#6E6258', 'primary'=>'#A06A42', 'secondary'=>'#FFF7EE', 'primary_gradient'=>'linear-gradient(135deg, #C79063, #8A5634)'],
                 'ui_style'      => ['radius'=>'16px', 'card_shadow'=>'0 10px 30px rgba(0,0,0,0.05)', 'glassmorphism'=>false],
+                'layout_recipe' => ['hero' => 'editorial', 'nav' => 'transparent', 'cards' => 'editorial', 'density' => 'airy'],
+                'base_models'   => ['editorial-luxe'],
                 'menu_links'    => [],
                 'footer_text'   => '',
                 'custom_css'    => '',
@@ -1044,6 +1117,12 @@ Testi da analizzare:
         }
         if (isset($result['color_palette']) && is_array($result['color_palette'])) {
             $result['color_palette'] = self::normalizeColorPalette($result['color_palette']);
+        }
+        if (empty($result['base_models']) || !is_array($result['base_models'])) {
+            $result['base_models'] = self::recommendDesignModels($profileSummary, $roleMission, $contentStrategy);
+        }
+        if (empty($result['layout_recipe']) || !is_array($result['layout_recipe'])) {
+            $result['layout_recipe'] = ['hero' => 'editorial', 'nav' => 'transparent', 'cards' => 'editorial', 'density' => 'airy'];
         }
         return $result;
     }
