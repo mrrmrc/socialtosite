@@ -235,6 +235,8 @@ $fontHeading = $aiData['font_heading'] ?? 'Inter';
 $fontBody    = $aiData['font_body'] ?? 'Inter';
 $palette     = $aiData['color_palette'] ?? [];
 if (!is_array($palette)) $palette = [];
+if (!isset($palette['background']) && isset($palette['bg'])) $palette['background'] = $palette['bg'];
+if (!isset($palette['secondary']) && isset($palette['surface'])) $palette['secondary'] = $palette['surface'];
 
 $palPrimary   = $palette['primary']   ?? $accentColor ?: '#7F77DD';
 $palSecondary = $palette['secondary'] ?? '#5C54C4';
@@ -258,8 +260,15 @@ if (isset($_GET['preview_index']) && !empty($site['generated_layouts'])) {
         if (isset($p2['font_heading'])) $fontHeading = $p2['font_heading'];
         if (isset($p2['font_body'])) $fontBody = $p2['font_body'];
         if (isset($p2['color_palette'])) $palette = $p2['color_palette'];
+        if (!isset($palette['background']) && isset($palette['bg'])) $palette['background'] = $palette['bg'];
+        if (!isset($palette['secondary']) && isset($palette['surface'])) $palette['secondary'] = $palette['surface'];
     }
 }
+
+$palPrimary   = $palette['primary']   ?? $accentColor ?: '#7F77DD';
+$palSecondary = $palette['secondary'] ?? '#5C54C4';
+$palBg        = $palette['background']?? '#FAFAFA';
+$palText      = $palette['text']      ?? '#1a1a24';
 
 // ── Post per lo Slider (Top 3) ───────────────────────────────────────────────
 $sliderPosts = [];

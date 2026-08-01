@@ -7,6 +7,66 @@ if (file_exists(__DIR__ . '/../middleware/logger.php')) require_once __DIR__ . '
 
 class AI {
 
+    private static function loadDesignLibrary(): array {
+        static $library = null;
+        if ($library !== null) return $library;
+
+        $library = [];
+        $baseDir = realpath(__DIR__ . '/../../designs');
+        if (!$baseDir || !is_dir($baseDir)) return $library;
+
+        foreach (glob($baseDir . '/*', GLOB_ONLYDIR) ?: [] as $dir) {
+            $metaPath = $dir . '/meta.json';
+            $briefPath = $dir . '/DESIGN.md';
+            if (!is_file($metaPath) || !is_file($briefPath)) continue;
+
+            $meta = json_decode((string) file_get_contents($metaPath), true);
+            $brief = trim((string) file_get_contents($briefPath));
+            if (!is_array($meta) || $brief === '') continue;
+
+            $library[] = [
+                'id' => $meta['id'] ?? basename($dir),
+                'name' => $meta['name'] ?? basename($dir),
+                'description' => $meta['description'] ?? '',
+                'colors' => $meta['colors'] ?? [],
+                'brief' => $brief,
+            ];
+        }
+
+        return $library;
+    }
+
+    private static function buildDesignLibraryPrompt(): string {
+        $designs = self::loadDesignLibrary();
+        if (empty($designs)) return '';
+
+        $chunks = [];
+        foreach ($designs as $design) {
+            $colors = is_array($design['colors']) ? implode(', ', $design['colors']) : '';
+            $chunks[] = "MODELLO {$design['id']} - {$design['name']}\n"
+                . "Descrizione: {$design['description']}\n"
+                . ($colors !== '' ? "Colori guida: {$colors}\n" : '')
+                . "{$design['brief']}";
+        }
+
+        return "\n\nLIBRERIA MODELLI LOCALI\n"
+            . "Devi partire da questi riferimenti curati. Non inventare uno stile casuale.\n"
+            . "Scegli il modello piu coerente con il profilo oppure combina al massimo 2 modelli compatibili.\n"
+            . "Evita il look AI generico: neon gratuiti, viola predefinito, gradienti casuali, glassmorphism invadente, layout da template intercambiabile.\n\n"
+            . implode("\n\n---\n\n", $chunks);
+    }
+
+    private static function normalizeColorPalette(array $palette): array {
+        $normalized = $palette;
+        if (!isset($normalized['background']) && isset($normalized['bg'])) {
+            $normalized['background'] = $normalized['bg'];
+        }
+        if (!isset($normalized['secondary']) && isset($normalized['surface'])) {
+            $normalized['secondary'] = $normalized['surface'];
+        }
+        return $normalized;
+    }
+
     // ── Chiamata generica a Gemini (generateContent) ───────────────────────
     // $parts: array di "part" Gemini. $config: opzioni generationConfig.
     public static function gemini(array $parts, array $config = []): string {
@@ -871,18 +931,21 @@ Testi da analizzare:
     public static function graphicDesignerSetup(string $profileSummary, string $roleMission, string $contentStrategy): array {
         $fallback = "Sei un Art Director digitale di fama mondiale. Devi creare 3 proposte di design ('Archetipi') premium e radicalmente diverse per questo profilo. NON usare stock photo, basa l'estetica su colori vibranti, tipografia pregiata e layout puliti.\n\n"
             . "Profilo:\n{profileSummary}\n\n"
+            . "Strategia contenuti:\n{contentStrategy}\n\n"
             . "Ruolo e Missione:\n{roleMission}\n\n"
             . "Genera un array JSON con ESATTAMENTE 3 oggetti, ognuno rappresenta una proposta. Struttura:\n"
             . "1. 'design_archetype': Nome dell'archetipo (es. 'Minimal & Clean', 'Dark Neo-brutalism', 'Elegant Editorial').\n"
             . "2. 'font_heading': Google Font per titoli (es. 'Playfair Display', 'Syne', 'Outfit').\n"
             . "3. 'font_body': Google Font testi (es. 'Inter', 'Lora').\n"
-            . "4. 'color_palette': oggetto con { 'bg': '#hex', 'surface': '#hex', 'text': '#hex', 'primary': '#hex', 'primary_gradient': 'linear-gradient(...)' }.\n"
+            . "4. 'color_palette': oggetto con { 'background': '#hex', 'surface': '#hex', 'text': '#hex', 'text_muted': '#hex', 'primary': '#hex', 'secondary': '#hex', 'primary_gradient': 'linear-gradient(...)' }.\n"
             . "5. 'ui_style': oggetto con { 'radius': 'px', 'card_shadow': 'css string', 'glassmorphism': bool }.\n"
             . "6. 'custom_css': CSS aggiuntivo ultra-raffinato (micro-animazioni, hover). Max 300 char.\n\n"
+            . "Le 3 proposte devono essere curate, credibili e molto diverse fra loro, ma sempre ancorate alla libreria modelli fornita.\n"
             . "Esempio output:\n"
-            . '{"proposals": [{"design_archetype":"Minimal","font_heading":"Inter","font_body":"Inter","color_palette":{"bg":"#ffffff","surface":"#f8f9fa","text":"#111111","primary":"#000000","primary_gradient":"linear-gradient(to right, #333, #000)"},"ui_style":{"radius":"4px","card_shadow":"none","glassmorphism":false},"custom_css":""}]}';
+            . '{"proposals": [{"design_archetype":"Minimal","font_heading":"Inter","font_body":"Inter","color_palette":{"background":"#ffffff","surface":"#f8f9fa","text":"#111111","text_muted":"#666666","primary":"#000000","secondary":"#f3f4f6","primary_gradient":"linear-gradient(to right, #333, #000)"},"ui_style":{"radius":"4px","card_shadow":"none","glassmorphism":false},"custom_css":""}]}';
 
         $prompt = self::getAgentPrompt('graphic_designer', $fallback);
+        $prompt .= self::buildDesignLibraryPrompt();
         $prompt = str_replace(['{profileSummary}', '{roleMission}', '{contentStrategy}'], [$profileSummary, $roleMission, $contentStrategy], $prompt);
 
         $text = self::gemini([['text' => $prompt]], [
@@ -896,12 +959,16 @@ Testi da analizzare:
                 [
                     'design_archetype' => 'Default Clean',
                     'font_heading' => 'Outfit', 'font_body' => 'Inter',
-                    'color_palette' => ['bg'=>'#FAFAFA', 'surface'=>'#FFFFFF', 'text'=>'#1F2937', 'primary'=>'#6366F1', 'primary_gradient'=>'linear-gradient(135deg, #818CF8, #6366F1)'],
+                    'color_palette' => ['background'=>'#F5F1EA', 'surface'=>'#FFFDF9', 'text'=>'#201A17', 'text_muted'=>'#6E6258', 'primary'=>'#A06A42', 'secondary'=>'#FFF7EE', 'primary_gradient'=>'linear-gradient(135deg, #C79063, #8A5634)'],
                     'ui_style' => ['radius'=>'16px', 'card_shadow'=>'0 10px 30px rgba(0,0,0,0.05)', 'glassmorphism'=>false],
                     'custom_css' => ''
                 ]
             ];
         }
+        foreach ($result['proposals'] as &$proposal) {
+            $proposal['color_palette'] = self::normalizeColorPalette($proposal['color_palette'] ?? []);
+        }
+        unset($proposal);
         return $result['proposals'];
     }
 
@@ -923,11 +990,12 @@ Testi da analizzare:
             . '  "font_heading": "Nome di un Google Font premium per titoli (es. Playfair Display, Outfit, Syne)",' . "\n"
             . '  "font_body": "Nome di un Google Font per i testi (es. Inter, Roboto, Lora)",' . "\n"
             . '  "color_palette": {' . "\n"
-            . '    "bg": "#hex (chiaro o scuro a seconda dell\'archetipo)",' . "\n"
+            . '    "background": "#hex (chiaro o scuro a seconda dell\'archetipo)",' . "\n"
             . '    "surface": "#hex (colore per le card, con buon contrasto su bg)",' . "\n"
             . '    "text": "#hex (colore testo primario ad altissimo contrasto)",' . "\n"
             . '    "text_muted": "#hex",' . "\n"
             . '    "primary": "#hex (colore di accento vibrante)",' . "\n"
+            . '    "secondary": "#hex (supporto per superfici, badge e dettagli)",' . "\n"
             . '    "primary_gradient": "linear-gradient(135deg, #hex, #hex)"' . "\n"
             . '  },' . "\n"
             . '  "ui_style": {' . "\n"
@@ -940,9 +1008,11 @@ Testi da analizzare:
             . '  "hero_tagline": "Frase impatto max 80 char",' . "\n"
             . '  "cta_text": "Call to action",' . "\n"
             . '  "custom_css": "CSS aggiuntivo opzionale (max 500 char) per micro-animazioni o hover states unici."' . "\n"
-            . "}";
+            . "}\n\n"
+            . "Il design deve sembrare scelto da un art director. Parti dalla libreria modelli fornita, non da estetiche AI generiche.";
 
         $prompt = self::getAgentPrompt('site_ai', $fallback);
+        $prompt .= self::buildDesignLibraryPrompt();
         $prompt = str_replace(
             ['{profileSummary}', '{roleMission}', '{contentStrategy}', '{recentPosts}', '{tagsContext}'],
             [$profileSummary, $roleMission, $contentStrategy, $recentPosts ?: 'Nessun post ancora disponibile', $tagsContext ?: 'Nessun tag disponibile'],
@@ -963,7 +1033,7 @@ Testi da analizzare:
                 'design_archetype' => 'Default Clean',
                 'font_heading'  => 'Outfit',
                 'font_body'     => 'Inter',
-                'color_palette' => ['bg'=>'#FAFAFA', 'surface'=>'#FFFFFF', 'text'=>'#1F2937', 'text_muted'=>'#6B7280', 'primary'=>'#6366F1', 'primary_gradient'=>'linear-gradient(135deg, #818CF8, #6366F1)'],
+                'color_palette' => ['background'=>'#F5F1EA', 'surface'=>'#FFFDF9', 'text'=>'#201A17', 'text_muted'=>'#6E6258', 'primary'=>'#A06A42', 'secondary'=>'#FFF7EE', 'primary_gradient'=>'linear-gradient(135deg, #C79063, #8A5634)'],
                 'ui_style'      => ['radius'=>'16px', 'card_shadow'=>'0 10px 30px rgba(0,0,0,0.05)', 'glassmorphism'=>false],
                 'menu_links'    => [],
                 'footer_text'   => '',
@@ -971,6 +1041,9 @@ Testi da analizzare:
                 'hero_tagline'  => '',
                 'cta_text'      => 'Scopri i miei contenuti',
             ];
+        }
+        if (isset($result['color_palette']) && is_array($result['color_palette'])) {
+            $result['color_palette'] = self::normalizeColorPalette($result['color_palette']);
         }
         return $result;
     }
