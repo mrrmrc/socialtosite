@@ -890,6 +890,12 @@ if ($action === 'design-site' && $method === 'POST') {
         $summary = trim($site['profile_summary'] ?? $site['bio'] ?? '');
         $role    = trim($site['role_mission'] ?? '');
         $strategy = trim($site['content_strategy'] ?? '');
+        $sourceDetails = DB::fetchAll('SELECT platform, label, url, topic_summary FROM social_sources WHERE user_id=? AND active=1 ORDER BY platform, id', [$userId]);
+        $sourcesContext = implode("\n", array_map(
+            fn($s) => '[' . ($s['platform'] ?? 'source') . '] ' . trim(($s['label'] ?: $s['url']) . (!empty($s['topic_summary']) ? ' — ' . $s['topic_summary'] : '')),
+            $sourceDetails
+        ));
+        if ($sourcesContext !== '') $summary = trim($summary . "\n\nDettagli sorgenti social:\n" . $sourcesContext);
         if (!$summary) jsonError('Il profilo è vuoto. Fai prima una scansione dei social.');
 
         // Estrai tutti i tag esistenti usati nei post
@@ -941,6 +947,12 @@ if ($action === 'site-ai' && $method === 'POST') {
         $summary  = trim($site['profile_summary'] ?? $site['bio'] ?? '');
         $role     = trim($site['role_mission'] ?? '');
         $strategy = trim($site['content_strategy'] ?? '');
+        $sourceDetails = DB::fetchAll('SELECT platform, label, url, topic_summary FROM social_sources WHERE user_id=? AND active=1 ORDER BY platform, id', [$userId]);
+        $sourcesContext = implode("\n", array_map(
+            fn($s) => '[' . ($s['platform'] ?? 'source') . '] ' . trim(($s['label'] ?: $s['url']) . (!empty($s['topic_summary']) ? ' — ' . $s['topic_summary'] : '')),
+            $sourceDetails
+        ));
+        if ($sourcesContext !== '') $summary = trim($summary . "\n\nDettagli sorgenti social:\n" . $sourcesContext);
         if (!$summary) jsonError('Il profilo è vuoto. Prima esegui una scansione dei social.');
 
         // Prendi i 5 post più recenti pubblicati come contesto

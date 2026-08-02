@@ -75,7 +75,7 @@ const limit = Number.isNaN(parsedLimit) ? 0 : parsedLimit; // -1 = profile visua
             const links = await page.evaluate(() => {
                 const anchors = Array.from(document.querySelectorAll('a'));
                 let foundLinks = anchors.map(a => a.href).filter(href => {
-                    return href.includes('/p/') || href.includes('/reel/') || href.includes('/reels/') || href.includes('/video/') || href.includes('/videos/') || href.includes('/posts/') || href.includes('/watch/?v=');
+                    return href.includes('/p/') || href.includes('/reel/') || href.includes('/reels/') || href.includes('/video/') || href.includes('/videos/') || href.includes('/posts/') || href.includes('/watch/?v=') || href.includes('/photos/');
                 });
                 // Prova anche a cercare se ci sono script tags con JSON-LD o window._sharedData
                 try {
@@ -101,7 +101,7 @@ const limit = Number.isNaN(parsedLimit) ? 0 : parsedLimit; // -1 = profile visua
                 const extraLinks = await page.evaluate(() =>
                     Array.from(document.querySelectorAll('a'))
                         .map(a => a.href)
-                        .filter(href => href.includes('/posts/') || href.includes('/videos/') || href.includes('/reel/') || href.includes('/watch/?v='))
+                        .filter(href => href.includes('/posts/') || href.includes('/videos/') || href.includes('/reel/') || href.includes('/watch/?v=') || href.includes('/photos/'))
                 );
                 links.push(...extraLinks);
             }

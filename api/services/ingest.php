@@ -296,11 +296,32 @@ class Ingest {
                 $siteVisuals = DB::fetch('SELECT logo_url, cover_url FROM sites WHERE user_id=?', [$userId]);
                 $needsLogo = empty($siteVisuals['logo_url']);
                 $needsCover = empty($siteVisuals['cover_url']);
-                if ($needsLogo || $needsCover) {
+                if ($needsLogo || $needsCover || $source['platform'] === 'facebook') {
                     try {
                         $visuals = AI::sourceProfileVisuals($source['platform'], $source['url']);
                         $logoUrl = trim($visuals['logo_url'] ?? '');
                         $coverUrl = trim($visuals['cover_url'] ?? '');
+                        $profileDetails = array_filter([
+                            trim((string)($visuals['page_title'] ?? '')),
+                            trim((string)($visuals['category'] ?? '')),
+                            trim((string)($visuals['description'] ?? '')),
+                            trim((string)($visuals['address'] ?? '')),
+                            trim((string)($visuals['phone'] ?? '')),
+                        ]);
+
+                        if (!empty($profileDetails)) {
+                            $currentTopic = trim((string)($source['topic_summary'] ?? ''));
+                            $enrichedTopic = implode(' | ', array_unique(array_filter([$currentTopic, ...$profileDetails])));
+                            DB::execute('UPDATE social_sources SET topic_summary=? WHERE id=? AND user_id=?', [$enrichedTopic, $source['id'], $userId]);
+                            $source['topic_summary'] = $enrichedTopic;
+
+                            if ($source['platform'] === 'facebook') {
+                                $siteTitle = DB::fetch('SELECT title FROM sites WHERE user_id=?', [$userId]);
+                                if (empty($siteTitle['title']) && !empty($visuals['page_title'])) {
+                                    DB::execute('UPDATE sites SET title=? WHERE user_id=?', [$visuals['page_title'], $userId]);
+                                }
+                            }
+                        }
 
                         if ($needsLogo && $logoUrl !== '') {
                             $savedLogo = self::saveMedia($logoUrl, $source['platform'], 'profile_logo_' . $source['id'], 'jpg');

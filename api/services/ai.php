@@ -490,7 +490,7 @@ Restituisci SOLO la nuova memoria aggiornata (testo semplice), nient'altro.";
         curl_close($ch);
 
         if (!$html || !is_string($html)) {
-            return ['logo_url' => '', 'cover_url' => '', 'page_title' => ''];
+            return ['logo_url' => '', 'cover_url' => '', 'page_title' => '', 'description' => '', 'category' => '', 'address' => '', 'phone' => ''];
         }
 
         $readMeta = static function (string $html, string $prop): string {
@@ -506,11 +506,44 @@ Restituisci SOLO la nuova memoria aggiornata (testo semplice), nient'altro.";
         }
 
         $ogImage = $readMeta($html, 'og:image') ?: $readMeta($html, 'og:image:secure_url') ?: $readMeta($html, 'twitter:image');
+        $description = $readMeta($html, 'description') ?: $readMeta($html, 'og:description');
+        $category = '';
+        $address = '';
+        $phone = '';
+
+        if (preg_match_all('~<script[^>]+type=["\']application/ld\+json["\'][^>]*>(.*?)</script>~is', $html, $jsonLdMatches)) {
+            foreach ($jsonLdMatches[1] as $jsonChunk) {
+                $decoded = json_decode(html_entity_decode(trim($jsonChunk), ENT_QUOTES | ENT_HTML5, 'UTF-8'), true);
+                $nodes = is_array($decoded) && array_is_list($decoded) ? $decoded : [$decoded];
+                foreach ($nodes as $node) {
+                    if (!is_array($node)) continue;
+                    $category = $category ?: trim((string)($node['@type'] ?? $node['category'] ?? ''));
+                    if (empty($address) && !empty($node['address'])) {
+                        if (is_array($node['address'])) {
+                            $parts = array_filter([
+                                $node['address']['streetAddress'] ?? '',
+                                $node['address']['addressLocality'] ?? '',
+                                $node['address']['addressRegion'] ?? '',
+                            ]);
+                            $address = trim(implode(', ', $parts));
+                        } else {
+                            $address = trim((string)$node['address']);
+                        }
+                    }
+                    $phone = $phone ?: trim((string)($node['telephone'] ?? $node['phone'] ?? ''));
+                    $description = $description ?: trim((string)($node['description'] ?? ''));
+                }
+            }
+        }
 
         return [
             'logo_url' => $ogImage,
             'cover_url' => $ogImage,
             'page_title' => $pageTitle,
+            'description' => $description,
+            'category' => $category,
+            'address' => $address,
+            'phone' => $phone,
         ];
     }
 
@@ -523,6 +556,10 @@ Restituisci SOLO la nuova memoria aggiornata (testo semplice), nient'altro.";
                         'logo_url' => trim($profile['profileImage'] ?? ''),
                         'cover_url' => trim($profile['coverImage'] ?? ($profile['profileImage'] ?? '')),
                         'page_title' => trim($profile['pageTitle'] ?? ''),
+                        'description' => '',
+                        'category' => '',
+                        'address' => '',
+                        'phone' => '',
                     ];
                 }
             } catch (Throwable $e) {
