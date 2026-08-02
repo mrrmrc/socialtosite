@@ -9,6 +9,7 @@ require_once __DIR__ . '/../config/config.php';
 
 $slug   = $_GET['slug']   ?? '';
 $action = $_GET['action'] ?? 'site';
+$view   = $_GET['view']   ?? '';
 
 if (!$slug) { http_response_code(404); echo '<h1>Sito non trovato</h1>'; exit; }
 
@@ -34,10 +35,12 @@ foreach ($posts as &$p) {
 }
 unset($p);
 
+$allPosts = $posts;
+
 $activeTag = strtolower(trim($_GET['tag'] ?? ''));
 if ($activeTag) {
     $filtered = [];
-    foreach ($posts as $p) {
+    foreach ($allPosts as $p) {
         $pTags = array_map('strtolower', $p['tags'] ?? []);
         if (in_array($activeTag, $pTags, true)) {
             $filtered[] = $p;
@@ -49,7 +52,7 @@ if ($activeTag) {
 $postSlug = $_GET['post'] ?? '';
 $single   = null;
 if ($postSlug) {
-    foreach ($posts as $p) { if (($p['slug'] ?? '') === $postSlug) { $single = $p; break; } }
+    foreach ($allPosts as $p) { if (($p['slug'] ?? '') === $postSlug) { $single = $p; break; } }
 }
 
 // ── Sitemap XML ─────────────────────────────────────────────────────────────
@@ -62,7 +65,7 @@ if ($action === 'sitemap') {
     
     // Tag/Categories
     $tagCounts = [];
-    foreach ($posts as $p) {
+    foreach ($allPosts as $p) {
         foreach ($p['tags'] ?? [] as $t) {
             $key = strtolower(trim($t));
             if ($key !== '') $tagCounts[$key] = ($tagCounts[$key] ?? 0) + 1;
@@ -75,7 +78,7 @@ if ($action === 'sitemap') {
     }
 
     // Posts
-    foreach ($posts as $p) {
+    foreach ($allPosts as $p) {
         $loc = "$base/{$p['slug']}";
         $mod = substr($p['published_at'] ?? $p['imported_at'] ?? '', 0, 10);
         echo "  <url><loc>$loc</loc><lastmod>$mod</lastmod><priority>0.8</priority></url>\n";
@@ -202,17 +205,25 @@ $accentSecondary = $site['accent_secondary'] ?? $site['accent_color'] ?? '';
 $logoUrl      = normalizeMediaUrl($site['logo_url'] ?? '');
 $coverUrl     = normalizeMediaUrl($site['cover_url'] ?? '');
 
-foreach ($posts as &$p) {
+foreach ($allPosts as &$p) {
     $p['media_url'] = normalizeMediaUrl($p['media_url'] ?? '');
 }
 unset($p);
+if ($activeTag) {
+    $posts = array_values(array_filter($allPosts, static function ($p) use ($activeTag) {
+        $pTags = array_map('strtolower', $p['tags'] ?? []);
+        return in_array($activeTag, $pTags, true);
+    }));
+} else {
+    $posts = $allPosts;
+}
 if ($single) {
     $single['media_url'] = normalizeMediaUrl($single['media_url'] ?? '');
 }
 
 // ── Raccogli tutti i tag reali dei post pubblicati (con conteggio) ───────
 $tagCounts = [];
-foreach ($posts as $p) {
+foreach ($allPosts as $p) {
     foreach ($p['tags'] ?? [] as $t) {
         $key = strtolower(trim($t));
         if ($key !== '') $tagCounts[$key] = ($tagCounts[$key] ?? 0) + 1;
@@ -226,6 +237,7 @@ if (is_array($menuLinks)) {
     foreach ($menuLinks as $link) {
         $url = trim($link['url'] ?? '');
         if ($url === '/' || $url === '') { $safeMenuLinks[] = $link; continue; }
+        if (preg_match('/[?&]view=media/i', $url)) { $safeMenuLinks[] = $link; continue; }
         if (preg_match('/[?&]tag=([^&]+)/i', $url, $m)) {
             $tagVal = strtolower(trim(urldecode($m[1])));
             if (in_array($tagVal, $validMenuTags, true)) $safeMenuLinks[] = $link;
@@ -243,6 +255,21 @@ if (empty($menuLinks) && !empty($tagCounts)) {
     $topTags = array_slice(array_keys($tagCounts), 0, 4);
     foreach ($topTags as $tag) {
         $menuLinks[] = ['label' => ucfirst($tag), 'url' => '/?tag=' . urlencode($tag)];
+    }
+}
+$mediaPosts = array_values(array_filter($allPosts, static function ($p) {
+    return !empty($p['media_url']);
+}));
+if (!empty($mediaPosts)) {
+    $hasMediaCenter = false;
+    foreach ($menuLinks as $link) {
+        if (strtolower(trim((string)($link['url'] ?? ''))) === '/?view=media') {
+            $hasMediaCenter = true;
+            break;
+        }
+    }
+    if (!$hasMediaCenter) {
+        $menuLinks[] = ['label' => 'Media Center', 'url' => '/?view=media'];
     }
 }
 $footerText   = $site['footer_text'] ?? '';
@@ -1335,6 +1362,7 @@ ob_start();
         $href = trim($link['url'] ?? '');
         if ($href === '/' || $href === '') { $href = $siteUrl; }
         elseif (preg_match('/[?&]tag=([^&]+)/i', $href, $m)) { $href = $siteUrl . '?tag=' . $m[1]; }
+        elseif (preg_match('/[?&]view=media/i', $href)) { $href = $siteUrl . '?view=media'; }
         else { $href = h($href); }
     ?>
       <a href="<?= $href ?>" role="menuitem"><?= h($link['label']) ?></a>
@@ -1387,7 +1415,39 @@ ob_start();
 
 <?php else: ?>
 
-  <?php if ($activeTag): ?>
+  <?php if ($view === 'media'): ?>
+  <div style="margin-bottom: 2rem; padding: 1.5rem; background: var(--card-bg); border-radius: var(--radius); border-left: 4px solid var(--accent);">
+    <h2 style="margin:0;">Media Center</h2>
+    <p style="margin-top: 0.5rem; color: var(--text-muted);">Raccolta di foto e video pubblicati sul sito.</p>
+  </div>
+  <section class="post-grid" aria-label="Media Center">
+    <?php foreach ($mediaPosts as $p):
+      $purl = $siteUrl . '/' . h($p['slug'] ?? '');
+    ?>
+    <article class="post">
+      <?= mediaHtml($p) ?>
+      <div class="post-body">
+        <div class="meta">
+          <span><?= $icons[$p['platform']] ?? 'ðŸ“„' ?> <?= h($p['platform']) ?></span>
+          <span><?= $p['published_at'] ? date('d/m/Y', strtotime($p['published_at'])) : '' ?></span>
+        </div>
+        <h2><a href="<?= $purl ?>"><?= h(postTitle($p)) ?></a></h2>
+        <p class="excerpt"><?= h(postExcerpt($p)) ?></p>
+        <?php if (!empty($p['source_url'])): ?>
+        <a class="source-link" href="<?= h($p['source_url']) ?>" target="_blank" rel="noopener">Apri originale</a>
+        <?php endif; ?>
+      </div>
+    </article>
+    <?php endforeach; ?>
+  </section>
+  <?php if (empty($mediaPosts)): ?>
+  <div style="text-align:center;padding:4rem 1rem;opacity:0.6;">
+    <div style="font-size:3rem;margin-bottom:1rem;">ðŸ–¼ï¸</div>
+    <p>Nessun media disponibile al momento.</p>
+  </div>
+  <?php endif; ?>
+
+  <?php elseif ($activeTag): ?>
   <div style="margin-bottom: 2rem; padding: 1.5rem; background: var(--card-bg); border-radius: var(--radius); border-left: 4px solid var(--accent);">
     <h2 style="margin:0;">Categoria: <strong><?= h(ucfirst($activeTag)) ?></strong></h2>
     <p style="margin-top: 0.5rem; color: var(--text-muted);"><a href="<?= $siteUrl ?>">← Torna a tutti i contenuti</a></p>
