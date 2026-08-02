@@ -827,9 +827,24 @@ async function runSiteAi() {
   const siteUrl = `${window.location.origin}/${user?.slug}`;
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex' }}>
+    <div style={{ minHeight: '100vh', display: 'flex', overflow: studioWorkspaceOpen ? 'hidden' : 'visible' }}>
       {/* Sidebar Laterale (solo Desktop) */}
-      <div className="desktop-sidebar" style={{ width: '280px', background: 'var(--surface)', borderRight: '1px solid var(--border)', flexDirection: 'column', position: 'fixed', height: '100vh', top: 0, left: 0, zIndex: 50, boxShadow: 'var(--shadow)' }}>
+      <div
+        className="desktop-sidebar"
+        style={{
+          width: '280px',
+          background: 'var(--surface)',
+          borderRight: '1px solid var(--border)',
+          flexDirection: 'column',
+          position: 'fixed',
+          height: '100vh',
+          top: 0,
+          left: 0,
+          zIndex: 50,
+          boxShadow: 'var(--shadow)',
+          visibility: studioWorkspaceOpen ? 'hidden' : 'visible',
+          pointerEvents: studioWorkspaceOpen ? 'none' : 'auto',
+        }}>
         <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--border)' }}>
           <div style={{ fontWeight: 800, fontSize: '20px', color: 'var(--primary)' }}><img src="/logo.png" alt="allsocialtoweb.com" style={{ height: '32px' }} /></div>
         </div>
@@ -869,7 +884,7 @@ async function runSiteAi() {
       </div>
 
       {/* Main Content Area */}
-      <div className="dashboard-main">
+      <div className="dashboard-main" style={studioWorkspaceOpen ? { marginLeft: 0 } : undefined}>
         {/* Mobile Header (Only visible on mobile) */}
         <div className="mobile-top-header">
           <div style={{ fontWeight: 800, fontSize: '16px', color: 'var(--primary)' }}><img src="/logo.png" alt="allsocialtoweb.com" style={{ height: '24px' }} /></div>
