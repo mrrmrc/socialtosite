@@ -6,9 +6,24 @@ export async function apiFetch(path, opts = {}, token = null) {
   const headers = { 'Content-Type': 'application/json' };
   if (token) headers['Authorization'] = `Bearer ${token}`;
   const r = await fetch(`${API_BASE}${path}`, { ...opts, headers: { ...headers, ...opts.headers } });
-  const data = await r.json();
+  const raw = await r.text();
+  let data = null;
+  if (raw) {
+    try {
+      data = JSON.parse(raw);
+    } catch {
+      data = null;
+    }
+  }
   if (r.status === 401) { localStorage.removeItem('sts_token'); window.location.reload(); return; }
-  if (!r.ok) throw new Error(data.error || `Errore server (${r.status})`);
+  if (!r.ok) {
+    const htmlTitle = raw.match(/<title>(.*?)<\/title>/i)?.[1]?.trim();
+    const fallback = htmlTitle || raw.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 220);
+    throw new Error(data?.error || fallback || `Errore server (${r.status})`);
+  }
+  if (!data) {
+    throw new Error('Risposta API non valida: il server non ha restituito JSON.');
+  }
   return data;
 }
 

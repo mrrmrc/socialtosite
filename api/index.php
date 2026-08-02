@@ -4,7 +4,11 @@
 // ── Gestione errori: restituisci SEMPRE JSON (mai 500 con corpo vuoto) ───────
 ini_set('display_errors', '0');
 set_time_limit(0);
+ob_start();
 $__emitErr = function (int $code, string $msg): void {
+    while (ob_get_level() > 0) {
+        ob_end_clean();
+    }
     if (!headers_sent()) {
         http_response_code($code);
         header('Content-Type: application/json; charset=utf-8');

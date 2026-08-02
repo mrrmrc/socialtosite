@@ -886,8 +886,8 @@ async function runSiteAi() {
             { id: 'overview', icon: '🏠', label: 'Home' },
             { id: 'site', icon: '📝', label: 'Articoli' },
             { id: 'sources', icon: '📡', label: 'Canali' },
+            { id: 'settings', icon: '🎨', label: 'Design' },
             ...(user?.role === 'admin' ? [
-              { id: 'settings', icon: '🎨', label: 'Design' },
               { id: 'general', icon: '⚙️', label: 'Impostazioni' }
             ] : []),
             { id: 'seo', icon: '📈', label: 'SEO' },
@@ -2206,15 +2206,9 @@ async function runSiteAi() {
         <button className={`mobile-nav-item ${tab === 'sources' ? 'active' : ''}`} onClick={() => setTab('sources')}>
           <span style={{fontSize: '20px'}}>📡</span> Canali
         </button>
-        {user?.role === 'admin' ? (
-          <button className={`mobile-nav-item ${tab === 'settings' ? 'active' : ''}`} onClick={() => setTab('settings')}>
-            <span style={{fontSize: '20px'}}>⚙️</span> Menu
-          </button>
-        ) : (
-          <button className={`mobile-nav-item ${tab === 'seo' ? 'active' : ''}`} onClick={() => setTab('seo')}>
-            <span style={{fontSize: '20px'}}>📈</span> SEO
-          </button>
-        )}
+        <button className={`mobile-nav-item ${tab === 'settings' ? 'active' : ''}`} onClick={() => setTab('settings')}>
+          <span style={{fontSize: '20px'}}>🎨</span> Design
+        </button>
       </div>
       
     </div>
