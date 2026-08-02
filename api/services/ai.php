@@ -580,7 +580,7 @@ Restituisci SOLO la nuova memoria aggiornata (testo semplice), nient'altro.";
         curl_close($ch);
 
         if (!$html || !is_string($html)) {
-            return ['logo_url' => '', 'cover_url' => '', 'page_title' => '', 'description' => '', 'category' => '', 'address' => '', 'phone' => ''];
+            return ['logo_url' => '', 'cover_url' => '', 'page_title' => '', 'description' => '', 'category' => '', 'address' => '', 'phone' => '', 'email' => ''];
         }
 
         $readMeta = static function (string $html, string $prop): string {
@@ -600,6 +600,7 @@ Restituisci SOLO la nuova memoria aggiornata (testo semplice), nient'altro.";
         $category = '';
         $address = '';
         $phone = '';
+        $email = '';
 
         if (preg_match_all('~<script[^>]+type=["\']application/ld\+json["\'][^>]*>(.*?)</script>~is', $html, $jsonLdMatches)) {
             foreach ($jsonLdMatches[1] as $jsonChunk) {
@@ -621,9 +622,17 @@ Restituisci SOLO la nuova memoria aggiornata (testo semplice), nient'altro.";
                         }
                     }
                     $phone = $phone ?: trim((string)($node['telephone'] ?? $node['phone'] ?? ''));
+                    $email = $email ?: trim((string)($node['email'] ?? ''));
                     $description = $description ?: trim((string)($node['description'] ?? ''));
                 }
             }
+        }
+
+        if ($email === '' && preg_match('~mailto:([^"\'>\s]+)~i', $html, $mMailTo)) {
+            $email = trim($mMailTo[1]);
+        }
+        if ($email === '' && preg_match('~([A-Z0-9._%+\-]+@[A-Z0-9.\-]+\.[A-Z]{2,})~i', html_entity_decode(strip_tags($html), ENT_QUOTES | ENT_HTML5, 'UTF-8'), $mEmail)) {
+            $email = trim($mEmail[1]);
         }
 
         return [
@@ -634,10 +643,12 @@ Restituisci SOLO la nuova memoria aggiornata (testo semplice), nient'altro.";
             'category' => $category,
             'address' => $address,
             'phone' => $phone,
+            'email' => $email,
         ];
     }
 
     public static function sourceProfileVisuals(string $platform, string $url): array {
+        $fallback = self::fetchProfileVisualsFromHtml($url);
         if (function_exists('shell_exec')) {
             try {
                 $profile = self::nodeScrape($platform, $url, -1);
@@ -645,11 +656,12 @@ Restituisci SOLO la nuova memoria aggiornata (testo semplice), nient'altro.";
                     return [
                         'logo_url' => trim($profile['profileImage'] ?? ''),
                         'cover_url' => trim($profile['coverImage'] ?? ($profile['profileImage'] ?? '')),
-                        'page_title' => trim($profile['pageTitle'] ?? ''),
-                        'description' => '',
-                        'category' => '',
-                        'address' => '',
-                        'phone' => '',
+                        'page_title' => trim($profile['pageTitle'] ?? ($fallback['page_title'] ?? '')),
+                        'description' => trim($fallback['description'] ?? ''),
+                        'category' => trim($fallback['category'] ?? ''),
+                        'address' => trim($fallback['address'] ?? ''),
+                        'phone' => trim($fallback['phone'] ?? ''),
+                        'email' => trim($fallback['email'] ?? ''),
                     ];
                 }
             } catch (Throwable $e) {
@@ -657,7 +669,7 @@ Restituisci SOLO la nuova memoria aggiornata (testo semplice), nient'altro.";
             }
         }
 
-        return self::fetchProfileVisualsFromHtml($url);
+        return $fallback;
     }
 
     public static function sourceItems(string $platform, string $url, int $limit = 5, ?string $sinceDate = null): array {

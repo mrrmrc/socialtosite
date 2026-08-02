@@ -307,6 +307,7 @@ class Ingest {
                             trim((string)($visuals['description'] ?? '')),
                             trim((string)($visuals['address'] ?? '')),
                             trim((string)($visuals['phone'] ?? '')),
+                            trim((string)($visuals['email'] ?? '')),
                         ]);
 
                         if (!empty($profileDetails)) {
@@ -316,9 +317,23 @@ class Ingest {
                             $source['topic_summary'] = $enrichedTopic;
 
                             if ($source['platform'] === 'facebook') {
-                                $siteTitle = DB::fetch('SELECT title FROM sites WHERE user_id=?', [$userId]);
-                                if (empty($siteTitle['title']) && !empty($visuals['page_title'])) {
+                                $siteRecord = DB::fetch('SELECT title, profile_summary, bio, footer_text FROM sites WHERE user_id=?', [$userId]);
+                                $footerParts = array_filter([
+                                    trim((string)($visuals['address'] ?? '')),
+                                    trim((string)($visuals['phone'] ?? '')),
+                                    trim((string)($visuals['email'] ?? '')),
+                                ]);
+                                $footerCandidate = implode(' | ', array_unique($footerParts));
+                                $summaryCandidate = trim((string)($visuals['description'] ?? ''));
+
+                                if (empty($siteRecord['title']) && !empty($visuals['page_title'])) {
                                     DB::execute('UPDATE sites SET title=? WHERE user_id=?', [$visuals['page_title'], $userId]);
+                                }
+                                if ($summaryCandidate !== '' && empty($siteRecord['profile_summary']) && empty($siteRecord['bio'])) {
+                                    DB::execute('UPDATE sites SET profile_summary=?, bio=COALESCE(NULLIF(bio, \'\'), ?) WHERE user_id=?', [$summaryCandidate, $summaryCandidate, $userId]);
+                                }
+                                if ($footerCandidate !== '' && empty($siteRecord['footer_text'])) {
+                                    DB::execute('UPDATE sites SET footer_text=? WHERE user_id=?', [$footerCandidate, $userId]);
                                 }
                             }
                         }
