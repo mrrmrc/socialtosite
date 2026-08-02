@@ -802,11 +802,26 @@ Restituisci SOLO la nuova memoria aggiornata (testo semplice), nient'altro.";
         if (empty($items)) {
             // Fallback ad Apify se shell_exec non e' disponibile
             if ($platform === 'facebook') {
-                $dataset = self::apifyRun('apify/facebook-pages-scraper', [
+                $postInput = [
                     'startUrls' => [['url' => $url]],
                     'resultsLimit' => $limit ?: 20,
-                ]);
-                $items = self::flattenSourceDataset($platform, $dataset, $url);
+                ];
+                if ($sinceDate) {
+                    $postInput['onlyPostsNewerThan'] = $sinceDate;
+                }
+
+                try {
+                    $dataset = self::apifyRun('apify/facebook-posts-scraper', $postInput);
+                    $items = $dataset;
+                } catch (Throwable $e) {
+                    Logger::warn('apify', 'Facebook posts actor fallito, provo pages actor', ['url' => $url, 'error' => $e->getMessage()]);
+                    $dataset = self::apifyRun('apify/facebook-pages-scraper', [
+                        'startUrls' => [['url' => $url]],
+                        'resultsLimit' => $limit ?: 20,
+                    ]);
+                    $items = self::flattenSourceDataset($platform, $dataset, $url);
+                }
+
                 if (empty($items)) {
                     Logger::warn('apify', 'Facebook dataset vuoto, provo fallback HTML', ['url' => $url, 'limit' => $limit]);
                     $items = self::facebookHtmlFallbackItems($url, $limit ?: 20);
