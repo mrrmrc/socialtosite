@@ -293,6 +293,33 @@ class Ingest {
 
         foreach ($sources as $source) {
             try {
+                $siteVisuals = DB::fetch('SELECT logo_url, cover_url FROM sites WHERE user_id=?', [$userId]);
+                $needsLogo = empty($siteVisuals['logo_url']);
+                $needsCover = empty($siteVisuals['cover_url']);
+                if ($needsLogo || $needsCover) {
+                    try {
+                        $visuals = AI::sourceProfileVisuals($source['platform'], $source['url']);
+                        $logoUrl = trim($visuals['logo_url'] ?? '');
+                        $coverUrl = trim($visuals['cover_url'] ?? '');
+
+                        if ($needsLogo && $logoUrl !== '') {
+                            $savedLogo = self::saveMedia($logoUrl, $source['platform'], 'profile_logo_' . $source['id'], 'jpg');
+                            if ($savedLogo && !empty($savedLogo['url'])) {
+                                DB::execute('UPDATE sites SET logo_url=COALESCE(NULLIF(logo_url, \'\'), ?) WHERE user_id=?', [$savedLogo['url'], $userId]);
+                            }
+                        }
+
+                        if ($needsCover && $coverUrl !== '') {
+                            $savedCover = self::saveMedia($coverUrl, $source['platform'], 'profile_cover_' . $source['id'], 'jpg');
+                            if ($savedCover && !empty($savedCover['url'])) {
+                                DB::execute('UPDATE sites SET cover_url=COALESCE(NULLIF(cover_url, \'\'), ?) WHERE user_id=?', [$savedCover['url'], $userId]);
+                            }
+                        }
+                    } catch (Throwable $e) {
+                        Logger::warn('scan', 'Impossibile estrarre visual profilo', ['platform' => $source['platform'], 'url' => $source['url'], 'error' => $e->getMessage()]);
+                    }
+                }
+
                 // Se il DB è vuoto, ignoriamo la since_date per garantire l'import completo
                 $sourceSinceDate = !empty($source['since_date']) ? $source['since_date'] : null;
                 $effectiveSinceDate = $hasExistingPosts ? $sourceSinceDate : null;

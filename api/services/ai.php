@@ -478,6 +478,61 @@ Restituisci SOLO la nuova memoria aggiornata (testo semplice), nient'altro.";
         return '';
     }
 
+    private static function fetchProfileVisualsFromHtml(string $url): array {
+        $ch = curl_init($url);
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_TIMEOUT => 30,
+            CURLOPT_USERAGENT => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0 Safari/537.36',
+        ]);
+        $html = curl_exec($ch);
+        curl_close($ch);
+
+        if (!$html || !is_string($html)) {
+            return ['logo_url' => '', 'cover_url' => '', 'page_title' => ''];
+        }
+
+        $readMeta = static function (string $html, string $prop): string {
+            if (preg_match('~<meta[^>]+(?:property|name)=["\']' . preg_quote($prop, '~') . '["\'][^>]+content=["\']([^"\']+)["\']~i', $html, $m)) {
+                return html_entity_decode($m[1], ENT_QUOTES | ENT_HTML5, 'UTF-8');
+            }
+            return '';
+        };
+
+        $pageTitle = '';
+        if (preg_match('~<title[^>]*>(.*?)</title>~is', $html, $mTitle)) {
+            $pageTitle = trim(html_entity_decode(strip_tags($mTitle[1]), ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+        }
+
+        $ogImage = $readMeta($html, 'og:image') ?: $readMeta($html, 'og:image:secure_url') ?: $readMeta($html, 'twitter:image');
+
+        return [
+            'logo_url' => $ogImage,
+            'cover_url' => $ogImage,
+            'page_title' => $pageTitle,
+        ];
+    }
+
+    public static function sourceProfileVisuals(string $platform, string $url): array {
+        if (function_exists('shell_exec')) {
+            try {
+                $profile = self::nodeScrape($platform, $url, -1);
+                if (is_array($profile) && (!empty($profile['profileImage']) || !empty($profile['coverImage']))) {
+                    return [
+                        'logo_url' => trim($profile['profileImage'] ?? ''),
+                        'cover_url' => trim($profile['coverImage'] ?? ($profile['profileImage'] ?? '')),
+                        'page_title' => trim($profile['pageTitle'] ?? ''),
+                    ];
+                }
+            } catch (Throwable $e) {
+                Logger::warn('scraper', 'Profile visuals fallback to HTML', ['platform' => $platform, 'url' => $url, 'error' => $e->getMessage()]);
+            }
+        }
+
+        return self::fetchProfileVisualsFromHtml($url);
+    }
+
     public static function sourceItems(string $platform, string $url, int $limit = 5, ?string $sinceDate = null): array {
         if ($platform === 'youtube') {
             $channelId = '';
@@ -609,8 +664,15 @@ Restituisci SOLO la nuova memoria aggiornata (testo semplice), nient'altro.";
         // Usa lo scraper locale Node.js (se disponibile) per Tiktok e Facebook, altrimenti usa Apify
         $items = [];
         if (function_exists('shell_exec')) {
-            $items = self::nodeScrape($platform, $url, $limit);
-        } else {
+            try {
+                $items = self::nodeScrape($platform, $url, $limit);
+            } catch (Throwable $e) {
+                Logger::warn('scraper', 'Node scrape failed, trying fallback', ['platform' => $platform, 'url' => $url, 'error' => $e->getMessage()]);
+                $items = [];
+            }
+        }
+
+        if (empty($items)) {
             // Fallback ad Apify se shell_exec non e' disponibile
             if ($platform === 'facebook') {
                 $dataset = self::apifyRun('apify/facebook-pages-scraper', [
@@ -629,7 +691,7 @@ Restituisci SOLO la nuova memoria aggiornata (testo semplice), nient'altro.";
                 ]);
                 $items = $dataset;
             } else {
-                 throw new Exception("shell_exec disabilitato: impossibile avviare lo scraper locale.");
+                 throw new Exception("Impossibile recuperare contenuti da questa sorgente con gli scraper disponibili.");
             }
         }
 

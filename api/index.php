@@ -589,7 +589,21 @@ if ($action === 'social-source-upsert' && $method === 'POST') {
             [$userId, $platform, $label, $url, $topic]
         );
     }
-    json(['ok' => true, 'source' => ['id' => $id, 'platform' => $platform, 'label' => $label, 'url' => $url, 'topic_summary' => $topic]]);
+
+    $response = ['ok' => true, 'source' => ['id' => $id, 'platform' => $platform, 'label' => $label, 'url' => $url, 'topic_summary' => $topic]];
+    if (!array_key_exists('scan_now', $b) || !empty($b['scan_now'])) {
+        require_once __DIR__ . '/services/ingest.php';
+        $site = DB::fetch('SELECT profile_summary, role_mission, content_strategy FROM sites WHERE user_id=?', [$userId]);
+        $response['scan_report'] = Ingest::scanSources(
+            $userId,
+            isset($maxPosts) && $maxPosts ? $maxPosts : 5,
+            $site['profile_summary'] ?? '',
+            $site['role_mission'] ?? '',
+            $site['content_strategy'] ?? '',
+            $id
+        );
+    }
+    json($response);
 }
 
 if ($action === 'social-connection-update' && $method === 'POST') {
