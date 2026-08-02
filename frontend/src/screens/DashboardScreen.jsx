@@ -140,6 +140,7 @@ const [importMsg, setImportMsg] = useState(null);
   const [studioSourceLabel, setStudioSourceLabel] = useState('Workspace corrente');
   const [studioPreviewUrl, setStudioPreviewUrl] = useState('');
   const deferredStudio = useDeferredValue(templateStudio);
+  const siteUrl = `${window.location.origin}/${user?.slug}`;
 
   // ── Tema chiaro/scuro ──────────────────────────────────────────────────
   const [theme, setThemeState] = useState(() =>
@@ -856,8 +857,6 @@ async function runSiteAi() {
   const sources = data?.sources || [];
   const sourceByPlatform = sources.reduce((acc, source) => ({ ...acc, [source.platform]: source }), {});
   const connByPlatform = connections.reduce((acc, c) => ({ ...acc, [c.platform]: c }), {});
-  const siteUrl = `${window.location.origin}/${user?.slug}`;
-
   return (
     <div style={{ minHeight: '100vh', display: 'flex', overflow: studioWorkspaceOpen ? 'hidden' : 'visible' }}>
       {/* Sidebar Laterale (solo Desktop) */}
