@@ -278,6 +278,28 @@ if (isset($_GET['preview_theme'])) {
     $customCss = '';
     $accentColor = '';
 }
+if (!empty($_GET['preview_data'])) {
+    $encodedPreview = strtr((string)$_GET['preview_data'], '-_', '+/');
+    $padding = strlen($encodedPreview) % 4;
+    if ($padding > 0) $encodedPreview .= str_repeat('=', 4 - $padding);
+    $decodedPreview = base64_decode($encodedPreview, true);
+    if ($decodedPreview !== false) {
+        $previewData = json_decode($decodedPreview, true);
+        if (is_array($previewData)) {
+            $archetype = $previewData['design_archetype'] ?? $previewData['theme'] ?? $archetype;
+            $accentColor = $previewData['color_palette']['primary'] ?? $previewData['accent_color'] ?? $accentColor;
+            $customCss = $previewData['custom_css'] ?? $customCss;
+            if (isset($previewData['font_heading'])) $fontHeading = $previewData['font_heading'];
+            if (isset($previewData['font_body'])) $fontBody = $previewData['font_body'];
+            if (isset($previewData['color_palette']) && is_array($previewData['color_palette'])) $palette = $previewData['color_palette'];
+            if (isset($previewData['ui_style']) && is_array($previewData['ui_style'])) $uiStyle = $previewData['ui_style'];
+            if (isset($previewData['layout_recipe']) && is_array($previewData['layout_recipe'])) $layoutRecipe = $previewData['layout_recipe'];
+            if (isset($previewData['base_models'])) $baseModels = is_array($previewData['base_models']) ? $previewData['base_models'] : [$previewData['base_models']];
+            if (!isset($palette['background']) && isset($palette['bg'])) $palette['background'] = $palette['bg'];
+            if (!isset($palette['secondary']) && isset($palette['surface'])) $palette['secondary'] = $palette['surface'];
+        }
+    }
+}
 if (isset($_GET['preview_index']) && !empty($site['generated_layouts'])) {
     $idx = (int)$_GET['preview_index'];
     $layouts = json_decode($site['generated_layouts'], true);

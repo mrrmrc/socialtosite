@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useDeferredValue } from 'react';
 import { apiFetch, SOCIAL, SITE_LAYOUTS, detectPlatformFromUrl, PLATFORM_DESCRIPTIONS } from '../utils/api';
 import { SocialIcon } from '../components/SocialIcon';
 import { QuillEditor } from '../components/QuillEditor';
@@ -71,6 +71,19 @@ function normalizeStudioData(raw, selectedTheme = 'tech-clarity') {
   };
 }
 
+function encodeStudioPreviewData(data) {
+  try {
+    const json = JSON.stringify(data || {});
+    return btoa(unescape(encodeURIComponent(json)))
+      .replace(/\+/g, '-')
+      .replace(/\//g, '_')
+      .replace(/=+$/g, '');
+  } catch (error) {
+    console.error('Errore serializzazione preview studio:', error);
+    return '';
+  }
+}
+
 export 
 function DashboardScreen({ token, user, onLogout }) {
   const [tab, setTab] = useState('overview');
@@ -125,6 +138,8 @@ const [importMsg, setImportMsg] = useState(null);
   const [savingTemplateStudio, setSavingTemplateStudio] = useState(false);
   const [studioWorkspaceOpen, setStudioWorkspaceOpen] = useState(false);
   const [studioSourceLabel, setStudioSourceLabel] = useState('Workspace corrente');
+  const [studioPreviewUrl, setStudioPreviewUrl] = useState('');
+  const deferredStudio = useDeferredValue(templateStudio);
 
   // ── Tema chiaro/scuro ──────────────────────────────────────────────────
   const [theme, setThemeState] = useState(() =>
@@ -659,6 +674,23 @@ const [importMsg, setImportMsg] = useState(null);
       return { ...prev, [path]: value };
     });
   }
+
+  useEffect(() => {
+    if (!studioWorkspaceOpen) {
+      setStudioPreviewUrl('');
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      const previewData = encodeStudioPreviewData({
+        ...deferredStudio,
+        design_archetype: deferredStudio.design_archetype || selectedTheme,
+      });
+      setStudioPreviewUrl(`${siteUrl}?studio_preview=1&preview_data=${previewData}`);
+    }, 120);
+
+    return () => window.clearTimeout(timer);
+  }, [deferredStudio, selectedTheme, siteUrl, studioWorkspaceOpen]);
 
   async function saveTemplateStudio() {
     setSavingTemplateStudio(true);
@@ -1915,7 +1947,7 @@ async function runSiteAi() {
                       <div style={{ fontSize: '12px', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.5)', marginBottom: '0.5rem' }}>Workspace attiva</div>
                       <h3 style={{ marginBottom: '0.5rem', color: '#fff' }}>{templateStudio.design_archetype || 'custom'}</h3>
                       <p style={{ margin: 0, color: 'rgba(255,255,255,0.68)', lineHeight: 1.6 }}>
-                        Qui dentro trovi solo gli strumenti di modifica del sito. Parti da una proposta AI o da un template, regola i parametri e poi applica le modifiche quando sei soddisfatto.
+                        Qui dentro modifichi il sito e vedi subito il risultato reale. Ogni variazione aggiorna automaticamente l'anteprima dello Studio.
                       </p>
                     </div>
 
@@ -1951,6 +1983,37 @@ async function runSiteAi() {
                             <strong style={{ color: '#fff', fontSize: '13px' }}>{templateStudio.color_palette?.[key] || '-'}</strong>
                           </div>
                         ))}
+                      </div>
+                    </div>
+
+                    <div className="card" style={{ padding: '1rem', marginTop: '1rem', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', flexWrap: 'wrap', marginBottom: '0.75rem' }}>
+                        <div>
+                          <div style={{ fontSize: '12px', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.5)', marginBottom: '4px' }}>Anteprima live</div>
+                          <div style={{ color: '#fff', fontWeight: 700 }}>Il sito vero, aggiornato in tempo reale</div>
+                        </div>
+                        <a
+                          href={studioPreviewUrl || `${siteUrl}?preview_theme=${templateStudio.design_archetype || selectedTheme}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="btn btn-outline"
+                          style={{ padding: '8px 14px', color: '#fff', borderColor: 'rgba(255,255,255,0.18)' }}
+                        >
+                          Apri in nuova scheda
+                        </a>
+                      </div>
+                      <div style={{ borderRadius: '20px', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.08)', background: '#0b1220', minHeight: '62vh' }}>
+                        {studioPreviewUrl ? (
+                          <iframe
+                            title="Anteprima live studio"
+                            src={studioPreviewUrl}
+                            style={{ width: '100%', height: '62vh', border: 'none', background: '#fff' }}
+                          />
+                        ) : (
+                          <div style={{ minHeight: '62vh', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'rgba(255,255,255,0.6)' }}>
+                            Carico anteprima...
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
