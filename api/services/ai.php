@@ -478,6 +478,96 @@ Restituisci SOLO la nuova memoria aggiornata (testo semplice), nient'altro.";
         return '';
     }
 
+    private static function flattenSourceDataset(string $platform, array $items, string $profileUrl): array {
+        if ($platform !== 'facebook') return $items;
+
+        $flat = [];
+        foreach ($items as $item) {
+            if (!is_array($item)) continue;
+
+            $nestedCollections = [];
+            foreach (['posts', 'latestPosts', 'latestPostsDetailed', 'pagePosts', 'timelinePosts', 'videos', 'reels'] as $key) {
+                if (!empty($item[$key]) && is_array($item[$key])) {
+                    $nestedCollections[] = $item[$key];
+                }
+            }
+
+            if (!empty($nestedCollections)) {
+                foreach ($nestedCollections as $collection) {
+                    foreach ($collection as $nested) {
+                        if (is_array($nested)) $flat[] = $nested;
+                    }
+                }
+                continue;
+            }
+
+            $candidateUrl = self::findSourceUrl($item);
+            if ($candidateUrl !== '' && strtok($candidateUrl, '?') !== strtok($profileUrl, '?')) {
+                $flat[] = $item;
+            }
+        }
+
+        return !empty($flat) ? $flat : $items;
+    }
+
+    private static function fetchHtml(string $url): string {
+        $ch = curl_init($url);
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_TIMEOUT => 30,
+            CURLOPT_USERAGENT => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0 Safari/537.36',
+            CURLOPT_HTTPHEADER => [
+                'Accept-Language: it-IT,it;q=0.9,en-US;q=0.8,en;q=0.7',
+            ],
+        ]);
+        $html = curl_exec($ch);
+        curl_close($ch);
+        return is_string($html) ? $html : '';
+    }
+
+    private static function facebookHtmlFallbackItems(string $url, int $limit = 5): array {
+        $variants = [
+            rtrim($url, '/'),
+            rtrim($url, '/') . '/posts',
+            rtrim($url, '/') . '/videos',
+            str_replace('www.facebook.com', 'm.facebook.com', rtrim($url, '/')),
+        ];
+
+        $seen = [];
+        $out = [];
+
+        foreach ($variants as $variant) {
+            $html = self::fetchHtml($variant);
+            if ($html === '') continue;
+
+            preg_match_all('~https://www\.facebook\.com/[^"\']+~i', $html, $absMatches);
+            preg_match_all('~href=["\'](/[^"\']+)["\']~i', $html, $relMatches);
+            $candidates = array_merge($absMatches[0] ?? [], $relMatches[1] ?? []);
+
+            foreach ($candidates as $candidate) {
+                $candidate = html_entity_decode($candidate, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+                if (str_starts_with($candidate, '/')) {
+                    $candidate = 'https://www.facebook.com' . $candidate;
+                }
+                $candidate = preg_replace('~&amp;~', '&', $candidate);
+                $candidate = preg_replace('~([?&])(refsrc|__tn__|locale|paipv|mibextid)=[^&]+~i', '$1', $candidate);
+                $candidate = preg_replace('~[?&]+$~', '', $candidate);
+
+                if (!preg_match('~/(posts|videos|reel|watch/\?v=|photo|photos/)~i', $candidate)) continue;
+                $normalized = rtrim((string)strtok($candidate, '#'), '/');
+                if (isset($seen[$normalized])) continue;
+                $seen[$normalized] = true;
+                $out[] = ['url' => $candidate];
+                if ($limit > 0 && count($out) >= $limit) {
+                    return $out;
+                }
+            }
+        }
+
+        return $out;
+    }
+
     private static function fetchProfileVisualsFromHtml(string $url): array {
         $ch = curl_init($url);
         curl_setopt_array($ch, [
@@ -716,7 +806,11 @@ Restituisci SOLO la nuova memoria aggiornata (testo semplice), nient'altro.";
                     'startUrls' => [['url' => $url]],
                     'resultsLimit' => $limit ?: 20,
                 ]);
-                $items = $dataset;
+                $items = self::flattenSourceDataset($platform, $dataset, $url);
+                if (empty($items)) {
+                    Logger::warn('apify', 'Facebook dataset vuoto, provo fallback HTML', ['url' => $url, 'limit' => $limit]);
+                    $items = self::facebookHtmlFallbackItems($url, $limit ?: 20);
+                }
             } elseif ($platform === 'tiktok') {
                 // Per TikTok possiamo provare tiktok-scraper
                 $username = '';
@@ -737,6 +831,13 @@ Restituisci SOLO la nuova memoria aggiornata (testo semplice), nient'altro.";
             $sourceUrl = self::findSourceUrl($item);
             if (!$sourceUrl && !empty($item['url'])) $sourceUrl = $item['url'];
             if (!$sourceUrl) continue;
+            if ($platform === 'facebook') {
+                $profileNormalized = rtrim((string)strtok($url, '?'), '/');
+                $sourceNormalized = rtrim((string)strtok($sourceUrl, '?'), '/');
+                if ($sourceNormalized === $profileNormalized) {
+                    continue;
+                }
+            }
             
             $caption = '';
             foreach (['text','caption','message','description','video_description','story'] as $k) {

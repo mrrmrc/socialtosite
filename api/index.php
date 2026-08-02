@@ -162,6 +162,12 @@ La risposta DEVE essere esclusivamente un JSON valido con questa struttura (ness
             try {
                 DB::execute("ALTER TABLE sites ADD COLUMN harmonize_agent VARCHAR(50) NOT NULL DEFAULT 'content_editor'");
             } catch (Throwable $e) {}
+            try {
+                DB::execute("ALTER TABLE sites ADD COLUMN account_type VARCHAR(50) DEFAULT 'business'");
+            } catch (Throwable $e) {}
+            try {
+                DB::execute("ALTER TABLE sites ADD COLUMN brand_voice_profile LONGTEXT NULL");
+            } catch (Throwable $e) {}
         } catch (Throwable $e) {}
         // Fix: aggiorna prompt esistenti che hanno ancora #ancora
         try {
