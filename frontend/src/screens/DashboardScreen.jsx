@@ -270,6 +270,10 @@ const [importMsg, setImportMsg] = useState(null);
 
       const processPost = async (post) => {
         setProcessingQueue(prev => prev.map(p => p.id === post.id ? { ...p, status: 'processing' } : p));
+        const postLabel = post.generated_title || post.source_url || `${post.platform} #${post.id}`;
+        const processingMsg = `Elaborazione AI in corso: ${completed + 1}/${total} - ${post.platform.toUpperCase()} - ${postLabel}`;
+        if (isScan) setScanMsg({ ok: true, text: processingMsg, loading: true });
+        else setSyncMsg({ ok: true, text: processingMsg, loading: true });
         let errorMsg = null;
         try {
           await apiFetch('/api/index.php?action=process-pending', {
@@ -449,8 +453,8 @@ const [importMsg, setImportMsg] = useState(null);
       return;
     }
     setScanning(true); 
-    setScanMsg({ ok: true, text: 'Inizio acquisizione...', loading: true });
-    setScanProgress(sources.map(s => ({ id: s.id, platform: s.platform, label: s.label, status: 'pending', details: '' })));
+    setScanMsg({ ok: true, text: 'Preparazione sincronizzazione dei canali attivi...', loading: true });
+    setScanProgress(sources.map((s, index) => ({ id: s.id, platform: s.platform, label: s.label, status: 'pending', details: `In attesa di avvio (${index + 1}/${sources.length})` })));
     
     let totalImported = 0;
     let totalFound = 0;
@@ -459,8 +463,18 @@ const [importMsg, setImportMsg] = useState(null);
 
     for (let i = 0; i < sources.length; i++) {
       const source = sources[i];
-      setScanProgress(prev => prev.map(s => s.id === source.id ? { ...s, status: 'scanning' } : s));
-      setScanMsg({ ok: true, text: `Acquisizione post da ${source.label || source.platform} in corso... (${i+1}/${sources.length})`, loading: true });
+      const sourceName = source.label || source.platform;
+      const sourceOrdinal = `sorgente ${i + 1} di ${sources.length}`;
+      setScanProgress(prev => prev.map(s => s.id === source.id ? {
+        ...s,
+        status: 'scanning',
+        details: `Apro ${sourceName} e cerco post pubblici recenti (${sourceOrdinal})`
+      } : s));
+      setScanMsg({
+        ok: true,
+        text: `Sto analizzando ${sourceName}: recupero i post pubblici recenti dalla ${source.platform} (${sourceOrdinal}).`,
+        loading: true
+      });
       try {
         const res = await apiFetch('/api/index.php?action=scan-sources', {
           method: 'POST',
@@ -476,15 +490,45 @@ const [importMsg, setImportMsg] = useState(null);
         totalImported += (r.imported || 0);
         totalFound += (r.found || 0);
         totalDuplicates += (r.duplicates || 0);
-        setScanProgress(prev => prev.map(s => s.id === source.id ? { ...s, status: 'done', details: `${r.imported} post importati (su ${r.found} trovati)` } : s));
+        const errorsForSource = Array.isArray(r.errors) ? r.errors.length : 0;
+        totalErrors += errorsForSource;
+        const resultText = [
+          `Trovati: ${r.found || 0}`,
+          `Importati: ${r.imported || 0}`,
+          `Duplicati: ${r.duplicates || 0}`,
+          `Errori: ${errorsForSource}`
+        ].join(' • ');
+        setScanProgress(prev => prev.map(s => s.id === source.id ? {
+          ...s,
+          status: errorsForSource > 0 ? 'error' : 'done',
+          details: resultText
+        } : s));
+        setScanMsg({
+          ok: errorsForSource === 0,
+          text: `Sorgente completata: ${sourceName}. ${resultText}.`,
+          loading: false
+        });
       } catch (err) {
         console.error("Errore scansione " + source.platform, err);
         totalErrors++;
-        setScanProgress(prev => prev.map(s => s.id === source.id ? { ...s, status: 'error', details: err.message } : s));
+        setScanProgress(prev => prev.map(s => s.id === source.id ? {
+          ...s,
+          status: 'error',
+          details: `Errore durante l'acquisizione: ${err.message}`
+        } : s));
+        setScanMsg({
+          ok: false,
+          text: `Errore durante la scansione di ${sourceName}: ${err.message}`,
+          loading: false
+        });
       }
     }
     
-    setScanMsg({ ok: true, text: `Acquisizione completata. Avvio elaborazione AI in background dei ${totalImported} nuovi post...` });
+    setScanMsg({
+      ok: totalErrors === 0,
+      text: `Acquisizione completata. Totale trovati: ${totalFound}. Nuovi importati: ${totalImported}. Duplicati: ${totalDuplicates}. Errori: ${totalErrors}. Avvio ora l'elaborazione AI dei nuovi contenuti.`,
+      loading: true
+    });
     setTimeout(() => setScanProgress([]), 3000);
     await processPendingLoop(true);
     setScanning(false);
