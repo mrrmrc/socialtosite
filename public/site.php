@@ -280,6 +280,9 @@ $ctaText      = h(($site['cta_text'] ?? '') ?: 'Scopri i contenuti');
 // ── Dati AI dinamici (site_ai_data) ───────────
 $aiData = !empty($site['site_ai_data']) ? json_decode($site['site_ai_data'], true) : [];
 if (!is_array($aiData)) $aiData = [];
+$coverUrl     = $coverUrl ?: normalizeMediaUrl($aiData['cover_url'] ?? '');
+$heroTagline  = $heroTagline ?: h($aiData['hero_tagline'] ?? '');
+$ctaText      = $ctaText ?: h($aiData['cta_text'] ?? '');
 $fontHeading = $aiData['font_heading'] ?? 'Inter';
 $fontBody    = $aiData['font_body'] ?? 'Inter';
 $palette     = $aiData['color_palette'] ?? [];

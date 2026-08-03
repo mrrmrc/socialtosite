@@ -996,7 +996,7 @@ async function runSiteAi() {
           <div style={{ background: 'linear-gradient(135deg,#534AB7,#7F77DD)', color: '#fff', borderRadius: 'var(--radius)', padding: '1.25rem 1.5rem', marginBottom: '1.25rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap' }}>
             <div>
               <div style={{ fontWeight: 700, fontSize: '15px', marginBottom: '4px' }}>✨ Sito AI generato con successo!</div>
-              <div style={{ fontSize: '13px', opacity: 0.85 }}>Tema: <b>{siteAiResult.theme}</b> · Colore: <b>{siteAiResult.accent_color}</b> · Tagline: "{siteAiResult.hero_tagline}"</div>
+              <div style={{ fontSize: '13px', opacity: 0.85 }}>Tema: <b>{siteAiResult.design_archetype || siteAiResult.theme}</b> · Colore: <b>{siteAiResult.color_palette?.primary || siteAiResult.accent_color}</b> · Tagline: "{siteAiResult.hero_tagline}"</div>
             </div>
             <div style={{ display: 'flex', gap: '8px' }}>
               <a href={siteUrl} target="_blank" rel="noopener" style={{ background: 'rgba(255,255,255,0.2)', color: '#fff', padding: '7px 16px', borderRadius: 'var(--radius-sm)', fontSize: '13px', fontWeight: 600, textDecoration: 'none' }}>🌍 Vedi sito</a>

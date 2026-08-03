@@ -52,6 +52,68 @@ if ($action === 'debug-jwt') {
     json(['ok' => true, 'jwt_loaded' => $jwtLoaded, 'class_exists' => class_exists('JWT'), 'files' => $included]);
 }
 
+function ensureSiteSchemaUpgrades(): void {
+    static $done = false;
+    if ($done) return;
+    $done = true;
+
+    $queries = [
+        'ALTER TABLE sites ADD COLUMN cover_url TEXT NULL',
+        'ALTER TABLE sites ADD COLUMN logo_url TEXT NULL',
+        'ALTER TABLE sites ADD COLUMN footer_text TEXT NULL',
+        'ALTER TABLE sites ADD COLUMN accent_color VARCHAR(50) NULL',
+        'ALTER TABLE sites ADD COLUMN accent_secondary VARCHAR(50) NULL',
+        'ALTER TABLE sites ADD COLUMN header_layout VARCHAR(50) NULL',
+        'ALTER TABLE sites ADD COLUMN custom_css TEXT NULL',
+        'ALTER TABLE sites ADD COLUMN hero_tagline TEXT NULL',
+        'ALTER TABLE sites ADD COLUMN cta_text TEXT NULL',
+        'ALTER TABLE sites ADD COLUMN generated_layouts LONGTEXT NULL',
+        'ALTER TABLE sites ADD COLUMN site_ai_data LONGTEXT NULL',
+        'ALTER TABLE sites ADD COLUMN design_archetype VARCHAR(100) NULL',
+    ];
+
+    foreach ($queries as $query) {
+        try {
+            DB::execute($query);
+        } catch (Throwable $e) {
+        }
+    }
+}
+
+function normalizeSiteAiResult(array $result): array {
+    if (empty($result['design_archetype']) && !empty($result['theme'])) {
+        $result['design_archetype'] = $result['theme'];
+    }
+    if (empty($result['theme']) && !empty($result['design_archetype'])) {
+        $result['theme'] = $result['design_archetype'];
+    }
+
+    if (!isset($result['color_palette']) || !is_array($result['color_palette'])) {
+        $result['color_palette'] = [];
+    }
+    if (empty($result['color_palette']['primary']) && !empty($result['accent_color'])) {
+        $result['color_palette']['primary'] = $result['accent_color'];
+    }
+    if (empty($result['accent_color']) && !empty($result['color_palette']['primary'])) {
+        $result['accent_color'] = $result['color_palette']['primary'];
+    }
+    if (empty($result['accent_secondary']) && !empty($result['color_palette']['secondary'])) {
+        $result['accent_secondary'] = $result['color_palette']['secondary'];
+    }
+
+    if (!isset($result['menu_links']) || !is_array($result['menu_links'])) {
+        $result['menu_links'] = [];
+    }
+    if (empty($result['header_layout'])) {
+        $result['header_layout'] = 'standard';
+    }
+    if (!isset($result['custom_css']) || !is_string($result['custom_css'])) {
+        $result['custom_css'] = '';
+    }
+
+    return $result;
+}
+
 // ── Auth endpoints (no JWT) ───────────────────────────────────────────────
 if (in_array($action, ['login', 'register', 'site-public', 'debug-site', 'migrate'])) {
     if ($action === 'migrate') {
@@ -852,6 +914,7 @@ if ($action === 'hide-post' && $method === 'POST') {
 
 // ── PATCH site settings ───────────────────────────────────────────────────
 if ($action === 'site-update' && $method === 'POST') {
+    ensureSiteSchemaUpgrades();
     $b = body();
     
     // Auto-patch database for account_type (se non esiste)
@@ -877,8 +940,12 @@ if (array_key_exists('theme', $b)) {
     if (array_key_exists('menu_links', $b)) { $fields[] = 'menu_links = ?'; $params[] = is_array($b['menu_links']) ? json_encode($b['menu_links'], JSON_UNESCAPED_UNICODE) : $b['menu_links']; }
     if (array_key_exists('footer_text', $b)) { $fields[] = 'footer_text = ?'; $params[] = $b['footer_text']; }
     if (array_key_exists('accent_color', $b)) { $fields[] = 'accent_color = ?'; $params[] = $b['accent_color']; }
+    if (array_key_exists('accent_secondary', $b)) { $fields[] = 'accent_secondary = ?'; $params[] = $b['accent_secondary']; }
     if (array_key_exists('header_layout', $b)) { $fields[] = 'header_layout = ?'; $params[] = $b['header_layout']; }
     if (array_key_exists('logo_url', $b)) { $fields[] = 'logo_url = ?'; $params[] = $b['logo_url']; }
+    if (array_key_exists('cover_url', $b)) { $fields[] = 'cover_url = ?'; $params[] = $b['cover_url']; }
+    if (array_key_exists('hero_tagline', $b)) { $fields[] = 'hero_tagline = ?'; $params[] = $b['hero_tagline']; }
+    if (array_key_exists('cta_text', $b)) { $fields[] = 'cta_text = ?'; $params[] = $b['cta_text']; }
     if (array_key_exists('custom_css', $b)) { $fields[] = 'custom_css = ?'; $params[] = $b['custom_css']; }
     if (array_key_exists('gsc_verification', $b)) { $fields[] = 'gsc_verification = ?'; $params[] = $b['gsc_verification']; }
     if (array_key_exists('site_ai_data', $b)) { $fields[] = 'site_ai_data = ?'; $params[] = is_array($b['site_ai_data']) ? json_encode($b['site_ai_data'], JSON_UNESCAPED_UNICODE) : $b['site_ai_data']; }
@@ -895,6 +962,7 @@ if (array_key_exists('theme', $b)) {
 // ── POST design-site (3 proposte Graphic Designer) ───────────────────────
 if ($action === 'design-site' && $method === 'POST') {
     try {
+        ensureSiteSchemaUpgrades();
         require_once __DIR__ . '/services/ai.php';
         $site = DB::fetch('SELECT profile_summary, bio, role_mission, content_strategy FROM sites WHERE user_id=?', [$userId]);
         $summary = trim($site['profile_summary'] ?? $site['bio'] ?? '');
@@ -952,6 +1020,7 @@ if ($action === 'design-site' && $method === 'POST') {
 // ── POST site-ai (Generazione completa SITO AI) ───────────────────────────
 if ($action === 'site-ai' && $method === 'POST') {
     try {
+        ensureSiteSchemaUpgrades();
         require_once __DIR__ . '/services/ai.php';
         $site  = DB::fetch('SELECT * FROM sites WHERE user_id=?', [$userId]);
         $summary  = trim($site['profile_summary'] ?? $site['bio'] ?? '');
@@ -981,25 +1050,30 @@ if ($action === 'site-ai' && $method === 'POST') {
         $availableTags = array_unique($allTags);
         $tagsContext = implode(', ', $availableTags);
 
-        $result = AI::siteAiGenerate($summary, $role, $strategy, $recentPosts, $tagsContext);
+        $result = normalizeSiteAiResult(AI::siteAiGenerate($summary, $role, $strategy, $recentPosts, $tagsContext));
 
         DB::execute(
             'UPDATE sites SET
                 title=?, bio=?, role_mission=?,
-                theme=?, accent_color=?, header_layout=?,
-                menu_links=?, footer_text=?, custom_css=?,
-                site_ai_data=?
+                theme=?, design_archetype=?, accent_color=?, accent_secondary=?, header_layout=?,
+                menu_links=?, footer_text=?, custom_css=?, hero_tagline=?, cta_text=?,
+                cover_url=COALESCE(NULLIF(?, \'\'), cover_url), site_ai_data=?
              WHERE user_id=?',
             [
                 $result['title'] ?? '',
                 $result['bio'] ?? '',
                 $result['role_mission'] ?? $role,
-                $result['design_archetype'] ?? 'classic',
-                $result['color_palette']['primary'] ?? '',
+                $result['theme'] ?? 'classic',
+                $result['design_archetype'] ?? ($result['theme'] ?? 'classic'),
+                $result['accent_color'] ?? '',
+                $result['accent_secondary'] ?? '',
                 $result['header_layout'] ?? 'standard',
                 isset($result['menu_links']) ? json_encode($result['menu_links'], JSON_UNESCAPED_UNICODE) : '',
                 $result['footer_text'] ?? '',
                 $result['custom_css'] ?? '',
+                $result['hero_tagline'] ?? '',
+                $result['cta_text'] ?? '',
+                $result['cover_url'] ?? '',
                 json_encode($result, JSON_UNESCAPED_UNICODE),
                 $userId
             ]
