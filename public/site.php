@@ -173,6 +173,50 @@ if ($action === 'llms') {
 // ── Variabili base ───────────────────────────────────────────────────────────
 function h(?string $s): string { return htmlspecialchars(html_entity_decode((string)$s, ENT_QUOTES, 'UTF-8'), ENT_QUOTES, 'UTF-8'); }
 
+function isBadSiteIdentity(?string $value): bool {
+    $value = mb_strtolower(trim((string)$value));
+    if ($value === '' || mb_strlen($value) < 3) return true;
+    foreach (['error', 'errore', 'facebook', 'login', 'sign in', 'sign up', 'not found', 'page not found', 'access denied'] as $needle) {
+        if ($value === $needle || str_contains($value, $needle)) return true;
+    }
+    return false;
+}
+
+function prettySourceIdentity(array $sources, array $site = []): string {
+    $siteTitle = trim((string)($site['title'] ?? ''));
+    if (!isBadSiteIdentity($siteTitle)) return $siteTitle;
+
+    foreach ($sources as $source) {
+        $label = trim((string)($source['label'] ?? ''));
+        if ($label !== '') {
+            $label = preg_replace('/\b(facebook|instagram|youtube|tiktok|official|ufficiale)\b/i', ' ', $label);
+            $label = preg_replace('/[_\-]+/', ' ', $label);
+            $label = preg_replace('/(?<=\p{Ll})(?=\p{Lu})/u', ' ', $label);
+            $label = preg_replace('/\s+/', ' ', $label);
+            $label = ucwords(mb_strtolower(trim($label)));
+            if (!isBadSiteIdentity($label)) return $label;
+        }
+
+        $url = trim((string)($source['url'] ?? ''));
+        if ($url !== '') {
+            $path = trim((string)(parse_url($url, PHP_URL_PATH) ?: ''), '/');
+            if ($path !== '') {
+                $segments = array_values(array_filter(explode('/', $path)));
+                $candidate = $segments[0] ?? '';
+                if ($candidate !== '') {
+                    $candidate = preg_replace('/[_\-]+/', ' ', $candidate);
+                    $candidate = preg_replace('/(?<=\p{Ll})(?=\p{Lu})/u', ' ', $candidate);
+                    $candidate = preg_replace('/\s+/', ' ', $candidate);
+                    $candidate = ucwords(mb_strtolower(trim($candidate)));
+                    if (!isBadSiteIdentity($candidate)) return $candidate;
+                }
+            }
+        }
+    }
+
+    return trim((string)($site['title'] ?? ''));
+}
+
 function normalizeMediaUrl(?string $url): string {
     $url = trim((string)$url);
     if ($url === '') return '';
@@ -187,7 +231,11 @@ function normalizeMediaUrl(?string $url): string {
     return $url;
 }
 
-$title      = h($site['title'] ?? $user['name'] ?? '');
+$rawTitle   = prettySourceIdentity($sources, $site);
+if (isBadSiteIdentity($rawTitle)) {
+    $rawTitle = trim((string)($user['name'] ?? ''));
+}
+$title      = h($rawTitle);
 $bio        = h(($site['profile_summary'] ?? '') ?: ($site['bio'] ?? ''));
 $siteUrl    = BASE_URL . '/' . $slug;
 $validThemes = ['classic', 'authority', 'portfolio', 'magazine', 'brutalist', 'ecommerce', 'wedding', 'fitness', 'restaurant', 'agency', 'zen', 'vaporwave', 'realestate', 'blogger', 'darkphoto', 'medical', 'education', 'gamer', 'startup', 'lawyer'];
@@ -204,6 +252,9 @@ $accentColor  = $site['accent_color'] ?? '';
 $accentSecondary = $site['accent_secondary'] ?? $site['accent_color'] ?? '';
 $logoUrl      = normalizeMediaUrl($site['logo_url'] ?? '');
 $coverUrl     = normalizeMediaUrl($site['cover_url'] ?? '');
+if ($logoUrl === '' && $coverUrl !== '') {
+    $logoUrl = $coverUrl;
+}
 
 foreach ($allPosts as &$p) {
     $p['media_url'] = normalizeMediaUrl($p['media_url'] ?? '');
@@ -255,6 +306,24 @@ if (empty($menuLinks) && !empty($tagCounts)) {
     $topTags = array_slice(array_keys($tagCounts), 0, 4);
     foreach ($topTags as $tag) {
         $menuLinks[] = ['label' => ucfirst($tag), 'url' => '/?tag=' . urlencode($tag)];
+    }
+}
+$existingMenuUrls = [];
+foreach ($menuLinks as $link) {
+    $existingMenuUrls[] = strtolower(trim((string)($link['url'] ?? '')));
+}
+if (empty($menuLinks)) {
+    $menuLinks[] = ['label' => 'Home', 'url' => '/'];
+    $existingMenuUrls[] = '/';
+}
+if (count($menuLinks) < 5 && !empty($tagCounts)) {
+    arsort($tagCounts);
+    foreach (array_keys($tagCounts) as $tag) {
+        $url = '/?tag=' . urlencode($tag);
+        if (in_array(strtolower($url), $existingMenuUrls, true)) continue;
+        $menuLinks[] = ['label' => ucfirst($tag), 'url' => $url];
+        $existingMenuUrls[] = strtolower($url);
+        if (count($menuLinks) >= 5) break;
     }
 }
 $mediaPosts = array_values(array_filter($allPosts, static function ($p) {

@@ -303,6 +303,11 @@ const [importMsg, setImportMsg] = useState(null);
 
       const total = pending.length;
       let completed = 0;
+      let publishedCount = 0;
+      let draftCount = 0;
+      let skippedCount = 0;
+      let deletedCount = 0;
+      let errorCount = 0;
       const concurrency = 4; // Elabora fino a 4 post in parallelo
 
       const updateProgress = () => {
@@ -321,13 +326,18 @@ const [importMsg, setImportMsg] = useState(null);
         else setSyncMsg({ ok: true, text: processingMsg, loading: true });
         let errorMsg = null;
         try {
-          await apiFetch('/api/index.php?action=process-pending', {
+          const res = await apiFetch('/api/index.php?action=process-pending', {
             method: 'POST',
             body: JSON.stringify({ id: post.id })
           }, token);
+          if (res?.status === 'published') publishedCount++;
+          else if (res?.status === 'draft') draftCount++;
+          else if (res?.status === 'skipped') skippedCount++;
+          else if (res?.status === 'deleted') deletedCount++;
         } catch (e) {
           console.error("Errore post", post.id, e);
           errorMsg = e.message;
+          errorCount++;
         }
         
         setProcessingQueue(prev => prev.map(p => p.id === post.id ? { ...p, status: errorMsg ? 'error' : 'done' } : p));
@@ -357,7 +367,7 @@ const [importMsg, setImportMsg] = useState(null);
         console.error("Errore orchestrazione", e);
       }
       
-      const doneMsg = `Elaborazione di ${total} post e aggiornamento sito completati.`;
+      const doneMsg = `Pipeline completata. Trovati in coda: ${total}. Pubblicati: ${publishedCount}. In bozza: ${draftCount}. Scartati: ${skippedCount}. Saltati: ${deletedCount}. Errori: ${errorCount}.`;
       if (isScan) setScanMsg({ ok: true, text: doneMsg });
       else setSyncMsg({ ok: true, text: doneMsg });
       

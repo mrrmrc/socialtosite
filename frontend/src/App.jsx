@@ -19,7 +19,11 @@ function AppContent() {
     const u = localStorage.getItem('sts_user');
     if (t && u) {
       setToken(t);
-      setUser(JSON.parse(u));
+      try {
+        setUser(JSON.parse(u));
+      } catch {
+        localStorage.removeItem('sts_user');
+      }
     }
     setLoading(false);
 
@@ -28,6 +32,31 @@ function AppContent() {
       .then(setDeployInfo)
       .catch(() => {});
   }, []);
+
+  useEffect(() => {
+    if (!token) return;
+
+    fetch('/api/index.php?action=me', {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then(async r => {
+        if (!r.ok) throw new Error('session-sync-failed');
+        return r.json();
+      })
+      .then(data => {
+        if (data?.user) {
+          setUser(data.user);
+          localStorage.setItem('sts_user', JSON.stringify(data.user));
+        }
+      })
+      .catch(() => {
+        localStorage.removeItem('sts_token');
+        localStorage.removeItem('sts_user');
+        setToken(null);
+        setUser(null);
+        navigate('/login');
+      });
+  }, [token, navigate]);
 
   function handleAuth(t, u) {
     setToken(t);

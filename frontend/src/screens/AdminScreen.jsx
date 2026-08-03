@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { apiFetch } from '../utils/api';
 
-export 
-function AdminScreen({ token, currentUser, adminPrompts, updatePrompt }) {
+export function AdminScreen({ token, currentUser, adminPrompts, updatePrompt }) {
   const [adminTab, setAdminTab] = useState('users');
   const [users, setUsers] = useState([]);
   const [logs, setLogs] = useState([]);

@@ -375,11 +375,34 @@ if ($action === 'openclaw-webhook' && $method === 'POST') {
 
 // Tutti gli altri endpoint richiedono JWT
 $me = JWT::require();
-$userId = $me['id'];
+$userId = (int)($me['id'] ?? 0);
+$dbMe = DB::fetch('SELECT id, email, name, slug, role FROM users WHERE id=?', [$userId]);
+if ($dbMe) {
+    $me = array_merge($me, [
+        'id' => (int)$dbMe['id'],
+        'email' => $dbMe['email'],
+        'name' => $dbMe['name'],
+        'slug' => $dbMe['slug'],
+        'role' => $dbMe['role'] ?? ($me['role'] ?? 'user'),
+    ]);
+}
 $isAdmin = ($me['role'] ?? 'user') === 'admin';
 
 function requireAdmin(bool $isAdmin): void {
     if (!$isAdmin) jsonError('Permessi amministratore richiesti', 403);
+}
+
+if ($action === 'me' && $method === 'GET') {
+    json([
+        'ok' => true,
+        'user' => [
+            'id' => (int)($me['id'] ?? 0),
+            'email' => $me['email'] ?? '',
+            'name' => $me['name'] ?? '',
+            'slug' => $me['slug'] ?? '',
+            'role' => $me['role'] ?? 'user',
+        ],
+    ]);
 }
 
 function uniqueUserSlug(string $source): string {
@@ -684,18 +707,35 @@ if ($action === 'social-source-upsert' && $method === 'POST') {
 
     if ($existing) {
         DB::execute(
-            'UPDATE social_sources SET label=?, url=?, topic_summary=?, active=1 WHERE id=? AND user_id=?',
-            [$label, $url, $topic, $existing['id'], $userId]
+            'UPDATE social_sources
+                SET label=?,
+                    url=?,
+                    topic_summary=?,
+                    since_date=?,
+                    auto_publish=?,
+                    max_posts=?,
+                    active=1
+              WHERE id=? AND user_id=?',
+            [$label, $url, $topic, $sinceDate, $autoPublish, $maxPosts, $existing['id'], $userId]
         );
         $id = (int)$existing['id'];
     } else {
         $id = DB::insert(
-            'INSERT INTO social_sources (user_id, platform, label, url, topic_summary) VALUES (?,?,?,?,?)',
-            [$userId, $platform, $label, $url, $topic]
+            'INSERT INTO social_sources (user_id, platform, label, url, topic_summary, since_date, auto_publish, max_posts) VALUES (?,?,?,?,?,?,?,?)',
+            [$userId, $platform, $label, $url, $topic, $sinceDate, $autoPublish, $maxPosts]
         );
     }
 
-    $response = ['ok' => true, 'source' => ['id' => $id, 'platform' => $platform, 'label' => $label, 'url' => $url, 'topic_summary' => $topic]];
+    $response = ['ok' => true, 'source' => [
+        'id' => $id,
+        'platform' => $platform,
+        'label' => $label,
+        'url' => $url,
+        'topic_summary' => $topic,
+        'since_date' => $sinceDate,
+        'auto_publish' => $autoPublish,
+        'max_posts' => $maxPosts,
+    ]];
     if (!array_key_exists('scan_now', $b) || !empty($b['scan_now'])) {
         require_once __DIR__ . '/services/ingest.php';
         $site = DB::fetch('SELECT profile_summary, role_mission, content_strategy FROM sites WHERE user_id=?', [$userId]);
@@ -714,12 +754,24 @@ if ($action === 'social-source-upsert' && $method === 'POST') {
 if ($action === 'social-connection-update' && $method === 'POST') {
     $b = body();
     $platform = trim($b['platform'] ?? '');
+    $sinceDate = trim($b['since_date'] ?? '');
+    $autoPublish = (int)($b['auto_publish'] ?? 1);
+    $maxPosts = isset($b['max_posts']) && $b['max_posts'] !== '' ? (int)$b['max_posts'] : null;
+    if ($sinceDate && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $sinceDate)) $sinceDate = null;
     
     if (!in_array($platform, ['instagram', 'instagram_login', 'facebook', 'tiktok', 'youtube'], true)) {
         jsonError('Piattaforma non supportata');
     }
 
-    // Per ora non usiamo since_date, auto_publish, max_posts
+    DB::execute(
+        'UPDATE social_connections
+            SET since_date=?,
+                auto_publish=?,
+                max_posts=?
+          WHERE user_id=? AND platform=?',
+        [$sinceDate, $autoPublish, $maxPosts, $userId, $platform]
+    );
+
     json(['ok' => true]);
 }
 
@@ -1285,7 +1337,12 @@ if ($action === 'process-pending' && $method === 'POST') {
             if (!$decision['publish'] || $decision['relevance_score'] < 55 || $decision['duplicate_risk'] >= 75) {
                 // Post saltato perché non rilevante o duplicato (impostiamo seo_score=0 così esce dalla coda)
                 DB::execute('UPDATE posts SET seo_score=0 WHERE id=?', [$postId]);
-                echo json_encode(['ok' => false, 'message' => 'Post scartato dal curatore AI (punteggio basso o non rilevante)']);
+                echo json_encode([
+                    'ok' => true,
+                    'status' => 'skipped',
+                    'published' => false,
+                    'message' => 'Post scartato dal curatore AI (punteggio basso o non rilevante)'
+                ]);
                 exit;
             }
 
@@ -1295,11 +1352,22 @@ if ($action === 'process-pending' && $method === 'POST') {
             
             // Armonizza (genera SEO)
             $res = Ingest::harmonize($userId, $postId, $autoPublish);
-            json(['ok' => true, 'id' => $postId, 'seo' => $res['seo']]);
+            json([
+                'ok' => true,
+                'status' => $autoPublish ? 'published' : 'draft',
+                'published' => (bool)$autoPublish,
+                'id' => $postId,
+                'seo' => $res['seo']
+            ]);
         } else {
             // Elimina post non validi o ignorati (es. solo immagini senza didascalia)
             DB::execute('DELETE FROM posts WHERE id=?', [$postId]);
-            json(['ok' => false, 'message' => 'Nessun testo estraibile. Post saltato.']);
+            json([
+                'ok' => true,
+                'status' => 'deleted',
+                'published' => false,
+                'message' => 'Nessun testo estraibile. Post saltato.'
+            ]);
         }
     } catch (Throwable $e) {
         // Se errore AI, mantienilo in coda o segnalalo

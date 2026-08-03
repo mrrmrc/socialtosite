@@ -8,6 +8,82 @@ require_once __DIR__ . '/../middleware/response.php';
 if (file_exists(__DIR__ . '/../middleware/logger.php')) require_once __DIR__ . '/../middleware/logger.php';
 
 class Ingest {
+    private static function cleanSiteIdentityCandidate(string $value): string {
+        $value = trim(html_entity_decode($value, ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+        $value = preg_replace('/\s+/', ' ', $value);
+        return trim((string)$value);
+    }
+
+    private static function isUsableSiteIdentity(string $value): bool {
+        $value = mb_strtolower(self::cleanSiteIdentityCandidate($value));
+        if ($value === '' || mb_strlen($value) < 3) return false;
+
+        $blocked = [
+            'error',
+            'errore',
+            'facebook',
+            'log into facebook',
+            'log in to facebook',
+            'accedi a facebook',
+            'pagina non disponibile',
+            'page not found',
+            'not found',
+            'access denied',
+            'just a moment',
+            'attention required',
+            'login',
+            'sign in',
+            'sign up',
+        ];
+
+        foreach ($blocked as $needle) {
+            if ($value === $needle || str_contains($value, $needle)) return false;
+        }
+
+        return true;
+    }
+
+    private static function titleizeWords(string $value): string {
+        $value = preg_replace('/[_\-]+/', ' ', trim($value));
+        $value = preg_replace('/(?<=\p{Ll})(?=\p{Lu})/u', ' ', $value);
+        $value = preg_replace('/\s+/', ' ', $value);
+        $value = mb_strtolower(trim((string)$value));
+        if ($value === '') return '';
+
+        $parts = preg_split('/\s+/', $value) ?: [];
+        $out = [];
+        foreach ($parts as $part) {
+            $out[] = mb_strtoupper(mb_substr($part, 0, 1)) . mb_substr($part, 1);
+        }
+        return trim(implode(' ', $out));
+    }
+
+    private static function deriveSiteIdentityFromSource(array $source): string {
+        $label = self::cleanSiteIdentityCandidate((string)($source['label'] ?? ''));
+        if ($label !== '') {
+            $label = preg_replace('/\b(facebook|instagram|youtube|tiktok|official|ufficiale)\b/i', ' ', $label);
+            $label = self::titleizeWords($label);
+            if (self::isUsableSiteIdentity($label)) return $label;
+        }
+
+        $url = trim((string)($source['url'] ?? ''));
+        if ($url !== '') {
+            $path = parse_url($url, PHP_URL_PATH) ?: '';
+            $path = trim($path, '/');
+            if ($path !== '') {
+                $segments = array_values(array_filter(explode('/', $path)));
+                $candidate = $segments[0] ?? '';
+                if ($candidate !== '') {
+                    $candidate = preg_replace('/\.(php|html?)$/i', '', $candidate);
+                    $candidate = self::titleizeWords($candidate);
+                    if (self::isUsableSiteIdentity($candidate)) return $candidate;
+                }
+            }
+        }
+
+        return '';
+    }
+
 
     // ── Rileva la piattaforma dall'URL ─────────────────────────────────────
     public static function platform(string $url): string {
@@ -301,8 +377,12 @@ class Ingest {
                         $visuals = AI::sourceProfileVisuals($source['platform'], $source['url']);
                         $logoUrl = trim($visuals['logo_url'] ?? '');
                         $coverUrl = trim($visuals['cover_url'] ?? '');
+                        $pageTitle = self::cleanSiteIdentityCandidate((string)($visuals['page_title'] ?? ''));
+                        if (!self::isUsableSiteIdentity($pageTitle)) {
+                            $pageTitle = self::deriveSiteIdentityFromSource($source);
+                        }
                         $profileDetails = array_filter([
-                            trim((string)($visuals['page_title'] ?? '')),
+                            $pageTitle,
                             trim((string)($visuals['category'] ?? '')),
                             trim((string)($visuals['description'] ?? '')),
                             trim((string)($visuals['address'] ?? '')),
@@ -326,8 +406,8 @@ class Ingest {
                                 $footerCandidate = implode(' | ', array_unique($footerParts));
                                 $summaryCandidate = trim((string)($visuals['description'] ?? ''));
 
-                                if (!empty($visuals['page_title'])) {
-                                    DB::execute('UPDATE sites SET title=? WHERE user_id=?', [$visuals['page_title'], $userId]);
+                                if ($pageTitle !== '') {
+                                    DB::execute('UPDATE sites SET title=? WHERE user_id=?', [$pageTitle, $userId]);
                                 }
                                 if ($summaryCandidate !== '' && empty($siteRecord['profile_summary']) && empty($siteRecord['bio'])) {
                                     DB::execute('UPDATE sites SET profile_summary=?, bio=COALESCE(NULLIF(bio, \'\'), ?) WHERE user_id=?', [$summaryCandidate, $summaryCandidate, $userId]);
@@ -342,6 +422,11 @@ class Ingest {
                             $savedLogo = self::saveMedia($logoUrl, $source['platform'], 'profile_logo_' . $source['id'], 'jpg');
                             if ($savedLogo && !empty($savedLogo['url'])) {
                                 DB::execute('UPDATE sites SET logo_url=? WHERE user_id=?', [$savedLogo['url'], $userId]);
+                            }
+                        } elseif ($needsLogo && $coverUrl !== '') {
+                            $savedLogoFromCover = self::saveMedia($coverUrl, $source['platform'], 'profile_logo_fallback_' . $source['id'], 'jpg');
+                            if ($savedLogoFromCover && !empty($savedLogoFromCover['url'])) {
+                                DB::execute('UPDATE sites SET logo_url=? WHERE user_id=?', [$savedLogoFromCover['url'], $userId]);
                             }
                         }
 

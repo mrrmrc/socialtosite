@@ -6,6 +6,41 @@ if (file_exists(__DIR__ . '/../../config/keys.php')) require_once __DIR__ . '/..
 if (file_exists(__DIR__ . '/../middleware/logger.php')) require_once __DIR__ . '/../middleware/logger.php';
 
 class AI {
+    private static function sanitizeProfileText(string $text): string {
+        $text = trim(html_entity_decode($text, ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+        $text = preg_replace('/\s+/', ' ', $text);
+        return trim((string)$text);
+    }
+
+    private static function isGenericProfileTitle(string $title): bool {
+        $title = mb_strtolower(self::sanitizeProfileText($title));
+        if ($title === '') return true;
+
+        $blocked = [
+            'error',
+            'errore',
+            'facebook',
+            'log into facebook',
+            'log in to facebook',
+            'accedi a facebook',
+            'access denied',
+            'pagina non disponibile',
+            'page not found',
+            'not found',
+            'just a moment',
+            'attention required',
+            'login',
+            'sign in',
+            'sign up',
+        ];
+
+        foreach ($blocked as $needle) {
+            if ($title === $needle || str_contains($title, $needle)) return true;
+        }
+
+        return mb_strlen($title) < 3;
+    }
+
 
     private static function loadDesignLibrary(): array {
         static $library = null;
@@ -635,15 +670,20 @@ Restituisci SOLO la nuova memoria aggiornata (testo semplice), nient'altro.";
             $email = trim($mEmail[1]);
         }
 
+        $pageTitle = self::sanitizeProfileText($pageTitle);
+        if (self::isGenericProfileTitle($pageTitle)) {
+            $pageTitle = '';
+        }
+
         return [
-            'logo_url' => $ogImage,
-            'cover_url' => $ogImage,
+            'logo_url' => trim((string)$ogImage),
+            'cover_url' => trim((string)$ogImage),
             'page_title' => $pageTitle,
-            'description' => $description,
-            'category' => $category,
-            'address' => $address,
-            'phone' => $phone,
-            'email' => $email,
+            'description' => self::sanitizeProfileText((string)$description),
+            'category' => self::sanitizeProfileText((string)$category),
+            'address' => self::sanitizeProfileText((string)$address),
+            'phone' => self::sanitizeProfileText((string)$phone),
+            'email' => self::sanitizeProfileText((string)$email),
         ];
     }
 
@@ -653,15 +693,23 @@ Restituisci SOLO la nuova memoria aggiornata (testo semplice), nient'altro.";
             try {
                 $profile = self::nodeScrape($platform, $url, -1);
                 if (is_array($profile) && (!empty($profile['profileImage']) || !empty($profile['coverImage']))) {
+                    $pageTitle = self::sanitizeProfileText((string)($profile['pageTitle'] ?? ($fallback['page_title'] ?? '')));
+                    if (self::isGenericProfileTitle($pageTitle)) {
+                        $pageTitle = trim((string)($fallback['page_title'] ?? ''));
+                        if (self::isGenericProfileTitle($pageTitle)) {
+                            $pageTitle = '';
+                        }
+                    }
+
                     return [
                         'logo_url' => trim($profile['profileImage'] ?? ''),
                         'cover_url' => trim($profile['coverImage'] ?? ($profile['profileImage'] ?? '')),
-                        'page_title' => trim($profile['pageTitle'] ?? ($fallback['page_title'] ?? '')),
-                        'description' => trim($fallback['description'] ?? ''),
-                        'category' => trim($fallback['category'] ?? ''),
-                        'address' => trim($fallback['address'] ?? ''),
-                        'phone' => trim($fallback['phone'] ?? ''),
-                        'email' => trim($fallback['email'] ?? ''),
+                        'page_title' => $pageTitle,
+                        'description' => self::sanitizeProfileText((string)($fallback['description'] ?? '')),
+                        'category' => self::sanitizeProfileText((string)($fallback['category'] ?? '')),
+                        'address' => self::sanitizeProfileText((string)($fallback['address'] ?? '')),
+                        'phone' => self::sanitizeProfileText((string)($fallback['phone'] ?? '')),
+                        'email' => self::sanitizeProfileText((string)($fallback['email'] ?? '')),
                     ];
                 }
             } catch (Throwable $e) {
