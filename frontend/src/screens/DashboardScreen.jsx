@@ -84,8 +84,7 @@ function encodeStudioPreviewData(data) {
   }
 }
 
-export 
-function DashboardScreen({ token, user, onLogout }) {
+export function DashboardScreen({ token, user, onLogout }) {
   const [tab, setTab] = useState('overview');
   const [dashboardFilter, setDashboardFilter] = useState('all');
   const [data, setData] = useState(null);
