@@ -37,6 +37,7 @@ require_once __DIR__ . '/middleware/response.php';
 require_once __DIR__ . '/middleware/logger.php';
 require_once __DIR__ . '/services/sync.php';
 require_once __DIR__ . '/services/ingest.php';
+require_once __DIR__ . '/services/editorial_engine.php';
 
 cors();
 
@@ -70,6 +71,11 @@ function ensureSiteSchemaUpgrades(): void {
         'ALTER TABLE sites ADD COLUMN generated_layouts LONGTEXT NULL',
         'ALTER TABLE sites ADD COLUMN site_ai_data LONGTEXT NULL',
         'ALTER TABLE sites ADD COLUMN design_archetype VARCHAR(100) NULL',
+        'ALTER TABLE sites ADD COLUMN editorial_dna LONGTEXT NULL',
+        'ALTER TABLE sites ADD COLUMN editorial_memory LONGTEXT NULL',
+        'ALTER TABLE sites ADD COLUMN editorial_engine_state LONGTEXT NULL',
+        'ALTER TABLE sites ADD COLUMN editorial_settings LONGTEXT NULL',
+        'ALTER TABLE sites ADD COLUMN editorial_last_run DATETIME NULL',
     ];
 
     foreach ($queries as $query) {
@@ -132,6 +138,11 @@ if (in_array($action, ['login', 'register', 'site-public', 'debug-site', 'migrat
         try { DB::execute('ALTER TABLE sites ADD COLUMN custom_css TEXT NULL'); } catch (Throwable $e) {}
         try { DB::execute('ALTER TABLE sites ADD COLUMN generated_layouts LONGTEXT NULL'); } catch (Throwable $e) {}
         try { DB::execute('ALTER TABLE sites ADD COLUMN site_ai_data LONGTEXT NULL'); } catch (Throwable $e) {}
+        try { DB::execute('ALTER TABLE sites ADD COLUMN editorial_dna LONGTEXT NULL'); } catch (Throwable $e) {}
+        try { DB::execute('ALTER TABLE sites ADD COLUMN editorial_memory LONGTEXT NULL'); } catch (Throwable $e) {}
+        try { DB::execute('ALTER TABLE sites ADD COLUMN editorial_engine_state LONGTEXT NULL'); } catch (Throwable $e) {}
+        try { DB::execute('ALTER TABLE sites ADD COLUMN editorial_settings LONGTEXT NULL'); } catch (Throwable $e) {}
+        try { DB::execute('ALTER TABLE sites ADD COLUMN editorial_last_run DATETIME NULL'); } catch (Throwable $e) {}
         try { DB::execute('ALTER TABLE posts ADD COLUMN featured TINYINT DEFAULT 0'); } catch (Throwable $e) {}
         try { DB::execute('ALTER TABLE posts ADD COLUMN edited_title VARCHAR(255) NULL'); } catch (Throwable $e) {}
         try { DB::execute('ALTER TABLE posts ADD COLUMN edited_body LONGTEXT NULL'); } catch (Throwable $e) {}
@@ -539,6 +550,28 @@ if ($action === 'admin-prompts' && $method === 'GET') {
     json(['prompts' => $prompts]);
 }
 
+if ($action === 'admin-editorial-engine' && $method === 'GET') {
+    requireAdmin($isAdmin);
+    json(['ok' => true, 'engine' => EditorialEngine::getState($userId)]);
+}
+
+if ($action === 'admin-editorial-engine-save' && $method === 'POST') {
+    requireAdmin($isAdmin);
+    $b = body();
+    $settings = EditorialEngine::saveSettings($userId, [
+        'enabled' => !empty($b['enabled']),
+        'auto_run' => !empty($b['auto_run']),
+        'min_posts' => max(3, (int)($b['min_posts'] ?? 8)),
+        'strict_indexing_mode' => !empty($b['strict_indexing_mode']),
+    ]);
+    json(['ok' => true, 'settings' => $settings]);
+}
+
+if ($action === 'admin-editorial-engine-run' && $method === 'POST') {
+    requireAdmin($isAdmin);
+    json(['ok' => true, 'result' => EditorialEngine::run($userId)]);
+}
+
 if ($action === 'admin-update-prompt' && $method === 'POST') {
     requireAdmin($isAdmin);
     $b = body();
@@ -822,7 +855,12 @@ if ($action === 'site' && $method === 'GET') {
     try {
         $site  = DB::fetch('SELECT * FROM sites WHERE user_id=?', [$userId]);
         $posts = DB::fetchAll(
-            'SELECT id, user_id, platform, platform_post_id, SUBSTR(raw_content, 1, 500) as raw_content, generated_title, generated_excerpt, generated_body, edited_body, tags, media_url, media_type, source_url, published_at, seo_score, slug, published FROM posts WHERE user_id=? ORDER BY published_at DESC LIMIT 300',
+            'SELECT id, user_id, platform, platform_post_id, SUBSTR(raw_content, 1, 500) as raw_content, generated_title, generated_excerpt, generated_body, edited_body, tags, media_url, media_type, source_url, published_at, seo_score, slug, published
+               FROM posts
+              WHERE user_id=?
+                AND seo_score >= 0
+              ORDER BY published_at DESC
+              LIMIT 300',
             [$userId]
         );
         file_put_contents(__DIR__ . '/../public/debug.json', json_encode(array_map(function($p) { return ['id' => $p['id'], 'title' => $p['generated_title'], 'gen_body_len' => strlen($p['generated_body'] ?? ''), 'edited_body_len' => strlen($p['edited_body'] ?? '')]; }, array_slice($posts, 0, 10))));
@@ -964,7 +1002,7 @@ if ($action === 'design-site' && $method === 'POST') {
     try {
         ensureSiteSchemaUpgrades();
         require_once __DIR__ . '/services/ai.php';
-        $site = DB::fetch('SELECT profile_summary, bio, role_mission, content_strategy FROM sites WHERE user_id=?', [$userId]);
+        $site = DB::fetch('SELECT profile_summary, bio, role_mission, content_strategy, title, footer_text FROM sites WHERE user_id=?', [$userId]);
         $summary = trim($site['profile_summary'] ?? $site['bio'] ?? '');
         $role    = trim($site['role_mission'] ?? '');
         $strategy = trim($site['content_strategy'] ?? '');
@@ -999,9 +1037,9 @@ if ($action === 'design-site' && $method === 'POST') {
                 generated_layouts=?, hero_tagline=?, cover_url=COALESCE(NULLIF(?,\'\'), cover_url)
              WHERE user_id=?',
             [
-                $seo['title'] ?? '', $seo['bio'] ?? '',
+                $site['title'] ?? ($seo['title'] ?? ''), $seo['bio'] ?? '',
                 isset($seo['menu_links']) ? json_encode($seo['menu_links'], JSON_UNESCAPED_UNICODE) : '',
-                $seo['footer_text'] ?? '',
+                $site['footer_text'] ?? ($seo['footer_text'] ?? ''),
                 $g['design_archetype'] ?? 'classic', 
                 $g['color_palette']['primary'] ?? '',
                 $g['header_layout'] ?? 'standard', $g['custom_css'] ?? '',
@@ -1060,7 +1098,7 @@ if ($action === 'site-ai' && $method === 'POST') {
                 cover_url=COALESCE(NULLIF(?, \'\'), cover_url), site_ai_data=?
              WHERE user_id=?',
             [
-                $result['title'] ?? '',
+                $site['title'] ?? ($result['title'] ?? ''),
                 $result['bio'] ?? '',
                 $result['role_mission'] ?? $role,
                 $result['theme'] ?? 'classic',
@@ -1069,7 +1107,7 @@ if ($action === 'site-ai' && $method === 'POST') {
                 $result['accent_secondary'] ?? '',
                 $result['header_layout'] ?? 'standard',
                 isset($result['menu_links']) ? json_encode($result['menu_links'], JSON_UNESCAPED_UNICODE) : '',
-                $result['footer_text'] ?? '',
+                $site['footer_text'] ?? ($result['footer_text'] ?? ''),
                 $result['custom_css'] ?? '',
                 $result['hero_tagline'] ?? '',
                 $result['cta_text'] ?? '',
@@ -1379,6 +1417,13 @@ if ($action === 'finalize-sync' && $method === 'POST') {
                 DB::execute('UPDATE posts SET featured=0 WHERE user_id=?', [$userId]);
                 DB::execute('UPDATE posts SET featured=1 WHERE id=? AND user_id=?', [$featuredId, $userId]);
             }
+        }
+    } catch (Throwable $e) { }
+
+    try {
+        $engineState = EditorialEngine::getState($userId);
+        if (!empty($engineState['settings']['enabled']) && !empty($engineState['settings']['auto_run'])) {
+            EditorialEngine::run($userId);
         }
     } catch (Throwable $e) { }
 

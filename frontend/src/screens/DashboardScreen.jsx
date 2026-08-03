@@ -140,6 +140,9 @@ const [importMsg, setImportMsg] = useState(null);
   const [studioSourceLabel, setStudioSourceLabel] = useState('Workspace corrente');
   const [studioControlsOpen, setStudioControlsOpen] = useState(true);
   const [studioPreviewUrl, setStudioPreviewUrl] = useState('');
+  const [editorialEngine, setEditorialEngine] = useState({ settings: { enabled: true, auto_run: true, min_posts: 8, strict_indexing_mode: true }, dna: {}, memory: {}, state: {}, last_run: null });
+  const [editorialEngineBusy, setEditorialEngineBusy] = useState(false);
+  const [editorialEngineMsg, setEditorialEngineMsg] = useState(null);
   const deferredStudio = useDeferredValue(templateStudio);
   const siteUrl = `${window.location.origin}/${user?.slug}`;
 
@@ -177,6 +180,48 @@ const [importMsg, setImportMsg] = useState(null);
       setGscVerification(d.site?.gsc_verification || '');
       setHarmonizeAgent(d.site?.harmonize_agent || 'content_editor');
       setAccountType(d.site?.account_type || 'business');
+      let parsedEditorialSettings = { enabled: true, auto_run: true, min_posts: 8, strict_indexing_mode: true };
+      let parsedEditorialDna = {};
+      let parsedEditorialMemory = {};
+      let parsedEditorialState = {};
+      try {
+        if (d.site?.editorial_settings) {
+          parsedEditorialSettings = {
+            ...parsedEditorialSettings,
+            ...(typeof d.site.editorial_settings === 'string' ? JSON.parse(d.site.editorial_settings) : d.site.editorial_settings),
+          };
+        }
+      } catch (e) {
+        console.error('Errore parse editorial_settings:', e);
+      }
+      try {
+        if (d.site?.editorial_dna) {
+          parsedEditorialDna = typeof d.site.editorial_dna === 'string' ? JSON.parse(d.site.editorial_dna) : d.site.editorial_dna;
+        }
+      } catch (e) {
+        console.error('Errore parse editorial_dna:', e);
+      }
+      try {
+        if (d.site?.editorial_memory) {
+          parsedEditorialMemory = typeof d.site.editorial_memory === 'string' ? JSON.parse(d.site.editorial_memory) : d.site.editorial_memory;
+        }
+      } catch (e) {
+        console.error('Errore parse editorial_memory:', e);
+      }
+      try {
+        if (d.site?.editorial_engine_state) {
+          parsedEditorialState = typeof d.site.editorial_engine_state === 'string' ? JSON.parse(d.site.editorial_engine_state) : d.site.editorial_engine_state;
+        }
+      } catch (e) {
+        console.error('Errore parse editorial_engine_state:', e);
+      }
+      setEditorialEngine({
+        settings: parsedEditorialSettings || {},
+        dna: parsedEditorialDna || {},
+        memory: parsedEditorialMemory || {},
+        state: parsedEditorialState || {},
+        last_run: d.site?.editorial_last_run || null,
+      });
       let parsedSiteAiData = null;
       if (d.site?.site_ai_data) {
         try {
@@ -761,6 +806,48 @@ const [importMsg, setImportMsg] = useState(null);
     setSavingTemplateStudio(false);
   }
 
+  async function saveEditorialEngineSettings() {
+    setEditorialEngineBusy(true);
+    setEditorialEngineMsg(null);
+    try {
+      const res = await apiFetch('/api/index.php?action=admin-editorial-engine-save', {
+        method: 'POST',
+        body: JSON.stringify(editorialEngine.settings),
+      }, token);
+      setEditorialEngine(prev => ({ ...prev, settings: res.settings || prev.settings }));
+      setEditorialEngineMsg({ ok: true, text: 'Impostazioni motore editoriale salvate.' });
+      await loadData();
+    } catch (err) {
+      setEditorialEngineMsg({ ok: false, text: err.message });
+    }
+    setEditorialEngineBusy(false);
+  }
+
+  async function runEditorialEngine() {
+    setEditorialEngineBusy(true);
+    setEditorialEngineMsg({ ok: true, text: 'Analisi editoriale in corso...', loading: true });
+    try {
+      const res = await apiFetch('/api/index.php?action=admin-editorial-engine-run', {
+        method: 'POST',
+      }, token);
+      if (res?.result) {
+        setEditorialEngine(prev => ({
+          ...prev,
+          dna: res.result.editorial_dna || prev.dna,
+          memory: res.result.editorial_memory || prev.memory,
+          state: res.result.editorial_state || prev.state,
+          settings: res.result.settings || prev.settings,
+          last_run: new Date().toISOString(),
+        }));
+      }
+      setEditorialEngineMsg({ ok: true, text: 'Motore editoriale aggiornato con successo.' });
+      await loadData();
+    } catch (err) {
+      setEditorialEngineMsg({ ok: false, text: err.message });
+    }
+    setEditorialEngineBusy(false);
+  }
+
   // --- Funzioni Admin Prompts ---
   const [adminPrompts, setAdminPrompts] = useState([]);
   
@@ -789,14 +876,19 @@ const [importMsg, setImportMsg] = useState(null);
     if (tab === 'admin' && user?.role === 'admin') loadAdminPrompts();
   }, [tab]);
 
-  // ── SITO AI ──────────────────────────────────────────────────────────────
-  const [siteAiLoading, setSiteAiLoading] = useState(false);
-  const [siteAiResult, setSiteAiResult] = useState(null);
+  useEffect(() => {
+    if (tab !== 'settings') {
+      setStudioWorkspaceOpen(false);
+      return;
+    }
+    setStudioSourceLabel('Layout attuale');
+    setStudioWorkspaceOpen(true);
+  }, [tab]);
 
     async function regenerateMenuAi() {
     setRegeneratingMenu(true);
     try {
-      const res = await apiFetch('/api/index.php?action=chief-editor', { method: 'POST' }, token);
+      await apiFetch('/api/index.php?action=chief-editor', { method: 'POST' }, token);
       await loadData();
       alert("Menu e categorie rigenerate con successo in base ai contenuti!");
     } catch (err) {
@@ -805,22 +897,8 @@ const [importMsg, setImportMsg] = useState(null);
     setRegeneratingMenu(false);
   }
 
-async function runSiteAi() {
-    if (!data?.site?.profile_summary && !data?.site?.bio) {
-      alert('Prima esegui una scansione dei social per generare il profilo. Vai in "Fonti" → Scansiona social.');
-      return;
-    }
-    if (!confirm('L\'AI genererà un sito completamente personalizzato al tuo profilo (tema, colori, testi, CSS). Sovrascriverà le impostazioni attuali. Procedere?')) return;
-    setSiteAiLoading(true);
-    try {
-      const res = await apiFetch('/api/index.php?action=site-ai', { method: 'POST' }, token);
-      setSiteAiResult(res.result);
-      await loadData();
-    } catch (err) {
-      alert('Errore SITO AI: ' + err.message);
-    }
-    setSiteAiLoading(false);
-  }
+
+
 
   // ── CMS Editoriale ───────────────────────────────────────────────────────
   const [editingPost, setEditingPost] = useState(null); // {id, title, body, excerpt, tags}
@@ -965,8 +1043,8 @@ async function runSiteAi() {
         {/* Mobile Header (Only visible on mobile) */}
         <div className="mobile-top-header">
           <div style={{ fontWeight: 800, fontSize: '16px', color: 'var(--primary)' }}><img src="/logo.png" alt="allsocialtoweb.com" style={{ height: '24px' }} /></div>
-          <button className="btn btn-primary" onClick={runSiteAi} disabled={siteAiLoading} style={{ padding: '8px 16px', fontSize: '12px' }}>
-            {siteAiLoading ? '✨' : '✨ SITO AI'}
+          <button className="btn btn-outline" onClick={syncNow} disabled={syncing} style={{ padding: '8px 16px', fontSize: '12px' }}>
+            {syncing ? '?' : '? Social'}
           </button>
         </div>
 
@@ -983,27 +1061,11 @@ async function runSiteAi() {
               {tab === 'admin' && 'Pannello Admin'}
             </h1>
             <div style={{ display: 'flex', gap: '12px' }}>
-              <button className="btn btn-primary" onClick={runSiteAi} disabled={siteAiLoading} style={{ background: siteAiLoading ? 'var(--purple-dark)' : 'linear-gradient(135deg, #7F77DD, #534AB7)', fontSize: '14px', fontWeight: 600, boxShadow: '0 4px 12px rgba(127,119,221,0.3)', padding: '10px 20px', borderRadius: '10px' }} title="L'AI genera il tuo sito personalizzato al 100% in base al tuo profilo">
-                {siteAiLoading ? '✨ Generazione...' : '✨ Genera SITO AI'}
-              </button>
               <button className="btn btn-outline" onClick={syncNow} disabled={syncing} style={{ background: 'var(--surface)', border: '1px solid var(--border-strong)', padding: '10px 20px', borderRadius: '10px' }}>
                 {syncing ? '⟳ Sync...' : '↻ Aggiorna Social'}
               </button>
             </div>
           </div>
-        {/* Banner SITO AI */}
-        {siteAiResult && (
-          <div style={{ background: 'linear-gradient(135deg,#534AB7,#7F77DD)', color: '#fff', borderRadius: 'var(--radius)', padding: '1.25rem 1.5rem', marginBottom: '1.25rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap' }}>
-            <div>
-              <div style={{ fontWeight: 700, fontSize: '15px', marginBottom: '4px' }}>✨ Sito AI generato con successo!</div>
-              <div style={{ fontSize: '13px', opacity: 0.85 }}>Tema: <b>{siteAiResult.design_archetype || siteAiResult.theme}</b> · Colore: <b>{siteAiResult.color_palette?.primary || siteAiResult.accent_color}</b> · Tagline: "{siteAiResult.hero_tagline}"</div>
-            </div>
-            <div style={{ display: 'flex', gap: '8px' }}>
-              <a href={siteUrl} target="_blank" rel="noopener" style={{ background: 'rgba(255,255,255,0.2)', color: '#fff', padding: '7px 16px', borderRadius: 'var(--radius-sm)', fontSize: '13px', fontWeight: 600, textDecoration: 'none' }}>🌍 Vedi sito</a>
-              <button onClick={() => setSiteAiResult(null)} style={{ background: 'transparent', color: 'rgba(255,255,255,0.6)', border: 'none', cursor: 'pointer', fontSize: '18px' }}>✕</button>
-            </div>
-          </div>
-        )}
         {syncMsg && (
           <div style={{ marginBottom: '1rem', padding: '12px 16px', borderRadius: 'var(--radius-sm)', fontSize: '14px',
             background: syncMsg.ok ? (syncMsg.loading ? 'var(--blue-light)' : 'var(--teal-light)') : 'var(--red-light)',
@@ -2118,6 +2180,104 @@ async function runSiteAi() {
                   </button>
                 </div>
               </>
+            )}
+
+            {isAdmin && (
+              <div className="glass-modal" style={{ marginBottom: '1.5rem', padding: '1.5rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem', alignItems: 'flex-start', flexWrap: 'wrap', marginBottom: '1rem' }}>
+                  <div>
+                    <h3 style={{ marginBottom: '0.5rem', color: 'var(--primary)' }}>Motore Editoriale SEO</h3>
+                    <p style={{ fontSize: '14px', color: 'var(--text-muted)', margin: 0, fontWeight: 500 }}>
+                      Questo layer trasforma i contenuti social in una continuità editoriale indicizzabile: cluster, gap, pagine pilastro, linking interno e priorità SEO.
+                    </p>
+                  </div>
+                  <button className="btn btn-primary" onClick={runEditorialEngine} disabled={editorialEngineBusy} style={{ padding: '12px 20px', fontWeight: 700 }}>
+                    {editorialEngineBusy ? '⟳ Analisi...' : 'Analizza ora'}
+                  </button>
+                </div>
+
+                {editorialEngineMsg && (
+                  <div style={{
+                    marginBottom: '1rem',
+                    padding: '12px 16px',
+                    borderRadius: 'var(--radius-sm)',
+                    fontSize: '14px',
+                    background: editorialEngineMsg.ok ? 'var(--teal-light)' : 'var(--red-light)',
+                    color: editorialEngineMsg.ok ? '#0F6E56' : 'var(--red)',
+                  }}>
+                    {editorialEngineMsg.text}
+                  </div>
+                )}
+
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem', marginBottom: '1rem' }}>
+                  <div className="card" style={{ padding: '1rem' }}>
+                    <div style={{ fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>Stato</div>
+                    <div style={{ fontWeight: 800, fontSize: '16px', color: 'var(--text)' }}>{editorialEngine.state?.status || 'non inizializzato'}</div>
+                  </div>
+                  <div className="card" style={{ padding: '1rem' }}>
+                    <div style={{ fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>Ultima analisi</div>
+                    <div style={{ fontWeight: 800, fontSize: '16px', color: 'var(--text)' }}>
+                      {editorialEngine.last_run ? new Date(editorialEngine.last_run).toLocaleString('it-IT') : 'Mai'}
+                    </div>
+                  </div>
+                  <div className="card" style={{ padding: '1rem' }}>
+                    <div style={{ fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>Featured suggerito</div>
+                    <div style={{ fontWeight: 800, fontSize: '16px', color: 'var(--text)' }}>#{editorialEngine.state?.featured_post_id || '-'}</div>
+                  </div>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem', marginBottom: '1rem' }}>
+                  <label className="card" style={{ padding: '1rem', display: 'grid', gap: '0.5rem' }}>
+                    <span style={{ fontWeight: 700, color: 'var(--text)' }}>Motore attivo</span>
+                    <input type="checkbox" checked={!!editorialEngine.settings?.enabled} onChange={e => setEditorialEngine(prev => ({ ...prev, settings: { ...prev.settings, enabled: e.target.checked } }))} />
+                  </label>
+                  <label className="card" style={{ padding: '1rem', display: 'grid', gap: '0.5rem' }}>
+                    <span style={{ fontWeight: 700, color: 'var(--text)' }}>Auto-run a fine sync</span>
+                    <input type="checkbox" checked={!!editorialEngine.settings?.auto_run} onChange={e => setEditorialEngine(prev => ({ ...prev, settings: { ...prev.settings, auto_run: e.target.checked } }))} />
+                  </label>
+                  <label className="card" style={{ padding: '1rem', display: 'grid', gap: '0.5rem' }}>
+                    <span style={{ fontWeight: 700, color: 'var(--text)' }}>Strict indexing mode</span>
+                    <input type="checkbox" checked={!!editorialEngine.settings?.strict_indexing_mode} onChange={e => setEditorialEngine(prev => ({ ...prev, settings: { ...prev.settings, strict_indexing_mode: e.target.checked } }))} />
+                  </label>
+                  <label className="card" style={{ padding: '1rem', display: 'grid', gap: '0.5rem' }}>
+                    <span style={{ fontWeight: 700, color: 'var(--text)' }}>Minimo post pubblicati</span>
+                    <input type="number" min="3" max="50" value={editorialEngine.settings?.min_posts || 8} onChange={e => setEditorialEngine(prev => ({ ...prev, settings: { ...prev.settings, min_posts: Math.max(3, parseInt(e.target.value || '8', 10)) } }))} />
+                  </label>
+                </div>
+
+                <button className="btn btn-outline" onClick={saveEditorialEngineSettings} disabled={editorialEngineBusy} style={{ padding: '12px 20px', fontWeight: 700, marginBottom: '1rem' }}>
+                  Salva impostazioni motore
+                </button>
+
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1rem' }}>
+                  <div className="card" style={{ padding: '1rem' }}>
+                    <div style={{ fontWeight: 800, marginBottom: '0.75rem', color: 'var(--text)' }}>Topic Clusters</div>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                      {(editorialEngine.dna?.topic_clusters || []).map((item, idx) => (
+                        <span key={idx} style={{ padding: '6px 10px', borderRadius: '999px', background: 'var(--primary-light)', color: 'var(--primary)', fontSize: '12px', fontWeight: 700 }}>{item}</span>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="card" style={{ padding: '1rem' }}>
+                    <div style={{ fontWeight: 800, marginBottom: '0.75rem', color: 'var(--text)' }}>Gap editoriali</div>
+                    <ul style={{ margin: 0, paddingLeft: '18px', color: 'var(--text-muted)' }}>
+                      {(editorialEngine.memory?.content_gaps || []).map((item, idx) => <li key={idx}>{item}</li>)}
+                    </ul>
+                  </div>
+                  <div className="card" style={{ padding: '1rem' }}>
+                    <div style={{ fontWeight: 800, marginBottom: '0.75rem', color: 'var(--text)' }}>Prossime azioni</div>
+                    <ul style={{ margin: 0, paddingLeft: '18px', color: 'var(--text-muted)' }}>
+                      {(editorialEngine.state?.next_actions || []).map((item, idx) => <li key={idx}>{item}</li>)}
+                    </ul>
+                  </div>
+                  <div className="card" style={{ padding: '1rem' }}>
+                    <div style={{ fontWeight: 800, marginBottom: '0.75rem', color: 'var(--text)' }}>Pagine pilastro</div>
+                    <ul style={{ margin: 0, paddingLeft: '18px', color: 'var(--text-muted)' }}>
+                      {(editorialEngine.memory?.cornerstone_pages || []).map((item, idx) => <li key={idx}>{item}</li>)}
+                    </ul>
+                  </div>
+                </div>
+              </div>
             )}
 
             <div className="glass-modal" style={{ marginBottom: '1.5rem', padding: '1.5rem' }}>

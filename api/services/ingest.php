@@ -326,22 +326,22 @@ class Ingest {
                                 $footerCandidate = implode(' | ', array_unique($footerParts));
                                 $summaryCandidate = trim((string)($visuals['description'] ?? ''));
 
-                                if (empty($siteRecord['title']) && !empty($visuals['page_title'])) {
+                                if (!empty($visuals['page_title'])) {
                                     DB::execute('UPDATE sites SET title=? WHERE user_id=?', [$visuals['page_title'], $userId]);
                                 }
                                 if ($summaryCandidate !== '' && empty($siteRecord['profile_summary']) && empty($siteRecord['bio'])) {
                                     DB::execute('UPDATE sites SET profile_summary=?, bio=COALESCE(NULLIF(bio, \'\'), ?) WHERE user_id=?', [$summaryCandidate, $summaryCandidate, $userId]);
                                 }
-                                if ($footerCandidate !== '' && empty($siteRecord['footer_text'])) {
+                                if ($footerCandidate !== '') {
                                     DB::execute('UPDATE sites SET footer_text=? WHERE user_id=?', [$footerCandidate, $userId]);
                                 }
                             }
                         }
 
-                        if ($needsLogo && $logoUrl !== '') {
+                        if (($needsLogo || $source['platform'] === 'facebook') && $logoUrl !== '') {
                             $savedLogo = self::saveMedia($logoUrl, $source['platform'], 'profile_logo_' . $source['id'], 'jpg');
                             if ($savedLogo && !empty($savedLogo['url'])) {
-                                DB::execute('UPDATE sites SET logo_url=COALESCE(NULLIF(logo_url, \'\'), ?) WHERE user_id=?', [$savedLogo['url'], $userId]);
+                                DB::execute('UPDATE sites SET logo_url=? WHERE user_id=?', [$savedLogo['url'], $userId]);
                             }
                         }
 

@@ -992,6 +992,116 @@ Restituisci SOLO la nuova memoria aggiornata (testo semplice), nient'altro.";
     }
 
     // ── AGENTE 1: risolve un link social via Apify → caption + media ───────
+    public static function editorialEngineBlueprint(array $site, array $sources, array $posts, array $existingDna = [], array $existingMemory = [], array $settings = []): array {
+        $sourceLines = [];
+        foreach ($sources as $source) {
+            $sourceLines[] = '[' . strtoupper((string)($source['platform'] ?? 'source')) . '] '
+                . trim((string)(($source['label'] ?? '') ?: ($source['url'] ?? '')))
+                . (!empty($source['topic_summary']) ? ' — ' . trim((string)$source['topic_summary']) : '');
+        }
+
+        $postLines = [];
+        foreach ($posts as $post) {
+            $tags = json_decode((string)($post['tags'] ?? '[]'), true);
+            if (!is_array($tags)) $tags = [];
+            $postLines[] = json_encode([
+                'id' => (int)($post['id'] ?? 0),
+                'title' => trim((string)(($post['edited_title'] ?? '') ?: ($post['generated_title'] ?? ''))),
+                'excerpt' => mb_substr(trim((string)(($post['edited_excerpt'] ?? '') ?: ($post['generated_excerpt'] ?? ''))), 0, 220),
+                'body_preview' => mb_substr(strip_tags((string)(($post['edited_body'] ?? '') ?: ($post['generated_body'] ?? ''))), 0, 350),
+                'tags' => array_values(array_filter(array_map('trim', $tags))),
+                'seo_score' => (int)($post['seo_score'] ?? 0),
+                'published_at' => $post['published_at'] ?? null,
+            ], JSON_UNESCAPED_UNICODE);
+        }
+
+        $prompt = "Sei un Editorial Orchestrator senior per un sito web iper-indicizzabile che assorbe contenuti dai social.\n"
+            . "Obiettivo assoluto: trasformare tanti contenuti social in un impianto editoriale coerente, continuo, indicizzabile e utile a Google.\n"
+            . "Non devi riscrivere i post. Devi progettare il motore editoriale del sito.\n\n"
+            . "DATI SITO\n"
+            . "Titolo attuale: " . trim((string)($site['title'] ?? '')) . "\n"
+            . "Profilo sintetico: " . trim((string)($site['profile_summary'] ?? ($site['bio'] ?? ''))) . "\n"
+            . "Ruolo/Missione: " . trim((string)($site['role_mission'] ?? '')) . "\n"
+            . "Strategia contenuti: " . trim((string)($site['content_strategy'] ?? '')) . "\n"
+            . "Brand voice profile: " . trim((string)($site['brand_voice_profile'] ?? '')) . "\n"
+            . "RAG knowledge: " . trim((string)($site['rag_knowledge'] ?? '')) . "\n\n"
+            . "SORGENTI SOCIAL ATTIVE\n- " . implode("\n- ", $sourceLines ?: ['Nessuna']) . "\n\n"
+            . "POST PUBBLICATI RECENTI (JSON line)\n" . implode("\n", $postLines) . "\n\n"
+            . "DNA ESISTENTE\n" . json_encode($existingDna, JSON_UNESCAPED_UNICODE) . "\n\n"
+            . "MEMORIA EDITORIALE ESISTENTE\n" . json_encode($existingMemory, JSON_UNESCAPED_UNICODE) . "\n\n"
+            . "SETTINGS MOTORE\n" . json_encode($settings, JSON_UNESCAPED_UNICODE) . "\n\n"
+            . "Restituisci SOLO JSON valido con questa struttura:\n"
+            . "{"
+            . "\"editorial_dna\":{"
+            . "\"site_objective\":\"stringa breve\","
+            . "\"audience\":\"stringa breve\","
+            . "\"positioning\":\"stringa breve\","
+            . "\"tone_rules\":[\"regola1\",\"regola2\",\"regola3\"],"
+            . "\"content_pillars\":[\"pillar1\",\"pillar2\",\"pillar3\",\"pillar4\"],"
+            . "\"topic_clusters\":[\"cluster1\",\"cluster2\",\"cluster3\",\"cluster4\"],"
+            . "\"seo_entities\":[\"entity1\",\"entity2\",\"entity3\",\"entity4\",\"entity5\"],"
+            . "\"continuity_rules\":[\"regola1\",\"regola2\",\"regola3\"],"
+            . "\"indexing_priorities\":[\"priorita1\",\"priorita2\",\"priorita3\"]"
+            . "},"
+            . "\"editorial_memory\":{"
+            . "\"covered_topics\":[\"tema1\",\"tema2\",\"tema3\"],"
+            . "\"content_gaps\":[\"gap1\",\"gap2\",\"gap3\"],"
+            . "\"internal_link_hubs\":[\"hub1\",\"hub2\",\"hub3\"],"
+            . "\"cornerstone_pages\":[\"pagina1\",\"pagina2\",\"pagina3\"]"
+            . "},"
+            . "\"editorial_state\":{"
+            . "\"featured_post_id\":123,"
+            . "\"continuity_summary\":\"2-4 frasi\","
+            . "\"next_actions\":[\"azione1\",\"azione2\",\"azione3\",\"azione4\"],"
+            . "\"next_topics\":[\"topic1\",\"topic2\",\"topic3\",\"topic4\",\"topic5\"],"
+            . "\"seo_risks\":[\"rischio1\",\"rischio2\"],"
+            . "\"status\":\"healthy|needs_more_depth|needs_cornerstones\""
+            . "}"
+            . "}\n\n"
+            . "Regole:\n"
+            . "- Ragiona come direttore editoriale SEO, non come copywriter.\n"
+            . "- Identifica ripetizioni, buchi tematici, contenuti stagionali e possibili pagine pilastro.\n"
+            . "- Le next_actions devono essere operative e orientate all'indicizzazione.\n"
+            . "- featured_post_id deve essere uno degli ID reali sopra.\n";
+
+        $text = self::gemini([['text' => $prompt]], [
+            'responseMimeType' => 'application/json',
+            'maxOutputTokens'  => 8192,
+        ]);
+        $text = preg_replace('/```json|```/', '', trim($text));
+        $result = json_decode($text, true);
+        if (!$result) {
+            return [
+                'editorial_dna' => [
+                    'site_objective' => 'Trasformare i social in un sito utile e indicizzabile',
+                    'audience' => trim((string)($site['profile_summary'] ?? '')),
+                    'positioning' => trim((string)($site['role_mission'] ?? '')),
+                    'tone_rules' => ['Mantieni coerenza con il brand voice', 'Evita duplicazioni', 'Ogni articolo deve avere un angolo utile'],
+                    'content_pillars' => [],
+                    'topic_clusters' => [],
+                    'seo_entities' => [],
+                    'continuity_rules' => ['Collega i nuovi articoli ai temi gia presenti', 'Alterna evergreen e contenuti caldi', 'Rafforza i cluster principali'],
+                    'indexing_priorities' => ['Creare pagine pilastro', 'Ridurre contenuti sovrapposti', 'Rafforzare linking interno'],
+                ],
+                'editorial_memory' => [
+                    'covered_topics' => [],
+                    'content_gaps' => [],
+                    'internal_link_hubs' => [],
+                    'cornerstone_pages' => [],
+                ],
+                'editorial_state' => [
+                    'featured_post_id' => (int)($posts[0]['id'] ?? 0),
+                    'continuity_summary' => 'Analisi editoriale disponibile in fallback locale.',
+                    'next_actions' => ['Consolidare i topic duplicati', 'Definire 2-3 pagine pilastro', 'Rafforzare linking interno'],
+                    'next_topics' => [],
+                    'seo_risks' => ['Analisi AI non disponibile'],
+                    'status' => 'needs_more_depth',
+                ],
+            ];
+        }
+        return $result;
+    }
+
     public static function apifyResolve(string $platform, string $url): array {
         if (function_exists('shell_exec')) {
             try {
