@@ -7,6 +7,95 @@ require_once __DIR__ . '/../middleware/response.php';
 require_once __DIR__ . '/../middleware/crypto.php';
 
 class Sync {
+    private static function buildFacebookPageTopic(array $page): string {
+        $parts = array_filter([
+            trim((string)($page['name'] ?? '')),
+            trim((string)($page['category'] ?? '')),
+            trim((string)($page['about'] ?? '')),
+            trim((string)($page['location']['street'] ?? '')),
+            trim((string)($page['location']['city'] ?? '')),
+            trim((string)($page['phone'] ?? '')),
+            trim((string)($page['emails'][0] ?? '')),
+            trim((string)($page['website'] ?? '')),
+        ]);
+        return implode(' | ', array_unique($parts));
+    }
+
+    private static function syncFacebookPageIdentity(int $userId, string $token): void {
+        $pages = self::get('https://graph.facebook.com/v18.0/me/accounts', '', [
+            'access_token' => $token,
+        ]);
+        $page = $pages['data'][0] ?? null;
+        if (!$page || empty($page['id'])) return;
+
+        $pageId = (string)$page['id'];
+        $details = self::get("https://graph.facebook.com/v18.0/$pageId", '', [
+            'fields' => 'id,name,about,category,emails,phone,website,link,location,cover,picture.width(512).height(512)',
+            'access_token' => $token,
+        ]);
+
+        $pageName = trim((string)($details['name'] ?? $page['name'] ?? ''));
+        $pageUrl = trim((string)($details['link'] ?? ''));
+        if ($pageUrl === '') {
+            $pageUrl = 'https://www.facebook.com/' . rawurlencode($pageId);
+        }
+
+        $logoUrl = trim((string)($details['picture']['data']['url'] ?? ''));
+        $coverUrl = trim((string)($details['cover']['source'] ?? ''));
+        $description = trim((string)($details['about'] ?? ''));
+        $footerParts = array_filter([
+            trim((string)($details['location']['street'] ?? '')),
+            trim((string)($details['location']['city'] ?? '')),
+            trim((string)($details['phone'] ?? '')),
+            trim((string)($details['emails'][0] ?? '')),
+            trim((string)($details['website'] ?? '')),
+        ]);
+        $footerText = implode(' | ', array_unique($footerParts));
+        $topicSummary = self::buildFacebookPageTopic($details);
+
+        $source = DB::fetch('SELECT id FROM social_sources WHERE user_id=? AND platform=? LIMIT 1', [$userId, 'facebook']);
+        if ($source) {
+            DB::execute(
+                'UPDATE social_sources
+                    SET label=?, url=?, topic_summary=?, active=1
+                  WHERE id=? AND user_id=?',
+                [$pageName ?: 'Facebook', $pageUrl, $topicSummary, $source['id'], $userId]
+            );
+        } else {
+            DB::insert(
+                'INSERT INTO social_sources (user_id, platform, label, url, topic_summary, active)
+                 VALUES (?,?,?,?,?,1)',
+                [$userId, 'facebook', $pageName ?: 'Facebook', $pageUrl, $topicSummary]
+            );
+        }
+
+        $site = DB::fetch('SELECT title, profile_summary, bio, footer_text, logo_url, cover_url FROM sites WHERE user_id=?', [$userId]) ?: [];
+
+        if ($pageName !== '') {
+            DB::execute('UPDATE sites SET title=? WHERE user_id=?', [$pageName, $userId]);
+        }
+        if ($description !== '' && empty($site['profile_summary']) && empty($site['bio'])) {
+            DB::execute('UPDATE sites SET profile_summary=?, bio=COALESCE(NULLIF(bio, \'\'), ?) WHERE user_id=?', [$description, $description, $userId]);
+        }
+        if ($footerText !== '') {
+            DB::execute('UPDATE sites SET footer_text=? WHERE user_id=?', [$footerText, $userId]);
+        }
+
+        require_once __DIR__ . '/ingest.php';
+        if ($logoUrl !== '') {
+            $savedLogo = Ingest::saveMedia($logoUrl, 'facebook', 'oauth_page_logo_' . $pageId, 'jpg');
+            if ($savedLogo && !empty($savedLogo['url'])) {
+                DB::execute('UPDATE sites SET logo_url=? WHERE user_id=?', [$savedLogo['url'], $userId]);
+            }
+        }
+        if ($coverUrl !== '') {
+            $savedCover = Ingest::saveMedia($coverUrl, 'facebook', 'oauth_page_cover_' . $pageId, 'jpg');
+            if ($savedCover && !empty($savedCover['url'])) {
+                DB::execute('UPDATE sites SET cover_url=? WHERE user_id=?', [$savedCover['url'], $userId]);
+            }
+        }
+    }
+
     private static function isLocalMediaUrl(string $url): bool {
         return $url !== '' && strpos($url, '/public/media/') !== false;
     }
@@ -417,6 +506,7 @@ class Sync {
     public static function facebook(int $userId, string $token, int $maxPosts = 20, ?string $sinceDate = null, int $autoPublish = 1): array {
         $log = ['platform' => 'facebook', 'found' => 0, 'new' => 0, 'error' => null];
         try {
+            self::syncFacebookPageIdentity($userId, $token);
             // Cerchiamo i post dal feed del profilo personale dell'utente
             $url = "https://graph.facebook.com/v18.0/me/feed";
             $params = [
