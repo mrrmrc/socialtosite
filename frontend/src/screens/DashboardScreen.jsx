@@ -152,6 +152,7 @@ const [importMsg, setImportMsg] = useState(null);
   const [editorialEngineBusy, setEditorialEngineBusy] = useState(false);
   const [editorialEngineMsg, setEditorialEngineMsg] = useState(null);
   const [understandingReport, setUnderstandingReport] = useState(null);
+  const [understandingDraft, setUnderstandingDraft] = useState(null);
   const [promptDrafts, setPromptDrafts] = useState({});
   const [savingPromptName, setSavingPromptName] = useState('');
   const deferredStudio = useDeferredValue(templateStudio);
@@ -243,10 +244,13 @@ const [importMsg, setImportMsg] = useState(null);
       }
       setTemplateStudio(normalizeStudioData(parsedSiteAiData, d.site?.theme || 'tech-clarity'));
       try {
-        setUnderstandingReport(d.site?.site_understanding ? (typeof d.site.site_understanding === 'string' ? JSON.parse(d.site.site_understanding) : d.site.site_understanding) : null);
+        const parsedUnderstanding = d.site?.site_understanding ? (typeof d.site.site_understanding === 'string' ? JSON.parse(d.site.site_understanding) : d.site.site_understanding) : null;
+        setUnderstandingReport(parsedUnderstanding);
+        setUnderstandingDraft(parsedUnderstanding);
       } catch (e) {
         console.error('Errore parse site_understanding:', e);
         setUnderstandingReport(null);
+        setUnderstandingDraft(null);
       }
       if (d.site?.menu_links) {
         try {
@@ -651,6 +655,7 @@ const [importMsg, setImportMsg] = useState(null);
           gsc_verification: gscVerification,
           harmonize_agent: harmonizeAgent,
           account_type: accountType,
+          site_understanding: understandingDraft,
           menu_links: menuLinksStr.split('\n').filter(x => x.trim()).map(x => {
              const parts = x.split('|');
              return { label: parts[0].trim(), url: parts[1] ? parts[1].trim() : '' };
@@ -658,6 +663,45 @@ const [importMsg, setImportMsg] = useState(null);
         })
       }, token);
       await loadData();
+    } catch (err) {
+      setScanMsg({ ok: false, text: err.message });
+    }
+    setSavingProfile(false);
+  }
+
+  function updateUnderstandingField(key, value) {
+    setUnderstandingDraft(prev => ({ ...(prev || {}), [key]: value }));
+  }
+
+  function updateUnderstandingList(key, value) {
+    updateUnderstandingField(key, value.split('\n').map(item => item.trim()).filter(Boolean));
+  }
+
+  function updateUnderstandingNested(section, key, value) {
+    setUnderstandingDraft(prev => ({
+      ...(prev || {}),
+      [section]: {
+        ...((prev && prev[section]) || {}),
+        [key]: value,
+      }
+    }));
+  }
+
+  function updateUnderstandingNestedList(section, key, value) {
+    updateUnderstandingNested(section, key, value.split('\n').map(item => item.trim()).filter(Boolean));
+  }
+
+  async function refreshUnderstanding() {
+    setSavingProfile(true);
+    try {
+      const res = await apiFetch('/api/index.php?action=refresh-understanding', {
+        method: 'POST',
+        body: JSON.stringify({})
+      }, token);
+      setUnderstandingReport(res.understanding || null);
+      setUnderstandingDraft(res.understanding || null);
+      await loadData();
+      setScanMsg({ ok: true, text: 'Scheda di comprensione aggiornata.' });
     } catch (err) {
       setScanMsg({ ok: false, text: err.message });
     }
@@ -2329,6 +2373,86 @@ const [importMsg, setImportMsg] = useState(null);
                   </button>
                 </div>
               </>
+            )}
+
+            {isAdmin && (
+              <div className="glass-modal" style={{ marginBottom: '1.5rem', padding: '1.5rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem', alignItems: 'flex-start', flexWrap: 'wrap', marginBottom: '1rem' }}>
+                  <div>
+                    <h3 style={{ marginBottom: '0.35rem', color: 'var(--primary)' }}>Scheda di comprensione editoriale</h3>
+                    <p style={{ fontSize: '14px', color: 'var(--text-muted)', margin: 0, fontWeight: 500 }}>
+                      Qui vedi come il sistema ha capito il business dietro i social. Questa scheda governa verticale, direzione editoriale e design.
+                    </p>
+                  </div>
+                  <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                    <button className="btn btn-outline" onClick={refreshUnderstanding} disabled={savingProfile} style={{ padding: '12px 18px', fontWeight: 700 }}>
+                      {savingProfile ? 'Aggiornamento...' : 'Rigenera comprensione'}
+                    </button>
+                    <button className="btn btn-primary" onClick={saveProfile} disabled={savingProfile} style={{ padding: '12px 18px', fontWeight: 700 }}>
+                      {savingProfile ? 'Salvataggio...' : 'Salva scheda'}
+                    </button>
+                  </div>
+                </div>
+
+                {!understandingDraft ? (
+                  <p style={{ color: 'var(--text-muted)', fontSize: '14px', fontWeight: 500, margin: 0 }}>
+                    Nessuna scheda ancora disponibile. Esegui "Rigenera comprensione" per creare il primo briefing leggibile.
+                  </p>
+                ) : (
+                  <>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem', marginBottom: '1rem' }}>
+                      <label className="card" style={{ padding: '1rem', display: 'grid', gap: '0.5rem' }}>
+                        <span style={{ fontWeight: 700, color: 'var(--text)' }}>Verticale</span>
+                        <input value={understandingDraft.vertical_label || ''} onChange={e => updateUnderstandingField('vertical_label', e.target.value)} />
+                      </label>
+                      <label className="card" style={{ padding: '1rem', display: 'grid', gap: '0.5rem' }}>
+                        <span style={{ fontWeight: 700, color: 'var(--text)' }}>Vertical slug</span>
+                        <input value={understandingDraft.vertical_slug || ''} onChange={e => updateUnderstandingField('vertical_slug', e.target.value)} />
+                      </label>
+                      <label className="card" style={{ padding: '1rem', display: 'grid', gap: '0.5rem' }}>
+                        <span style={{ fontWeight: 700, color: 'var(--text)' }}>Business model</span>
+                        <input value={understandingDraft.business_model || ''} onChange={e => updateUnderstandingField('business_model', e.target.value)} />
+                      </label>
+                      <label className="card" style={{ padding: '1rem', display: 'grid', gap: '0.5rem' }}>
+                        <span style={{ fontWeight: 700, color: 'var(--text)' }}>Confidence</span>
+                        <input type="number" min="0" max="1" step="0.05" value={understandingDraft.confidence ?? ''} onChange={e => updateUnderstandingField('confidence', e.target.value === '' ? '' : parseFloat(e.target.value))} />
+                      </label>
+                    </div>
+
+                    <div className="form-group">
+                      <label className="label">Audience</label>
+                      <textarea value={understandingDraft.audience || ''} onChange={e => updateUnderstandingField('audience', e.target.value)} style={{ width: '100%', minHeight: '82px', resize: 'vertical', padding: '12px 16px', border: '1px solid var(--border-strong)', borderRadius: 'var(--radius-sm)', background: 'var(--bg)', fontFamily: 'inherit', fontSize: '15px', color: 'var(--text)' }} />
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1rem', marginBottom: '1rem' }}>
+                      <div className="card" style={{ padding: '1rem' }}>
+                        <div style={{ fontWeight: 800, marginBottom: '0.75rem', color: 'var(--text)' }}>Prove raccolte</div>
+                        <textarea value={(understandingDraft.evidence || []).join('\n')} onChange={e => updateUnderstandingList('evidence', e.target.value)} placeholder="Una prova per riga" style={{ width: '100%', minHeight: '140px', resize: 'vertical', padding: '12px 16px', border: '1px solid var(--border-strong)', borderRadius: 'var(--radius-sm)', background: 'var(--bg)', fontFamily: 'inherit', fontSize: '14px', color: 'var(--text)' }} />
+                      </div>
+                      <div className="card" style={{ padding: '1rem' }}>
+                        <div style={{ fontWeight: 800, marginBottom: '0.75rem', color: 'var(--text)' }}>Assunzioni da verificare</div>
+                        <textarea value={(understandingDraft.assumptions || []).join('\n')} onChange={e => updateUnderstandingList('assumptions', e.target.value)} placeholder="Una assunzione per riga" style={{ width: '100%', minHeight: '140px', resize: 'vertical', padding: '12px 16px', border: '1px solid var(--border-strong)', borderRadius: 'var(--radius-sm)', background: 'var(--bg)', fontFamily: 'inherit', fontSize: '14px', color: 'var(--text)' }} />
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1rem' }}>
+                      <div className="card" style={{ padding: '1rem', display: 'grid', gap: '0.75rem' }}>
+                        <div style={{ fontWeight: 800, color: 'var(--text)' }}>Direzione Design</div>
+                        <input value={understandingDraft.design_direction?.summary || ''} onChange={e => updateUnderstandingNested('design_direction', 'summary', e.target.value)} placeholder="Sintesi della direzione visiva" />
+                        <textarea value={(understandingDraft.design_direction?.recommended_base_models || []).join('\n')} onChange={e => updateUnderstandingNestedList('design_direction', 'recommended_base_models', e.target.value)} placeholder="Modelli base, uno per riga" style={{ width: '100%', minHeight: '96px', resize: 'vertical', padding: '12px 16px', border: '1px solid var(--border-strong)', borderRadius: 'var(--radius-sm)', background: 'var(--bg)', fontFamily: 'inherit', fontSize: '14px', color: 'var(--text)' }} />
+                        <textarea value={(understandingDraft.design_direction?.avoid || []).join('\n')} onChange={e => updateUnderstandingNestedList('design_direction', 'avoid', e.target.value)} placeholder="Cose da evitare, una per riga" style={{ width: '100%', minHeight: '96px', resize: 'vertical', padding: '12px 16px', border: '1px solid var(--border-strong)', borderRadius: 'var(--radius-sm)', background: 'var(--bg)', fontFamily: 'inherit', fontSize: '14px', color: 'var(--text)' }} />
+                      </div>
+
+                      <div className="card" style={{ padding: '1rem', display: 'grid', gap: '0.75rem' }}>
+                        <div style={{ fontWeight: 800, color: 'var(--text)' }}>Direzione Editoriale</div>
+                        <input value={understandingDraft.editorial_direction?.summary || ''} onChange={e => updateUnderstandingNested('editorial_direction', 'summary', e.target.value)} placeholder="Sintesi del taglio editoriale" />
+                        <textarea value={(understandingDraft.editorial_direction?.content_pillars || []).join('\n')} onChange={e => updateUnderstandingNestedList('editorial_direction', 'content_pillars', e.target.value)} placeholder="Pillar, uno per riga" style={{ width: '100%', minHeight: '96px', resize: 'vertical', padding: '12px 16px', border: '1px solid var(--border-strong)', borderRadius: 'var(--radius-sm)', background: 'var(--bg)', fontFamily: 'inherit', fontSize: '14px', color: 'var(--text)' }} />
+                        <textarea value={(understandingDraft.editorial_direction?.critical_unknowns || []).join('\n')} onChange={e => updateUnderstandingNestedList('editorial_direction', 'critical_unknowns', e.target.value)} placeholder="Cose da chiarire, una per riga" style={{ width: '100%', minHeight: '96px', resize: 'vertical', padding: '12px 16px', border: '1px solid var(--border-strong)', borderRadius: 'var(--radius-sm)', background: 'var(--bg)', fontFamily: 'inherit', fontSize: '14px', color: 'var(--text)' }} />
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
             )}
 
             {isAdmin && (

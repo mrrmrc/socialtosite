@@ -1105,6 +1105,7 @@ if (array_key_exists('theme', $b)) {
     if (array_key_exists('custom_css', $b)) { $fields[] = 'custom_css = ?'; $params[] = $b['custom_css']; }
     if (array_key_exists('gsc_verification', $b)) { $fields[] = 'gsc_verification = ?'; $params[] = $b['gsc_verification']; }
     if (array_key_exists('site_ai_data', $b)) { $fields[] = 'site_ai_data = ?'; $params[] = is_array($b['site_ai_data']) ? json_encode($b['site_ai_data'], JSON_UNESCAPED_UNICODE) : $b['site_ai_data']; }
+    if (array_key_exists('site_understanding', $b)) { $fields[] = 'site_understanding = ?'; $params[] = is_array($b['site_understanding']) ? json_encode($b['site_understanding'], JSON_UNESCAPED_UNICODE) : $b['site_understanding']; }
     if (array_key_exists('harmonize_agent', $b)) { $fields[] = 'harmonize_agent = ?'; $params[] = $b['harmonize_agent']; }
     if (array_key_exists('account_type', $b)) { $fields[] = 'account_type = ?'; $params[] = $b['account_type']; }
 
@@ -1113,6 +1114,20 @@ if (array_key_exists('theme', $b)) {
         DB::execute('UPDATE sites SET ' . implode(', ', $fields) . ' WHERE user_id = ?', $params);
     }
     json(['ok' => true]);
+}
+
+if ($action === 'refresh-understanding' && $method === 'POST') {
+    ensureSiteSchemaUpgrades();
+    require_once __DIR__ . '/services/ai.php';
+    $site = DB::fetch('SELECT profile_summary, bio, role_mission, content_strategy FROM sites WHERE user_id=?', [$userId]);
+    $sources = DB::fetchAll('SELECT platform, label, url FROM social_sources WHERE user_id=? AND active=1 ORDER BY id ASC', [$userId]);
+    $posts = DB::fetchAll('SELECT generated_title, generated_excerpt, raw_content, transcript FROM posts WHERE user_id=? ORDER BY id DESC LIMIT 20', [$userId]);
+    $summary = trim((string)($site['profile_summary'] ?? $site['bio'] ?? ''));
+    $role = trim((string)($site['role_mission'] ?? ''));
+    $strategy = trim((string)($site['content_strategy'] ?? ''));
+    $understanding = AI::siteUnderstanding($sources, $posts, $summary, $role, $strategy);
+    DB::execute('UPDATE sites SET site_understanding=? WHERE user_id=?', [json_encode($understanding, JSON_UNESCAPED_UNICODE), $userId]);
+    json(['ok' => true, 'understanding' => $understanding]);
 }
 
 // ── POST design-site (3 proposte Graphic Designer) ───────────────────────
@@ -1145,7 +1160,7 @@ if ($action === 'design-site' && $method === 'POST') {
         $tagsContext = implode(', ', $availableTags);
 
         $seo      = AI::seoSpecialistSetup($summary, $role, $strategy, $tagsContext);
-        $proposals = AI::graphicDesignerSetup($summary, $role, $strategy);
+        $proposals = AI::graphicDesignerSetupWithUnderstanding($summary, $role, $strategy, $site['site_understanding'] ?? null);
 
         // Prima proposta come default attivo
         $g = $proposals[0] ?? [];
@@ -1206,7 +1221,7 @@ if ($action === 'site-ai' && $method === 'POST') {
         $availableTags = array_unique($allTags);
         $tagsContext = implode(', ', $availableTags);
 
-        $result = normalizeSiteAiResult(AI::siteAiGenerate($summary, $role, $strategy, $recentPosts, $tagsContext));
+        $result = normalizeSiteAiResult(AI::siteAiGenerateWithUnderstanding($summary, $role, $strategy, $recentPosts, $tagsContext, $site['site_understanding'] ?? null));
 
         DB::execute(
             'UPDATE sites SET

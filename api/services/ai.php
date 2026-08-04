@@ -197,6 +197,39 @@ class AI {
             . ". Usa questi modelli come base del design e, se serve, assemblane massimo 2.\n";
     }
 
+    private static function buildUnderstandingBrief($understanding): string {
+        if (is_string($understanding) && trim($understanding) !== '') {
+            $decoded = json_decode($understanding, true);
+            if (is_array($decoded)) $understanding = $decoded;
+        }
+        if (!is_array($understanding) || empty($understanding)) return '';
+
+        $design = is_array($understanding['design_direction'] ?? null) ? $understanding['design_direction'] : [];
+        $editorial = is_array($understanding['editorial_direction'] ?? null) ? $understanding['editorial_direction'] : [];
+        $evidence = array_slice(array_values(array_filter((array)($understanding['evidence'] ?? []))), 0, 6);
+        $assumptions = array_slice(array_values(array_filter((array)($understanding['assumptions'] ?? []))), 0, 4);
+        $pillars = array_slice(array_values(array_filter((array)($editorial['content_pillars'] ?? []))), 0, 6);
+        $unknowns = array_slice(array_values(array_filter((array)($editorial['critical_unknowns'] ?? []))), 0, 4);
+        $recommendedModels = array_slice(array_values(array_filter((array)($design['recommended_base_models'] ?? []))), 0, 3);
+        $avoid = array_slice(array_values(array_filter((array)($design['avoid'] ?? []))), 0, 4);
+
+        return "\n\nSCHEDA DI COMPRENSIONE DEL BUSINESS\n"
+            . "Questa non e una suggestione creativa: e il briefing operativo che devi rispettare.\n"
+            . "Verticale: " . trim((string)($understanding['vertical_label'] ?? $understanding['vertical_slug'] ?? 'Da confermare')) . "\n"
+            . "Business model: " . trim((string)($understanding['business_model'] ?? 'Da confermare')) . "\n"
+            . "Audience: " . trim((string)($understanding['audience'] ?? 'Da confermare')) . "\n"
+            . "Confidence: " . trim((string)($understanding['confidence'] ?? '')) . "\n"
+            . (!empty($evidence) ? "Prove raccolte:\n- " . implode("\n- ", $evidence) . "\n" : '')
+            . (!empty($assumptions) ? "Assunzioni da non trattare come verita:\n- " . implode("\n- ", $assumptions) . "\n" : '')
+            . (!empty($recommendedModels) ? "Modelli design consigliati:\n- " . implode("\n- ", $recommendedModels) . "\n" : '')
+            . (!empty($design['summary']) ? "Direzione design: " . trim((string)$design['summary']) . "\n" : '')
+            . (!empty($avoid) ? "Da evitare nel design:\n- " . implode("\n- ", $avoid) . "\n" : '')
+            . (!empty($editorial['summary']) ? "Direzione editoriale: " . trim((string)$editorial['summary']) . "\n" : '')
+            . (!empty($pillars) ? "Pilastri editoriali:\n- " . implode("\n- ", $pillars) . "\n" : '')
+            . (!empty($unknowns) ? "Punti critici ancora da confermare:\n- " . implode("\n- ", $unknowns) . "\n" : '')
+            . "Se trovi conflitti fra questo briefing e il resto del contesto, privilegia questa scheda e segnala i dubbi invece di inventare.\n";
+    }
+
     // ── Chiamata generica a Gemini (generateContent) ───────────────────────
     // $parts: array di "part" Gemini. $config: opzioni generationConfig.
     public static function gemini(array $parts, array $config = []): string {
@@ -1155,6 +1188,7 @@ Restituisci SOLO la nuova memoria aggiornata (testo semplice), nient'altro.";
             . "- Le next_actions devono essere operative e orientate all'indicizzazione.\n"
             . "- featured_post_id deve essere uno degli ID reali sopra.\n";
         $prompt = self::getAgentPrompt('editorial_engine', $fallback);
+        $prompt .= self::buildUnderstandingBrief($site['site_understanding'] ?? null);
         $prompt = str_replace(
             ['{siteTitle}', '{profileSummary}', '{roleMission}', '{contentStrategy}', '{brandVoiceProfile}', '{ragKnowledge}', '{sourcesContext}', '{postsContext}', '{existingDna}', '{existingMemory}', '{engineSettings}'],
             [
@@ -1546,6 +1580,54 @@ Testi da analizzare:
         return $result['proposals'];
     }
 
+    public static function graphicDesignerSetupWithUnderstanding(string $profileSummary, string $roleMission, string $contentStrategy, $understanding = null): array {
+        $brief = self::buildUnderstandingBrief($understanding);
+        if ($brief === '') return self::graphicDesignerSetup($profileSummary, $roleMission, $contentStrategy);
+
+        $fallback = "Sei un Art Director digitale di fama mondiale. Devi creare 3 proposte di design ('Archetipi') premium e radicalmente diverse per questo profilo. NON usare stock photo, basa l'estetica su colori vibranti, tipografia pregiata e layout puliti.\n\n"
+            . "Profilo:\n{profileSummary}\n\n"
+            . "Strategia contenuti:\n{contentStrategy}\n\n"
+            . "Ruolo e Missione:\n{roleMission}\n\n"
+            . "Genera un array JSON con ESATTAMENTE 3 oggetti, ognuno rappresenta una proposta. Struttura:\n"
+            . "1. 'design_archetype': Nome dell'archetipo.\n"
+            . "2. 'font_heading': Google Font per titoli.\n"
+            . "3. 'font_body': Google Font testi.\n"
+            . "4. 'color_palette': oggetto con background, surface, text, text_muted, primary, secondary, primary_gradient.\n"
+            . "5. 'ui_style': oggetto con radius, card_shadow, glassmorphism.\n"
+            . "6. 'layout_recipe': oggetto con hero, nav, cards, density.\n"
+            . "7. 'base_models': array con 1 o 2 ID presi SOLO dalla libreria locale.\n"
+            . "8. 'custom_css': CSS aggiuntivo ultra-raffinato. Max 300 char.\n\n"
+            . "Le 3 proposte devono essere coerenti con il verticale e con la scheda di comprensione del business.";
+
+        $prompt = self::getAgentPrompt('graphic_designer', $fallback);
+        $prompt .= self::buildDesignLibraryPrompt();
+        $prompt .= self::buildDesignRecommendationPrompt($profileSummary, $roleMission, $contentStrategy);
+        $prompt .= self::buildVerticalDesignDirective($profileSummary, $roleMission, $contentStrategy);
+        $prompt .= $brief;
+        $prompt = str_replace(['{profileSummary}', '{roleMission}', '{contentStrategy}'], [$profileSummary, $roleMission, $contentStrategy], $prompt);
+
+        $text = self::gemini([['text' => $prompt]], [
+            'responseMimeType' => 'application/json',
+            'maxOutputTokens'  => 4096,
+        ]);
+        $text = preg_replace('/```json|```/', '', trim($text));
+        $result = json_decode($text, true);
+        if (!$result || empty($result['proposals'])) {
+            return self::graphicDesignerSetup($profileSummary, $roleMission, $contentStrategy);
+        }
+        foreach ($result['proposals'] as &$proposal) {
+            $proposal['color_palette'] = self::normalizeColorPalette($proposal['color_palette'] ?? []);
+            if (empty($proposal['base_models']) || !is_array($proposal['base_models'])) {
+                $proposal['base_models'] = self::recommendDesignModels($profileSummary, $roleMission, $contentStrategy);
+            }
+            if (empty($proposal['layout_recipe']) || !is_array($proposal['layout_recipe'])) {
+                $proposal['layout_recipe'] = ['hero' => 'editorial', 'nav' => 'transparent', 'cards' => 'editorial', 'density' => 'airy'];
+            }
+        }
+        unset($proposal);
+        return $result['proposals'];
+    }
+
     // ── AGENTE SITO AI (Generazione completa su misura) ────────────────────
     public static function siteAiGenerate(string $profileSummary, string $roleMission, string $contentStrategy, string $recentPosts = '', string $tagsContext = ''): array {
         $fallback = "Sei un Direttore Artistico (Art Director) e Caporedattore di altissimo livello.\n"
@@ -1626,6 +1708,51 @@ Testi da analizzare:
                 'hero_tagline'  => '',
                 'cta_text'      => 'Scopri i miei contenuti',
             ];
+        }
+        if (isset($result['color_palette']) && is_array($result['color_palette'])) {
+            $result['color_palette'] = self::normalizeColorPalette($result['color_palette']);
+        }
+        if (empty($result['base_models']) || !is_array($result['base_models'])) {
+            $result['base_models'] = self::recommendDesignModels($profileSummary, $roleMission, $contentStrategy);
+        }
+        if (empty($result['layout_recipe']) || !is_array($result['layout_recipe'])) {
+            $result['layout_recipe'] = ['hero' => 'editorial', 'nav' => 'transparent', 'cards' => 'editorial', 'density' => 'airy'];
+        }
+        return $result;
+    }
+
+    public static function siteAiGenerateWithUnderstanding(string $profileSummary, string $roleMission, string $contentStrategy, string $recentPosts = '', string $tagsContext = '', $understanding = null): array {
+        $brief = self::buildUnderstandingBrief($understanding);
+        if ($brief === '') return self::siteAiGenerate($profileSummary, $roleMission, $contentStrategy, $recentPosts, $tagsContext);
+
+        $fallback = "Sei un Direttore Artistico (Art Director) e Caporedattore di altissimo livello.\n"
+            . "Il tuo compito: analizzare il profilo utente e definire un Archetipo di Design dinamico, generando la configurazione UI Premium su misura.\n\n"
+            . "Profilo:\n{profileSummary}\n\n"
+            . "Ruolo e Missione:\n{roleMission}\n\n"
+            . "Strategia contenuti:\n{contentStrategy}\n\n"
+            . "Post recenti pubblicati:\n{recentPosts}\n\n"
+            . "Tag REALI attualmente assegnati ai contenuti nel database:\n[{tagsContext}]\n\n"
+            . "Genera il JSON completo del sito rispettando il verticale e la scheda di comprensione del business.";
+
+        $prompt = self::getAgentPrompt('site_ai', $fallback);
+        $prompt .= self::buildDesignLibraryPrompt();
+        $prompt .= self::buildDesignRecommendationPrompt($profileSummary, $roleMission, $contentStrategy);
+        $prompt .= self::buildVerticalDesignDirective($profileSummary, $roleMission, $contentStrategy);
+        $prompt .= $brief;
+        $prompt = str_replace(
+            ['{profileSummary}', '{roleMission}', '{contentStrategy}', '{recentPosts}', '{tagsContext}'],
+            [$profileSummary, $roleMission, $contentStrategy, $recentPosts ?: 'Nessun post ancora disponibile', $tagsContext ?: 'Nessun tag disponibile'],
+            $prompt
+        );
+
+        $text = self::gemini([['text' => $prompt]], [
+            'responseMimeType' => 'application/json',
+            'maxOutputTokens'  => 8192,
+        ]);
+        $text = preg_replace('/```json|```/', '', trim($text));
+        $result = json_decode($text, true);
+        if (!$result) {
+            return self::siteAiGenerate($profileSummary, $roleMission, $contentStrategy, $recentPosts, $tagsContext);
         }
         if (isset($result['color_palette']) && is_array($result['color_palette'])) {
             $result['color_palette'] = self::normalizeColorPalette($result['color_palette']);
