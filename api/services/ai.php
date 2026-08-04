@@ -1063,21 +1063,21 @@ Restituisci SOLO la nuova memoria aggiornata (testo semplice), nient'altro.";
             ], JSON_UNESCAPED_UNICODE);
         }
 
-        $prompt = "Sei un Editorial Orchestrator senior per un sito web iper-indicizzabile che assorbe contenuti dai social.\n"
+        $fallback = "Sei un Editorial Orchestrator senior per un sito web iper-indicizzabile che assorbe contenuti dai social.\n"
             . "Obiettivo assoluto: trasformare tanti contenuti social in un impianto editoriale coerente, continuo, indicizzabile e utile a Google.\n"
             . "Non devi riscrivere i post. Devi progettare il motore editoriale del sito.\n\n"
             . "DATI SITO\n"
-            . "Titolo attuale: " . trim((string)($site['title'] ?? '')) . "\n"
-            . "Profilo sintetico: " . trim((string)($site['profile_summary'] ?? ($site['bio'] ?? ''))) . "\n"
-            . "Ruolo/Missione: " . trim((string)($site['role_mission'] ?? '')) . "\n"
-            . "Strategia contenuti: " . trim((string)($site['content_strategy'] ?? '')) . "\n"
-            . "Brand voice profile: " . trim((string)($site['brand_voice_profile'] ?? '')) . "\n"
-            . "RAG knowledge: " . trim((string)($site['rag_knowledge'] ?? '')) . "\n\n"
-            . "SORGENTI SOCIAL ATTIVE\n- " . implode("\n- ", $sourceLines ?: ['Nessuna']) . "\n\n"
-            . "POST PUBBLICATI RECENTI (JSON line)\n" . implode("\n", $postLines) . "\n\n"
-            . "DNA ESISTENTE\n" . json_encode($existingDna, JSON_UNESCAPED_UNICODE) . "\n\n"
-            . "MEMORIA EDITORIALE ESISTENTE\n" . json_encode($existingMemory, JSON_UNESCAPED_UNICODE) . "\n\n"
-            . "SETTINGS MOTORE\n" . json_encode($settings, JSON_UNESCAPED_UNICODE) . "\n\n"
+            . "Titolo attuale: {siteTitle}\n"
+            . "Profilo sintetico: {profileSummary}\n"
+            . "Ruolo/Missione: {roleMission}\n"
+            . "Strategia contenuti: {contentStrategy}\n"
+            . "Brand voice profile: {brandVoiceProfile}\n"
+            . "RAG knowledge: {ragKnowledge}\n\n"
+            . "SORGENTI SOCIAL ATTIVE\n- {sourcesContext}\n\n"
+            . "POST PUBBLICATI RECENTI (JSON line)\n{postsContext}\n\n"
+            . "DNA ESISTENTE\n{existingDna}\n\n"
+            . "MEMORIA EDITORIALE ESISTENTE\n{existingMemory}\n\n"
+            . "SETTINGS MOTORE\n{engineSettings}\n\n"
             . "Restituisci SOLO JSON valido con questa struttura:\n"
             . "{"
             . "\"editorial_dna\":{"
@@ -1111,6 +1111,24 @@ Restituisci SOLO la nuova memoria aggiornata (testo semplice), nient'altro.";
             . "- Identifica ripetizioni, buchi tematici, contenuti stagionali e possibili pagine pilastro.\n"
             . "- Le next_actions devono essere operative e orientate all'indicizzazione.\n"
             . "- featured_post_id deve essere uno degli ID reali sopra.\n";
+        $prompt = self::getAgentPrompt('editorial_engine', $fallback);
+        $prompt = str_replace(
+            ['{siteTitle}', '{profileSummary}', '{roleMission}', '{contentStrategy}', '{brandVoiceProfile}', '{ragKnowledge}', '{sourcesContext}', '{postsContext}', '{existingDna}', '{existingMemory}', '{engineSettings}'],
+            [
+                trim((string)($site['title'] ?? '')),
+                trim((string)($site['profile_summary'] ?? ($site['bio'] ?? ''))),
+                trim((string)($site['role_mission'] ?? '')),
+                trim((string)($site['content_strategy'] ?? '')),
+                trim((string)($site['brand_voice_profile'] ?? '')),
+                trim((string)($site['rag_knowledge'] ?? '')),
+                implode("\n- ", $sourceLines ?: ['Nessuna']),
+                implode("\n", $postLines),
+                json_encode($existingDna, JSON_UNESCAPED_UNICODE),
+                json_encode($existingMemory, JSON_UNESCAPED_UNICODE),
+                json_encode($settings, JSON_UNESCAPED_UNICODE),
+            ],
+            $prompt
+        );
 
         $text = self::gemini([['text' => $prompt]], [
             'responseMimeType' => 'application/json',

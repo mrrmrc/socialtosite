@@ -32,6 +32,15 @@ const STUDIO_DEFAULTS = {
   design_archetype: 'tech-clarity',
 };
 
+const EDITORIAL_AGENT_META = {
+  content_editor: { icon: '✍️', title: 'Content Editor', role: 'Riscrive i singoli contenuti social in articoli.' },
+  topical_authority_architect: { icon: '🧠', title: 'Topical Authority', role: 'Produce articoli piu esperti, contrarian e orientati alla topical authority.' },
+  chief_editor: { icon: '🗂️', title: 'Chief Editor', role: 'Orchestra categorie, menu, articolo featured e tagline.' },
+  editorial_engine: { icon: '⚙️', title: 'Editorial Engine', role: 'Analizza il corpus e decide cluster, gap, priorita e prossime mosse.' },
+  seo_specialist: { icon: '🔎', title: 'SEO Specialist', role: 'Costruisce title, bio, menu e struttura SEO del sito.' },
+  site_ai: { icon: '🏗️', title: 'Site AI', role: 'Compone identita, design e configurazione complessiva del sito.' },
+};
+
 function normalizeStudioData(raw, selectedTheme = 'tech-clarity') {
   const preset = SITE_LAYOUTS.find(layout => layout.id === selectedTheme) || SITE_LAYOUTS[0];
   const source = raw && typeof raw === 'object' ? raw : {};
@@ -142,6 +151,8 @@ const [importMsg, setImportMsg] = useState(null);
   const [editorialEngine, setEditorialEngine] = useState({ settings: { enabled: true, auto_run: true, min_posts: 8, strict_indexing_mode: true }, dna: {}, memory: {}, state: {}, last_run: null });
   const [editorialEngineBusy, setEditorialEngineBusy] = useState(false);
   const [editorialEngineMsg, setEditorialEngineMsg] = useState(null);
+  const [promptDrafts, setPromptDrafts] = useState({});
+  const [savingPromptName, setSavingPromptName] = useState('');
   const deferredStudio = useDeferredValue(templateStudio);
   const siteUrl = `${window.location.origin}/${user?.slug}`;
 
@@ -875,15 +886,70 @@ const [importMsg, setImportMsg] = useState(null);
         method: 'POST',
         body: JSON.stringify({ agent_name: agentName, instructions })
       }, token);
+      setAdminPrompts(prev => prev.map(p => p.agent_name === agentName ? { ...p, instructions } : p));
       alert("Istruzioni aggiornate con successo!");
     } catch (err) {
       alert("Errore: " + err.message);
     }
   }
 
+  async function savePromptDraft(agentName) {
+    const nextInstructions = promptDrafts[agentName];
+    if (!nextInstructions?.trim()) return;
+    setSavingPromptName(agentName);
+    await updatePrompt(agentName, nextInstructions);
+    setSavingPromptName('');
+  }
+
+  function renderPromptEditor(agentName) {
+    const prompt = adminPrompts.find(item => item.agent_name === agentName);
+    if (!prompt) return null;
+    const meta = EDITORIAL_AGENT_META[agentName] || {};
+    const currentDraft = promptDrafts[agentName] ?? prompt.instructions ?? '';
+
+    return (
+      <div key={agentName} className="card" style={{ padding: '1rem', display: 'grid', gap: '0.75rem' }}>
+        <div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '0.35rem' }}>
+            <span style={{ fontSize: '18px' }}>{meta.icon || '🤖'}</span>
+            <strong style={{ color: 'var(--text)' }}>{prompt.label || meta.title || agentName}</strong>
+          </div>
+          <div style={{ fontSize: '13px', color: 'var(--text-muted)', lineHeight: 1.5 }}>
+            {prompt.description || meta.role || 'Prompt operativo dell’agente.'}
+          </div>
+        </div>
+        <textarea
+          value={currentDraft}
+          onChange={e => setPromptDrafts(prev => ({ ...prev, [agentName]: e.target.value }))}
+          style={{ width: '100%', minHeight: '220px', padding: '12px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-strong)', background: 'var(--bg)', color: 'var(--text)', fontFamily: 'monospace', fontSize: '12px', lineHeight: 1.55, resize: 'vertical' }}
+        />
+        <button
+          className="btn btn-outline"
+          onClick={() => savePromptDraft(agentName)}
+          disabled={savingPromptName === agentName}
+          style={{ justifySelf: 'start', padding: '10px 16px', fontWeight: 700 }}
+        >
+          {savingPromptName === agentName ? 'Salvataggio...' : 'Salva prompt'}
+        </button>
+      </div>
+    );
+  }
+
   useEffect(() => {
-    if (tab === 'admin' && user?.role === 'admin') loadAdminPrompts();
-  }, [tab]);
+    if (!user?.role || user.role !== 'admin') return;
+    if ((tab === 'admin' || tab === 'general') && adminPrompts.length === 0) loadAdminPrompts();
+  }, [tab, user, adminPrompts.length]);
+
+  useEffect(() => {
+    if (!adminPrompts.length) return;
+    setPromptDrafts(prev => {
+      const next = { ...prev };
+      for (const prompt of adminPrompts) {
+        if (!(prompt.agent_name in next)) next[prompt.agent_name] = prompt.instructions || '';
+      }
+      return next;
+    });
+  }, [adminPrompts]);
 
   useEffect(() => {
     if (tab !== 'settings') {
@@ -2189,6 +2255,61 @@ const [importMsg, setImportMsg] = useState(null);
                   </button>
                 </div>
               </>
+            )}
+
+            {isAdmin && (
+              <div className="glass-modal" style={{ marginBottom: '1.5rem', padding: '1.5rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem', alignItems: 'flex-start', flexWrap: 'wrap', marginBottom: '1rem' }}>
+                  <div>
+                    <h3 style={{ marginBottom: '0.35rem', color: 'var(--primary)' }}>Control Room Editoriale</h3>
+                    <p style={{ fontSize: '14px', color: 'var(--text-muted)', margin: 0, fontWeight: 500 }}>
+                      Qui puoi vedere gli agenti che governano il flusso editoriale e modificarne i prompt operativi, in stile Rapid Scribant.
+                    </p>
+                  </div>
+                  <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                    <button className="btn btn-outline" onClick={regenerateMenuAi} disabled={regeneratingMenu} style={{ padding: '12px 18px', fontWeight: 700 }}>
+                      {regeneratingMenu ? 'Orchestrazione...' : 'Esegui Chief Editor'}
+                    </button>
+                    <button className="btn btn-primary" onClick={runEditorialEngine} disabled={editorialEngineBusy} style={{ padding: '12px 18px', fontWeight: 700 }}>
+                      {editorialEngineBusy ? 'Analisi...' : 'Esegui Editorial Engine'}
+                    </button>
+                  </div>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem', marginBottom: '1rem' }}>
+                  {[
+                    { key: harmonizeAgent, note: 'Agente attivo per la scrittura dei singoli post.' },
+                    { key: 'chief_editor', note: 'Agente di orchestrazione tassonomica e menu.' },
+                    { key: 'editorial_engine', note: 'Agente strategico per cluster, gap e roadmap.' },
+                    { key: 'site_ai', note: 'Agente trasversale per identita, struttura e design.' },
+                  ].map(({ key, note }) => {
+                    const meta = EDITORIAL_AGENT_META[key] || {};
+                    return (
+                      <div key={`${key}-${note}`} className="card" style={{ padding: '1rem' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '0.5rem' }}>
+                          <span style={{ fontSize: '18px' }}>{meta.icon || '🤖'}</span>
+                          <strong style={{ color: 'var(--text)' }}>{meta.title || key}</strong>
+                        </div>
+                        <div style={{ fontSize: '13px', color: 'var(--text-muted)', lineHeight: 1.5, marginBottom: '0.5rem' }}>
+                          {meta.role || note}
+                        </div>
+                        <div style={{ fontSize: '12px', color: 'var(--primary)', fontWeight: 700 }}>{note}</div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <div style={{ display: 'grid', gap: '1rem' }}>
+                  {[
+                    harmonizeAgent,
+                    harmonizeAgent === 'content_editor' ? 'topical_authority_architect' : 'content_editor',
+                    'chief_editor',
+                    'editorial_engine',
+                    'seo_specialist',
+                    'site_ai',
+                  ].filter((agentName, index, arr) => arr.indexOf(agentName) === index).map(renderPromptEditor)}
+                </div>
+              </div>
             )}
 
             {isAdmin && (
