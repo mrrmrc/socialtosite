@@ -151,6 +151,7 @@ const [importMsg, setImportMsg] = useState(null);
   const [editorialEngine, setEditorialEngine] = useState({ settings: { enabled: true, auto_run: true, min_posts: 8, strict_indexing_mode: true }, dna: {}, memory: {}, state: {}, last_run: null });
   const [editorialEngineBusy, setEditorialEngineBusy] = useState(false);
   const [editorialEngineMsg, setEditorialEngineMsg] = useState(null);
+  const [understandingReport, setUnderstandingReport] = useState(null);
   const [promptDrafts, setPromptDrafts] = useState({});
   const [savingPromptName, setSavingPromptName] = useState('');
   const deferredStudio = useDeferredValue(templateStudio);
@@ -241,6 +242,12 @@ const [importMsg, setImportMsg] = useState(null);
         }
       }
       setTemplateStudio(normalizeStudioData(parsedSiteAiData, d.site?.theme || 'tech-clarity'));
+      try {
+        setUnderstandingReport(d.site?.site_understanding ? (typeof d.site.site_understanding === 'string' ? JSON.parse(d.site.site_understanding) : d.site.site_understanding) : null);
+      } catch (e) {
+        console.error('Errore parse site_understanding:', e);
+        setUnderstandingReport(null);
+      }
       if (d.site?.menu_links) {
         try {
            const arr = JSON.parse(d.site.menu_links);
@@ -2202,6 +2209,73 @@ const [importMsg, setImportMsg] = useState(null);
         {/* Tab: Impostazioni Generali (General) */}
         {tab === 'general' && (
           <div>
+            {isAdmin && (
+              <div className="glass-modal" style={{ marginBottom: '1.5rem', padding: '1.5rem' }}>
+                <h3 style={{ marginBottom: '0.5rem', color: 'var(--primary)' }}>Rapporto di comprensione</h3>
+                <p style={{ fontSize: '14px', color: 'var(--text-muted)', marginTop: 0, fontWeight: 500 }}>
+                  Qui dobbiamo poter verificare se il sistema ha capito davvero il business e se il design proposto è coerente con quella lettura.
+                </p>
+
+                {understandingReport ? (
+                  <>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem', marginBottom: '1rem' }}>
+                      <div className="card" style={{ padding: '1rem' }}>
+                        <div style={{ fontSize: '12px', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '0.35rem' }}>Verticale rilevata</div>
+                        <div style={{ fontWeight: 800, color: 'var(--text)' }}>{understandingReport.vertical_label || understandingReport.vertical_slug || 'Non definita'}</div>
+                      </div>
+                      <div className="card" style={{ padding: '1rem' }}>
+                        <div style={{ fontSize: '12px', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '0.35rem' }}>Confidenza</div>
+                        <div style={{ fontWeight: 800, color: 'var(--text)' }}>{typeof understandingReport.confidence === 'number' ? `${Math.round(understandingReport.confidence * 100)}%` : 'n/d'}</div>
+                      </div>
+                      <div className="card" style={{ padding: '1rem' }}>
+                        <div style={{ fontSize: '12px', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '0.35rem' }}>Business model</div>
+                        <div style={{ fontWeight: 700, color: 'var(--text)' }}>{understandingReport.business_model || 'Da confermare'}</div>
+                      </div>
+                      <div className="card" style={{ padding: '1rem' }}>
+                        <div style={{ fontSize: '12px', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '0.35rem' }}>Audience</div>
+                        <div style={{ fontWeight: 700, color: 'var(--text)' }}>{understandingReport.audience || 'Da confermare'}</div>
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1rem' }}>
+                      <div className="card" style={{ padding: '1rem' }}>
+                        <div style={{ fontWeight: 800, marginBottom: '0.75rem', color: 'var(--text)' }}>Prove usate</div>
+                        <ul style={{ margin: 0, paddingLeft: '18px', color: 'var(--text-muted)' }}>
+                          {(understandingReport.evidence || []).map((item, idx) => <li key={idx}>{item}</li>)}
+                        </ul>
+                      </div>
+                      <div className="card" style={{ padding: '1rem' }}>
+                        <div style={{ fontWeight: 800, marginBottom: '0.75rem', color: 'var(--text)' }}>Assunzioni da validare</div>
+                        <ul style={{ margin: 0, paddingLeft: '18px', color: 'var(--text-muted)' }}>
+                          {(understandingReport.assumptions || []).map((item, idx) => <li key={idx}>{item}</li>)}
+                        </ul>
+                      </div>
+                      <div className="card" style={{ padding: '1rem' }}>
+                        <div style={{ fontWeight: 800, marginBottom: '0.75rem', color: 'var(--text)' }}>Direzione design</div>
+                        <p style={{ color: 'var(--text-muted)', marginTop: 0 }}>{understandingReport.design_direction?.summary || 'Non ancora disponibile.'}</p>
+                        <div style={{ fontSize: '12px', color: 'var(--primary)', fontWeight: 700, marginBottom: '0.5rem' }}>
+                          Modelli consigliati: {(understandingReport.design_direction?.recommended_base_models || []).join(', ') || 'n/d'}
+                        </div>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                          {(understandingReport.design_direction?.keywords || []).map((item, idx) => (
+                            <span key={idx} style={{ padding: '6px 10px', borderRadius: '999px', background: 'var(--primary-light)', color: 'var(--primary)', fontSize: '12px', fontWeight: 700 }}>{item}</span>
+                          ))}
+                        </div>
+                      </div>
+                      <div className="card" style={{ padding: '1rem' }}>
+                        <div style={{ fontWeight: 800, marginBottom: '0.75rem', color: 'var(--text)' }}>Pilastri editoriali</div>
+                        <ul style={{ margin: 0, paddingLeft: '18px', color: 'var(--text-muted)' }}>
+                          {(understandingReport.editorial_direction?.content_pillars || []).map((item, idx) => <li key={idx}>{item}</li>)}
+                        </ul>
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <p style={{ color: 'var(--text-muted)', margin: 0 }}>Nessun rapporto disponibile ancora. Dopo una finalizzazione completa vedrai qui verticale, confidenza, prove e direzione design.</p>
+                )}
+              </div>
+            )}
+
             {isAdmin && (
               <>
                 <div className="glass-modal" style={{ marginBottom: '1.5rem', padding: '1.5rem' }}>

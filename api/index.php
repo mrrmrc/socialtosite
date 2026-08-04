@@ -76,6 +76,7 @@ function ensureSiteSchemaUpgrades(): void {
         'ALTER TABLE sites ADD COLUMN editorial_engine_state LONGTEXT NULL',
         'ALTER TABLE sites ADD COLUMN editorial_settings LONGTEXT NULL',
         'ALTER TABLE sites ADD COLUMN editorial_last_run DATETIME NULL',
+        'ALTER TABLE sites ADD COLUMN site_understanding LONGTEXT NULL',
     ];
 
     foreach ($queries as $query) {
@@ -143,6 +144,7 @@ if (in_array($action, ['login', 'register', 'site-public', 'debug-site', 'migrat
         try { DB::execute('ALTER TABLE sites ADD COLUMN editorial_engine_state LONGTEXT NULL'); } catch (Throwable $e) {}
         try { DB::execute('ALTER TABLE sites ADD COLUMN editorial_settings LONGTEXT NULL'); } catch (Throwable $e) {}
         try { DB::execute('ALTER TABLE sites ADD COLUMN editorial_last_run DATETIME NULL'); } catch (Throwable $e) {}
+        try { DB::execute('ALTER TABLE sites ADD COLUMN site_understanding LONGTEXT NULL'); } catch (Throwable $e) {}
         try { DB::execute('ALTER TABLE posts ADD COLUMN featured TINYINT DEFAULT 0'); } catch (Throwable $e) {}
         try { DB::execute('ALTER TABLE posts ADD COLUMN edited_title VARCHAR(255) NULL'); } catch (Throwable $e) {}
         try { DB::execute('ALTER TABLE posts ADD COLUMN edited_body LONGTEXT NULL'); } catch (Throwable $e) {}
@@ -1476,6 +1478,7 @@ if ($action === 'finalize-sync' && $method === 'POST') {
         $summary = $profileOverride !== '' ? $profileOverride : ($profile['profile_summary'] ?? '');
         $finalRoleMission = $roleMission !== '' ? $roleMission : ($profile['role_mission'] ?? '');
         $finalContentStrategy = $contentStrategy !== '' ? $contentStrategy : ($profile['content_strategy'] ?? '');
+        $understanding = AI::siteUnderstanding($sources, $posts, $summary, $finalRoleMission, $finalContentStrategy);
         
         $site = DB::fetch('SELECT title, theme FROM sites WHERE user_id=?', [$userId]);
         
@@ -1510,9 +1513,10 @@ if ($action === 'finalize-sync' && $method === 'POST') {
                 menu_links=COALESCE(NULLIF(menu_links, ""), NULLIF(?, "")), footer_text=COALESCE(NULLIF(footer_text, ""), NULLIF(?, "")),
                 theme=COALESCE(NULLIF(theme, ""), NULLIF(?, "")), accent_color=COALESCE(NULLIF(accent_color, ""), NULLIF(?, "")),
                 header_layout=COALESCE(NULLIF(header_layout, ""), NULLIF(?, "")), custom_css=COALESCE(NULLIF(custom_css, ""), NULLIF(?, "")),
-                generated_layouts=COALESCE(NULLIF(?, ""), generated_layouts)
+                generated_layouts=COALESCE(NULLIF(?, ""), generated_layouts),
+                site_understanding=?
              WHERE user_id=?',
-            [$summary, $finalRoleMission, $finalContentStrategy, $seoTitle, $seoBio, $seoMenu, $seoFooter, $gTheme, $gColor, $gLayout, $gCss, $layoutsJson, $userId]
+            [$summary, $finalRoleMission, $finalContentStrategy, $seoTitle, $seoBio, $seoMenu, $seoFooter, $gTheme, $gColor, $gLayout, $gCss, $layoutsJson, json_encode($understanding, JSON_UNESCAPED_UNICODE), $userId]
         );
     }
     

@@ -271,6 +271,29 @@ class Ingest {
         $size = @filesize($path) ?: 0;
         if (!$size) { @unlink($path); return null; }
 
+        $detectedExt = '';
+        if (class_exists('finfo')) {
+            $mime = (new finfo(FILEINFO_MIME_TYPE))->file($path) ?: '';
+            $detectedExt = match ($mime) {
+                'image/jpeg' => 'jpg',
+                'image/png' => 'png',
+                'image/webp' => 'webp',
+                'image/gif' => 'gif',
+                'video/mp4' => 'mp4',
+                'video/quicktime' => 'mov',
+                default => '',
+            };
+        }
+
+        if ($detectedExt !== '' && $detectedExt !== $ext) {
+            $newName = $platform . '_' . preg_replace('/[^A-Za-z0-9_-]/', '', $postId) . '.' . $detectedExt;
+            $newPath = "$dir/$newName";
+            if (@rename($path, $newPath)) {
+                $name = $newName;
+                $path = $newPath;
+            }
+        }
+
         $base = defined('BASE_URL') ? rtrim(BASE_URL, '/') : '';
         return ['url' => "$base/public/media/$name", 'path' => $path, 'size' => $size];
     }

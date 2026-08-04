@@ -102,7 +102,46 @@ class AI {
         return $normalized;
     }
 
+    private static function inferVerticalContext(string $profileSummary, string $roleMission, string $contentStrategy): array {
+        $text = mb_strtolower(trim($profileSummary . ' ' . $roleMission . ' ' . $contentStrategy));
+        $verticals = [
+            'hospitality' => ['label' => 'Hospitality', 'terms' => ['agriturismo', 'tenuta', 'ospitalit', 'hospitality', 'b&b', 'bed and breakfast', 'resort', 'country house', 'camere', 'wedding venue'], 'models' => ['warm-humanist', 'editorial-luxe'], 'directive' => 'Per hospitality/agriturismo usa un design caldo, naturale, materico e fotografico. Evita temi corporate o SaaS.'],
+            'legal' => ['label' => 'Legal', 'terms' => ['avvocat', 'studio legale', 'legal', 'lawyer', 'notai', 'diritto'], 'models' => ['editorial-luxe', 'tech-clarity'], 'directive' => 'Per studi legali serve autorevolezza, ordine e trust. Evita estetica creator, pop o giocosa.'],
+            'b2b' => ['label' => 'B2B / Corporate', 'terms' => ['b2b', 'saas', 'software', 'enterprise', 'automation', 'crm', 'azienda', 'industria', 'consulenza aziendale', 'startup', 'tech'], 'models' => ['tech-clarity', 'editorial-luxe'], 'directive' => 'Per B2B punta su struttura, chiarezza e credibilità. Niente vibe hospitality o creator.'],
+            'medical' => ['label' => 'Medical / Wellness', 'terms' => ['medic', 'clinic', 'dentista', 'fisioterap', 'psicolog', 'nutriz', 'benessere', 'salute', 'terapia'], 'models' => ['warm-humanist', 'tech-clarity'], 'directive' => 'Per medical/wellness usa rassicurazione, pulizia, empatia e precisione.'],
+            'food' => ['label' => 'Food / Restaurant', 'terms' => ['ristorant', 'chef', 'food', 'cucina', 'trattoria', 'pizzeria', 'cantina'], 'models' => ['warm-humanist', 'editorial-luxe'], 'directive' => 'Per food usa calore, texture, storytelling visivo e atmosfera. Evita UI da software.'],
+            'realestate' => ['label' => 'Real Estate', 'terms' => ['immobil', 'real estate', 'agenzia immobiliare', 'appartamenti', 'ville', 'property'], 'models' => ['editorial-luxe', 'tech-clarity'], 'directive' => 'Per real estate servono lusso, spazialità e ordine.'],
+            'creator' => ['label' => 'Creator / Media', 'terms' => ['creator', 'streamer', 'youtube', 'tiktok', 'podcast', 'music', 'video', 'regista', 'fotograf'], 'models' => ['dark-cinematic', 'neo-brutal-pop'], 'directive' => 'Per creator/media usa ritmo, carattere e presenza visiva forte.'],
+            'education' => ['label' => 'Education', 'terms' => ['formazione', 'education', 'academy', 'corso', 'docente', 'insegn', 'masterclass'], 'models' => ['tech-clarity', 'warm-humanist'], 'directive' => 'Per education privilegia gerarchia, leggibilità e fiducia.'],
+        ];
+
+        $bestKey = 'generic';
+        $bestScore = 0;
+        foreach ($verticals as $key => $vertical) {
+            $score = 0;
+            foreach ($vertical['terms'] as $term) {
+                if ($text !== '' && mb_strpos($text, $term) !== false) $score += 3;
+            }
+            if ($score > $bestScore) {
+                $bestScore = $score;
+                $bestKey = $key;
+            }
+        }
+
+        if ($bestKey === 'generic') {
+            return ['key' => 'generic', 'label' => 'Generic Business', 'confidence' => 0.4, 'models' => ['warm-humanist', 'tech-clarity'], 'directive' => 'Se il settore non è chiaro, usa una base leggibile e non generica, evitando temi casuali.'];
+        }
+
+        return ['key' => $bestKey, 'label' => $verticals[$bestKey]['label'], 'confidence' => min(0.95, 0.55 + ($bestScore * 0.05)), 'models' => $verticals[$bestKey]['models'], 'directive' => $verticals[$bestKey]['directive']];
+    }
+
+    private static function buildVerticalDesignDirective(string $profileSummary, string $roleMission, string $contentStrategy): string {
+        $vertical = self::inferVerticalContext($profileSummary, $roleMission, $contentStrategy);
+        return "\n\nVINCOLO DI VERTICALE\nVerticale probabile: {$vertical['label']} ({$vertical['key']}).\nBase models consigliati: " . implode(', ', $vertical['models']) . ".\n{$vertical['directive']}\n";
+    }
+
     private static function recommendDesignModels(string $profileSummary, string $roleMission, string $contentStrategy): array {
+        $vertical = self::inferVerticalContext($profileSummary, $roleMission, $contentStrategy);
         $text = mb_strtolower(trim($profileSummary . ' ' . $roleMission . ' ' . $contentStrategy));
         $scores = [
             'editorial-luxe' => 0,
@@ -111,6 +150,10 @@ class AI {
             'warm-humanist' => 0,
             'tech-clarity' => 0,
         ];
+
+        foreach (($vertical['models'] ?? []) as $index => $model) {
+            if (isset($scores[$model])) $scores[$model] += $index === 0 ? 8 : 5;
+        }
 
         $keywords = [
             'editorial-luxe' => ['editoriale', 'magazine', 'giornal', 'writer', 'scritt', 'consulen', 'luxury', 'elegan', 'beauty', 'fashion', 'brand personale'],
@@ -1168,6 +1211,70 @@ Restituisci SOLO la nuova memoria aggiornata (testo semplice), nient'altro.";
         return $result;
     }
 
+    public static function siteUnderstanding(array $sources, array $samplePosts, string $profileOverride = '', string $roleMission = '', string $contentStrategy = ''): array {
+        $lines = [];
+        foreach ($sources as $source) {
+            $lines[] = strtoupper($source['platform']) . ': ' . ($source['label'] ?: $source['url']);
+        }
+        $samples = [];
+        foreach ($samplePosts as $post) {
+            $text = trim(($post['generated_title'] ?? '') . ' ' . ($post['generated_excerpt'] ?? '') . ' ' . ($post['raw_content'] ?? '') . ' ' . ($post['transcript'] ?? ''));
+            if ($text) $samples[] = mb_substr($text, 0, 500);
+        }
+
+        $fallbackVertical = self::inferVerticalContext($profileOverride, $roleMission, $contentStrategy);
+        $prompt = "Sei un analista strategico. Devi spiegare in modo verificabile che tipo di business/progetto rappresentano queste sorgenti social.\n\n"
+            . "Profilo dichiarato:\n" . ($profileOverride ?: 'Non indicato') . "\n\n"
+            . "Ruolo/Missione:\n" . ($roleMission ?: 'Non indicato') . "\n\n"
+            . "Strategia contenuti:\n" . ($contentStrategy ?: 'Non indicata') . "\n\n"
+            . "Canali:\n- " . implode("\n- ", $lines) . "\n\n"
+            . "Esempi contenuti:\n- " . implode("\n- ", array_slice($samples, 0, 10)) . "\n\n"
+            . "Rispondi SOLO con JSON valido:\n"
+            . '{"vertical_slug":"string","vertical_label":"string","business_model":"string","audience":"string","confidence":0.0,"evidence":["prova1","prova2","prova3"],"assumptions":["assunzione1"],"design_direction":{"summary":"string","recommended_base_models":["model1","model2"],"keywords":["keyword1","keyword2"],"avoid":["avoid1","avoid2"]},"editorial_direction":{"summary":"string","content_pillars":["pillar1","pillar2","pillar3"],"critical_unknowns":["unknown1","unknown2"]}}';
+
+        try {
+            $text = self::gemini([['text' => $prompt]], [
+                'responseMimeType' => 'application/json',
+                'maxOutputTokens' => 4096,
+            ]);
+            $text = preg_replace('/```json|```/', '', trim($text));
+            $result = json_decode($text, true);
+            if (is_array($result)) {
+                if (empty($result['design_direction']['recommended_base_models'])) {
+                    $result['design_direction']['recommended_base_models'] = $fallbackVertical['models'];
+                }
+                return $result;
+            }
+        } catch (Throwable $e) {
+        }
+
+        return [
+            'vertical_slug' => $fallbackVertical['key'],
+            'vertical_label' => $fallbackVertical['label'],
+            'business_model' => trim($roleMission ?: 'Da confermare'),
+            'audience' => trim($profileOverride ?: 'Audience da confermare'),
+            'confidence' => $fallbackVertical['confidence'],
+            'evidence' => array_values(array_filter([
+                $profileOverride ? 'Profilo dichiarato presente' : '',
+                $roleMission ? 'Ruolo/Missione compilato' : '',
+                $contentStrategy ? 'Strategia contenuti compilata' : '',
+                !empty($sources) ? 'Sorgenti social collegate: ' . count($sources) : '',
+            ])),
+            'assumptions' => ['Classificazione iniziale basata su segnali testuali, da confermare con i contenuti reali.'],
+            'design_direction' => [
+                'summary' => $fallbackVertical['directive'],
+                'recommended_base_models' => $fallbackVertical['models'],
+                'keywords' => [$fallbackVertical['label'], 'brand-specific', 'non-generic'],
+                'avoid' => ['template interchangeabile', 'tema fuori verticale'],
+            ],
+            'editorial_direction' => [
+                'summary' => 'Prima di scalare la produzione editoriale serve validare che verticale, tono e pubblico siano corretti.',
+                'content_pillars' => [],
+                'critical_unknowns' => ['Verticale da confermare', 'Pubblico da confermare'],
+            ],
+        ];
+    }
+
     public static function apifyResolve(string $platform, string $url): array {
         if (function_exists('shell_exec')) {
             try {
@@ -1404,6 +1511,7 @@ Testi da analizzare:
         $prompt = self::getAgentPrompt('graphic_designer', $fallback);
         $prompt .= self::buildDesignLibraryPrompt();
         $prompt .= self::buildDesignRecommendationPrompt($profileSummary, $roleMission, $contentStrategy);
+        $prompt .= self::buildVerticalDesignDirective($profileSummary, $roleMission, $contentStrategy);
         $prompt = str_replace(['{profileSummary}', '{roleMission}', '{contentStrategy}'], [$profileSummary, $roleMission, $contentStrategy], $prompt);
 
         $text = self::gemini([['text' => $prompt]], [
@@ -1487,6 +1595,7 @@ Testi da analizzare:
         $prompt = self::getAgentPrompt('site_ai', $fallback);
         $prompt .= self::buildDesignLibraryPrompt();
         $prompt .= self::buildDesignRecommendationPrompt($profileSummary, $roleMission, $contentStrategy);
+        $prompt .= self::buildVerticalDesignDirective($profileSummary, $roleMission, $contentStrategy);
         $prompt = str_replace(
             ['{profileSummary}', '{roleMission}', '{contentStrategy}', '{recentPosts}', '{tagsContext}'],
             [$profileSummary, $roleMission, $contentStrategy, $recentPosts ?: 'Nessun post ancora disponibile', $tagsContext ?: 'Nessun tag disponibile'],
