@@ -94,7 +94,7 @@ function AppContent() {
         position: 'relative', zIndex: 10,
       }}>
         <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-          <img src="/logo.png" alt="AllSocialToWeb" style={{ height: '14px', opacity: 0.5 }} />
+          <img src="/logo.png" alt="AllSocialToWeb" style={{ height: '24px', opacity: 0.78, display: 'block' }} />
           <span style={{ opacity: 0.6 }}>allsocialtoweb.com</span>
         </span>
         <span style={{ opacity: 0.3 }}>·</span>

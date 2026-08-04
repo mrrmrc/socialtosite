@@ -1127,7 +1127,7 @@ const [importMsg, setImportMsg] = useState(null);
           pointerEvents: studioWorkspaceOpen ? 'none' : 'auto',
         }}>
         <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--border)' }}>
-          <div style={{ fontWeight: 800, fontSize: '20px', color: 'var(--primary)' }}><img src="/logo.png" alt="allsocialtoweb.com" style={{ height: '32px' }} /></div>
+          <div style={{ fontWeight: 800, fontSize: '20px', color: 'var(--primary)' }}><img src="/logo.png" alt="allsocialtoweb.com" style={{ height: '52px', width: 'auto', display: 'block' }} /></div>
         </div>
         <div style={{ padding: '24px 16px', display: 'flex', flexDirection: 'column', gap: '8px', flex: 1, overflowY: 'auto' }}>
           {[
@@ -1168,7 +1168,7 @@ const [importMsg, setImportMsg] = useState(null);
       <div className="dashboard-main" style={studioWorkspaceOpen ? { marginLeft: 0 } : undefined}>
         {/* Mobile Header (Only visible on mobile) */}
         <div className="mobile-top-header">
-          <div style={{ fontWeight: 800, fontSize: '16px', color: 'var(--primary)' }}><img src="/logo.png" alt="allsocialtoweb.com" style={{ height: '24px' }} /></div>
+          <div style={{ fontWeight: 800, fontSize: '16px', color: 'var(--primary)' }}><img src="/logo.png" alt="allsocialtoweb.com" style={{ height: '38px', width: 'auto', display: 'block' }} /></div>
           <button className="btn btn-outline" onClick={syncNow} disabled={syncing} style={{ padding: '8px 16px', fontSize: '12px' }}>
             {syncing ? '?' : '? Social'}
           </button>
