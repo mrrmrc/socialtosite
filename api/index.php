@@ -540,6 +540,49 @@ if ($action === 'admin-users' && $method === 'GET') {
     json(['users' => $users]);
 }
 
+if ($action === 'admin-editorial-room' && $method === 'GET') {
+    requireAdmin($isAdmin);
+    ensureSiteSchemaUpgrades();
+    $targetId = isset($_GET['user_id']) ? (int)$_GET['user_id'] : 0;
+    if ($targetId <= 0) jsonError('Utente non valido', 422);
+
+    $user = DB::fetch(
+        'SELECT u.id, u.email, u.name, u.slug, u.role,
+                s.title AS site_title, s.bio, s.profile_summary, s.role_mission, s.content_strategy,
+                s.brand_voice_profile, s.harmonize_agent, s.account_type,
+                s.editorial_dna, s.editorial_memory, s.editorial_engine_state, s.editorial_settings, s.editorial_last_run,
+                s.site_understanding, s.menu_links, s.hero_tagline, s.site_ai_data
+         FROM users u
+         LEFT JOIN sites s ON s.user_id = u.id
+         WHERE u.id = ?',
+        [$targetId]
+    );
+    if (!$user) jsonError('Utente non trovato', 404);
+
+    $sources = DB::fetchAll(
+        'SELECT id, platform, label, url, topic_summary, since_date, auto_publish, max_posts
+         FROM social_sources
+         WHERE user_id = ? AND active = 1
+         ORDER BY id ASC',
+        [$targetId]
+    );
+
+    $posts = DB::fetchAll(
+        'SELECT id, generated_title, edited_title, generated_excerpt, tags, seo_score, published_at
+         FROM posts
+         WHERE user_id = ? AND published = 1
+         ORDER BY published_at DESC, id DESC
+         LIMIT 12',
+        [$targetId]
+    );
+
+    json([
+        'user' => $user,
+        'sources' => $sources,
+        'posts' => $posts,
+    ]);
+}
+
 if ($action === 'admin-seo' && $method === 'GET') {
     requireAdmin($isAdmin);
     // Ottieni le ultime statistiche SEO per ogni utente
