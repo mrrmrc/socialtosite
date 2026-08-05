@@ -1025,6 +1025,84 @@ if ($cardsMode === 'bold') {
       .post { background: {$palSurface}; border-radius: {$radius}; box-shadow: {$cardShadow}; border: 1px solid rgba(0,0,0,0.05); }";
 }
 
+$primaryModelCss = '';
+switch ($primaryModel) {
+    case 'editorial-luxe':
+        $primaryModelCss = "
+          body { background: linear-gradient(180deg, {$palBg} 0%, #f7f0e7 100%); }
+          .hero { max-width: 1280px; padding: 9rem 2rem 6rem; }
+          .hero h1 { font-family: '{$fontHeading}', serif; font-size: clamp(3.6rem, 6vw, 5.8rem); letter-spacing: -0.04em; line-height: 0.98; max-width: 980px; }
+          .hero .bio { font-size: 1.18rem; max-width: 760px; opacity: 0.82; }
+          .post-grid { gap: 2.2rem; }
+          .post { border-radius: 28px; padding: 2.35rem; border-color: rgba(32,26,23,0.08); box-shadow: 0 20px 50px rgba(32,26,23,0.08); }
+          .post h2 { font-family: '{$fontHeading}', serif; font-size: 1.9rem; line-height: 1.08; }
+          .topic-header h2, .recent-header, .slider-content h2 { font-family: '{$fontHeading}', serif; letter-spacing: -0.03em; }
+          .navbar { background: rgba(255,253,249,0.86); border-bottom-color: rgba(32,26,23,0.08); }
+        ";
+        break;
+    case 'neo-brutal-pop':
+        $primaryModelCss = "
+          body { background:
+            radial-gradient(circle at 0% 0%, rgba(255,107,44,0.18), transparent 24%),
+            linear-gradient(180deg, #fff8e7 0%, #fff3d7 100%); }
+          .hero { max-width: 1280px; padding: 8rem 1.5rem 5rem; text-align: left; }
+          .hero h1 { font-size: clamp(3.4rem, 7vw, 6rem); text-transform: uppercase; line-height: 0.92; letter-spacing: -0.05em; max-width: 900px; }
+          .hero .bio { max-width: 700px; font-size: 1.08rem; }
+          .post-grid { gap: 1.5rem; }
+          .post { border: 2px solid #111111; border-radius: 14px; box-shadow: 10px 10px 0 rgba(17,17,17,0.14); }
+          .post:hover { transform: translateY(-6px) rotate(-0.5deg); box-shadow: 16px 16px 0 rgba(17,17,17,0.14); }
+          .post h2 { text-transform: uppercase; line-height: 0.98; font-size: 1.6rem; }
+          .topic-header h2::before { width: 10px; border-radius: 0; }
+          .navbar, .slider-container, .single-post { border: 2px solid #111111; }
+        ";
+        break;
+    case 'dark-cinematic':
+        $primaryModelCss = "
+          body { background:
+            radial-gradient(circle at 20% 20%, rgba(212,165,116,0.14), transparent 18%),
+            linear-gradient(180deg, #09090d 0%, #111117 100%); color: #f5f5f0; }
+          .layout-wrapper, .layout-content-col { background: transparent; }
+          .hero { max-width: 100%; padding: 11rem 2rem 7rem; border-bottom-color: rgba(255,255,255,0.08); }
+          .hero h1 { color: #f8f5ef; font-size: clamp(3.8rem, 7vw, 6rem); line-height: 0.96; max-width: 900px; }
+          .hero .bio { color: rgba(245,245,240,0.72); max-width: 760px; }
+          .post-grid { gap: 1.35rem; }
+          .post { background: linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.02)); border-color: rgba(255,255,255,0.08); }
+          .post h2 a, .nav-brand, .topic-header h2, .recent-header { color: #f5f5f0; }
+          .post .excerpt, .post .meta, .nav-links a { color: rgba(245,245,240,0.72); }
+          .slider-container { border-radius: 0 0 28px 28px; box-shadow: 0 24px 80px rgba(0,0,0,0.45); }
+        ";
+        break;
+    case 'warm-humanist':
+        $primaryModelCss = "
+          body { background:
+            radial-gradient(circle at 100% 0%, rgba(61,139,109,0.10), transparent 24%),
+            linear-gradient(180deg, #fcf7f0 0%, #f7efe3 100%); }
+          .hero { max-width: 1240px; padding: 8rem 2rem 5.5rem; }
+          .hero h1 { font-family: '{$fontHeading}', serif; font-size: clamp(3.2rem, 6vw, 5.2rem); line-height: 1.02; max-width: 860px; }
+          .hero .bio { max-width: 760px; font-size: 1.14rem; opacity: 0.78; }
+          .post { border-radius: 30px; border-color: rgba(36,48,40,0.06); box-shadow: 0 16px 38px rgba(36,48,40,0.08); }
+          .post h2 { font-family: '{$fontHeading}', serif; font-size: 1.75rem; line-height: 1.12; }
+          .topic-header h2::before { background: #3d8b6d; height: 28px; }
+          .navbar { width: min(calc(100% - 24px), 1180px); margin: 14px auto 0; border-radius: 999px; background: rgba(255,253,248,0.82) !important; }
+        ";
+        break;
+    case 'tech-clarity':
+        $primaryModelCss = "
+          body { background:
+            radial-gradient(circle at 50% 0%, rgba(37,99,235,0.08), transparent 22%),
+            linear-gradient(180deg, #f3f7fb 0%, #eef3fb 100%); }
+          .hero { max-width: 1180px; padding: 7.5rem 1.5rem 5rem; }
+          .hero h1 { font-size: clamp(3rem, 5.8vw, 4.8rem); line-height: 1; max-width: 920px; margin-left: auto; margin-right: auto; }
+          .hero .bio { max-width: 720px; font-size: 1.08rem; }
+          .post-grid { gap: 1.5rem; }
+          .post { border-radius: 18px; border-color: rgba(22,32,42,0.08); box-shadow: 0 16px 38px rgba(15,23,42,0.08); }
+          .post h2 { font-size: 1.45rem; line-height: 1.18; }
+          .post .meta { text-transform: uppercase; letter-spacing: 0.08em; font-size: 0.76rem; }
+          .navbar { background: rgba(255,255,255,0.88); box-shadow: 0 8px 30px rgba(15,23,42,0.06); }
+        ";
+        break;
+}
+
 $modelBlendCss = '';
 if ($secondaryModel === 'editorial-luxe') {
     $modelBlendCss .= ".hero h1, .post h2, .nav-brand { font-family: '{$fontHeading}', serif; }";
@@ -1075,6 +1153,7 @@ $dynamicBaseCss = "
   .post h2 a { color: var(--text); transition: color 0.3s; } .post h2 a:hover { color: var(--accent); }
   .post .media img { border-radius: 12px; transition: transform 0.6s cubic-bezier(0.165, 0.84, 0.44, 1); }
   .post:hover .media img { transform: scale(1.05); }
+  {$primaryModelCss}
   {$navCss}
   {$heroCss}
   {$cardsCss}
@@ -1400,7 +1479,10 @@ header('Link: <' . $siteUrl . '/feed.xml>; rel="alternate"; type="application/at
 </head>
 <?php
   $layoutVariant = 'classic';
-  if (in_array($archetype, ['agency', 'fitness', 'brutalist', 'darkphoto', 'gamer'])) { $layoutVariant = 'split'; }
+  if ($heroMode === 'split' || $primaryModel === 'neo-brutal-pop' || $primaryModel === 'dark-cinematic') { $layoutVariant = 'split'; }
+  elseif ($primaryModel === 'warm-humanist') { $layoutVariant = 'sidebar'; }
+  elseif ($primaryModel === 'editorial-luxe' || $cardsMode === 'editorial') { $layoutVariant = 'magazine'; }
+  elseif (in_array($archetype, ['agency', 'fitness', 'brutalist', 'darkphoto', 'gamer'])) { $layoutVariant = 'split'; }
   elseif (in_array($archetype, ['zen', 'blogger', 'portfolio', 'vaporwave'])) { $layoutVariant = 'sidebar'; }
   elseif (in_array($archetype, ['magazine', 'authority', 'ecommerce', 'education'])) { $layoutVariant = 'magazine'; }
   
