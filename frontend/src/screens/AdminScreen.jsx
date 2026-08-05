@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { apiFetch } from '../utils/api';
+import { SITE_LAYOUTS } from '../utils/siteLayouts';
 
 const PIPELINE_STEPS = [
   {
@@ -31,6 +32,15 @@ const PANEL_STYLE = {
   padding: '1rem',
 };
 
+const LAYOUT_LABELS = SITE_LAYOUTS.reduce((acc, layout) => {
+  acc[layout.id] = {
+    name: layout.name,
+    emoji: layout.emoji,
+    desc: layout.desc,
+  };
+  return acc;
+}, {});
+
 export function AdminScreen({ token, currentUser, adminPrompts, updatePrompt }) {
   const [adminTab, setAdminTab] = useState('control-room');
   const [users, setUsers] = useState([]);
@@ -44,7 +54,7 @@ export function AdminScreen({ token, currentUser, adminPrompts, updatePrompt }) 
   const [error, setError] = useState('');
 
   useEffect(() => {
-    if (adminTab === 'users' || adminTab === 'agents' || adminTab === 'control-room') loadUsers();
+    if (adminTab === 'users' || adminTab === 'control-room') loadUsers();
     if (adminTab === 'logs') loadLogs();
     if (adminTab === 'processes') loadProcesses();
   }, [adminTab]);
@@ -276,6 +286,8 @@ export function AdminScreen({ token, currentUser, adminPrompts, updatePrompt }) 
   }
 
   const roomUser = editorialRoom?.user || {};
+  const parsedUnderstanding = parseJsonSafe(roomUser.site_understanding) || {};
+  const modelRouting = parsedUnderstanding.model_routing || {};
   const filteredUsers = useMemo(() => {
     const search = controlRoomFilter.trim().toLowerCase();
     if (!search) return users;
@@ -338,13 +350,16 @@ export function AdminScreen({ token, currentUser, adminPrompts, updatePrompt }) 
     ['{contentStrategy}', compactValue(roomUser.content_strategy)],
     ['{brandVoiceProfile}', compactValue(roomUser.brand_voice_profile)],
   ];
+  const recommendedModels = Array.isArray(modelRouting.recommended_base_models)
+    ? modelRouting.recommended_base_models
+    : (parsedUnderstanding.design_direction?.recommended_base_models || []);
+  const modelReasonEntries = Object.entries(modelRouting.model_reasons || {}).filter(([, reasons]) => Array.isArray(reasons) && reasons.length);
 
   return (
     <div>
       <div style={{ display: 'flex', gap: '8px', marginBottom: '1rem', flexWrap: 'wrap' }}>
         <button className={`btn ${adminTab === 'control-room' ? 'btn-primary' : 'btn-outline'}`} onClick={() => setAdminTab('control-room')}>Control Room</button>
         <button className={`btn ${adminTab === 'users' ? 'btn-primary' : 'btn-outline'}`} onClick={() => setAdminTab('users')}>Gestione Utenti</button>
-        <button className={`btn ${adminTab === 'agents' ? 'btn-primary' : 'btn-outline'}`} onClick={() => setAdminTab('agents')}>Agenti Editoriali</button>
         <button className={`btn ${adminTab === 'prompts' ? 'btn-primary' : 'btn-outline'}`} onClick={() => setAdminTab('prompts')}>Istruzioni AI</button>
         <button className={`btn ${adminTab === 'processes' ? 'btn-primary' : 'btn-outline'}`} onClick={() => setAdminTab('processes')}>Processi Attivi</button>
         <button className={`btn ${adminTab === 'logs' ? 'btn-primary' : 'btn-outline'}`} onClick={() => setAdminTab('logs')}>Log di Sistema</button>
@@ -432,30 +447,6 @@ export function AdminScreen({ token, currentUser, adminPrompts, updatePrompt }) 
               );
             })}
           </div>
-        </div>
-      )}
-
-      {adminTab === 'agents' && (
-        <div className="card">
-          <h3 style={{ marginBottom: '1rem' }}>Agenti Editoriali degli Utenti</h3>
-          <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '1rem' }}>
-            Visualizza e modifica le direttive dell'agente assegnato ad ogni utente. L'agente usa questi dati per filtrare e armonizzare i post importati.
-          </p>
-          {users.map(u => (
-            <div key={u.id} style={{ marginBottom: '1.5rem', paddingBottom: '1.5rem', borderBottom: '1px solid var(--border)' }}>
-              <div style={{ fontWeight: 600, marginBottom: '8px' }}>{u.name || u.email} <span style={{ fontSize: '12px', fontWeight: 400, color: 'var(--text-muted)' }}>({u.email})</span></div>
-              <div style={{ display: 'grid', gap: '10px' }}>
-                <div>
-                  <label className="label">Ruolo e Missione</label>
-                  <textarea defaultValue={u.role_mission || ''} onBlur={e => updateUser(u.id, { role_mission: e.target.value })} style={{ width: '100%', minHeight: '60px', padding: '8px 12px', fontSize: '13px', border: '1px solid var(--border-strong)', borderRadius: 'var(--radius-sm)', background: 'var(--surface)' }} />
-                </div>
-                <div>
-                  <label className="label">Strategia dei Contenuti</label>
-                  <textarea defaultValue={u.content_strategy || ''} onBlur={e => updateUser(u.id, { content_strategy: e.target.value })} style={{ width: '100%', minHeight: '60px', padding: '8px 12px', fontSize: '13px', border: '1px solid var(--border-strong)', borderRadius: 'var(--radius-sm)', background: 'var(--surface)' }} />
-                </div>
-              </div>
-            </div>
-          ))}
         </div>
       )}
 
@@ -597,128 +588,220 @@ export function AdminScreen({ token, currentUser, adminPrompts, updatePrompt }) 
                   </div>
 
                   <div style={{ ...PANEL_STYLE, padding: '1.2rem' }}>
-                    <div style={{ fontWeight: 800, fontSize: '18px', marginBottom: '0.35rem' }}>Come la control room costruisce il profilo di questo utente</div>
+                    <div style={{ fontWeight: 800, fontSize: '18px', marginBottom: '0.35rem' }}>Sintesi operativa</div>
                     <div style={{ color: 'var(--text-muted)', fontSize: '13px', lineHeight: 1.6, marginBottom: '1rem' }}>
-                      Questa sezione mostra gli input letti dall&apos;AI e cosa ne ha dedotto per arrivare al profilo finale.
+                      Una vista veloce su cosa ha capito l&apos;AI, cosa sta usando per scrivere e quali contenuti ha già prodotto.
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '0.85rem' }}>
+                      <div style={{ ...PANEL_STYLE }}>
+                        <div style={{ fontWeight: 700, marginBottom: '0.5rem' }}>Profilo usato</div>
+                        <div style={{ fontSize: '13px', lineHeight: 1.6 }}>{compactValue(roomUser.profile_summary)}</div>
+                      </div>
+                      <div style={{ ...PANEL_STYLE }}>
+                        <div style={{ fontWeight: 700, marginBottom: '0.5rem' }}>Agente attivo</div>
+                        <div style={{ fontSize: '13px', lineHeight: 1.6 }}>
+                          <strong>{activePrompt?.label || roomUser.harmonize_agent || 'Non definito'}</strong>
+                          <br />
+                          <span style={{ color: 'var(--text-muted)' }}>{activePrompt?.description || 'Prompt che governa l’assemblaggio dei contenuti.'}</span>
+                        </div>
+                      </div>
+                      <div style={{ ...PANEL_STYLE }}>
+                        <div style={{ fontWeight: 700, marginBottom: '0.5rem' }}>Segnali letti</div>
+                        <div style={{ fontSize: '13px', lineHeight: 1.6 }}>
+                          {(editorialRoom.sources || []).length} sorgenti attive
+                          <br />
+                          <span style={{ color: 'var(--text-muted)' }}>{understandingHighlights[0] || 'Comprensione strategica non ancora sintetizzata.'}</span>
+                        </div>
+                      </div>
+                      <div style={{ ...PANEL_STYLE }}>
+                        <div style={{ fontWeight: 700, marginBottom: '0.5rem' }}>Output recente</div>
+                        <div style={{ fontSize: '13px', lineHeight: 1.6 }}>
+                          {(editorialRoom.posts || []).length} contenuti pubblicati
+                          <br />
+                          <span style={{ color: 'var(--text-muted)' }}>{editorialRoom.posts?.[0]?.edited_title || editorialRoom.posts?.[0]?.generated_title || 'Nessun contenuto recente'}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div style={{ ...PANEL_STYLE, padding: '1.2rem' }}>
+                    <div style={{ fontWeight: 800, fontSize: '18px', marginBottom: '0.35rem' }}>Model Routing AI</div>
+                    <div style={{ color: 'var(--text-muted)', fontSize: '13px', lineHeight: 1.6, marginBottom: '1rem' }}>
+                      Il sistema sceglie i modelli in base al messaggio da comunicare, al tono, all&apos;obiettivo di conversione e alla presenza visiva richiesta.
                     </div>
 
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '0.85rem', marginBottom: '1rem' }}>
-                      {profileAssemblyRows.map(row => (
-                        <div key={row.label} style={{ ...PANEL_STYLE, padding: '0.95rem' }}>
-                          <div style={{ fontSize: '12px', fontWeight: 800, marginBottom: '0.5rem' }}>{row.label}</div>
-                          <div style={{ fontSize: '13px', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>{row.value}</div>
-                          <div style={{ marginTop: '0.65rem', color: 'var(--text-muted)', fontSize: '12px' }}>{row.helper}</div>
-                        </div>
-                      ))}
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.85rem', marginBottom: '1rem' }}>
+                      {renderValueCard('Messaggio', modelRouting.message_type?.label || 'Da confermare', 'accent')}
+                      {renderValueCard('Tono', modelRouting.tone_profile?.label || 'Da confermare', 'success')}
+                      {renderValueCard('Obiettivo', modelRouting.conversion_goal?.label || 'Da confermare', 'warn')}
+                      {renderValueCard('Intensità', modelRouting.visual_intensity?.label || 'Bilanciata', 'default')}
+                      {renderValueCard('Densità', modelRouting.content_depth?.label || 'Bilanciata', 'default')}
+                    </div>
+
+                    <div style={{ ...PANEL_STYLE, marginBottom: '1rem' }}>
+                      <div style={{ fontWeight: 700, marginBottom: '0.5rem' }}>Sintesi di routing</div>
+                      <div style={{ fontSize: '13px', lineHeight: 1.6 }}>
+                        {modelRouting.summary || 'Nessuna logica di routing salvata per questo utente.'}
+                      </div>
                     </div>
 
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '0.85rem' }}>
-                      <div style={{ ...PANEL_STYLE, padding: '1rem' }}>
-                        <div style={{ fontWeight: 700, marginBottom: '0.75rem' }}>Input reali letti dai social</div>
-                        <div style={{ display: 'grid', gap: '0.65rem' }}>
-                          {(editorialRoom.sources || []).map(source => (
-                            <div key={source.id} style={{ paddingBottom: '0.65rem', borderBottom: '1px solid var(--border)' }}>
-                              <div style={{ display: 'flex', justifyContent: 'space-between', gap: '10px', marginBottom: '4px' }}>
-                                <strong style={{ textTransform: 'capitalize' }}>{source.platform}</strong>
-                                <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{source.auto_publish ? 'autopublish' : 'review'}</span>
+                      <div style={{ ...PANEL_STYLE }}>
+                        <div style={{ fontWeight: 700, marginBottom: '0.75rem' }}>Modelli consigliati</div>
+                        <div style={{ display: 'grid', gap: '0.75rem' }}>
+                          {recommendedModels.map(modelId => {
+                            const meta = LAYOUT_LABELS[modelId] || {};
+                            return (
+                              <div key={modelId} style={{ padding: '0.85rem', borderRadius: 'var(--radius-sm)', background: 'var(--gray-light)' }}>
+                                <div style={{ fontWeight: 700, marginBottom: '4px' }}>
+                                  {meta.emoji ? `${meta.emoji} ` : ''}{meta.name || modelId}
+                                </div>
+                                <div style={{ fontSize: '12px', color: 'var(--text-muted)', lineHeight: 1.5 }}>
+                                  {meta.desc || 'Modello locale della libreria design.'}
+                                </div>
                               </div>
-                              <div style={{ fontSize: '12px', color: 'var(--text-muted)', lineHeight: 1.5 }}>
-                                {source.label || source.url}
-                                {source.topic_summary ? <><br />Topic: {source.topic_summary}</> : null}
-                                {source.since_date ? <><br />Da: {source.since_date}</> : null}
-                              </div>
-                            </div>
-                          ))}
-                          {!editorialRoom.sources?.length && <div style={{ color: 'var(--text-muted)', fontSize: '13px' }}>Nessuna sorgente attiva.</div>}
+                            );
+                          })}
+                          {!recommendedModels.length && <div style={{ color: 'var(--text-muted)', fontSize: '13px' }}>Nessun modello raccomandato ancora disponibile.</div>}
                         </div>
                       </div>
 
-                      <div style={{ ...PANEL_STYLE, padding: '1rem' }}>
-                        <div style={{ fontWeight: 700, marginBottom: '0.75rem' }}>Cosa ha capito l&apos;AI del business</div>
-                        <div style={{ display: 'grid', gap: '0.55rem' }}>
-                          {understandingHighlights.map((item, index) => (
-                            <div key={`${item}-${index}`} style={{ fontSize: '13px', lineHeight: 1.55, padding: '0.7rem 0.8rem', borderRadius: 'var(--radius-sm)', background: 'var(--gray-light)' }}>
-                              {item}
-                            </div>
-                          ))}
-                          {understandingHighlights.length === 0 && <div style={{ color: 'var(--text-muted)', fontSize: '13px' }}>Nessuna comprensione strategica ancora salvata.</div>}
+                      <div style={{ ...PANEL_STYLE }}>
+                        <div style={{ fontWeight: 700, marginBottom: '0.75rem' }}>Perché questi modelli</div>
+                        <div style={{ display: 'grid', gap: '0.75rem' }}>
+                          {modelReasonEntries.map(([modelId, reasons]) => {
+                            const meta = LAYOUT_LABELS[modelId] || {};
+                            return (
+                              <div key={modelId} style={{ paddingBottom: '0.75rem', borderBottom: '1px solid var(--border)' }}>
+                                <div style={{ fontWeight: 700, marginBottom: '4px' }}>{meta.name || modelId}</div>
+                                <div style={{ fontSize: '12px', color: 'var(--text-muted)', lineHeight: 1.55 }}>
+                                  {reasons.join(' · ')}
+                                </div>
+                              </div>
+                            );
+                          })}
+                          {!modelReasonEntries.length && <div style={{ color: 'var(--text-muted)', fontSize: '13px' }}>Le ragioni di scelta non sono ancora state sintetizzate.</div>}
                         </div>
                       </div>
                     </div>
                   </div>
 
-                  <div style={{ ...PANEL_STYLE, padding: '1.2rem' }}>
-                    <div style={{ fontWeight: 800, fontSize: '18px', marginBottom: '0.35rem' }}>Logica con cui la control room assembla i contenuti</div>
-                    <div style={{ color: 'var(--text-muted)', fontSize: '13px', lineHeight: 1.6, marginBottom: '1rem' }}>
-                      Qui vedi quale agente guida la scrittura, quali variabili gli vengono passate e quali memorie usa per decidere forma, tono e priorita.
-                    </div>
-
-                    <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.2fr) minmax(280px, 0.8fr)', gap: '1rem', marginBottom: '1rem' }}>
-                      <div style={{ ...PANEL_STYLE }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', gap: '10px', alignItems: 'flex-start', marginBottom: '0.75rem', flexWrap: 'wrap' }}>
-                          <div>
-                            <div style={{ fontWeight: 700 }}>{activePrompt?.label || roomUser.harmonize_agent || 'Agente attivo non definito'}</div>
-                            <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>{activePrompt?.description || 'Questo e il prompt operativo che filtra e armonizza i contenuti di questo utente.'}</div>
+                  <details style={{ ...PANEL_STYLE, padding: '1.2rem' }}>
+                    <summary style={{ cursor: 'pointer', fontWeight: 800, fontSize: '17px' }}>Come la control room costruisce il profilo</summary>
+                    <div style={{ marginTop: '1rem', display: 'grid', gap: '1rem' }}>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '0.85rem' }}>
+                        {profileAssemblyRows.map(row => (
+                          <div key={row.label} style={{ ...PANEL_STYLE, padding: '0.95rem' }}>
+                            <div style={{ fontSize: '12px', fontWeight: 800, marginBottom: '0.5rem' }}>{row.label}</div>
+                            <div style={{ fontSize: '13px', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>{row.value}</div>
+                            <div style={{ marginTop: '0.65rem', color: 'var(--text-muted)', fontSize: '12px' }}>{row.helper}</div>
                           </div>
-                          <span className="badge badge-purple">Prompt attivo</span>
-                        </div>
-                        <textarea
-                          readOnly
-                          value={activePrompt?.instructions || 'Nessun prompt associato a questo agente.'}
-                          style={{ width: '100%', minHeight: '220px', padding: '12px', fontSize: '12px', fontFamily: 'monospace', border: '1px solid var(--border-strong)', borderRadius: 'var(--radius-sm)', background: 'var(--surface)', lineHeight: 1.55, resize: 'vertical' }}
-                        />
+                        ))}
                       </div>
 
-                      <div style={{ ...PANEL_STYLE }}>
-                        <div style={{ fontWeight: 700, marginBottom: '0.75rem' }}>Variabili reali passate al prompt</div>
-                        <div style={{ display: 'grid', gap: '0.65rem' }}>
-                          {promptVariables.map(([key, value]) => (
-                            <div key={key} style={{ padding: '0.8rem', borderRadius: 'var(--radius-sm)', background: 'var(--gray-light)' }}>
-                              <div style={{ fontFamily: 'monospace', fontSize: '12px', fontWeight: 700, marginBottom: '4px' }}>{key}</div>
-                              <div style={{ fontSize: '12px', lineHeight: 1.5, color: 'var(--text-muted)', whiteSpace: 'pre-wrap' }}>{value}</div>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '0.85rem' }}>
+                        <div style={{ ...PANEL_STYLE, padding: '1rem' }}>
+                          <div style={{ fontWeight: 700, marginBottom: '0.75rem' }}>Input reali letti dai social</div>
+                          <div style={{ display: 'grid', gap: '0.65rem' }}>
+                            {(editorialRoom.sources || []).map(source => (
+                              <div key={source.id} style={{ paddingBottom: '0.65rem', borderBottom: '1px solid var(--border)' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', gap: '10px', marginBottom: '4px' }}>
+                                  <strong style={{ textTransform: 'capitalize' }}>{source.platform}</strong>
+                                  <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{source.auto_publish ? 'autopublish' : 'review'}</span>
+                                </div>
+                                <div style={{ fontSize: '12px', color: 'var(--text-muted)', lineHeight: 1.5 }}>
+                                  {source.label || source.url}
+                                  {source.topic_summary ? <><br />Topic: {source.topic_summary}</> : null}
+                                  {source.since_date ? <><br />Da: {source.since_date}</> : null}
+                                </div>
+                              </div>
+                            ))}
+                            {!editorialRoom.sources?.length && <div style={{ color: 'var(--text-muted)', fontSize: '13px' }}>Nessuna sorgente attiva.</div>}
+                          </div>
+                        </div>
+
+                        <div style={{ ...PANEL_STYLE, padding: '1rem' }}>
+                          <div style={{ fontWeight: 700, marginBottom: '0.75rem' }}>Cosa ha capito l&apos;AI del business</div>
+                          <div style={{ display: 'grid', gap: '0.55rem' }}>
+                            {understandingHighlights.map((item, index) => (
+                              <div key={`${item}-${index}`} style={{ fontSize: '13px', lineHeight: 1.55, padding: '0.7rem 0.8rem', borderRadius: 'var(--radius-sm)', background: 'var(--gray-light)' }}>
+                                {item}
+                              </div>
+                            ))}
+                            {understandingHighlights.length === 0 && <div style={{ color: 'var(--text-muted)', fontSize: '13px' }}>Nessuna comprensione strategica ancora salvata.</div>}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </details>
+
+                  <details style={{ ...PANEL_STYLE, padding: '1.2rem' }}>
+                    <summary style={{ cursor: 'pointer', fontWeight: 800, fontSize: '17px' }}>Logica di assemblaggio dei contenuti</summary>
+                    <div style={{ marginTop: '1rem', display: 'grid', gap: '1rem' }}>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.2fr) minmax(280px, 0.8fr)', gap: '1rem' }}>
+                        <div style={{ ...PANEL_STYLE }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', gap: '10px', alignItems: 'flex-start', marginBottom: '0.75rem', flexWrap: 'wrap' }}>
+                            <div>
+                              <div style={{ fontWeight: 700 }}>{activePrompt?.label || roomUser.harmonize_agent || 'Agente attivo non definito'}</div>
+                              <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>{activePrompt?.description || 'Questo e il prompt operativo che filtra e armonizza i contenuti di questo utente.'}</div>
                             </div>
-                          ))}
+                            <span className="badge badge-purple">Prompt attivo</span>
+                          </div>
+                          <textarea
+                            readOnly
+                            value={activePrompt?.instructions || 'Nessun prompt associato a questo agente.'}
+                            style={{ width: '100%', minHeight: '220px', padding: '12px', fontSize: '12px', fontFamily: 'monospace', border: '1px solid var(--border-strong)', borderRadius: 'var(--radius-sm)', background: 'var(--surface)', lineHeight: 1.55, resize: 'vertical' }}
+                          />
                         </div>
-                      </div>
-                    </div>
 
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '0.85rem' }}>
-                      <div style={{ ...PANEL_STYLE }}>
-                        <div style={{ fontWeight: 700, marginBottom: '0.75rem' }}>Editorial DNA</div>
-                        <div style={{ display: 'grid', gap: '0.5rem' }}>
-                          {dnaHighlights.map((item, index) => (
-                            <div key={`${item}-${index}`} style={{ fontSize: '13px', lineHeight: 1.55 }}>{item}</div>
-                          ))}
-                          {!dnaHighlights.length && <div style={{ color: 'var(--text-muted)', fontSize: '13px' }}>DNA editoriale non ancora sintetizzato.</div>}
+                        <div style={{ ...PANEL_STYLE }}>
+                          <div style={{ fontWeight: 700, marginBottom: '0.75rem' }}>Variabili reali passate al prompt</div>
+                          <div style={{ display: 'grid', gap: '0.65rem' }}>
+                            {promptVariables.map(([key, value]) => (
+                              <div key={key} style={{ padding: '0.8rem', borderRadius: 'var(--radius-sm)', background: 'var(--gray-light)' }}>
+                                <div style={{ fontFamily: 'monospace', fontSize: '12px', fontWeight: 700, marginBottom: '4px' }}>{key}</div>
+                                <div style={{ fontSize: '12px', lineHeight: 1.5, color: 'var(--text-muted)', whiteSpace: 'pre-wrap' }}>{value}</div>
+                              </div>
+                            ))}
+                          </div>
                         </div>
                       </div>
-                      <div style={{ ...PANEL_STYLE }}>
-                        <div style={{ fontWeight: 700, marginBottom: '0.75rem' }}>Editorial Memory</div>
-                        <div style={{ display: 'grid', gap: '0.5rem' }}>
-                          {memoryHighlights.map((item, index) => (
-                            <div key={`${item}-${index}`} style={{ fontSize: '13px', lineHeight: 1.55 }}>{item}</div>
-                          ))}
-                          {!memoryHighlights.length && <div style={{ color: 'var(--text-muted)', fontSize: '13px' }}>Memoria editoriale vuota.</div>}
-                        </div>
-                      </div>
-                      <div style={{ ...PANEL_STYLE }}>
-                        <div style={{ fontWeight: 700, marginBottom: '0.75rem' }}>Impostazioni motore</div>
-                        <div style={{ display: 'grid', gap: '0.5rem' }}>
-                          {settingsHighlights.map((item, index) => (
-                            <div key={`${item}-${index}`} style={{ fontSize: '13px', lineHeight: 1.55 }}>{item}</div>
-                          ))}
-                          {!settingsHighlights.length && <div style={{ color: 'var(--text-muted)', fontSize: '13px' }}>Nessuna impostazione avanzata registrata.</div>}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
 
-                  <div style={{ ...PANEL_STYLE, padding: '1.2rem' }}>
-                    <div style={{ fontWeight: 800, fontSize: '18px', marginBottom: '0.35rem' }}>Agenti della regia generale</div>
-                    <div style={{ color: 'var(--text-muted)', fontSize: '13px', lineHeight: 1.6, marginBottom: '1rem' }}>
-                      Tutti i prompt di sistema sono qui sotto. Quello attivo sull&apos;utente selezionato e evidenziato, così capisci subito chi sta guidando la produzione.
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '0.85rem' }}>
+                        <div style={{ ...PANEL_STYLE }}>
+                          <div style={{ fontWeight: 700, marginBottom: '0.75rem' }}>Editorial DNA</div>
+                          <div style={{ display: 'grid', gap: '0.5rem' }}>
+                            {dnaHighlights.map((item, index) => (
+                              <div key={`${item}-${index}`} style={{ fontSize: '13px', lineHeight: 1.55 }}>{item}</div>
+                            ))}
+                            {!dnaHighlights.length && <div style={{ color: 'var(--text-muted)', fontSize: '13px' }}>DNA editoriale non ancora sintetizzato.</div>}
+                          </div>
+                        </div>
+                        <div style={{ ...PANEL_STYLE }}>
+                          <div style={{ fontWeight: 700, marginBottom: '0.75rem' }}>Editorial Memory</div>
+                          <div style={{ display: 'grid', gap: '0.5rem' }}>
+                            {memoryHighlights.map((item, index) => (
+                              <div key={`${item}-${index}`} style={{ fontSize: '13px', lineHeight: 1.55 }}>{item}</div>
+                            ))}
+                            {!memoryHighlights.length && <div style={{ color: 'var(--text-muted)', fontSize: '13px' }}>Memoria editoriale vuota.</div>}
+                          </div>
+                        </div>
+                        <div style={{ ...PANEL_STYLE }}>
+                          <div style={{ fontWeight: 700, marginBottom: '0.75rem' }}>Impostazioni motore</div>
+                          <div style={{ display: 'grid', gap: '0.5rem' }}>
+                            {settingsHighlights.map((item, index) => (
+                              <div key={`${item}-${index}`} style={{ fontSize: '13px', lineHeight: 1.55 }}>{item}</div>
+                            ))}
+                            {!settingsHighlights.length && <div style={{ color: 'var(--text-muted)', fontSize: '13px' }}>Nessuna impostazione avanzata registrata.</div>}
+                          </div>
+                        </div>
+                      </div>
                     </div>
-                    <div style={{ display: 'grid', gap: '0.85rem' }}>
+                  </details>
+
+                  <details style={{ ...PANEL_STYLE, padding: '1.2rem' }}>
+                    <summary style={{ cursor: 'pointer', fontWeight: 800, fontSize: '17px' }}>Prompt e agenti della regia</summary>
+                    <div style={{ marginTop: '1rem', display: 'grid', gap: '0.85rem' }}>
                       {adminPrompts.map(prompt => {
                         const isActive = prompt.agent_name === roomUser.harmonize_agent;
                         return (
@@ -741,38 +824,41 @@ export function AdminScreen({ token, currentUser, adminPrompts, updatePrompt }) 
                         );
                       })}
                     </div>
-                  </div>
+                  </details>
 
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1rem' }}>
-                    <div style={{ ...PANEL_STYLE }}>
-                      <div style={{ fontWeight: 700, marginBottom: '0.75rem' }}>Ultimi contenuti pubblicati</div>
-                      <div style={{ display: 'grid', gap: '0.75rem' }}>
-                        {(editorialRoom.posts || []).map(post => (
-                          <div key={post.id} style={{ paddingBottom: '0.75rem', borderBottom: '1px solid var(--border)' }}>
-                            <div style={{ fontWeight: 700, marginBottom: '4px' }}>#{post.id} {post.edited_title || post.generated_title || 'Senza titolo'}</div>
-                            <div style={{ fontSize: '12px', color: 'var(--text-muted)', lineHeight: 1.5 }}>
-                              {post.generated_excerpt || 'Nessun excerpt disponibile'}
-                              {post.published_at ? <><br />Pubblicato: {post.published_at}</> : null}
-                              {post.seo_score ? <><br />SEO score: {post.seo_score}</> : null}
+                  <details style={{ ...PANEL_STYLE, padding: '1.2rem' }}>
+                    <summary style={{ cursor: 'pointer', fontWeight: 800, fontSize: '17px' }}>Contenuti recenti e debug</summary>
+                    <div style={{ marginTop: '1rem', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1rem' }}>
+                      <div style={{ ...PANEL_STYLE }}>
+                        <div style={{ fontWeight: 700, marginBottom: '0.75rem' }}>Ultimi contenuti pubblicati</div>
+                        <div style={{ display: 'grid', gap: '0.75rem' }}>
+                          {(editorialRoom.posts || []).map(post => (
+                            <div key={post.id} style={{ paddingBottom: '0.75rem', borderBottom: '1px solid var(--border)' }}>
+                              <div style={{ fontWeight: 700, marginBottom: '4px' }}>#{post.id} {post.edited_title || post.generated_title || 'Senza titolo'}</div>
+                              <div style={{ fontSize: '12px', color: 'var(--text-muted)', lineHeight: 1.5 }}>
+                                {post.generated_excerpt || 'Nessun excerpt disponibile'}
+                                {post.published_at ? <><br />Pubblicato: {post.published_at}</> : null}
+                                {post.seo_score ? <><br />SEO score: {post.seo_score}</> : null}
+                              </div>
                             </div>
-                          </div>
-                        ))}
-                        {!editorialRoom.posts?.length && <div style={{ color: 'var(--text-muted)', fontSize: '13px' }}>Nessun contenuto pubblicato.</div>}
+                          ))}
+                          {!editorialRoom.posts?.length && <div style={{ color: 'var(--text-muted)', fontSize: '13px' }}>Nessun contenuto pubblicato.</div>}
+                        </div>
                       </div>
-                    </div>
 
-                    <div style={{ ...PANEL_STYLE }}>
-                      <div style={{ fontWeight: 700, marginBottom: '0.75rem' }}>Debug completo della control room</div>
-                      <div style={{ color: 'var(--text-muted)', fontSize: '12px', lineHeight: 1.6, marginBottom: '0.75rem' }}>
-                        Se ti serve andare nel dettaglio tecnico, qui trovi ancora i payload completi salvati dal sistema.
-                      </div>
-                      <div style={{ display: 'grid', gap: '0.85rem' }}>
-                        {renderJsonPanel('Comprensione editoriale', roomUser.site_understanding)}
-                        {renderJsonPanel('Editorial State', roomUser.editorial_engine_state)}
-                        {renderJsonPanel('Site AI Data', roomUser.site_ai_data)}
+                      <div style={{ ...PANEL_STYLE }}>
+                        <div style={{ fontWeight: 700, marginBottom: '0.75rem' }}>Debug completo della control room</div>
+                        <div style={{ color: 'var(--text-muted)', fontSize: '12px', lineHeight: 1.6, marginBottom: '0.75rem' }}>
+                          Apri solo se devi leggere i payload tecnici salvati dal sistema.
+                        </div>
+                        <div style={{ display: 'grid', gap: '0.85rem' }}>
+                          {renderJsonPanel('Comprensione editoriale', roomUser.site_understanding)}
+                          {renderJsonPanel('Editorial State', roomUser.editorial_engine_state)}
+                          {renderJsonPanel('Site AI Data', roomUser.site_ai_data)}
+                        </div>
                       </div>
                     </div>
-                  </div>
+                  </details>
                 </div>
               )}
             </div>

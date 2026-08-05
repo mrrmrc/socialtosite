@@ -140,61 +140,247 @@ class AI {
         return "\n\nVINCOLO DI VERTICALE\nVerticale probabile: {$vertical['label']} ({$vertical['key']}).\nBase models consigliati: " . implode(', ', $vertical['models']) . ".\n{$vertical['directive']}\n";
     }
 
-    private static function recommendDesignModels(string $profileSummary, string $roleMission, string $contentStrategy): array {
+    private static function inferMessageArchitecture(string $profileSummary, string $roleMission, string $contentStrategy): array {
         $vertical = self::inferVerticalContext($profileSummary, $roleMission, $contentStrategy);
         $text = mb_strtolower(trim($profileSummary . ' ' . $roleMission . ' ' . $contentStrategy));
-        $scores = [
+
+        $messageTypes = [
+            'authority' => ['label' => 'Autorevole', 'terms' => ['esperto', 'autorevole', 'certificato', 'studio', 'professionale', 'specialista', 'avvocat', 'medic', 'dentista', 'consulenza'], 'models' => ['editorial-luxe', 'tech-clarity']],
+            'warm_trust' => ['label' => 'Umano e rassicurante', 'terms' => ['accoglienza', 'cura', 'empatia', 'persone', 'famiglia', 'benessere', 'ascolto', 'relazione', 'supporto'], 'models' => ['warm-humanist', 'editorial-luxe']],
+            'conversion' => ['label' => 'Conversione diretta', 'terms' => ['prenota', 'chiama', 'preventivo', 'lead', 'contatti', 'whatsapp', 'conversione', 'richiesta', 'appuntamento'], 'models' => ['tech-clarity', 'neo-brutal-pop']],
+            'showcase' => ['label' => 'Vetrina visiva', 'terms' => ['portfolio', 'shooting', 'video', 'visual', 'immagini', 'stile', 'look', 'brand', 'fotograf', 'regista'], 'models' => ['dark-cinematic', 'editorial-luxe']],
+            'community' => ['label' => 'Community e relazione', 'terms' => ['community', 'crescita', 'condivisione', 'social', 'creator', 'engagement', 'divulgazione', 'follow'], 'models' => ['neo-brutal-pop', 'warm-humanist']],
+        ];
+
+        $toneProfiles = [
+            'institutional' => ['label' => 'Istituzionale', 'terms' => ['studio', 'ufficiale', 'istituzionale', 'rigore', 'compliance', 'metodo']],
+            'warm' => ['label' => 'Caldo', 'terms' => ['caldo', 'accogliente', 'umano', 'gentile', 'vicino', 'empatico']],
+            'technical' => ['label' => 'Tecnico', 'terms' => ['tecnico', 'precisione', 'processo', 'data', 'sistema', 'metrica', 'software']],
+            'bold' => ['label' => 'Deciso', 'terms' => ['forte', 'audace', 'impatto', 'energetico', 'bold', 'street', 'pop']],
+            'premium' => ['label' => 'Premium', 'terms' => ['premium', 'lusso', 'eleganza', 'raffinato', 'esclusivo', 'alta gamma']],
+        ];
+
+        $conversionGoals = [
+            'booking' => ['label' => 'Prenotazione', 'terms' => ['prenota', 'booking', 'appuntamento', 'agenda', 'calendly']],
+            'lead_generation' => ['label' => 'Lead generation', 'terms' => ['preventivo', 'contatto', 'richiesta', 'lead', 'call conoscitiva']],
+            'direct_contact' => ['label' => 'Contatto diretto', 'terms' => ['chiama', 'whatsapp', 'scrivimi', 'dm', 'telegram']],
+            'discovery' => ['label' => 'Scoperta brand', 'terms' => ['portfolio', 'chi sono', 'storia', 'manifesto', 'about']],
+            'content_discovery' => ['label' => 'Scoperta contenuti', 'terms' => ['blog', 'articoli', 'guide', 'podcast', 'newsletter']],
+        ];
+
+        $visualIntensity = [
+            'calm' => ['label' => 'Calma', 'terms' => ['pulito', 'essenziale', 'chiaro', 'sobrio', 'rassicurante']],
+            'balanced' => ['label' => 'Bilanciata', 'terms' => ['equilibrio', 'moderno', 'ordinato', 'professionale']],
+            'expressive' => ['label' => 'Espressiva', 'terms' => ['creativo', 'forte', 'personale', 'carattere', 'editoriale']],
+            'immersive' => ['label' => 'Immersiva', 'terms' => ['cinematico', 'atmosfera', 'visivo', 'luxury', 'fotografico']],
+        ];
+
+        $contentDepth = [
+            'lean' => ['label' => 'Sintetica', 'terms' => ['landing', 'one page', 'essenziale', 'rapido', 'contatto veloce']],
+            'balanced' => ['label' => 'Bilanciata', 'terms' => ['servizi', 'faq', 'sezioni', 'presentazione']],
+            'rich' => ['label' => 'Ricca', 'terms' => ['blog', 'approfondimenti', 'articoli', 'risorse', 'guida', 'magazine']],
+        ];
+
+        $modelScores = [
             'editorial-luxe' => 0,
             'neo-brutal-pop' => 0,
             'dark-cinematic' => 0,
             'warm-humanist' => 0,
             'tech-clarity' => 0,
         ];
-
-        foreach (($vertical['models'] ?? []) as $index => $model) {
-            if (isset($scores[$model])) $scores[$model] += $index === 0 ? 8 : 5;
-        }
-
-        $keywords = [
-            'editorial-luxe' => ['editoriale', 'magazine', 'giornal', 'writer', 'scritt', 'consulen', 'luxury', 'elegan', 'beauty', 'fashion', 'brand personale'],
-            'neo-brutal-pop' => ['creator', 'tiktok', 'street', 'bold', 'viral', 'performance', 'advertising', 'marketing', 'agency', 'energi', 'sport', 'fitness'],
-            'dark-cinematic' => ['video', 'film', 'cinema', 'fotograf', 'music', 'artista', 'visual', 'premium', 'luxury', 'night', 'dark'],
-            'warm-humanist' => ['coach', 'wellness', 'psicolog', 'terap', 'famiglia', 'education', 'educa', 'bambin', 'salute', 'human', 'cura', 'community'],
-            'tech-clarity' => ['ai', 'software', 'saas', 'tech', 'startup', 'developer', 'engineer', 'data', 'prodotto', 'b2b', 'automation', 'digital'],
+        $modelReasons = [
+            'editorial-luxe' => [],
+            'neo-brutal-pop' => [],
+            'dark-cinematic' => [],
+            'warm-humanist' => [],
+            'tech-clarity' => [],
         ];
 
-        foreach ($keywords as $model => $terms) {
-            foreach ($terms as $term) {
-                if ($text !== '' && mb_strpos($text, $term) !== false) {
-                    $scores[$model] += 3;
+        foreach (($vertical['models'] ?? []) as $index => $model) {
+            if (!isset($modelScores[$model])) continue;
+            $modelScores[$model] += $index === 0 ? 8 : 5;
+            $modelReasons[$model][] = 'Compatibile con il verticale ' . $vertical['label'];
+        }
+
+        $pickBest = function (array $options, string $defaultKey) use ($text) {
+            $bestKey = $defaultKey;
+            $bestScore = 0;
+            foreach ($options as $key => $option) {
+                $score = 0;
+                foreach ($option['terms'] as $term) {
+                    if ($text !== '' && mb_strpos($text, $term) !== false) $score += 3;
+                }
+                if ($score > $bestScore) {
+                    $bestScore = $score;
+                    $bestKey = $key;
                 }
             }
+            return [$bestKey, $bestScore];
+        };
+
+        [$messageTypeKey, $messageTypeScore] = $pickBest($messageTypes, 'authority');
+        [$toneKey, $toneScore] = $pickBest($toneProfiles, 'balanced');
+        [$goalKey, $goalScore] = $pickBest($conversionGoals, 'lead_generation');
+        [$visualKey, $visualScore] = $pickBest($visualIntensity, 'balanced');
+        [$depthKey, $depthScore] = $pickBest($contentDepth, 'balanced');
+
+        $messageType = $messageTypes[$messageTypeKey];
+        foreach (($messageType['models'] ?? []) as $index => $model) {
+            if (!isset($modelScores[$model])) continue;
+            $modelScores[$model] += $index === 0 ? 7 : 4;
+            $modelReasons[$model][] = 'Supporta un messaggio ' . mb_strtolower($messageType['label']);
         }
 
-        if (preg_match('/\b(avvocat|law|legal|studio legale|notai)\b/u', $text)) $scores['editorial-luxe'] += 2;
-        if (preg_match('/\b(ristor|chef|food|cucina)\b/u', $text)) $scores['warm-humanist'] += 2;
-        if (preg_match('/\b(creator|streamer|gaming|gamer)\b/u', $text)) $scores['neo-brutal-pop'] += 2;
-        if (preg_match('/\b(product|ux|ui|design system)\b/u', $text)) $scores['tech-clarity'] += 2;
-        if (preg_match('/\b(photo|photojournal|director|regista)\b/u', $text)) $scores['dark-cinematic'] += 2;
+        if ($toneKey === 'premium') {
+            $modelScores['editorial-luxe'] += 4;
+            $modelScores['dark-cinematic'] += 2;
+            $modelReasons['editorial-luxe'][] = 'Tono premium/elegante';
+        } elseif ($toneKey === 'warm') {
+            $modelScores['warm-humanist'] += 4;
+            $modelReasons['warm-humanist'][] = 'Tono umano e rassicurante';
+        } elseif ($toneKey === 'technical' || $toneKey === 'institutional') {
+            $modelScores['tech-clarity'] += 4;
+            $modelScores['editorial-luxe'] += 2;
+            $modelReasons['tech-clarity'][] = 'Tono tecnico/istituzionale';
+        } elseif ($toneKey === 'bold') {
+            $modelScores['neo-brutal-pop'] += 4;
+            $modelReasons['neo-brutal-pop'][] = 'Tono deciso ad alta energia';
+        }
 
-        arsort($scores);
-        $top = array_slice(array_keys($scores), 0, 2);
-        if (($scores[$top[0]] ?? 0) <= 0) {
-            return ['warm-humanist', 'tech-clarity'];
+        if ($goalKey === 'booking' || $goalKey === 'lead_generation' || $goalKey === 'direct_contact') {
+            $modelScores['tech-clarity'] += 3;
+            $modelScores['warm-humanist'] += 1;
+            $modelReasons['tech-clarity'][] = 'Adatto a CTA e conversione immediata';
         }
-        if (($scores[$top[1]] ?? 0) <= 0) {
-            return [$top[0]];
+        if ($goalKey === 'discovery') {
+            $modelScores['editorial-luxe'] += 3;
+            $modelScores['dark-cinematic'] += 1;
+            $modelReasons['editorial-luxe'][] = 'Ottimo per far percepire brand e posizionamento';
         }
-        return $top;
+        if ($goalKey === 'content_discovery') {
+            $modelScores['editorial-luxe'] += 3;
+            $modelScores['tech-clarity'] += 2;
+            $modelReasons['editorial-luxe'][] = 'Sostiene bene strutture ricche di contenuti';
+        }
+
+        if ($visualKey === 'immersive') {
+            $modelScores['dark-cinematic'] += 4;
+            $modelReasons['dark-cinematic'][] = 'Adatto a presenza visiva immersiva';
+        } elseif ($visualKey === 'expressive') {
+            $modelScores['neo-brutal-pop'] += 3;
+            $modelScores['editorial-luxe'] += 1;
+            $modelReasons['neo-brutal-pop'][] = 'Adatto a una presenza visiva espressiva';
+        } elseif ($visualKey === 'calm') {
+            $modelScores['warm-humanist'] += 3;
+            $modelScores['tech-clarity'] += 1;
+            $modelReasons['warm-humanist'][] = 'Adatto a una presenza calma e leggibile';
+        }
+
+        if ($depthKey === 'rich') {
+            $modelScores['editorial-luxe'] += 3;
+            $modelScores['tech-clarity'] += 2;
+            $modelReasons['editorial-luxe'][] = 'Supporta un ecosistema contenuti ricco';
+        } elseif ($depthKey === 'lean') {
+            $modelScores['tech-clarity'] += 2;
+            $modelScores['neo-brutal-pop'] += 1;
+            $modelReasons['tech-clarity'][] = 'Funziona bene con struttura sintetica';
+        }
+
+        if (preg_match('/\b(creator|streamer|gaming|gamer|viral)\b/u', $text)) {
+            $modelScores['neo-brutal-pop'] += 3;
+            $modelReasons['neo-brutal-pop'][] = 'Segnali creator/viral';
+        }
+        if (preg_match('/\b(photo|photojournal|director|regista|cinema|videomaker)\b/u', $text)) {
+            $modelScores['dark-cinematic'] += 3;
+            $modelReasons['dark-cinematic'][] = 'Segnali visual/cinematic';
+        }
+        if (preg_match('/\b(avvocat|law|legal|notai)\b/u', $text)) {
+            $modelScores['editorial-luxe'] += 2;
+            $modelReasons['editorial-luxe'][] = 'Contesto legal con bisogno di trust';
+        }
+
+        arsort($modelScores);
+        $recommendedModels = array_slice(array_keys($modelScores), 0, 2);
+        $recommendedModels = array_values(array_filter($recommendedModels, function ($model) use ($modelScores) {
+            return ($modelScores[$model] ?? 0) > 0;
+        }));
+        if (empty($recommendedModels)) {
+            $recommendedModels = $vertical['models'] ?? ['warm-humanist', 'tech-clarity'];
+        }
+
+        $avoid = ['template generico', 'stile fuori contesto', 'layout intercambiabile senza motivo'];
+        if ($messageTypeKey === 'authority') $avoid[] = 'estetica troppo pop o rumorosa';
+        if ($messageTypeKey === 'showcase') $avoid[] = 'impostazione da software freddo';
+        if ($messageTypeKey === 'conversion') $avoid[] = 'hero dispersiva senza CTA';
+        if ($toneKey === 'warm') $avoid[] = 'copy freddo e burocratico';
+        if ($toneKey === 'technical') $avoid[] = 'decorazione gratuita senza gerarchia';
+
+        $confidenceBase = max($vertical['confidence'] ?? 0.45, 0.45);
+        $confidenceBoost = min(0.22, (($messageTypeScore + $toneScore + $goalScore + $visualScore + $depthScore) / 100));
+
+        return [
+            'vertical' => [
+                'key' => $vertical['key'],
+                'label' => $vertical['label'],
+                'confidence' => $vertical['confidence'],
+            ],
+            'message_type' => [
+                'key' => $messageTypeKey,
+                'label' => $messageType['label'],
+                'confidence' => min(0.96, 0.5 + ($messageTypeScore * 0.05)),
+            ],
+            'tone_profile' => [
+                'key' => $toneKey,
+                'label' => $toneProfiles[$toneKey]['label'] ?? 'Bilanciato',
+                'confidence' => min(0.94, 0.45 + ($toneScore * 0.05)),
+            ],
+            'conversion_goal' => [
+                'key' => $goalKey,
+                'label' => $conversionGoals[$goalKey]['label'] ?? 'Lead generation',
+                'confidence' => min(0.94, 0.45 + ($goalScore * 0.05)),
+            ],
+            'visual_intensity' => [
+                'key' => $visualKey,
+                'label' => $visualIntensity[$visualKey]['label'] ?? 'Bilanciata',
+            ],
+            'content_depth' => [
+                'key' => $depthKey,
+                'label' => $contentDepth[$depthKey]['label'] ?? 'Bilanciata',
+            ],
+            'recommended_base_models' => array_slice($recommendedModels, 0, 2),
+            'model_reasons' => array_map(function ($model) use ($modelReasons) {
+                return array_values(array_unique(array_filter($modelReasons[$model] ?? [])));
+            }, array_combine($recommendedModels, $recommendedModels)),
+            'summary' => 'Il sito deve comunicare un posizionamento '
+                . mb_strtolower($messageType['label'])
+                . ', con tono '
+                . mb_strtolower($toneProfiles[$toneKey]['label'] ?? 'bilanciato')
+                . ' e una struttura orientata a '
+                . mb_strtolower($conversionGoals[$goalKey]['label'] ?? 'lead generation')
+                . '.',
+            'avoid' => array_values(array_unique($avoid)),
+            'confidence' => min(0.97, $confidenceBase + $confidenceBoost),
+        ];
+    }
+
+    private static function recommendDesignModels(string $profileSummary, string $roleMission, string $contentStrategy): array {
+        $routing = self::inferMessageArchitecture($profileSummary, $roleMission, $contentStrategy);
+        $recommended = array_values(array_filter((array)($routing['recommended_base_models'] ?? [])));
+        return !empty($recommended) ? array_slice($recommended, 0, 2) : ['warm-humanist', 'tech-clarity'];
     }
 
     private static function buildDesignRecommendationPrompt(string $profileSummary, string $roleMission, string $contentStrategy): string {
-        $recommended = self::recommendDesignModels($profileSummary, $roleMission, $contentStrategy);
+        $routing = self::inferMessageArchitecture($profileSummary, $roleMission, $contentStrategy);
+        $recommended = array_values(array_filter((array)($routing['recommended_base_models'] ?? [])));
         if (empty($recommended)) return '';
         return "\n\nRACCOMANDAZIONI DEL SISTEMA\n"
             . "Per questo profilo i modelli locali piu coerenti sono, in ordine: "
             . implode(', ', $recommended)
-            . ". Usa questi modelli come base del design e, se serve, assemblane massimo 2.\n";
+            . ".\n"
+            . "Messaggio dominante: " . trim((string)($routing['message_type']['label'] ?? 'Da confermare')) . ".\n"
+            . "Tono: " . trim((string)($routing['tone_profile']['label'] ?? 'Bilanciato')) . ".\n"
+            . "Obiettivo conversione: " . trim((string)($routing['conversion_goal']['label'] ?? 'Lead generation')) . ".\n"
+            . "Usa questi modelli come base del design e, se serve, assemblane massimo 2.\n";
     }
 
     private static function buildUnderstandingBrief($understanding): string {
@@ -211,6 +397,7 @@ class AI {
         $pillars = array_slice(array_values(array_filter((array)($editorial['content_pillars'] ?? []))), 0, 6);
         $unknowns = array_slice(array_values(array_filter((array)($editorial['critical_unknowns'] ?? []))), 0, 4);
         $recommendedModels = array_slice(array_values(array_filter((array)($design['recommended_base_models'] ?? []))), 0, 3);
+        $routing = is_array($understanding['model_routing'] ?? null) ? $understanding['model_routing'] : [];
         $avoid = array_slice(array_values(array_filter((array)($design['avoid'] ?? []))), 0, 4);
 
         return "\n\nSCHEDA DI COMPRENSIONE DEL BUSINESS\n"
@@ -222,6 +409,10 @@ class AI {
             . (!empty($evidence) ? "Prove raccolte:\n- " . implode("\n- ", $evidence) . "\n" : '')
             . (!empty($assumptions) ? "Assunzioni da non trattare come verita:\n- " . implode("\n- ", $assumptions) . "\n" : '')
             . (!empty($recommendedModels) ? "Modelli design consigliati:\n- " . implode("\n- ", $recommendedModels) . "\n" : '')
+            . (!empty($routing['summary']) ? "Logica di routing del modello: " . trim((string)$routing['summary']) . "\n" : '')
+            . (!empty($routing['message_type']['label']) ? "Tipo messaggio: " . trim((string)$routing['message_type']['label']) . "\n" : '')
+            . (!empty($routing['tone_profile']['label']) ? "Tono: " . trim((string)$routing['tone_profile']['label']) . "\n" : '')
+            . (!empty($routing['conversion_goal']['label']) ? "Obiettivo conversione: " . trim((string)$routing['conversion_goal']['label']) . "\n" : '')
             . (!empty($design['summary']) ? "Direzione design: " . trim((string)$design['summary']) . "\n" : '')
             . (!empty($avoid) ? "Da evitare nel design:\n- " . implode("\n- ", $avoid) . "\n" : '')
             . (!empty($editorial['summary']) ? "Direzione editoriale: " . trim((string)$editorial['summary']) . "\n" : '')
@@ -1257,6 +1448,7 @@ Restituisci SOLO la nuova memoria aggiornata (testo semplice), nient'altro.";
         }
 
         $fallbackVertical = self::inferVerticalContext($profileOverride, $roleMission, $contentStrategy);
+        $fallbackRouting = self::inferMessageArchitecture($profileOverride, $roleMission, $contentStrategy);
         $prompt = "Sei un analista strategico. Devi spiegare in modo verificabile che tipo di business/progetto rappresentano queste sorgenti social.\n\n"
             . "Profilo dichiarato:\n" . ($profileOverride ?: 'Non indicato') . "\n\n"
             . "Ruolo/Missione:\n" . ($roleMission ?: 'Non indicato') . "\n\n"
@@ -1264,7 +1456,7 @@ Restituisci SOLO la nuova memoria aggiornata (testo semplice), nient'altro.";
             . "Canali:\n- " . implode("\n- ", $lines) . "\n\n"
             . "Esempi contenuti:\n- " . implode("\n- ", array_slice($samples, 0, 10)) . "\n\n"
             . "Rispondi SOLO con JSON valido:\n"
-            . '{"vertical_slug":"string","vertical_label":"string","business_model":"string","audience":"string","confidence":0.0,"evidence":["prova1","prova2","prova3"],"assumptions":["assunzione1"],"design_direction":{"summary":"string","recommended_base_models":["model1","model2"],"keywords":["keyword1","keyword2"],"avoid":["avoid1","avoid2"]},"editorial_direction":{"summary":"string","content_pillars":["pillar1","pillar2","pillar3"],"critical_unknowns":["unknown1","unknown2"]}}';
+            . '{"vertical_slug":"string","vertical_label":"string","business_model":"string","audience":"string","confidence":0.0,"evidence":["prova1","prova2","prova3"],"assumptions":["assunzione1"],"design_direction":{"summary":"string","recommended_base_models":["model1","model2"],"keywords":["keyword1","keyword2"],"avoid":["avoid1","avoid2"]},"model_routing":{"summary":"string","message_type":{"key":"string","label":"string","confidence":0.0},"tone_profile":{"key":"string","label":"string","confidence":0.0},"conversion_goal":{"key":"string","label":"string","confidence":0.0},"visual_intensity":{"key":"string","label":"string"},"content_depth":{"key":"string","label":"string"},"recommended_base_models":["model1","model2"],"model_reasons":{"model1":["reason1"]},"avoid":["avoid1"]},"editorial_direction":{"summary":"string","content_pillars":["pillar1","pillar2","pillar3"],"critical_unknowns":["unknown1","unknown2"]}}';
 
         try {
             $text = self::gemini([['text' => $prompt]], [
@@ -1276,6 +1468,43 @@ Restituisci SOLO la nuova memoria aggiornata (testo semplice), nient'altro.";
             if (is_array($result)) {
                 if (empty($result['design_direction']['recommended_base_models'])) {
                     $result['design_direction']['recommended_base_models'] = $fallbackVertical['models'];
+                }
+                if (empty($result['model_routing']) || !is_array($result['model_routing'])) {
+                    $result['model_routing'] = $fallbackRouting;
+                } else {
+                    if (empty($result['model_routing']['recommended_base_models'])) {
+                        $result['model_routing']['recommended_base_models'] = $fallbackRouting['recommended_base_models'];
+                    }
+                    if (empty($result['model_routing']['summary'])) {
+                        $result['model_routing']['summary'] = $fallbackRouting['summary'];
+                    }
+                    if (empty($result['model_routing']['message_type'])) {
+                        $result['model_routing']['message_type'] = $fallbackRouting['message_type'];
+                    }
+                    if (empty($result['model_routing']['tone_profile'])) {
+                        $result['model_routing']['tone_profile'] = $fallbackRouting['tone_profile'];
+                    }
+                    if (empty($result['model_routing']['conversion_goal'])) {
+                        $result['model_routing']['conversion_goal'] = $fallbackRouting['conversion_goal'];
+                    }
+                    if (empty($result['model_routing']['visual_intensity'])) {
+                        $result['model_routing']['visual_intensity'] = $fallbackRouting['visual_intensity'];
+                    }
+                    if (empty($result['model_routing']['content_depth'])) {
+                        $result['model_routing']['content_depth'] = $fallbackRouting['content_depth'];
+                    }
+                    if (empty($result['model_routing']['model_reasons'])) {
+                        $result['model_routing']['model_reasons'] = $fallbackRouting['model_reasons'];
+                    }
+                    if (empty($result['model_routing']['avoid'])) {
+                        $result['model_routing']['avoid'] = $fallbackRouting['avoid'];
+                    }
+                    if (empty($result['model_routing']['confidence'])) {
+                        $result['model_routing']['confidence'] = $fallbackRouting['confidence'];
+                    }
+                }
+                if (empty($result['design_direction']['recommended_base_models']) && !empty($result['model_routing']['recommended_base_models'])) {
+                    $result['design_direction']['recommended_base_models'] = $result['model_routing']['recommended_base_models'];
                 }
                 return $result;
             }
@@ -1297,10 +1526,11 @@ Restituisci SOLO la nuova memoria aggiornata (testo semplice), nient'altro.";
             'assumptions' => ['Classificazione iniziale basata su segnali testuali, da confermare con i contenuti reali.'],
             'design_direction' => [
                 'summary' => $fallbackVertical['directive'],
-                'recommended_base_models' => $fallbackVertical['models'],
+                'recommended_base_models' => $fallbackRouting['recommended_base_models'],
                 'keywords' => [$fallbackVertical['label'], 'brand-specific', 'non-generic'],
                 'avoid' => ['template interchangeabile', 'tema fuori verticale'],
             ],
+            'model_routing' => $fallbackRouting,
             'editorial_direction' => [
                 'summary' => 'Prima di scalare la produzione editoriale serve validare che verticale, tono e pubblico siano corretti.',
                 'content_pillars' => [],
