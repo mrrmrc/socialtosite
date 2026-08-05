@@ -1,13 +1,44 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { apiFetch } from '../utils/api';
 
+const PIPELINE_STEPS = [
+  {
+    id: 'sources',
+    title: '1. Raccolta segnali',
+    description: 'La control room legge sorgenti collegate, topic, frequenza e materiale pubblicato.',
+  },
+  {
+    id: 'profile',
+    title: '2. Costruzione profilo',
+    description: 'L\'AI sintetizza posizionamento, missione, audience e tono partendo da input dichiarati e social reali.',
+  },
+  {
+    id: 'assembly',
+    title: '3. Regole di assemblaggio',
+    description: 'Prompt, DNA editoriale, memoria e impostazioni decidono come trasformare i contenuti in articoli.',
+  },
+  {
+    id: 'delivery',
+    title: '4. Produzione finale',
+    description: 'La pipeline pubblica contenuti coerenti con profilo, categorie, tag e priorita strategiche.',
+  },
+];
+
+const PANEL_STYLE = {
+  border: '1px solid var(--border)',
+  borderRadius: 'var(--radius)',
+  background: 'linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01))',
+  padding: '1rem',
+};
+
 export function AdminScreen({ token, currentUser, adminPrompts, updatePrompt }) {
-  const [adminTab, setAdminTab] = useState('users');
+  const [adminTab, setAdminTab] = useState('control-room');
   const [users, setUsers] = useState([]);
   const [logs, setLogs] = useState([]);
   const [processes, setProcesses] = useState([]);
   const [selectedControlUserId, setSelectedControlUserId] = useState('');
   const [editorialRoom, setEditorialRoom] = useState(null);
+  const [controlRoomFilter, setControlRoomFilter] = useState('');
   const [form, setForm] = useState({ name: '', email: '', password: '', role: 'user' });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -172,10 +203,49 @@ export function AdminScreen({ token, currentUser, adminPrompts, updatePrompt }) 
     return value || '';
   }
 
+  function compactValue(value, fallback = 'Non disponibile') {
+    if (!value) return fallback;
+    if (typeof value === 'string') return value.trim() || fallback;
+    if (typeof value === 'number') return String(value);
+    const parsed = parseJsonSafe(value);
+    if (!parsed) return fallback;
+    if (Array.isArray(parsed)) return parsed.join(', ') || fallback;
+    return JSON.stringify(parsed, null, 2);
+  }
+
+  function extractHighlights(value, limit = 4) {
+    if (!value) return [];
+    const parsed = parseJsonSafe(value);
+    if (Array.isArray(parsed)) {
+      return parsed
+        .map(item => (typeof item === 'string' ? item : JSON.stringify(item)))
+        .filter(Boolean)
+        .slice(0, limit);
+    }
+    if (parsed && typeof parsed === 'object') {
+      return Object.entries(parsed)
+        .filter(([, entry]) => entry !== null && entry !== '')
+        .slice(0, limit)
+        .map(([key, entry]) => `${humanizeKey(key)}: ${typeof entry === 'string' ? entry : JSON.stringify(entry)}`);
+    }
+    return String(value)
+      .split(/\n|\. /)
+      .map(part => part.trim())
+      .filter(Boolean)
+      .slice(0, limit);
+  }
+
+  function humanizeKey(value = '') {
+    return value
+      .replace(/_/g, ' ')
+      .replace(/([a-z])([A-Z])/g, '$1 $2')
+      .replace(/^./, char => char.toUpperCase());
+  }
+
   function renderJsonPanel(title, value, emptyLabel = 'Nessun dato disponibile.') {
     const content = prettyJson(value);
     return (
-      <div className="card" style={{ padding: '1rem' }}>
+      <div style={PANEL_STYLE}>
         <div style={{ fontWeight: 700, marginBottom: '0.75rem' }}>{title}</div>
         <textarea
           readOnly
@@ -186,14 +256,95 @@ export function AdminScreen({ token, currentUser, adminPrompts, updatePrompt }) 
     );
   }
 
+  function renderValueCard(title, value, tone = 'default') {
+    const toneStyles = {
+      default: { background: 'var(--gray-light)', color: 'var(--text)' },
+      accent: { background: 'var(--primary-light)', color: 'var(--primary-dark)' },
+      success: { background: 'var(--teal-light)', color: 'var(--teal)' },
+      warn: { background: 'var(--amber-light)', color: 'var(--amber)' },
+    };
+
+    return (
+      <div style={{ ...PANEL_STYLE, padding: '0.95rem' }}>
+        <div style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>{title}</div>
+        <div style={{ fontSize: '15px', fontWeight: 700, whiteSpace: 'pre-wrap' }}>{value}</div>
+        <div style={{ marginTop: '0.75rem', display: 'inline-flex', padding: '4px 10px', borderRadius: '999px', fontSize: '11px', fontWeight: 700, ...toneStyles[tone] }}>
+          {title}
+        </div>
+      </div>
+    );
+  }
+
   const roomUser = editorialRoom?.user || {};
+  const filteredUsers = useMemo(() => {
+    const search = controlRoomFilter.trim().toLowerCase();
+    if (!search) return users;
+    return users.filter(user => {
+      const haystack = [user.name, user.email, user.slug, user.plan]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase();
+      return haystack.includes(search);
+    });
+  }, [users, controlRoomFilter]);
+
+  const activePrompt = useMemo(() => {
+    if (!roomUser.harmonize_agent) return null;
+    return adminPrompts.find(prompt => prompt.agent_name === roomUser.harmonize_agent) || null;
+  }, [adminPrompts, roomUser.harmonize_agent]);
+
+  const totalSources = users.reduce((sum, user) => sum + (user.sources?.length || 0), 0);
+  const totalPosts = users.reduce((sum, user) => sum + Number(user.posts_count || 0), 0);
+  const processByUser = useMemo(() => {
+    const map = {};
+    for (const process of processes) {
+      const key = String(process.user_id || process.email || process.name || '');
+      map[key] = (map[key] || 0) + 1;
+    }
+    return map;
+  }, [processes]);
+
+  const profileAssemblyRows = [
+    {
+      label: 'Profilo dichiarato / summary',
+      value: compactValue(roomUser.profile_summary),
+      helper: 'Base testuale con cui la control room inquadra il soggetto.',
+    },
+    {
+      label: 'Ruolo e missione',
+      value: compactValue(roomUser.role_mission),
+      helper: 'Filtro strategico che decide angolo e posizionamento.',
+    },
+    {
+      label: 'Strategia contenuti',
+      value: compactValue(roomUser.content_strategy),
+      helper: 'Guida la scelta dei temi e del formato dei contenuti.',
+    },
+    {
+      label: 'Brand voice',
+      value: compactValue(roomUser.brand_voice_profile),
+      helper: 'Regole di tono, lessico, cluster e istruzioni stilistiche.',
+    },
+  ];
+
+  const understandingHighlights = extractHighlights(roomUser.site_understanding, 5);
+  const dnaHighlights = extractHighlights(roomUser.editorial_dna, 5);
+  const memoryHighlights = extractHighlights(roomUser.editorial_memory, 5);
+  const settingsHighlights = extractHighlights(roomUser.editorial_settings, 5);
+
+  const promptVariables = [
+    ['{profileSummary}', compactValue(roomUser.profile_summary)],
+    ['{roleMission}', compactValue(roomUser.role_mission)],
+    ['{contentStrategy}', compactValue(roomUser.content_strategy)],
+    ['{brandVoiceProfile}', compactValue(roomUser.brand_voice_profile)],
+  ];
 
   return (
     <div>
       <div style={{ display: 'flex', gap: '8px', marginBottom: '1rem', flexWrap: 'wrap' }}>
+        <button className={`btn ${adminTab === 'control-room' ? 'btn-primary' : 'btn-outline'}`} onClick={() => setAdminTab('control-room')}>Control Room</button>
         <button className={`btn ${adminTab === 'users' ? 'btn-primary' : 'btn-outline'}`} onClick={() => setAdminTab('users')}>Gestione Utenti</button>
         <button className={`btn ${adminTab === 'agents' ? 'btn-primary' : 'btn-outline'}`} onClick={() => setAdminTab('agents')}>Agenti Editoriali</button>
-        <button className={`btn ${adminTab === 'control-room' ? 'btn-primary' : 'btn-outline'}`} onClick={() => setAdminTab('control-room')}>Control Room</button>
         <button className={`btn ${adminTab === 'prompts' ? 'btn-primary' : 'btn-outline'}`} onClick={() => setAdminTab('prompts')}>Istruzioni AI</button>
         <button className={`btn ${adminTab === 'processes' ? 'btn-primary' : 'btn-outline'}`} onClick={() => setAdminTab('processes')}>Processi Attivi</button>
         <button className={`btn ${adminTab === 'logs' ? 'btn-primary' : 'btn-outline'}`} onClick={() => setAdminTab('logs')}>Log di Sistema</button>
@@ -205,7 +356,7 @@ export function AdminScreen({ token, currentUser, adminPrompts, updatePrompt }) 
         <div>
           <div className="card" style={{ marginBottom: '1rem' }}>
             <h3 style={{ marginBottom: '1rem' }}>Crea nuovo utente</h3>
-            <form onSubmit={createUser} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+            <form onSubmit={createUser} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '12px' }}>
               <div className="form-group" style={{ marginBottom: 0 }}>
                 <label className="label">Nome</label>
                 <input type="text" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} />
@@ -237,7 +388,7 @@ export function AdminScreen({ token, currentUser, adminPrompts, updatePrompt }) 
               const siteUrl = `${(window.API_BASE || '').replace('3001', '3000')}/s/${u.slug}`;
               return (
                 <div key={u.id} style={{ padding: '12px 0', borderBottom: '1px solid var(--border)' }}>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1.4fr .8fr .7fr auto', gap: '12px', alignItems: 'center' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'minmax(220px, 1.4fr) minmax(140px, .8fr) minmax(140px, .7fr) auto', gap: '12px', alignItems: 'center' }}>
                     <div>
                       <div style={{ fontWeight: 600 }}>{u.name || u.email}</div>
                       <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{u.email}</div>
@@ -309,101 +460,323 @@ export function AdminScreen({ token, currentUser, adminPrompts, updatePrompt }) 
       )}
 
       {adminTab === 'control-room' && (
-        <div className="card">
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '1rem', flexWrap: 'wrap', marginBottom: '1rem' }}>
-            <div>
-              <h3 style={{ marginBottom: '0.35rem' }}>Control Room Editoriale</h3>
-              <p style={{ fontSize: '13px', color: 'var(--text-muted)', margin: 0, lineHeight: 1.5 }}>
-                Vista amministratore: qui leggi agenti, prompt, direttive operative e tutto quello che la control room ha generato per il singolo utente.
-              </p>
+        <div style={{ display: 'grid', gap: '1rem' }}>
+          <div className="card" style={{ overflow: 'hidden' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '1rem', flexWrap: 'wrap', marginBottom: '1.25rem' }}>
+              <div>
+                <div style={{ display: 'inline-flex', padding: '4px 10px', borderRadius: '999px', background: 'var(--primary-light)', color: 'var(--primary-dark)', fontSize: '11px', fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: '0.75rem' }}>
+                  AI Mail Control Room
+                </div>
+                <h3 style={{ marginBottom: '0.35rem', fontSize: '24px' }}>Vista chiara di come lavorano agenti, profili e contenuti</h3>
+                <p style={{ fontSize: '14px', color: 'var(--text-muted)', margin: 0, lineHeight: 1.6, maxWidth: '820px' }}>
+                  Qui vedi prima la regia generale della macchina AI, poi per ogni utente la catena precisa con cui la control room
+                  costruisce il profilo, sceglie le istruzioni attive e assembla i contenuti finali.
+                </p>
+              </div>
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+                <button className="btn btn-outline" onClick={loadUsers}>Aggiorna utenti</button>
+                <button className="btn btn-outline" onClick={loadProcesses}>Aggiorna processi</button>
+                <button className="btn btn-primary" onClick={() => loadEditorialRoom(selectedControlUserId)} disabled={!selectedControlUserId}>Aggiorna utente selezionato</button>
+              </div>
             </div>
-            <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
-              <select value={selectedControlUserId} onChange={e => setSelectedControlUserId(e.target.value)} style={{ minWidth: '260px', padding: '10px 14px', border: '1px solid var(--border-strong)', borderRadius: 'var(--radius-sm)', background: 'var(--surface)' }}>
-                {users.map(u => (
-                  <option key={u.id} value={u.id}>{u.name || u.email}</option>
-                ))}
-              </select>
-              <button className="btn btn-outline" onClick={() => loadEditorialRoom(selectedControlUserId)}>Aggiorna</button>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: '0.9rem', marginBottom: '1.25rem' }}>
+              {renderValueCard('Utenti gestiti', `${users.length}`, 'accent')}
+              {renderValueCard('Sorgenti attive', `${totalSources}`, 'success')}
+              {renderValueCard('Prompt agenti', `${adminPrompts.length}`, 'warn')}
+              {renderValueCard('Processi in coda', `${processes.length}`, processes.length ? 'warn' : 'success')}
+              {renderValueCard('Contenuti totali', `${totalPosts}`, 'default')}
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.85rem' }}>
+              {PIPELINE_STEPS.map(step => (
+                <div key={step.id} style={{ ...PANEL_STYLE, minHeight: '132px' }}>
+                  <div style={{ fontWeight: 700, marginBottom: '0.5rem' }}>{step.title}</div>
+                  <div style={{ color: 'var(--text-muted)', fontSize: '13px', lineHeight: 1.55 }}>{step.description}</div>
+                </div>
+              ))}
             </div>
           </div>
 
-          {!editorialRoom ? (
-            <p style={{ color: 'var(--text-muted)', fontSize: '13px' }}>Seleziona un utente per vedere la sua control room.</p>
-          ) : (
-            <>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem', marginBottom: '1rem' }}>
-                <div className="card" style={{ padding: '1rem' }}>
-                  <div style={{ fontSize: '12px', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '0.35rem' }}>Utente</div>
-                  <div style={{ fontWeight: 700 }}>{roomUser.name || roomUser.email}</div>
-                  <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{roomUser.email}</div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'minmax(280px, 360px) minmax(0, 1fr)', gap: '1rem', alignItems: 'start' }}>
+            <div className="card" style={{ position: 'sticky', top: '1rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', alignItems: 'center', marginBottom: '1rem' }}>
+                <div>
+                  <h3 style={{ marginBottom: '0.25rem' }}>Utenti osservati</h3>
+                  <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '13px' }}>Seleziona un utente e la control room ti mostra come ragiona su di lui.</p>
                 </div>
-                <div className="card" style={{ padding: '1rem' }}>
-                  <div style={{ fontSize: '12px', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '0.35rem' }}>Agente scrittura</div>
-                  <div style={{ fontWeight: 700 }}>{roomUser.harmonize_agent || 'content_editor'}</div>
-                </div>
-                <div className="card" style={{ padding: '1rem' }}>
-                  <div style={{ fontSize: '12px', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '0.35rem' }}>Tipo profilo</div>
-                  <div style={{ fontWeight: 700 }}>{roomUser.account_type || 'business'}</div>
-                </div>
-                <div className="card" style={{ padding: '1rem' }}>
-                  <div style={{ fontSize: '12px', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '0.35rem' }}>Ultima run</div>
-                  <div style={{ fontWeight: 700 }}>{roomUser.editorial_last_run || 'Mai'}</div>
-                </div>
+                <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-muted)' }}>{filteredUsers.length}/{users.length}</div>
               </div>
 
-              <div className="card" style={{ padding: '1rem', marginBottom: '1rem' }}>
-                <div style={{ fontWeight: 700, marginBottom: '0.75rem' }}>Agenti e direttive operative</div>
-                <div style={{ display: 'grid', gap: '1rem' }}>
-                  {adminPrompts.map(prompt => (
-                    <div key={prompt.id} style={{ border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', padding: '1rem', background: 'var(--surface)' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', alignItems: 'flex-start', marginBottom: '0.5rem', flexWrap: 'wrap' }}>
+              <input
+                type="text"
+                placeholder="Cerca nome, email o slug"
+                value={controlRoomFilter}
+                onChange={e => setControlRoomFilter(e.target.value)}
+                style={{ marginBottom: '1rem' }}
+              />
+
+              <div style={{ display: 'grid', gap: '0.75rem', maxHeight: '70vh', overflowY: 'auto', paddingRight: '4px' }}>
+                {filteredUsers.map(user => {
+                  const isActive = String(user.id) === String(selectedControlUserId);
+                  const pending = processByUser[String(user.id)] || processByUser[user.email] || processByUser[user.name] || 0;
+                  return (
+                    <button
+                      key={user.id}
+                      type="button"
+                      onClick={() => setSelectedControlUserId(String(user.id))}
+                      style={{
+                        textAlign: 'left',
+                        padding: '1rem',
+                        borderRadius: 'var(--radius)',
+                        border: isActive ? '1px solid var(--primary)' : '1px solid var(--border)',
+                        background: isActive ? 'linear-gradient(135deg, rgba(99,102,241,0.16), rgba(255,255,255,0.02))' : 'var(--surface)',
+                        boxShadow: 'var(--shadow-sm)',
+                      }}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', gap: '10px', alignItems: 'flex-start', marginBottom: '0.5rem' }}>
                         <div>
-                          <div style={{ fontWeight: 700 }}>{prompt.label || prompt.agent_name}</div>
-                          <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>{prompt.description || 'Direttiva operativa dell’agente.'}</div>
+                          <div style={{ fontWeight: 700 }}>{user.name || user.email}</div>
+                          <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{user.email}</div>
                         </div>
-                        <div style={{ fontSize: '11px', padding: '4px 8px', borderRadius: '999px', background: prompt.agent_name === roomUser.harmonize_agent ? 'var(--purple-light)' : 'var(--gray-light)', color: prompt.agent_name === roomUser.harmonize_agent ? 'var(--purple-dark)' : 'var(--text-muted)', fontWeight: 700 }}>
-                          {prompt.agent_name === roomUser.harmonize_agent ? 'Attivo su questo utente' : prompt.agent_name}
+                        <div style={{ fontSize: '11px', fontWeight: 800, color: isActive ? 'var(--primary-dark)' : 'var(--text-muted)' }}>
+                          {pending ? `${pending} run` : 'idle'}
                         </div>
                       </div>
-                      <textarea
-                        readOnly
-                        value={prompt.instructions || ''}
-                        style={{ width: '100%', minHeight: '180px', padding: '12px', fontSize: '12px', fontFamily: 'monospace', border: '1px solid var(--border-strong)', borderRadius: 'var(--radius-sm)', background: 'var(--bg)', lineHeight: 1.55, resize: 'vertical' }}
-                      />
+                      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '0.65rem' }}>
+                        <span className="badge badge-purple">{user.sources?.length || 0} fonti</span>
+                        <span className="badge badge-green">{user.posts_count || 0} contenuti</span>
+                        <span className="badge badge-amber">{user.connections_count || 0} connessioni</span>
+                      </div>
+                      <div style={{ fontSize: '12px', color: 'var(--text-muted)', lineHeight: 1.5 }}>
+                        Piano: {user.plan || 'free'}<br />
+                        Slug: {user.slug || 'n.d.'}
+                      </div>
+                    </button>
+                  );
+                })}
+
+                {filteredUsers.length === 0 && (
+                  <div style={{ ...PANEL_STYLE, color: 'var(--text-muted)', fontSize: '13px' }}>
+                    Nessun utente trovato con questo filtro.
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="card">
+              {!editorialRoom ? (
+                <p style={{ color: 'var(--text-muted)', fontSize: '13px' }}>Seleziona un utente per vedere la sua control room.</p>
+              ) : (
+                <div style={{ display: 'grid', gap: '1rem' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '1rem', flexWrap: 'wrap' }}>
+                    <div>
+                      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '0.75rem' }}>
+                        <span className="badge badge-purple">{roomUser.harmonize_agent || 'content_editor'}</span>
+                        <span className="badge badge-green">{roomUser.account_type || 'business'}</span>
+                        <span className="badge badge-amber">{roomUser.editorial_last_run || 'Mai eseguito'}</span>
+                      </div>
+                      <h3 style={{ marginBottom: '0.25rem', fontSize: '24px' }}>{roomUser.name || roomUser.email}</h3>
+                      <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '14px' }}>{roomUser.email}</p>
                     </div>
-                  ))}
-                </div>
-              </div>
+                    <div style={{ display: 'grid', gap: '8px', minWidth: '240px' }}>
+                      <select value={selectedControlUserId} onChange={e => setSelectedControlUserId(e.target.value)} style={{ minWidth: '240px' }}>
+                        {users.map(u => (
+                          <option key={u.id} value={u.id}>{u.name || u.email}</option>
+                        ))}
+                      </select>
+                      <button className="btn btn-outline" onClick={() => impersonateUser(roomUser.id)} disabled={roomUser.id === currentUser.id}>Accedi come questo utente</button>
+                    </div>
+                  </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '1rem' }}>
-                {renderJsonPanel('Comprensione editoriale', roomUser.site_understanding)}
-                {renderJsonPanel('Editorial DNA', roomUser.editorial_dna)}
-                {renderJsonPanel('Editorial Memory', roomUser.editorial_memory)}
-                {renderJsonPanel('Editorial State', roomUser.editorial_engine_state)}
-                {renderJsonPanel('Impostazioni motore', roomUser.editorial_settings)}
-                {renderJsonPanel('Site AI Data', roomUser.site_ai_data)}
-              </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: '0.9rem' }}>
+                    {renderValueCard('Sito', roomUser.site_title || 'Titolo non ancora generato')}
+                    {renderValueCard('Missione AI', compactValue(roomUser.role_mission), 'accent')}
+                    {renderValueCard('Tono / voice', compactValue(roomUser.brand_voice_profile), 'success')}
+                    {renderValueCard('Ultima memoria', memoryHighlights[0] || 'Nessuna memoria sintetica', 'warn')}
+                  </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginTop: '1rem' }}>
-                <div className="card" style={{ padding: '1rem' }}>
-                  <div style={{ fontWeight: 700, marginBottom: '0.75rem' }}>Sorgenti attive</div>
-                  <textarea
-                    readOnly
-                    value={(editorialRoom.sources || []).map(source => `[${source.platform}] ${source.label || source.url}${source.topic_summary ? ` - ${source.topic_summary}` : ''}`).join('\n') || 'Nessuna sorgente attiva.'}
-                    style={{ width: '100%', minHeight: '180px', padding: '12px', fontSize: '12px', fontFamily: 'monospace', border: '1px solid var(--border-strong)', borderRadius: 'var(--radius-sm)', background: 'var(--surface)', lineHeight: 1.55, resize: 'vertical' }}
-                  />
+                  <div style={{ ...PANEL_STYLE, padding: '1.2rem' }}>
+                    <div style={{ fontWeight: 800, fontSize: '18px', marginBottom: '0.35rem' }}>Come la control room costruisce il profilo di questo utente</div>
+                    <div style={{ color: 'var(--text-muted)', fontSize: '13px', lineHeight: 1.6, marginBottom: '1rem' }}>
+                      Questa sezione mostra gli input letti dall&apos;AI e cosa ne ha dedotto per arrivare al profilo finale.
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '0.85rem', marginBottom: '1rem' }}>
+                      {profileAssemblyRows.map(row => (
+                        <div key={row.label} style={{ ...PANEL_STYLE, padding: '0.95rem' }}>
+                          <div style={{ fontSize: '12px', fontWeight: 800, marginBottom: '0.5rem' }}>{row.label}</div>
+                          <div style={{ fontSize: '13px', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>{row.value}</div>
+                          <div style={{ marginTop: '0.65rem', color: 'var(--text-muted)', fontSize: '12px' }}>{row.helper}</div>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '0.85rem' }}>
+                      <div style={{ ...PANEL_STYLE, padding: '1rem' }}>
+                        <div style={{ fontWeight: 700, marginBottom: '0.75rem' }}>Input reali letti dai social</div>
+                        <div style={{ display: 'grid', gap: '0.65rem' }}>
+                          {(editorialRoom.sources || []).map(source => (
+                            <div key={source.id} style={{ paddingBottom: '0.65rem', borderBottom: '1px solid var(--border)' }}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', gap: '10px', marginBottom: '4px' }}>
+                                <strong style={{ textTransform: 'capitalize' }}>{source.platform}</strong>
+                                <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{source.auto_publish ? 'autopublish' : 'review'}</span>
+                              </div>
+                              <div style={{ fontSize: '12px', color: 'var(--text-muted)', lineHeight: 1.5 }}>
+                                {source.label || source.url}
+                                {source.topic_summary ? <><br />Topic: {source.topic_summary}</> : null}
+                                {source.since_date ? <><br />Da: {source.since_date}</> : null}
+                              </div>
+                            </div>
+                          ))}
+                          {!editorialRoom.sources?.length && <div style={{ color: 'var(--text-muted)', fontSize: '13px' }}>Nessuna sorgente attiva.</div>}
+                        </div>
+                      </div>
+
+                      <div style={{ ...PANEL_STYLE, padding: '1rem' }}>
+                        <div style={{ fontWeight: 700, marginBottom: '0.75rem' }}>Cosa ha capito l&apos;AI del business</div>
+                        <div style={{ display: 'grid', gap: '0.55rem' }}>
+                          {understandingHighlights.map((item, index) => (
+                            <div key={`${item}-${index}`} style={{ fontSize: '13px', lineHeight: 1.55, padding: '0.7rem 0.8rem', borderRadius: 'var(--radius-sm)', background: 'var(--gray-light)' }}>
+                              {item}
+                            </div>
+                          ))}
+                          {understandingHighlights.length === 0 && <div style={{ color: 'var(--text-muted)', fontSize: '13px' }}>Nessuna comprensione strategica ancora salvata.</div>}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div style={{ ...PANEL_STYLE, padding: '1.2rem' }}>
+                    <div style={{ fontWeight: 800, fontSize: '18px', marginBottom: '0.35rem' }}>Logica con cui la control room assembla i contenuti</div>
+                    <div style={{ color: 'var(--text-muted)', fontSize: '13px', lineHeight: 1.6, marginBottom: '1rem' }}>
+                      Qui vedi quale agente guida la scrittura, quali variabili gli vengono passate e quali memorie usa per decidere forma, tono e priorita.
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.2fr) minmax(280px, 0.8fr)', gap: '1rem', marginBottom: '1rem' }}>
+                      <div style={{ ...PANEL_STYLE }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', gap: '10px', alignItems: 'flex-start', marginBottom: '0.75rem', flexWrap: 'wrap' }}>
+                          <div>
+                            <div style={{ fontWeight: 700 }}>{activePrompt?.label || roomUser.harmonize_agent || 'Agente attivo non definito'}</div>
+                            <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>{activePrompt?.description || 'Questo e il prompt operativo che filtra e armonizza i contenuti di questo utente.'}</div>
+                          </div>
+                          <span className="badge badge-purple">Prompt attivo</span>
+                        </div>
+                        <textarea
+                          readOnly
+                          value={activePrompt?.instructions || 'Nessun prompt associato a questo agente.'}
+                          style={{ width: '100%', minHeight: '220px', padding: '12px', fontSize: '12px', fontFamily: 'monospace', border: '1px solid var(--border-strong)', borderRadius: 'var(--radius-sm)', background: 'var(--surface)', lineHeight: 1.55, resize: 'vertical' }}
+                        />
+                      </div>
+
+                      <div style={{ ...PANEL_STYLE }}>
+                        <div style={{ fontWeight: 700, marginBottom: '0.75rem' }}>Variabili reali passate al prompt</div>
+                        <div style={{ display: 'grid', gap: '0.65rem' }}>
+                          {promptVariables.map(([key, value]) => (
+                            <div key={key} style={{ padding: '0.8rem', borderRadius: 'var(--radius-sm)', background: 'var(--gray-light)' }}>
+                              <div style={{ fontFamily: 'monospace', fontSize: '12px', fontWeight: 700, marginBottom: '4px' }}>{key}</div>
+                              <div style={{ fontSize: '12px', lineHeight: 1.5, color: 'var(--text-muted)', whiteSpace: 'pre-wrap' }}>{value}</div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '0.85rem' }}>
+                      <div style={{ ...PANEL_STYLE }}>
+                        <div style={{ fontWeight: 700, marginBottom: '0.75rem' }}>Editorial DNA</div>
+                        <div style={{ display: 'grid', gap: '0.5rem' }}>
+                          {dnaHighlights.map((item, index) => (
+                            <div key={`${item}-${index}`} style={{ fontSize: '13px', lineHeight: 1.55 }}>{item}</div>
+                          ))}
+                          {!dnaHighlights.length && <div style={{ color: 'var(--text-muted)', fontSize: '13px' }}>DNA editoriale non ancora sintetizzato.</div>}
+                        </div>
+                      </div>
+                      <div style={{ ...PANEL_STYLE }}>
+                        <div style={{ fontWeight: 700, marginBottom: '0.75rem' }}>Editorial Memory</div>
+                        <div style={{ display: 'grid', gap: '0.5rem' }}>
+                          {memoryHighlights.map((item, index) => (
+                            <div key={`${item}-${index}`} style={{ fontSize: '13px', lineHeight: 1.55 }}>{item}</div>
+                          ))}
+                          {!memoryHighlights.length && <div style={{ color: 'var(--text-muted)', fontSize: '13px' }}>Memoria editoriale vuota.</div>}
+                        </div>
+                      </div>
+                      <div style={{ ...PANEL_STYLE }}>
+                        <div style={{ fontWeight: 700, marginBottom: '0.75rem' }}>Impostazioni motore</div>
+                        <div style={{ display: 'grid', gap: '0.5rem' }}>
+                          {settingsHighlights.map((item, index) => (
+                            <div key={`${item}-${index}`} style={{ fontSize: '13px', lineHeight: 1.55 }}>{item}</div>
+                          ))}
+                          {!settingsHighlights.length && <div style={{ color: 'var(--text-muted)', fontSize: '13px' }}>Nessuna impostazione avanzata registrata.</div>}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div style={{ ...PANEL_STYLE, padding: '1.2rem' }}>
+                    <div style={{ fontWeight: 800, fontSize: '18px', marginBottom: '0.35rem' }}>Agenti della regia generale</div>
+                    <div style={{ color: 'var(--text-muted)', fontSize: '13px', lineHeight: 1.6, marginBottom: '1rem' }}>
+                      Tutti i prompt di sistema sono qui sotto. Quello attivo sull&apos;utente selezionato e evidenziato, così capisci subito chi sta guidando la produzione.
+                    </div>
+                    <div style={{ display: 'grid', gap: '0.85rem' }}>
+                      {adminPrompts.map(prompt => {
+                        const isActive = prompt.agent_name === roomUser.harmonize_agent;
+                        return (
+                          <div key={prompt.id} style={{ ...PANEL_STYLE, borderColor: isActive ? 'var(--primary)' : 'var(--border)' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', alignItems: 'flex-start', marginBottom: '0.65rem', flexWrap: 'wrap' }}>
+                              <div>
+                                <div style={{ fontWeight: 700 }}>{prompt.label || prompt.agent_name}</div>
+                                <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>{prompt.description || 'Direttiva operativa dell\'agente.'}</div>
+                              </div>
+                              <div style={{ fontSize: '11px', padding: '4px 8px', borderRadius: '999px', background: isActive ? 'var(--primary-light)' : 'var(--gray-light)', color: isActive ? 'var(--primary-dark)' : 'var(--text-muted)', fontWeight: 800 }}>
+                                {isActive ? 'Attivo su questo utente' : prompt.agent_name}
+                              </div>
+                            </div>
+                            <textarea
+                              readOnly
+                              value={prompt.instructions || ''}
+                              style={{ width: '100%', minHeight: '150px', padding: '12px', fontSize: '12px', fontFamily: 'monospace', border: '1px solid var(--border-strong)', borderRadius: 'var(--radius-sm)', background: 'var(--surface)', lineHeight: 1.55, resize: 'vertical' }}
+                            />
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1rem' }}>
+                    <div style={{ ...PANEL_STYLE }}>
+                      <div style={{ fontWeight: 700, marginBottom: '0.75rem' }}>Ultimi contenuti pubblicati</div>
+                      <div style={{ display: 'grid', gap: '0.75rem' }}>
+                        {(editorialRoom.posts || []).map(post => (
+                          <div key={post.id} style={{ paddingBottom: '0.75rem', borderBottom: '1px solid var(--border)' }}>
+                            <div style={{ fontWeight: 700, marginBottom: '4px' }}>#{post.id} {post.edited_title || post.generated_title || 'Senza titolo'}</div>
+                            <div style={{ fontSize: '12px', color: 'var(--text-muted)', lineHeight: 1.5 }}>
+                              {post.generated_excerpt || 'Nessun excerpt disponibile'}
+                              {post.published_at ? <><br />Pubblicato: {post.published_at}</> : null}
+                              {post.seo_score ? <><br />SEO score: {post.seo_score}</> : null}
+                            </div>
+                          </div>
+                        ))}
+                        {!editorialRoom.posts?.length && <div style={{ color: 'var(--text-muted)', fontSize: '13px' }}>Nessun contenuto pubblicato.</div>}
+                      </div>
+                    </div>
+
+                    <div style={{ ...PANEL_STYLE }}>
+                      <div style={{ fontWeight: 700, marginBottom: '0.75rem' }}>Debug completo della control room</div>
+                      <div style={{ color: 'var(--text-muted)', fontSize: '12px', lineHeight: 1.6, marginBottom: '0.75rem' }}>
+                        Se ti serve andare nel dettaglio tecnico, qui trovi ancora i payload completi salvati dal sistema.
+                      </div>
+                      <div style={{ display: 'grid', gap: '0.85rem' }}>
+                        {renderJsonPanel('Comprensione editoriale', roomUser.site_understanding)}
+                        {renderJsonPanel('Editorial State', roomUser.editorial_engine_state)}
+                        {renderJsonPanel('Site AI Data', roomUser.site_ai_data)}
+                      </div>
+                    </div>
+                  </div>
                 </div>
-                <div className="card" style={{ padding: '1rem' }}>
-                  <div style={{ fontWeight: 700, marginBottom: '0.75rem' }}>Ultimi contenuti pubblicati</div>
-                  <textarea
-                    readOnly
-                    value={(editorialRoom.posts || []).map(post => `#${post.id} ${post.edited_title || post.generated_title || 'Senza titolo'}${post.published_at ? ` | ${post.published_at}` : ''}`).join('\n') || 'Nessun contenuto pubblicato.'}
-                    style={{ width: '100%', minHeight: '180px', padding: '12px', fontSize: '12px', fontFamily: 'monospace', border: '1px solid var(--border-strong)', borderRadius: 'var(--radius-sm)', background: 'var(--surface)', lineHeight: 1.55, resize: 'vertical' }}
-                  />
-                </div>
-              </div>
-            </>
-          )}
+              )}
+            </div>
+          </div>
         </div>
       )}
 
@@ -416,8 +789,8 @@ export function AdminScreen({ token, currentUser, adminPrompts, updatePrompt }) 
           </p>
           {adminPrompts.map(p => (
             <div key={p.id} style={{ marginBottom: '1.75rem', paddingBottom: '1.75rem', borderBottom: '1px solid var(--border)' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
-                <span style={{ background: 'var(--purple-light)', color: 'var(--purple-dark)', fontWeight: 700, fontSize: '13px', padding: '3px 12px', borderRadius: '20px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px', flexWrap: 'wrap' }}>
+                <span style={{ background: 'var(--primary-light)', color: 'var(--primary-dark)', fontWeight: 700, fontSize: '13px', padding: '3px 12px', borderRadius: '20px' }}>
                   {p.label || p.agent_name}
                 </span>
                 {p.description && <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{p.description}</span>}
@@ -472,7 +845,7 @@ export function AdminScreen({ token, currentUser, adminPrompts, updatePrompt }) 
 
       {adminTab === 'logs' && (
         <div className="card">
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', gap: '10px', flexWrap: 'wrap' }}>
             <h3 style={{ margin: 0 }}>Log di Sistema (Backend)</h3>
             <div style={{ display: 'flex', gap: '8px' }}>
               <button className="btn btn-outline" onClick={loadLogs} style={{ padding: '6px 12px', fontSize: '13px' }}>Aggiorna</button>
