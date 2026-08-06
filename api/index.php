@@ -1055,14 +1055,13 @@ if ($action === 'site' && $method === 'GET') {
             $p['tags'] = array_filter(array_map('trim', $decoded));
         }
         VisibilityAnalytics::ensureSchema();
-        $seoAnalytics = DB::fetchAll(
-            'SELECT record_date, impressions, clicks, ctr, position FROM seo_analytics WHERE user_id=? AND record_date >= DATE_SUB(CURDATE(), INTERVAL 29 DAY) ORDER BY record_date ASC',
-            [$userId]
-        );
         $visibility = VisibilityAnalytics::userSummary($userId);
-        $visibility['top_pages'] = VisibilityAnalytics::topPages($userId);
-        $visibility['top_queries'] = VisibilityAnalytics::topQueries($userId);
-        json(['site' => $site, 'posts' => $posts, 'connections' => $connections, 'sources' => $sources, 'seo_analytics' => $seoAnalytics, 'visibility' => $visibility]);
+        if (!$isAdmin) {
+            foreach (['google_visible_pages', 'impressions', 'clicks', 'ctr', 'position', 'latest_search_date'] as $technicalMetric) {
+                unset($visibility[$technicalMetric]);
+            }
+        }
+        json(['site' => $site, 'posts' => $posts, 'connections' => $connections, 'sources' => $sources, 'visibility' => $visibility]);
     } catch (Throwable $e) {
         file_put_contents(__DIR__ . '/site_error.log', $e->getMessage() . "\n" . $e->getTraceAsString());
         jsonError($e->getMessage());

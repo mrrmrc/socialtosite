@@ -150,6 +150,7 @@ Con questo, ogni `git push` deploya automaticamente via FTP. 🚀
 - **Dashboard:** `https://tuodominio.it/`
 - **Sito pubblico:** `https://tuodominio.it/s/nomeutente`
 - **Sitemap:** `https://tuodominio.it/s/nomeutente/sitemap.xml`
+- **Hub pubblico del dominio padre:** `/scopri` collega profili e articoli recenti con HTML server-rendered; `/scopri/sitemap.xml` viene incluso nella sitemap globale.
 - **API:** `https://tuodominio.it/api/index.php?action=...`
 
 ## Utenti e area amministrativa

@@ -93,15 +93,63 @@ function encodeStudioPreviewData(data) {
   }
 }
 
+function buildEditorialIdeas(posts, understanding) {
+  const published = posts.filter(post => Number(post.published) === 1);
+  const searchableText = published.map(post => `${post.generated_title || ''} ${(post.tags || []).join(' ')}`.toLowerCase()).join(' ');
+  const pillars = understanding?.editorial_direction?.content_pillars || [];
+  const ideas = [];
+
+  pillars.forEach((pillar, index) => {
+    const words = String(pillar).toLowerCase().split(/\s+/).filter(word => word.length > 4);
+    const covered = words.some(word => searchableText.includes(word));
+    if (!covered || index < 2) {
+      ideas.push({
+        title: `Una guida pratica su “${pillar}”`,
+        reason: covered ? 'Tema importante da approfondire con un nuovo punto di vista.' : 'Tema riconosciuto dall’AI ma ancora poco coperto nel sito.',
+        type: covered ? 'Approfondimento' : 'Tema mancante',
+      });
+    }
+  });
+
+  (understanding?.editorial_direction?.critical_unknowns || []).slice(0, 2).forEach(item => {
+    ideas.push({ title: `Rispondi chiaramente a: ${item}`, reason: 'Chiarire questo punto aiuta clienti e AI a capire meglio l’attività.', type: 'Domanda cliente' });
+  });
+
+  if (published.length < 8) ideas.push({ title: 'Racconta il servizio più richiesto con un caso concreto', reason: 'Il sito ha ancora pochi contenuti: un esempio reale aumenta completezza e fiducia.', type: 'Priorità alta' });
+  ideas.push({ title: 'Le 5 domande che i clienti fanno prima di scegliere', reason: 'Un contenuto utile intercetta dubbi reali e crea nuovi collegamenti interni.', type: 'Sempre utile' });
+  return ideas.slice(0, 6);
+}
+
+function SiteMapGraph({ posts, siteUrl, siteTitle }) {
+  const visiblePosts = posts.filter(post => Number(post.published) === 1).slice(0, 6);
+  const positions = [[105,330],[235,330],[365,330],[495,330],[625,330],[755,330]];
+  const short = value => String(value || 'Articolo').replace(/\s+/g, ' ').slice(0, 24);
+  return (
+    <div style={{ overflowX: 'auto', paddingBottom: '0.5rem' }}>
+      <svg viewBox="0 0 860 405" role="img" aria-label="Grafo dei collegamenti dal dominio AllSocialToWeb al sito e ai suoi articoli" style={{ width: '100%', minWidth: '690px', height: 'auto', display: 'block' }}>
+        <defs>
+          <linearGradient id="graphRoot" x1="0" x2="1"><stop stopColor="#6366f1"/><stop offset="1" stopColor="#06b6d4"/></linearGradient>
+          <filter id="graphShadow"><feDropShadow dx="0" dy="5" stdDeviation="7" floodOpacity="0.13"/></filter>
+        </defs>
+        <path d="M430 82 L430 142" stroke="var(--border-strong)" strokeWidth="3" />
+        {positions.slice(0, visiblePosts.length).map(([x], index) => <path key={index} d={`M430 224 C430 270 ${x} 260 ${x} 315`} fill="none" stroke="var(--border-strong)" strokeWidth="2" />)}
+        <g filter="url(#graphShadow)"><rect x="310" y="22" width="240" height="60" rx="18" fill="url(#graphRoot)"/><text x="430" y="48" textAnchor="middle" fill="#fff" fontSize="15" fontWeight="800">ALLSOCIALTOWEB.COM</text><text x="430" y="67" textAnchor="middle" fill="rgba(255,255,255,.82)" fontSize="11">Hub pubblico /scopri</text></g>
+        <g filter="url(#graphShadow)"><rect x="285" y="142" width="290" height="82" rx="20" fill="var(--surface)" stroke="var(--primary)" strokeWidth="2"/><text x="430" y="174" textAnchor="middle" fill="var(--text)" fontSize="17" fontWeight="800">{short(siteTitle || 'Il tuo sito')}</text><text x="430" y="198" textAnchor="middle" fill="var(--text-muted)" fontSize="12">{siteUrl.replace(window.location.origin, '')}</text></g>
+        {visiblePosts.map((post, index) => { const [x,y]=positions[index]; return <g key={post.id}><rect x={x-56} y={y-15} width="112" height="58" rx="14" fill="var(--bg)" stroke="var(--border-strong)"/><text x={x} y={y+7} textAnchor="middle" fill="var(--text)" fontSize="10" fontWeight="700"><tspan x={x}>{short(post.generated_title).slice(0,16)}</tspan><tspan x={x} dy="14">{short(post.generated_title).slice(16,32)}</tspan></text></g> })}
+        {visiblePosts.length === 0 && <text x="430" y="340" textAnchor="middle" fill="var(--text-muted)" fontSize="14">I prossimi articoli compariranno qui</text>}
+      </svg>
+      <p style={{ margin: '0.5rem 0 0', color: 'var(--text-muted)', fontSize: '13px', textAlign: 'center' }}>Le linee rappresentano collegamenti HTML percorribili da persone e motori di ricerca.</p>
+    </div>
+  );
+}
+
 export function DashboardScreen({ token, user, onLogout }) {
   const [tab, setTab] = useState('overview');
   const [dashboardFilter, setDashboardFilter] = useState('all');
   const [data, setData] = useState(null);
-  const [seoAnalytics, setSeoAnalytics] = useState([]);
   const [adminSeoStats, setAdminSeoStats] = useState([]);
   const isAdmin = user?.role === 'admin';
 
-  const [brandVoiceProfile, setBrandVoiceProfile] = useState('');
   const [viewMode, setViewMode] = useState('grid');
   const [selectedPosts, setSelectedPosts] = useState([]);
   const [syncing, setSyncing] = useState(false);
@@ -139,7 +187,6 @@ const [importMsg, setImportMsg] = useState(null);
   const [customCss, setCustomCss] = useState('');
   const [menuLinksStr, setMenuLinksStr] = useState('');
   const [footerText, setFooterText] = useState('');
-  const [gscVerification, setGscVerification] = useState('');
   const [harmonizeAgent, setHarmonizeAgent] = useState('content_editor');
   const [accountType, setAccountType] = useState('business');
   const [templateStudio, setTemplateStudio] = useState(() => normalizeStudioData(null));
@@ -153,6 +200,7 @@ const [importMsg, setImportMsg] = useState(null);
   const [editorialEngineMsg, setEditorialEngineMsg] = useState(null);
   const [understandingReport, setUnderstandingReport] = useState(null);
   const [understandingDraft, setUnderstandingDraft] = useState(null);
+  const [savingUnderstanding, setSavingUnderstanding] = useState(false);
   const [promptDrafts, setPromptDrafts] = useState({});
   const [savingPromptName, setSavingPromptName] = useState('');
   const deferredStudio = useDeferredValue(templateStudio);
@@ -176,8 +224,6 @@ const [importMsg, setImportMsg] = useState(null);
       const d = await apiFetch('/api/index.php?action=site', {}, token);
       setData(d);
       setProfileDraft(d.site?.profile_summary || d.site?.bio || '');
-      setBrandVoiceProfile(d.site?.brand_voice_profile || '');
-      setSeoAnalytics(d.seo_analytics || []);
       setRoleMissionDraft(d.site?.role_mission || '');
       setStrategyDraft(d.site?.content_strategy || '');
       setSelectedTheme(d.site?.theme || 'classic');
@@ -189,7 +235,6 @@ const [importMsg, setImportMsg] = useState(null);
       setHeroTagline(d.site?.hero_tagline || '');
       setCustomCss(d.site?.custom_css || '');
       setFooterText(d.site?.footer_text || '');
-      setGscVerification(d.site?.gsc_verification || '');
       setHarmonizeAgent(d.site?.harmonize_agent || 'content_editor');
       setAccountType(d.site?.account_type || 'business');
       let parsedEditorialSettings = { enabled: true, auto_run: true, min_posts: 8, strict_indexing_mode: true };
@@ -652,7 +697,6 @@ const [importMsg, setImportMsg] = useState(null);
           hero_tagline: heroTagline,
           custom_css: customCss,
           footer_text: footerText,
-          gsc_verification: gscVerification,
           harmonize_agent: harmonizeAgent,
           account_type: accountType,
           site_understanding: understandingDraft,
@@ -691,6 +735,22 @@ const [importMsg, setImportMsg] = useState(null);
     updateUnderstandingNested(section, key, value.split('\n').map(item => item.trim()).filter(Boolean));
   }
 
+  async function saveUnderstanding() {
+    setSavingUnderstanding(true);
+    try {
+      await apiFetch('/api/index.php?action=site-update', {
+        method: 'POST',
+        body: JSON.stringify({ site_understanding: understandingDraft || {} }),
+      }, token);
+      setUnderstandingReport(understandingDraft);
+      setSyncMsg({ ok: true, text: 'Correzioni salvate. Da ora guideranno la creazione dei prossimi contenuti.' });
+      await loadData();
+    } catch (error) {
+      setSyncMsg({ ok: false, text: error.message });
+    }
+    setSavingUnderstanding(false);
+  }
+
   async function refreshUnderstanding() {
     setSavingProfile(true);
     try {
@@ -701,9 +761,9 @@ const [importMsg, setImportMsg] = useState(null);
       setUnderstandingReport(res.understanding || null);
       setUnderstandingDraft(res.understanding || null);
       await loadData();
-      setScanMsg({ ok: true, text: 'Scheda di comprensione aggiornata.' });
+      setSyncMsg({ ok: true, text: 'Scheda di comprensione aggiornata.' });
     } catch (err) {
-      setScanMsg({ ok: false, text: err.message });
+      setSyncMsg({ ok: false, text: err.message });
     }
     setSavingProfile(false);
   }
@@ -1106,6 +1166,8 @@ const [importMsg, setImportMsg] = useState(null);
   const connections = data?.connections || [];
   const sources = data?.sources || [];
   const visibility = data?.visibility || {};
+  const contentIdeas = buildEditorialIdeas(posts, understandingDraft || understandingReport);
+  const publishedPosts = posts.filter(post => Number(post.published) === 1);
   const sourceByPlatform = sources.reduce((acc, source) => ({ ...acc, [source.platform]: source }), {});
   const connByPlatform = connections.reduce((acc, c) => ({ ...acc, [c.platform]: c }), {});
   return (
@@ -1139,7 +1201,7 @@ const [importMsg, setImportMsg] = useState(null);
             ...(user?.role === 'admin' ? [
               { id: 'general', icon: '⚙️', label: 'Impostazioni' }
             ] : []),
-            { id: 'seo', icon: '📈', label: 'SEO' },
+            { id: 'seo', icon: '🕸️', label: 'Visibilità e idee' },
             ...(user?.role === 'admin' ? [{ id: 'admin', icon: '🛠', label: 'Admin' }] : [])
           ].map(item => (
             <button key={item.id} onClick={() => setTab(item.id)}
@@ -1184,7 +1246,7 @@ const [importMsg, setImportMsg] = useState(null);
               {tab === 'sources' && 'I miei canali'}
               {tab === 'settings' && 'Design & Aspetto'}
                 {tab === 'general' && 'Impostazioni Generali'}
-              {tab === 'seo' && 'SEO & Analisi'}
+              {tab === 'seo' && 'Visibilità, mappa e nuove idee'}
               {tab === 'admin' && 'Pannello Admin'}
             </h1>
             <div style={{ display: 'flex', gap: '12px' }}>
@@ -1207,9 +1269,7 @@ const [importMsg, setImportMsg] = useState(null);
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1.25rem' }}>
               {[
                 { n: visibility.published_pages ?? (posts.length + 1), l: 'Pagine pubblicate', c: 'var(--primary)' },
-                { n: visibility.google_visible_pages ?? 0, l: 'Pagine apparse in Google', c: 'var(--teal)' },
-                { n: Number(visibility.impressions || 0).toLocaleString('it-IT'), l: 'Impressioni Google · 30 gg', c: 'var(--amber)' },
-                { n: Number(visibility.clicks || 0).toLocaleString('it-IT'), l: 'Clic da Google · 30 gg', c: 'var(--primary-dark)' },
+                { n: visibility.published_pages ?? (posts.length + 1), l: 'Pagine collegate alla rete', c: 'var(--amber)' },
                 { n: Number(visibility.unique_visitors || 0).toLocaleString('it-IT'), l: 'Visite uniche giornaliere · 30 gg', c: 'var(--teal)' },
                 { n: Number(visibility.actions || 0).toLocaleString('it-IT'), l: 'Azioni verso l’attività · 30 gg', c: 'var(--primary)' },
               ].map((s, i) => (
@@ -1223,13 +1283,13 @@ const [importMsg, setImportMsg] = useState(null);
             <div className="card" style={{ padding: '1.5rem', background: 'var(--surface)' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap', alignItems: 'flex-start' }}>
                 <div>
-                  <h3 style={{ marginBottom: '0.4rem', color: 'var(--text)' }}>La tua presenza ricercabile</h3>
+                  <h3 style={{ marginBottom: '0.4rem', color: 'var(--text)' }}>Le persone stanno interagendo con il tuo spazio</h3>
                   <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '14px', maxWidth: '720px', lineHeight: 1.6 }}>
-                    “Pagine apparse in Google” conta le URL che hanno ricevuto almeno un’impressione negli ultimi 30 giorni. Non è una stima: deriva da Google Search Console. Le azioni registrano clic sui contatti, non telefonate o prenotazioni completate.
+                    Qui contiamo visite e clic utili generati dalle tue pagine. Un’azione indica che qualcuno ha premuto su telefono, indicazioni, WhatsApp, prenotazione o social; non significa necessariamente che il contatto sia stato completato.
                   </p>
                 </div>
-                <div style={{ padding: '10px 14px', borderRadius: '999px', background: visibility.latest_search_date ? 'var(--teal-light)' : 'var(--amber-light)', color: visibility.latest_search_date ? 'var(--teal)' : 'var(--amber)', fontSize: '12px', fontWeight: 800 }}>
-                  {visibility.latest_search_date ? `Dati Google aggiornati al ${new Date(visibility.latest_search_date).toLocaleDateString('it-IT')}` : 'In attesa dei primi dati Google'}
+                <div style={{ padding: '10px 14px', borderRadius: '999px', background: 'var(--teal-light)', color: 'var(--teal)', fontSize: '12px', fontWeight: 800 }}>
+                  Collegamento alla rete attivo
                 </div>
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '0.75rem', marginTop: '1.25rem' }}>
@@ -1248,56 +1308,31 @@ const [importMsg, setImportMsg] = useState(null);
               </div>
             </div>
 
-            {brandVoiceProfile && (
-              <div className="card" style={{ padding: '1.5rem', background: 'var(--surface)' }}>
-                <h3 style={{ marginBottom: '1rem', color: 'var(--primary)' }}>🧠 Profilo Brand Voice (AI)</h3>
-                <div style={{ background: 'var(--bg)', padding: '1rem', borderRadius: 'var(--radius)', fontFamily: 'monospace', fontSize: '13px', color: 'var(--text-muted)', whiteSpace: 'pre-wrap', border: '1px solid var(--border)' }}>
-                  {brandVoiceProfile}
+            <div className="card" style={{ padding: '1.5rem', background: 'var(--surface)', border: '1px solid var(--primary)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem', alignItems: 'flex-start', flexWrap: 'wrap' }}>
+                <div>
+                  <h3 style={{ margin: '0 0 0.45rem', color: 'var(--primary)' }}>🧠 Cosa ha capito l’AI</h3>
+                  <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '14px', lineHeight: 1.6, maxWidth: '680px' }}>Queste informazioni guidano i prossimi articoli, i suggerimenti e il modo in cui viene presentata la tua attività. Se qualcosa è sbagliato, correggilo qui.</p>
                 </div>
+                <button className="btn btn-primary" onClick={saveUnderstanding} disabled={savingUnderstanding || !understandingDraft} style={{ padding: '10px 16px' }}>{savingUnderstanding ? 'Salvataggio…' : 'Salva correzioni'}</button>
               </div>
-            )}
-
-            {seoAnalytics.length > 0 && (
-              <div className="card" style={{ padding: '1.5rem', background: 'var(--surface)' }}>
-                <h3 style={{ marginBottom: '1rem', color: 'var(--teal)' }}>📈 Andamento Traffico (Google Search Console)</h3>
-                <div style={{ display: 'flex', alignItems: 'flex-end', height: '200px', gap: '4px', padding: '10px 0', borderBottom: '1px solid var(--border)' }}>
-                  {seoAnalytics.map((day, i) => {
-                     const maxClicks = Math.max(...seoAnalytics.map(a => a.clicks), 1);
-                     const h = (day.clicks / maxClicks) * 100;
-                     return (
-                       <div key={i} title={`${day.record_date}: ${day.clicks} clic, ${day.impressions} impr`} style={{ flex: 1, background: 'var(--teal)', height: `${Math.max(h, 2)}%`, minHeight: '4px', borderRadius: '4px 4px 0 0', cursor: 'pointer', transition: 'background 0.2s' }} onMouseOver={e => e.currentTarget.style.background='var(--primary)'} onMouseOut={e => e.currentTarget.style.background='var(--teal)'}></div>
-                     )
-                  })}
+              {!understandingDraft ? (
+                <div style={{ marginTop: '1.2rem', padding: '1rem', borderRadius: '12px', background: 'var(--amber-light)', color: 'var(--text)', display: 'flex', justifyContent: 'space-between', gap: '1rem', alignItems: 'center', flexWrap: 'wrap' }}><span>L’AI non ha ancora completato questa scheda.</span><button className="btn btn-primary" onClick={refreshUnderstanding} disabled={savingProfile}>{savingProfile ? 'Analisi…' : 'Analizza ora'}</button></div>
+              ) : (
+                <div style={{ display: 'grid', gap: '1rem', marginTop: '1.25rem' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem' }}>
+                    <label className="form-group"><span className="label">Tipo di attività</span><input value={understandingDraft.vertical_label || ''} onChange={e => updateUnderstandingField('vertical_label', e.target.value)} /></label>
+                    <label className="form-group"><span className="label">Cosa offre</span><input value={understandingDraft.business_model || ''} onChange={e => updateUnderstandingField('business_model', e.target.value)} /></label>
+                  </div>
+                  <label className="form-group"><span className="label">A chi si rivolge</span><textarea value={understandingDraft.audience || ''} onChange={e => updateUnderstandingField('audience', e.target.value)} style={{ minHeight: '76px', resize: 'vertical' }} /></label>
+                  <label className="form-group"><span className="label">Come dovrebbe raccontarsi</span><textarea value={understandingDraft.editorial_direction?.summary || ''} onChange={e => updateUnderstandingNested('editorial_direction', 'summary', e.target.value)} style={{ minHeight: '76px', resize: 'vertical' }} /></label>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '1rem' }}>
+                    <label className="form-group"><span className="label">Argomenti principali · uno per riga</span><textarea value={(understandingDraft.editorial_direction?.content_pillars || []).join('\n')} onChange={e => updateUnderstandingNestedList('editorial_direction', 'content_pillars', e.target.value)} style={{ minHeight: '110px', resize: 'vertical' }} /></label>
+                    <label className="form-group"><span className="label">Informazioni da chiarire · una per riga</span><textarea value={(understandingDraft.editorial_direction?.critical_unknowns || []).join('\n')} onChange={e => updateUnderstandingNestedList('editorial_direction', 'critical_unknowns', e.target.value)} style={{ minHeight: '110px', resize: 'vertical' }} /></label>
+                  </div>
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: 'var(--text-muted)', marginTop: '8px' }}>
-                  <span>{seoAnalytics[0]?.record_date}</span>
-                  <span>{seoAnalytics[seoAnalytics.length-1]?.record_date}</span>
-                </div>
-              </div>
-            )}
-
-            {(visibility.top_queries?.length > 0 || visibility.top_pages?.length > 0) && (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '1.25rem' }}>
-                <div className="card" style={{ padding: '1.5rem' }}>
-                  <h3 style={{ marginBottom: '1rem' }}>Ricerche che ti hanno mostrato</h3>
-                  {(visibility.top_queries || []).map((row, index) => (
-                    <div key={`${row.query_text}-${index}`} style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '1rem', padding: '0.75rem 0', borderBottom: '1px solid var(--border)' }}>
-                      <div style={{ fontSize: '14px', color: 'var(--text)' }}>{row.query_text}</div>
-                      <div style={{ fontSize: '12px', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>{row.impressions} impr · {row.clicks} clic</div>
-                    </div>
-                  ))}
-                </div>
-                <div className="card" style={{ padding: '1.5rem' }}>
-                  <h3 style={{ marginBottom: '1rem' }}>Pagine più visibili</h3>
-                  {(visibility.top_pages || []).map((row, index) => (
-                    <div key={`${row.page_url}-${index}`} style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '1rem', padding: '0.75rem 0', borderBottom: '1px solid var(--border)' }}>
-                      <a href={row.page_url} target="_blank" rel="noopener" style={{ fontSize: '14px', color: 'var(--primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{row.page_url.replace(window.location.origin, '')}</a>
-                      <div style={{ fontSize: '12px', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>{row.impressions} impr · {row.clicks} clic</div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
+              )}
+            </div>
             
             <div className="card" style={{ background: 'linear-gradient(135deg, var(--primary-dark), var(--primary))', color: '#fff', border: 'none', boxShadow: '0 10px 30px -10px rgba(0, 240, 255, 0.4)' }}>
               <h2 style={{ marginBottom: '1rem', color: '#fff', fontSize: '24px', letterSpacing: '-0.5px' }}>🌍 Il tuo sito è online</h2>
@@ -1813,19 +1848,34 @@ const [importMsg, setImportMsg] = useState(null);
         {tab === 'seo' && (
           <div>
             <div className="glass-modal" style={{ marginBottom: '1.5rem', padding: '1.5rem' }}>
-              <h3 style={{ marginBottom: '1rem', color: 'var(--primary)' }}>Configurazione SEO</h3>
-              <div className="form-group">
-                <label className="label">Codice verifica Google Search Console</label>
-                <input type="text" value={gscVerification} onChange={e => setGscVerification(e.target.value)}
-                  placeholder="Es: BVF6O77EIb-WwlRh7ctbZBSP8YCnJ67zIEH7icKJMYw" style={{ background: 'var(--bg)', color: 'var(--text)' }} />
-                <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '8px', fontWeight: 500 }}>
-                  Incolla il codice di verifica HTML che ti fornisce Google Search Console per indicizzare il tuo sito.
-                  Una volta salvato, torna su Google Search Console e clicca su "Verifica".
-                </p>
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap', alignItems: 'flex-start' }}>
+                <div>
+                  <h3 style={{ margin: '0 0 0.45rem', color: 'var(--primary)' }}>🌐 La rete sta distribuendo i tuoi contenuti</h3>
+                  <p style={{ margin: 0, fontSize: '14px', color: 'var(--text-muted)', lineHeight: 1.65, maxWidth: '700px' }}>Il tuo sito e i suoi articoli sono collegati dall’hub pubblico di AllSocialToWeb e inseriti nella mappa generale del dominio. Ogni nuovo articolo entra automaticamente nella rete, senza configurazioni da parte tua.</p>
+                </div>
+                <span style={{ padding: '9px 13px', borderRadius: '999px', background: 'var(--teal-light)', color: 'var(--teal)', fontSize: '12px', fontWeight: 800 }}>Attivo</span>
               </div>
-              <button className="btn btn-primary" onClick={saveProfile} disabled={savingProfile} style={{ padding: '12px 20px', fontWeight: 700 }}>
-                {savingProfile ? '⟳ Salvataggio...' : '✓ Salva configurazione SEO'}
-              </button>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem', marginTop: '1.25rem' }}>
+                {[['Pagine nella rete', visibility.published_pages ?? (publishedPosts.length + 1)], ['Canali osservati', sources.length], ['Visite · 30 giorni', visibility.unique_visitors || 0], ['Azioni · 30 giorni', visibility.actions || 0]].map(([label,value]) => <div key={label} style={{ padding: '1rem', borderRadius: '12px', background: 'var(--bg)', border: '1px solid var(--border)' }}><div style={{ fontSize: '26px', fontWeight: 850, color: 'var(--text)' }}>{value}</div><div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>{label}</div></div>)}
+              </div>
+              <div style={{ display: 'flex', gap: '10px', marginTop: '1.2rem', flexWrap: 'wrap' }}>
+                <a href="/scopri" target="_blank" rel="noopener" className="btn btn-outline" style={{ textDecoration: 'none' }}>Apri la rete pubblica</a>
+                <a href={`${siteUrl}/sitemap.xml`} target="_blank" rel="noopener" className="btn btn-outline" style={{ textDecoration: 'none' }}>Vedi elenco pagine</a>
+              </div>
+            </div>
+
+            <div className="glass-modal" style={{ marginBottom: '1.5rem', padding: '1.5rem' }}>
+              <h3 style={{ margin: '0 0 0.4rem', color: 'var(--text)' }}>🕸️ Mappa del tuo spazio nella rete</h3>
+              <p style={{ margin: '0 0 1rem', color: 'var(--text-muted)', fontSize: '14px' }}>Questa è la struttura che rende i contenuti raggiungibili dal dominio principale fino ai singoli articoli.</p>
+              <SiteMapGraph posts={posts} siteUrl={siteUrl} siteTitle={data?.site?.title || user?.name || user?.slug} />
+            </div>
+
+            <div className="glass-modal" style={{ marginBottom: '1.5rem', padding: '1.5rem' }}>
+              <h3 style={{ margin: '0 0 0.4rem', color: 'var(--text)' }}>💡 Prossimi contenuti consigliati</h3>
+              <p style={{ margin: '0 0 1.2rem', color: 'var(--text-muted)', fontSize: '14px' }}>Le idee nascono da ciò che l’AI ha capito dell’attività e dai temi già presenti. Correggendo la scheda in Home cambieranno anche questi suggerimenti.</p>
+              <div style={{ display: 'grid', gap: '0.8rem' }}>
+                {contentIdeas.map((idea, index) => <div key={`${idea.title}-${index}`} style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '1rem', padding: '1rem', border: '1px solid var(--border)', background: 'var(--bg)', borderRadius: '14px' }}><div style={{ width: '34px', height: '34px', borderRadius: '11px', display: 'grid', placeItems: 'center', background: 'var(--primary-light)', color: 'var(--primary)', fontWeight: 850 }}>{index + 1}</div><div><div style={{ fontSize: '11px', fontWeight: 800, color: 'var(--primary)', textTransform: 'uppercase', letterSpacing: '.5px' }}>{idea.type}</div><div style={{ fontWeight: 800, color: 'var(--text)', marginTop: '3px' }}>{idea.title}</div><div style={{ color: 'var(--text-muted)', fontSize: '13px', lineHeight: 1.5, marginTop: '4px' }}>{idea.reason}</div></div></div>)}
+              </div>
             </div>
 
             {isAdmin && (
@@ -2836,6 +2886,9 @@ const [importMsg, setImportMsg] = useState(null);
         
         <button className={`mobile-nav-item ${tab === 'sources' ? 'active' : ''}`} onClick={() => setTab('sources')}>
           <span style={{fontSize: '20px'}}>📡</span> Canali
+        </button>
+        <button className={`mobile-nav-item ${tab === 'seo' ? 'active' : ''}`} onClick={() => setTab('seo')}>
+          <span style={{fontSize: '20px'}}>🕸️</span> Mappa
         </button>
         <button className={`mobile-nav-item ${tab === 'settings' ? 'active' : ''}`} onClick={() => setTab('settings')}>
           <span style={{fontSize: '20px'}}>🎨</span> Design

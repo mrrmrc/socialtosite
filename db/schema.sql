@@ -97,6 +97,7 @@ CREATE TABLE IF NOT EXISTS sites (
   seo_score     INT DEFAULT 0,
   generated_layouts LONGTEXT,
   site_ai_data  LONGTEXT,
+  site_understanding LONGTEXT,
   gsc_verification VARCHAR(255),
   last_sync     DATETIME,
   created_at    DATETIME DEFAULT NOW(),

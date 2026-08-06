@@ -21,6 +21,7 @@ export function LandingScreen({ onGetStarted }) {
           <span style={{ fontWeight: 800, fontSize: '18px', letterSpacing: '-0.5px' }}>AllSocial<span className="gradient-text">ToWeb</span></span>
         </div>
         <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+          <a href="/scopri" style={{ color: 'var(--text-muted)', textDecoration: 'none', fontSize: '14px', fontWeight: 700 }}>Scopri</a>
           {!isLoggedIn && <button className="btn btn-outline" onClick={onGetStarted} style={{ padding: '8px 20px', fontSize: '14px' }}>Accedi</button>}
           <button className="btn btn-primary" onClick={() => { if (isLoggedIn) window.location.href = '/dashboard'; else onGetStarted(); }} style={{ padding: '10px 22px', fontSize: '14px' }}>
             {isLoggedIn ? 'Dashboard →' : 'Inizia Gratis'}
@@ -131,7 +132,7 @@ export function LandingScreen({ onGetStarted }) {
       {/* Footer */}
       <footer style={{ position: 'relative', zIndex: 1, padding: '32px 24px', textAlign: 'center', color: 'var(--text-faint)', fontSize: '13px', borderTop: '1px solid var(--border)' }}>
         <div style={{ marginBottom: '8px', fontWeight: 700, color: 'var(--text-muted)', fontSize: '14px' }}><img src="/logo.png" alt="AllSocialToWeb" style={{ height: '24px' }} /></div>
-        <p>© 2026 AllSocialToWeb. Tutti i diritti riservati. · Piano gratuito · Fino a 3 social · Nessuna carta richiesta</p>
+        <p><a href="/scopri" style={{ color: 'inherit' }}>Esplora attività e contenuti</a> · © 2026 AllSocialToWeb. Tutti i diritti riservati. · Piano gratuito · Fino a 3 social</p>
       </footer>
     </div>
   );

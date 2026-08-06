@@ -310,7 +310,12 @@ class Ingest {
             'SELECT platform, label, url, topic_summary FROM social_sources WHERE user_id=? AND active=1 ORDER BY platform, id',
             [$userId]
         );
-        $site = DB::fetch('SELECT profile_summary, bio, rag_knowledge, harmonize_agent, account_type, brand_voice_profile FROM sites WHERE user_id=?', [$userId]);
+        try {
+            $site = DB::fetch('SELECT profile_summary, bio, rag_knowledge, harmonize_agent, account_type, brand_voice_profile, site_understanding FROM sites WHERE user_id=?', [$userId]);
+        } catch (Throwable $e) {
+            $site = DB::fetch('SELECT profile_summary, bio, rag_knowledge, harmonize_agent, account_type, brand_voice_profile FROM sites WHERE user_id=?', [$userId]);
+            $site['site_understanding'] = null;
+        }
         $profileSummary = trim($site['profile_summary'] ?? ($site['bio'] ?? ''));
         $sourceContext = '';
         if (!empty($site['brand_voice_profile'])) {
@@ -318,6 +323,13 @@ class Ingest {
         }
         if ($profileSummary !== '') {
             $sourceContext .= "Profilo utente/brand:\n" . $profileSummary . "\n\n";
+        }
+        if (!empty($site['site_understanding'])) {
+            $understanding = json_decode($site['site_understanding'], true);
+            if (is_array($understanding)) {
+                $sourceContext .= "Comprensione dell'attivita confermata dall'utente (fonte prioritaria):\n"
+                    . json_encode($understanding, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT) . "\n\n";
+            }
         }
         if (!empty($site['rag_knowledge'])) {
             $sourceContext .= "Memoria Storica e Stile (RAG):\n" . $site['rag_knowledge'] . "\n\n";
