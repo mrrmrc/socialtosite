@@ -208,6 +208,7 @@ const [importMsg, setImportMsg] = useState(null);
   const [understandingReport, setUnderstandingReport] = useState(null);
   const [understandingDraft, setUnderstandingDraft] = useState(null);
   const [savingUnderstanding, setSavingUnderstanding] = useState(false);
+  const [preparingIdea, setPreparingIdea] = useState(-1);
   const [promptDrafts, setPromptDrafts] = useState({});
   const [savingPromptName, setSavingPromptName] = useState('');
   const deferredStudio = useDeferredValue(templateStudio);
@@ -756,6 +757,23 @@ const [importMsg, setImportMsg] = useState(null);
       setSyncMsg({ ok: false, text: error.message });
     }
     setSavingUnderstanding(false);
+  }
+
+  async function createIdeaDraft(idea, index) {
+    setPreparingIdea(index);
+    setSyncMsg({ ok: true, loading: true, text: 'L’AI sta preparando una bozza non pubblicata…' });
+    try {
+      await apiFetch('/api/index.php?action=create-idea-draft', {
+        method: 'POST',
+        body: JSON.stringify(idea),
+      }, token);
+      await Promise.all([loadData(), loadDrafts()]);
+      setSyncMsg({ ok: true, text: 'Bozza pronta. Puoi rivederla nella sezione Articoli prima di pubblicarla.' });
+      setTab('site');
+    } catch (error) {
+      setSyncMsg({ ok: false, text: error.message });
+    }
+    setPreparingIdea(-1);
   }
 
   async function refreshUnderstanding() {
@@ -1881,7 +1899,19 @@ const [importMsg, setImportMsg] = useState(null);
               <h3 style={{ margin: '0 0 0.4rem', color: 'var(--text)' }}>💡 Prossimi contenuti consigliati</h3>
               <p style={{ margin: '0 0 1.2rem', color: 'var(--text-muted)', fontSize: '14px' }}>Le idee nascono da ciò che l’AI ha capito dell’attività e dai temi già presenti. Correggendo la scheda in Home cambieranno anche questi suggerimenti.</p>
               <div style={{ display: 'grid', gap: '0.8rem' }}>
-                {contentIdeas.map((idea, index) => <div key={`${idea.title}-${index}`} style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '1rem', padding: '1rem', border: '1px solid var(--border)', background: 'var(--bg)', borderRadius: '14px' }}><div style={{ width: '34px', height: '34px', borderRadius: '11px', display: 'grid', placeItems: 'center', background: 'var(--primary-light)', color: 'var(--primary)', fontWeight: 850 }}>{index + 1}</div><div><div style={{ fontSize: '11px', fontWeight: 800, color: 'var(--primary)', textTransform: 'uppercase', letterSpacing: '.5px' }}>{idea.type}</div><div style={{ fontWeight: 800, color: 'var(--text)', marginTop: '3px' }}>{idea.title}</div><div style={{ color: 'var(--text-muted)', fontSize: '13px', lineHeight: 1.5, marginTop: '4px' }}>{idea.reason}</div></div></div>)}
+                {contentIdeas.map((idea, index) => (
+                  <div key={`${idea.title}-${index}`} style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '1rem', padding: '1rem', border: '1px solid var(--border)', background: 'var(--bg)', borderRadius: '14px' }}>
+                    <div style={{ width: '34px', height: '34px', borderRadius: '11px', display: 'grid', placeItems: 'center', background: 'var(--primary-light)', color: 'var(--primary)', fontWeight: 850 }}>{index + 1}</div>
+                    <div>
+                      <div style={{ fontSize: '11px', fontWeight: 800, color: 'var(--primary)', textTransform: 'uppercase', letterSpacing: '.5px' }}>{idea.type}</div>
+                      <div style={{ fontWeight: 800, color: 'var(--text)', marginTop: '3px' }}>{idea.title}</div>
+                      <div style={{ color: 'var(--text-muted)', fontSize: '13px', lineHeight: 1.5, marginTop: '4px' }}>{idea.reason}</div>
+                      <button className="btn btn-outline" onClick={() => createIdeaDraft(idea, index)} disabled={preparingIdea !== -1} style={{ marginTop: '0.8rem', padding: '8px 12px', fontSize: '12px' }}>
+                        {preparingIdea === index ? 'Preparazione bozza…' : 'Prepara una bozza'}
+                      </button>
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
 

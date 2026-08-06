@@ -1405,6 +1405,40 @@ if ($action === 'ingest-url' && $method === 'POST') {
     json($res);
 }
 
+// Trasforma un suggerimento editoriale in una bozza, senza pubblicarla.
+if ($action === 'create-idea-draft' && $method === 'POST') {
+    $b = body();
+    $ideaTitle = trim((string)($b['title'] ?? ''));
+    $ideaReason = trim((string)($b['reason'] ?? ''));
+    $ideaType = trim((string)($b['type'] ?? 'Idea editoriale'));
+    if ($ideaTitle === '') jsonError('Titolo idea mancante', 422);
+    $ideaTitleLength = function_exists('mb_strlen') ? mb_strlen($ideaTitle, 'UTF-8') : strlen($ideaTitle);
+    if ($ideaTitleLength > 240) jsonError('Titolo idea troppo lungo', 422);
+
+    $brief = "IDEA EDITORIALE SCELTA DALL'UTENTE\n"
+        . "Tipo: {$ideaType}\n"
+        . "Titolo/obiettivo: {$ideaTitle}\n"
+        . ($ideaReason !== '' ? "Motivazione: {$ideaReason}\n" : '')
+        . "Prepara un articolo utile e concreto coerente con la comprensione confermata dell'attivita. "
+        . "Non inventare prezzi, servizi, luoghi, date o risultati non presenti nel contesto. "
+        . "Il risultato deve essere una bozza revisionabile e non va pubblicato automaticamente.";
+    $platformPostId = 'idea_' . bin2hex(random_bytes(10));
+    $contentHash = hash('sha256', $userId . '|' . $platformPostId . '|' . $brief);
+    $postId = DB::insert(
+        'INSERT INTO posts (user_id, platform, platform_post_id, raw_content, published_at, imported_at, content_hash, seo_score, published)
+         VALUES (?, ?, ?, ?, NOW(), NOW(), ?, -1, 0)',
+        [$userId, 'editorial_idea', $platformPostId, $brief, $contentHash]
+    );
+
+    try {
+        Ingest::harmonize($userId, (int)$postId, 0);
+    } catch (Throwable $e) {
+        DB::execute('DELETE FROM posts WHERE id=? AND user_id=? AND platform=?', [$postId, $userId, 'editorial_idea']);
+        throw $e;
+    }
+    json(['ok' => true, 'post_id' => (int)$postId, 'status' => 'draft']);
+}
+
 // ── AGENTE 2: POST harmonize  { id } ──────────────────────────────────────
 if ($action === 'harmonize' && $method === 'POST') {
     $b   = body();
