@@ -122,21 +122,28 @@ function buildEditorialIdeas(posts, understanding) {
 
 function SiteMapGraph({ posts, siteUrl, siteTitle }) {
   const visiblePosts = posts.filter(post => Number(post.published) === 1).slice(0, 6);
-  const positions = [[105,330],[235,330],[365,330],[495,330],[625,330],[755,330]];
+  const positions = [[105,365],[235,365],[365,365],[495,365],[625,365],[755,365]];
+  const topicCounts = {};
+  visiblePosts.forEach(post => (post.tags || []).forEach(tag => { topicCounts[tag] = (topicCounts[tag] || 0) + 1; }));
+  const topTopics = Object.entries(topicCounts).sort((a,b) => b[1] - a[1]).slice(0, 3).map(([label]) => label);
+  const topicPositions = topTopics.map((label, index) => ({ label, x: 300 + (index * 130) }));
   const short = value => String(value || 'Articolo').replace(/\s+/g, ' ').slice(0, 24);
   return (
     <div style={{ overflowX: 'auto', paddingBottom: '0.5rem' }}>
-      <svg viewBox="0 0 860 405" role="img" aria-label="Grafo dei collegamenti dal dominio AllSocialToWeb al sito e ai suoi articoli" style={{ width: '100%', minWidth: '690px', height: 'auto', display: 'block' }}>
+      <svg viewBox="0 0 860 445" role="img" aria-label="Grafo dei collegamenti dal dominio AllSocialToWeb al sito, ai temi e ai suoi articoli" style={{ width: '100%', minWidth: '690px', height: 'auto', display: 'block' }}>
         <defs>
           <linearGradient id="graphRoot" x1="0" x2="1"><stop stopColor="#6366f1"/><stop offset="1" stopColor="#06b6d4"/></linearGradient>
           <filter id="graphShadow"><feDropShadow dx="0" dy="5" stdDeviation="7" floodOpacity="0.13"/></filter>
         </defs>
         <path d="M430 82 L430 142" stroke="var(--border-strong)" strokeWidth="3" />
-        {positions.slice(0, visiblePosts.length).map(([x], index) => <path key={index} d={`M430 224 C430 270 ${x} 260 ${x} 315`} fill="none" stroke="var(--border-strong)" strokeWidth="2" />)}
+        {topTopics.length === 0 && visiblePosts.length > 0 && <path d="M430 224 L430 312" stroke="var(--border-strong)" strokeWidth="2" />}
+        {topicPositions.map(topic => <path key={topic.label} d={`M430 224 C430 250 ${topic.x} 242 ${topic.x} 276`} fill="none" stroke="var(--primary)" strokeOpacity=".55" strokeWidth="2" />)}
+        {positions.slice(0, visiblePosts.length).map(([x], index) => { const postTags=visiblePosts[index]?.tags || []; const parent=topicPositions.find(topic => postTags.includes(topic.label)); const fromX=parent?.x || 430; return <path key={index} d={`M${fromX} 312 C${fromX} 334 ${x} 326 ${x} 350`} fill="none" stroke="var(--border-strong)" strokeWidth="2" />; })}
         <g filter="url(#graphShadow)"><rect x="310" y="22" width="240" height="60" rx="18" fill="url(#graphRoot)"/><text x="430" y="48" textAnchor="middle" fill="#fff" fontSize="15" fontWeight="800">ALLSOCIALTOWEB.COM</text><text x="430" y="67" textAnchor="middle" fill="rgba(255,255,255,.82)" fontSize="11">Hub pubblico /scopri</text></g>
         <g filter="url(#graphShadow)"><rect x="285" y="142" width="290" height="82" rx="20" fill="var(--surface)" stroke="var(--primary)" strokeWidth="2"/><text x="430" y="174" textAnchor="middle" fill="var(--text)" fontSize="17" fontWeight="800">{short(siteTitle || 'Il tuo sito')}</text><text x="430" y="198" textAnchor="middle" fill="var(--text-muted)" fontSize="12">{siteUrl.replace(window.location.origin, '')}</text></g>
+        {topicPositions.map(topic => <g key={topic.label}><rect x={topic.x-54} y="276" width="108" height="36" rx="18" fill="var(--primary-light)" stroke="var(--primary)"/><text x={topic.x} y="299" textAnchor="middle" fill="var(--primary)" fontSize="10" fontWeight="800">{short(topic.label).slice(0,18)}</text></g>)}
         {visiblePosts.map((post, index) => { const [x,y]=positions[index]; return <g key={post.id}><rect x={x-56} y={y-15} width="112" height="58" rx="14" fill="var(--bg)" stroke="var(--border-strong)"/><text x={x} y={y+7} textAnchor="middle" fill="var(--text)" fontSize="10" fontWeight="700"><tspan x={x}>{short(post.generated_title).slice(0,16)}</tspan><tspan x={x} dy="14">{short(post.generated_title).slice(16,32)}</tspan></text></g> })}
-        {visiblePosts.length === 0 && <text x="430" y="340" textAnchor="middle" fill="var(--text-muted)" fontSize="14">I prossimi articoli compariranno qui</text>}
+        {visiblePosts.length === 0 && <text x="430" y="350" textAnchor="middle" fill="var(--text-muted)" fontSize="14">I prossimi articoli compariranno qui</text>}
       </svg>
       <p style={{ margin: '0.5rem 0 0', color: 'var(--text-muted)', fontSize: '13px', textAlign: 'center' }}>Le linee rappresentano collegamenti HTML percorribili da persone e motori di ricerca.</p>
     </div>
@@ -1312,7 +1319,7 @@ const [importMsg, setImportMsg] = useState(null);
               <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem', alignItems: 'flex-start', flexWrap: 'wrap' }}>
                 <div>
                   <h3 style={{ margin: '0 0 0.45rem', color: 'var(--primary)' }}>🧠 Cosa ha capito l’AI</h3>
-                  <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '14px', lineHeight: 1.6, maxWidth: '680px' }}>Queste informazioni guidano i prossimi articoli, i suggerimenti e il modo in cui viene presentata la tua attività. Se qualcosa è sbagliato, correggilo qui.</p>
+                  <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '14px', lineHeight: 1.6, maxWidth: '680px' }}>Queste informazioni guidano i prossimi articoli, i suggerimenti e il modo in cui viene presentata la tua attività. Le tue correzioni hanno sempre priorità e non vengono cancellate dalle analisi successive.</p>
                 </div>
                 <button className="btn btn-primary" onClick={saveUnderstanding} disabled={savingUnderstanding || !understandingDraft} style={{ padding: '10px 16px' }}>{savingUnderstanding ? 'Salvataggio…' : 'Salva correzioni'}</button>
               </div>

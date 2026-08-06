@@ -158,6 +158,12 @@ if ($action === 'llms') {
 
 // ── Variabili base ───────────────────────────────────────────────────────────
 function h(?string $s): string { return htmlspecialchars(html_entity_decode((string)$s, ENT_QUOTES, 'UTF-8'), ENT_QUOTES, 'UTF-8'); }
+function networkTopicSlug(string $value): string {
+    $value = trim(function_exists('mb_strtolower') ? mb_strtolower($value, 'UTF-8') : strtolower($value));
+    $ascii = function_exists('iconv') ? @iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $value) : $value;
+    if (is_string($ascii) && $ascii !== '') $value = $ascii;
+    return trim((string)preg_replace('/[^a-z0-9]+/i', '-', $value), '-');
+}
 
 function isBadSiteIdentity(?string $value): bool {
     $value = mb_strtolower(trim((string)$value));
@@ -1652,7 +1658,7 @@ ob_start();
   <?php endif; ?>
   <div class="footer-bottom">
     <span>&copy; <?= date('Y') ?> <?= $title ?>. Creato con <a href="<?= BASE_URL ?>">SocialToSite</a>.</span>
-    <a href="<?= $siteUrl ?>/sitemap.xml">Sitemap</a>
+    <span><a href="<?= BASE_URL ?>/scopri">Esplora la rete</a> · <a href="<?= $siteUrl ?>/sitemap.xml">Sitemap</a></span>
   </div>
 <?php
 $footerHtml = ob_get_clean();
@@ -1675,7 +1681,7 @@ ob_start();
     <?php endif; ?>
     <?php if ($p['tags']): ?>
     <div class="tags" style="margin-top:2rem;">
-      <?php foreach ($p['tags'] as $tag): ?><span class="tag">#<?= h($tag) ?></span><?php endforeach; ?>
+      <?php foreach ($p['tags'] as $tag): ?><a class="tag" href="<?= BASE_URL ?>/scopri/tema/<?= rawurlencode(networkTopicSlug($tag)) ?>">#<?= h($tag) ?></a><?php endforeach; ?>
     </div>
     <?php endif; ?>
   </article>

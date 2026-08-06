@@ -78,6 +78,7 @@ function ensureSiteSchemaUpgrades(): void {
         'ALTER TABLE sites ADD COLUMN editorial_settings LONGTEXT NULL',
         'ALTER TABLE sites ADD COLUMN editorial_last_run DATETIME NULL',
         'ALTER TABLE sites ADD COLUMN site_understanding LONGTEXT NULL',
+        'ALTER TABLE sites ADD COLUMN site_understanding_corrections LONGTEXT NULL',
     ];
 
     foreach ($queries as $query) {
@@ -86,6 +87,17 @@ function ensureSiteSchemaUpgrades(): void {
         } catch (Throwable $e) {
         }
     }
+}
+
+function decodeJsonObject($value): array {
+    if (is_array($value)) return $value;
+    if (!is_string($value) || trim($value) === '') return [];
+    $decoded = json_decode($value, true);
+    return is_array($decoded) ? $decoded : [];
+}
+
+function mergeUnderstanding($generated, $corrections): array {
+    return array_replace_recursive(decodeJsonObject($generated), decodeJsonObject($corrections));
 }
 
 function normalizeSiteAiResult(array $result): array {
@@ -154,6 +166,7 @@ if (in_array($action, ['login', 'register', 'site-public', 'debug-site', 'migrat
         try { DB::execute('ALTER TABLE sites ADD COLUMN editorial_settings LONGTEXT NULL'); } catch (Throwable $e) {}
         try { DB::execute('ALTER TABLE sites ADD COLUMN editorial_last_run DATETIME NULL'); } catch (Throwable $e) {}
         try { DB::execute('ALTER TABLE sites ADD COLUMN site_understanding LONGTEXT NULL'); } catch (Throwable $e) {}
+        try { DB::execute('ALTER TABLE sites ADD COLUMN site_understanding_corrections LONGTEXT NULL'); } catch (Throwable $e) {}
         try { DB::execute('ALTER TABLE posts ADD COLUMN featured TINYINT DEFAULT 0'); } catch (Throwable $e) {}
         try { DB::execute('ALTER TABLE posts ADD COLUMN edited_title VARCHAR(255) NULL'); } catch (Throwable $e) {}
         try { DB::execute('ALTER TABLE posts ADD COLUMN edited_body LONGTEXT NULL'); } catch (Throwable $e) {}
@@ -1030,6 +1043,12 @@ try { DB::execute("ALTER TABLE posts ADD COLUMN edited_excerpt TEXT"); } catch(E
 if ($action === 'site' && $method === 'GET') {
     try {
         $site  = DB::fetch('SELECT * FROM sites WHERE user_id=?', [$userId]);
+        if ($site) {
+            $site['site_understanding'] = mergeUnderstanding(
+                $site['site_understanding'] ?? null,
+                $site['site_understanding_corrections'] ?? null
+            );
+        }
         $posts = DB::fetchAll(
             'SELECT id, user_id, platform, platform_post_id, SUBSTR(raw_content, 1, 500) as raw_content, generated_title, generated_excerpt, generated_body, edited_body, tags, media_url, media_type, source_url, published_at, seo_score, slug, published
                FROM posts
@@ -1169,7 +1188,13 @@ if (array_key_exists('theme', $b)) {
     if (array_key_exists('custom_css', $b)) { $fields[] = 'custom_css = ?'; $params[] = $b['custom_css']; }
     if (array_key_exists('gsc_verification', $b)) { $fields[] = 'gsc_verification = ?'; $params[] = $b['gsc_verification']; }
     if (array_key_exists('site_ai_data', $b)) { $fields[] = 'site_ai_data = ?'; $params[] = is_array($b['site_ai_data']) ? json_encode($b['site_ai_data'], JSON_UNESCAPED_UNICODE) : $b['site_ai_data']; }
-    if (array_key_exists('site_understanding', $b)) { $fields[] = 'site_understanding = ?'; $params[] = is_array($b['site_understanding']) ? json_encode($b['site_understanding'], JSON_UNESCAPED_UNICODE) : $b['site_understanding']; }
+    if (array_key_exists('site_understanding', $b)) {
+        $encodedUnderstanding = is_array($b['site_understanding']) ? json_encode($b['site_understanding'], JSON_UNESCAPED_UNICODE) : $b['site_understanding'];
+        $fields[] = 'site_understanding = ?';
+        $params[] = $encodedUnderstanding;
+        $fields[] = 'site_understanding_corrections = ?';
+        $params[] = $encodedUnderstanding;
+    }
     if (array_key_exists('harmonize_agent', $b)) { $fields[] = 'harmonize_agent = ?'; $params[] = $b['harmonize_agent']; }
     if (array_key_exists('account_type', $b)) { $fields[] = 'account_type = ?'; $params[] = $b['account_type']; }
 
@@ -1183,13 +1208,16 @@ if (array_key_exists('theme', $b)) {
 if ($action === 'refresh-understanding' && $method === 'POST') {
     ensureSiteSchemaUpgrades();
     require_once __DIR__ . '/services/ai.php';
-    $site = DB::fetch('SELECT profile_summary, bio, role_mission, content_strategy FROM sites WHERE user_id=?', [$userId]);
+    $site = DB::fetch('SELECT profile_summary, bio, role_mission, content_strategy, site_understanding_corrections FROM sites WHERE user_id=?', [$userId]);
     $sources = DB::fetchAll('SELECT platform, label, url FROM social_sources WHERE user_id=? AND active=1 ORDER BY id ASC', [$userId]);
     $posts = DB::fetchAll('SELECT generated_title, generated_excerpt, raw_content, transcript FROM posts WHERE user_id=? ORDER BY id DESC LIMIT 20', [$userId]);
     $summary = trim((string)($site['profile_summary'] ?? $site['bio'] ?? ''));
     $role = trim((string)($site['role_mission'] ?? ''));
     $strategy = trim((string)($site['content_strategy'] ?? ''));
-    $understanding = AI::siteUnderstanding($sources, $posts, $summary, $role, $strategy);
+    $understanding = mergeUnderstanding(
+        AI::siteUnderstanding($sources, $posts, $summary, $role, $strategy),
+        $site['site_understanding_corrections'] ?? null
+    );
     DB::execute('UPDATE sites SET site_understanding=? WHERE user_id=?', [json_encode($understanding, JSON_UNESCAPED_UNICODE), $userId]);
     json(['ok' => true, 'understanding' => $understanding]);
 }
@@ -1543,6 +1571,7 @@ if ($action === 'admin-kill-process' && $method === 'POST') {
 
 // ── POST finalize-sync: orchestrazione finale ─────────────────────────────
 if ($action === 'finalize-sync' && $method === 'POST') {
+    ensureSiteSchemaUpgrades();
     require_once __DIR__ . '/services/ai.php';
     $b = body();
     $profileOverride = trim($b['profile_summary'] ?? '');
@@ -1557,9 +1586,11 @@ if ($action === 'finalize-sync' && $method === 'POST') {
         $summary = $profileOverride !== '' ? $profileOverride : ($profile['profile_summary'] ?? '');
         $finalRoleMission = $roleMission !== '' ? $roleMission : ($profile['role_mission'] ?? '');
         $finalContentStrategy = $contentStrategy !== '' ? $contentStrategy : ($profile['content_strategy'] ?? '');
-        $understanding = AI::siteUnderstanding($sources, $posts, $summary, $finalRoleMission, $finalContentStrategy);
-        
-        $site = DB::fetch('SELECT title, theme FROM sites WHERE user_id=?', [$userId]);
+        $site = DB::fetch('SELECT title, theme, site_understanding_corrections FROM sites WHERE user_id=?', [$userId]);
+        $understanding = mergeUnderstanding(
+            AI::siteUnderstanding($sources, $posts, $summary, $finalRoleMission, $finalContentStrategy),
+            $site['site_understanding_corrections'] ?? null
+        );
         
         $seoTitle = ''; $seoBio = ''; $seoMenu = ''; $seoFooter = '';
         $gTheme = ''; $gColor = ''; $gLayout = ''; $gCss = ''; $layoutsJson = '';

@@ -18,6 +18,7 @@ RewriteRule ^sitemap\.xml$ public/sitemap.php [L,QSA]
 
 # Hub editoriale del dominio padre: collega e rende scopribili tutti i siti
 RewriteRule ^scopri/sitemap\.xml$ public/discover.php?action=sitemap [L,QSA]
+RewriteRule ^scopri/tema/([^/]+)/?$ public/discover.php?topic=$1 [L,QSA]
 RewriteRule ^scopri/?$ public/discover.php [L,QSA]
 
 # Sitemap, Feed, e llms.txt
