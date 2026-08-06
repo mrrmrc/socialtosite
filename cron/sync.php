@@ -13,6 +13,15 @@ if (php_sapi_name() !== 'cli' && ($_SERVER['REMOTE_ADDR'] ?? '') !== '127.0.0.1'
     http_response_code(403); exit('Accesso negato');
 }
 
+register_shutdown_function(function (): void {
+    if (file_exists(__DIR__ . '/../config/gcp-credentials.json')) {
+        echo "[" . date('Y-m-d H:i:s') . "] Aggiornamento Google Search Console...\n";
+        require __DIR__ . '/../api/cron/fetch_seo.php';
+    } else {
+        echo "[" . date('Y-m-d H:i:s') . "] Search Console non configurata: metriche Google non aggiornate.\n";
+    }
+});
+
 echo "[" . date('Y-m-d H:i:s') . "] Avvio sync automatico...\n";
 
 $users = DB::fetchAll('

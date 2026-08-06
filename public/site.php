@@ -63,20 +63,6 @@ if ($action === 'sitemap') {
     echo '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">' . "\n";
     echo "  <url><loc>$base</loc><changefreq>daily</changefreq><priority>1.0</priority></url>\n";
     
-    // Tag/Categories
-    $tagCounts = [];
-    foreach ($allPosts as $p) {
-        foreach ($p['tags'] ?? [] as $t) {
-            $key = strtolower(trim($t));
-            if ($key !== '') $tagCounts[$key] = ($tagCounts[$key] ?? 0) + 1;
-        }
-    }
-    $validTags = array_keys($tagCounts);
-    foreach ($validTags as $t) {
-        $loc = "$base/?tag=" . urlencode($t);
-        echo "  <url><loc>" . htmlspecialchars($loc, ENT_XML1, 'UTF-8') . "</loc><changefreq>weekly</changefreq><priority>0.9</priority></url>\n";
-    }
-
     // Posts
     foreach ($allPosts as $p) {
         $loc = "$base/{$p['slug']}";
@@ -217,6 +203,24 @@ function prettySourceIdentity(array $sources, array $site = []): string {
     return trim((string)($site['title'] ?? ''));
 }
 
+function humanizeDisplayName(?string $value): string {
+    $value = trim((string)$value);
+    if ($value === '') return '';
+    $value = preg_replace('/(?<=\p{Ll})(?=\p{Lu})/u', ' ', $value);
+    $value = preg_replace('/([a-z])([A-Z])/', '$1 $2', $value);
+    $value = preg_replace('/([A-Za-z])(\d)/', '$1 $2', $value);
+    $value = preg_replace('/[_\-]+/', ' ', $value);
+    $value = preg_replace('/\s+/', ' ', $value);
+    $value = trim($value);
+
+    if (preg_match('/^[a-z0-9 ]+$/', $value)) {
+        $value = ucwords(mb_strtolower($value));
+    }
+
+    $value = preg_replace('/\bAgriturismo ?Sangermano\b/ui', 'Agriturismo San Germano', $value);
+    return $value;
+}
+
 function normalizeMediaUrl(?string $url): string {
     $url = trim((string)$url);
     if ($url === '') return '';
@@ -235,7 +239,8 @@ $rawTitle   = prettySourceIdentity($sources, $site);
 if (isBadSiteIdentity($rawTitle)) {
     $rawTitle = trim((string)($user['name'] ?? ''));
 }
-$title      = h($rawTitle);
+$displayTitle = humanizeDisplayName($rawTitle);
+$title      = h($displayTitle);
 $bio        = h(($site['profile_summary'] ?? '') ?: ($site['bio'] ?? ''));
 $siteUrl    = BASE_URL . '/' . $slug;
 $validThemes = ['classic', 'authority', 'portfolio', 'magazine', 'brutalist', 'ecommerce', 'wedding', 'fitness', 'restaurant', 'agency', 'zen', 'vaporwave', 'realestate', 'blogger', 'darkphoto', 'medical', 'education', 'gamer', 'startup', 'lawyer'];
@@ -349,6 +354,8 @@ $ctaText      = h(($site['cta_text'] ?? '') ?: 'Scopri i contenuti');
 // ── Dati AI dinamici (site_ai_data) ───────────
 $aiData = !empty($site['site_ai_data']) ? json_decode($site['site_ai_data'], true) : [];
 if (!is_array($aiData)) $aiData = [];
+$understanding = !empty($site['site_understanding']) ? json_decode($site['site_understanding'], true) : [];
+if (!is_array($understanding)) $understanding = [];
 $coverUrl     = $coverUrl ?: normalizeMediaUrl($aiData['cover_url'] ?? '');
 $heroTagline  = $heroTagline ?: h($aiData['hero_tagline'] ?? '');
 $ctaText      = $ctaText ?: h($aiData['cta_text'] ?? '');
@@ -364,6 +371,20 @@ if (!is_array($layoutRecipe)) $layoutRecipe = [];
 if (!is_array($baseModels)) $baseModels = is_string($baseModels) && $baseModels !== '' ? [$baseModels] : [];
 if (!isset($palette['background']) && isset($palette['bg'])) $palette['background'] = $palette['bg'];
 if (!isset($palette['secondary']) && isset($palette['surface'])) $palette['secondary'] = $palette['surface'];
+
+$verticalSlug = strtolower(trim((string)($understanding['vertical_slug'] ?? '')));
+if ($verticalSlug === '') {
+    $verticalText = mb_strtolower(trim(($site['profile_summary'] ?? '') . ' ' . ($site['role_mission'] ?? '') . ' ' . ($site['content_strategy'] ?? '')));
+    if (preg_match('/\b(agriturismo|ospitalit|hospitality|b&b|bed and breakfast|resort|tenuta|country house|camere|ristorante|ristorazione|cucina)\b/u', $verticalText)) {
+        $verticalSlug = 'hospitality';
+    } elseif (preg_match('/\b(food|chef|ristorante|trattoria|pizzeria|cantina)\b/u', $verticalText)) {
+        $verticalSlug = 'food';
+    }
+}
+$isHospitalitySite = in_array($verticalSlug, ['hospitality', 'food'], true);
+if (empty($baseModels)) {
+    $baseModels = $isHospitalitySite ? ['editorial-luxe', 'warm-humanist'] : ['tech-clarity'];
+}
 
 $palPrimary   = $palette['primary']   ?? $accentColor ?: '#7F77DD';
 $palSecondary = $palette['secondary'] ?? '#5C54C4';
@@ -517,6 +538,49 @@ foreach ($posts as $p) {
     }
 }
 
+$hospitalityEventPosts = [];
+$hospitalityFoodPosts = [];
+$hospitalityNaturePosts = [];
+foreach ($allPosts as $postItem) {
+    $haystack = mb_strtolower(trim(
+        ($postItem['edited_title'] ?? '') . ' ' .
+        ($postItem['generated_title'] ?? '') . ' ' .
+        ($postItem['edited_excerpt'] ?? '') . ' ' .
+        ($postItem['generated_excerpt'] ?? '')
+    ));
+    $tagsHaystack = mb_strtolower(implode(' ', $postItem['tags'] ?? []));
+    $fullText = $haystack . ' ' . $tagsHaystack;
+
+    if (count($hospitalityEventPosts) < 3 && preg_match('/\b(event|evento|ferragosto|serata|apericena|pilates|pranzo|cena|degustazione)\b/u', $fullText)) {
+        $hospitalityEventPosts[] = $postItem;
+    }
+    if (count($hospitalityFoodPosts) < 3 && preg_match('/\b(menu|menù|cucina|sapori|orto|orzotto|grigliata|piatto|ristorante|vino)\b/u', $fullText)) {
+        $hospitalityFoodPosts[] = $postItem;
+    }
+    if (count($hospitalityNaturePosts) < 3 && preg_match('/\b(natura|ulivi|papaveri|paesaggio|relax|benessere|tramonto|campagna|pace)\b/u', $fullText)) {
+        $hospitalityNaturePosts[] = $postItem;
+    }
+}
+
+$hospitalityHighlights = [
+    ['title' => 'Natura e quiete', 'text' => 'Un luogo dove rallentare, respirare e vivere la campagna come esperienza, non solo come sfondo.'],
+    ['title' => 'Cucina autentica', 'text' => 'Piatti stagionali, convivialità e sapori veri raccontati come parte centrale dell’esperienza.'],
+    ['title' => 'Eventi da vivere', 'text' => 'Pranzi, serate speciali e momenti sotto gli ulivi pensati per trasformare una visita in ricordo.'],
+];
+if (!empty($understanding['editorial_direction']['content_pillars']) && is_array($understanding['editorial_direction']['content_pillars'])) {
+    $customPillars = array_slice(array_values(array_filter($understanding['editorial_direction']['content_pillars'])), 0, 3);
+    foreach ($customPillars as $idx => $pillar) {
+        if (!isset($hospitalityHighlights[$idx])) break;
+        $hospitalityHighlights[$idx]['title'] = humanizeDisplayName((string)$pillar);
+    }
+}
+
+$hospitalityPrimaryCtaUrl = !empty($sources[0]['url']) ? $sources[0]['url'] : $siteUrl;
+$hospitalityPrimaryCtaLabel = $ctaText !== '' ? html_entity_decode($ctaText, ENT_QUOTES, 'UTF-8') : 'Prenota la tua esperienza';
+$hospitalitySecondaryCtaUrl = $siteUrl . '?view=media';
+$hospitalitySecondaryCtaLabel = 'Guarda gli spazi';
+$useHospitalityLanding = $isHospitalitySite && !$single && !$activeTag && $view !== 'media';
+
 // Helper per titolo/body effettivi (usa edited_ se presente)
 function postTitle(array $p): string {
     return $p['edited_title'] ?: ($p['generated_title'] ?: mb_substr($p['raw_content'] ?? '', 0, 80));
@@ -560,7 +624,7 @@ function bodyHtml(?string $b): string {
 }
 
 // ── CSS temi ─────────────────────────────────────────────────────────────────
-$accent = $accentColor ?: '#7F77DD';
+$accent = ltrim((string)($accentColor ?: '#7F77DD'), '#');
 $accent2 = $accentSecondary ?: '';
 
 $themeCSS = [
@@ -1212,6 +1276,9 @@ header('Link: <' . $siteUrl . '/feed.xml>; rel="alternate"; type="application/at
     <link rel="canonical" href="<?= $siteUrl ?><?= $activeTag ? '?tag=' . urlencode($activeTag) : '' ?>">
   <?php endif; ?>
   
+  <?php if (!$single && $activeTag): ?>
+  <meta name="robots" content="noindex,follow">
+  <?php endif; ?>
   <meta property="og:site_name" content="<?= $title ?>">
   <link rel="sitemap" type="application/xml" href="<?= $siteUrl ?>/sitemap.xml">
   <link rel="alternate" type="application/atom+xml" title="RSS Feed" href="<?= $siteUrl ?>/feed.xml">
@@ -1220,7 +1287,7 @@ header('Link: <' . $siteUrl . '/feed.xml>; rel="alternate"; type="application/at
   {
     "@context": "https://schema.org",
     "@type": "WebSite",
-    "name": "<?= addslashes($site['title'] ?? $user['name'] ?? '') ?>",
+    "name": "<?= addslashes($displayTitle) ?>",
     "url": "<?= $siteUrl ?>",
     "potentialAction": {
       "@type": "SearchAction",
@@ -1229,6 +1296,19 @@ header('Link: <' . $siteUrl . '/feed.xml>; rel="alternate"; type="application/at
     }
   }
   </script>
+  <?php if ($useHospitalityLanding): ?>
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "LodgingBusiness",
+    "name": "<?= addslashes($displayTitle) ?>",
+    "url": "<?= $siteUrl ?>",
+    "description": "<?= addslashes(html_entity_decode($bio, ENT_QUOTES, 'UTF-8')) ?>",
+    <?php if ($coverUrl): ?>"image": "<?= addslashes($coverUrl) ?>",<?php endif; ?>
+    "sameAs": [<?= implode(',', array_map(fn($source) => '"' . addslashes($source['url']) . '"', array_slice($sources, 0, 6))) ?>]
+  }
+  </script>
+  <?php endif; ?>
   
   <?php if ($single): ?>
   <script type="application/ld+json">
@@ -1473,8 +1553,41 @@ header('Link: <' . $siteUrl . '/feed.xml>; rel="alternate"; type="application/at
       .topic-header h2 { font-size: 1.5rem; }
       .horizontal-scroll .post { min-width: 280px; }
       .container { padding: 2rem 1rem; }
-      .single-post { padding: 1.5rem; border-radius: 12px; }
+    .single-post { padding: 1.5rem; border-radius: 12px; }
+      .hospitality-hero { padding: 7rem 1.25rem 5rem; }
+      .hospitality-hero-inner { padding: 2rem; }
+      .hospitality-hero-actions, .hospitality-cta-actions { flex-direction: column; align-items: stretch; }
+      .hospitality-media-strip { grid-template-columns: 1fr 1fr; }
+      .hospitality-split-band { grid-template-columns: 1fr; }
     }
+    .eyebrow { display: inline-flex; align-items: center; gap: 8px; font-size: 0.78rem; letter-spacing: 0.14em; text-transform: uppercase; font-weight: 800; color: var(--accent); margin-bottom: 0.9rem; }
+    .hospitality-hero { max-width: 100%; min-height: 72vh; display: flex; align-items: flex-end; padding: 9rem 2rem 5.5rem; border-bottom: none; }
+    .hospitality-hero-inner { width: min(100%, 1100px); margin: 0 auto; color: #fff; padding: 2.5rem; border-radius: 32px; background: linear-gradient(180deg, rgba(17,17,17,0.16), rgba(17,17,17,0.34)); backdrop-filter: blur(8px); }
+    .hospitality-hero h1 { color: #fff !important; font-size: clamp(3.2rem, 6vw, 5.6rem); max-width: 860px; line-height: 0.95; margin-bottom: 1rem; }
+    .hospitality-hero .bio { color: rgba(255,255,255,0.88) !important; font-size: 1.18rem; max-width: 720px; margin: 0 0 1.5rem; }
+    .hospitality-hero-actions, .hospitality-cta-actions { display: flex; gap: 0.9rem; flex-wrap: wrap; margin-bottom: 1.25rem; }
+    .hospitality-cta { display: inline-flex; align-items: center; justify-content: center; min-height: 50px; padding: 0.9rem 1.35rem; border-radius: 999px; font-weight: 700; }
+    .hospitality-cta-primary { background: var(--accent); color: #fff; box-shadow: 0 16px 38px rgba(0,0,0,0.18); }
+    .hospitality-cta-secondary { background: rgba(255,255,255,0.14); color: #fff; border: 1px solid rgba(255,255,255,0.22); }
+    .hospitality-hero-facts { display: flex; gap: 0.7rem; flex-wrap: wrap; }
+    .hospitality-hero-facts span { padding: 0.55rem 0.8rem; border-radius: 999px; background: rgba(255,255,255,0.12); color: rgba(255,255,255,0.86); font-size: 0.86rem; }
+    .hospitality-section { width: min(100%, 1180px); margin: 0 auto 4rem; }
+    .hospitality-section-head { margin-bottom: 1.4rem; max-width: 820px; }
+    .hospitality-section-head h2 { font-size: clamp(2rem, 4vw, 3.3rem); line-height: 1.02; margin-bottom: 0.65rem; }
+    .hospitality-section-head p { font-size: 1.04rem; line-height: 1.7; opacity: 0.78; }
+    .hospitality-pillars { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; }
+    .hospitality-pillar, .hospitality-mini-card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 24px; padding: 1.4rem; box-shadow: 0 18px 40px rgba(0,0,0,0.06); }
+    .hospitality-pillar h3, .hospitality-mini-card strong { display: block; margin-bottom: 0.5rem; font-size: 1.15rem; }
+    .hospitality-pillar p, .hospitality-mini-card p { opacity: 0.76; line-height: 1.7; }
+    .hospitality-grid { max-width: none; margin: 0; }
+    .hospitality-grid-3 { grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
+    .hospitality-card { overflow: hidden; }
+    .hospitality-split-band { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(280px, 0.9fr); gap: 1.2rem; align-items: start; }
+    .hospitality-media-strip { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; }
+    .hospitality-media-item { display: block; background: var(--card-bg); border-radius: 24px; overflow: hidden; box-shadow: 0 18px 40px rgba(0,0,0,0.08); color: var(--text); }
+    .hospitality-media-item img { width: 100%; aspect-ratio: 4/5; object-fit: cover; display: block; }
+    .hospitality-media-item span { display: block; padding: 0.95rem 1rem 1.1rem; font-weight: 600; line-height: 1.35; }
+    .hospitality-cta-band { display: flex; justify-content: space-between; gap: 1.2rem; align-items: center; padding: 2rem; border-radius: 32px; background: linear-gradient(135deg, rgba(160,106,66,0.12), rgba(61,139,109,0.10)); border: 1px solid rgba(0,0,0,0.05); }
   </style>
 </head>
 <?php
@@ -1625,6 +1738,129 @@ ob_start();
     <?php endforeach; ?>
   </section>
 
+  <?php elseif ($useHospitalityLanding): ?>
+
+  <section class="hospitality-section hospitality-intro" id="esperienza">
+    <div class="hospitality-section-head">
+      <span class="eyebrow">Esperienza</span>
+      <h2>Un agriturismo da vivere, non solo da leggere</h2>
+      <p><?= h($bio ?: 'Natura, tavola e momenti speciali diventano il centro dell’esperienza.') ?></p>
+    </div>
+    <div class="hospitality-pillars">
+      <?php foreach ($hospitalityHighlights as $item): ?>
+      <article class="hospitality-pillar">
+        <h3><?= h($item['title']) ?></h3>
+        <p><?= h($item['text']) ?></p>
+      </article>
+      <?php endforeach; ?>
+    </div>
+  </section>
+
+  <?php if (!empty($hospitalityEventPosts)): ?>
+  <section class="hospitality-section" id="eventi">
+    <div class="hospitality-section-head">
+      <span class="eyebrow">Eventi</span>
+      <h2>Momenti speciali da prenotare</h2>
+      <p>Le occasioni che rendono il luogo vivo: pranzi stagionali, serate sotto gli ulivi, benessere e convivialità.</p>
+    </div>
+    <div class="post-grid hospitality-grid hospitality-grid-3">
+      <?php foreach ($hospitalityEventPosts as $p):
+        $purl = $siteUrl . '/' . h($p['slug'] ?? '');
+      ?>
+      <article class="post hospitality-card">
+        <?= mediaHtml($p) ?>
+        <div class="post-body">
+          <div class="meta">
+            <span><?= $icons[$p['platform']] ?? '📄' ?> <?= h($p['platform']) ?></span>
+            <span><?= $p['published_at'] ? date('d/m/Y', strtotime($p['published_at'])) : '' ?></span>
+          </div>
+          <h2><a href="<?= $purl ?>"><?= h(postTitle($p)) ?></a></h2>
+          <p class="excerpt"><?= h(postExcerpt($p)) ?></p>
+        </div>
+      </article>
+      <?php endforeach; ?>
+    </div>
+  </section>
+  <?php endif; ?>
+
+  <section class="hospitality-section hospitality-split-band" id="sapori">
+    <div class="hospitality-split-copy">
+      <span class="eyebrow">Sapori</span>
+      <h2>Cucina, stagione e tavola condivisa</h2>
+      <p>Il sito deve far percepire subito che qui non si arriva solo per mangiare, ma per vivere un ritmo diverso, più pieno, più autentico.</p>
+      <a class="hospitality-cta hospitality-cta-primary" href="<?= h($hospitalityPrimaryCtaUrl) ?>" target="<?= preg_match('/^https?:\/\//i', $hospitalityPrimaryCtaUrl) ? '_blank' : '_self' ?>" rel="noopener"><?= h($hospitalityPrimaryCtaLabel) ?></a>
+    </div>
+    <div class="hospitality-split-stack">
+      <?php foreach (array_slice($hospitalityFoodPosts ?: $recentPosts, 0, 2) as $p):
+        $purl = $siteUrl . '/' . h($p['slug'] ?? '');
+      ?>
+      <article class="hospitality-mini-card">
+        <strong><a href="<?= $purl ?>"><?= h(postTitle($p)) ?></a></strong>
+        <p><?= h(postExcerpt($p)) ?></p>
+      </article>
+      <?php endforeach; ?>
+    </div>
+  </section>
+
+  <?php if (!empty($mediaPosts)): ?>
+  <section class="hospitality-section" id="spazi">
+    <div class="hospitality-section-head">
+      <span class="eyebrow">Spazi</span>
+      <h2>Atmosfera, natura e dettagli del luogo</h2>
+      <p>Una galleria pensata per far desiderare la visita prima ancora della lettura completa dei contenuti.</p>
+    </div>
+    <div class="hospitality-media-strip">
+      <?php foreach (array_slice($mediaPosts, 0, 4) as $p): ?>
+      <a class="hospitality-media-item" href="<?= $siteUrl . '/' . h($p['slug'] ?? '') ?>">
+        <?php if (!empty($p['media_url'])): ?>
+          <img src="<?= h($p['media_url']) ?>" alt="<?= h(postTitle($p)) ?>" loading="lazy">
+        <?php endif; ?>
+        <span><?= h(postTitle($p)) ?></span>
+      </a>
+      <?php endforeach; ?>
+    </div>
+  </section>
+  <?php endif; ?>
+
+  <?php if (!empty($recentPosts)): ?>
+  <section class="hospitality-section" id="storie">
+    <div class="hospitality-section-head">
+      <span class="eyebrow">Storie</span>
+      <h2>Dal luogo, non dal template</h2>
+      <p>Gli ultimi contenuti restano utili, ma come rinforzo editoriale di una destinazione già chiara e desiderabile.</p>
+    </div>
+    <div class="post-grid hospitality-grid">
+      <?php foreach (array_slice($recentPosts, 0, 6) as $p):
+        $purl = $siteUrl . '/' . h($p['slug'] ?? '');
+      ?>
+      <article class="post hospitality-card">
+        <?= mediaHtml($p) ?>
+        <div class="post-body">
+          <div class="meta">
+            <span><?= $icons[$p['platform']] ?? '📄' ?> <?= h($p['platform']) ?></span>
+            <span><?= $p['published_at'] ? date('d/m/Y', strtotime($p['published_at'])) : '' ?></span>
+          </div>
+          <h2><a href="<?= $purl ?>"><?= h(postTitle($p)) ?></a></h2>
+          <p class="excerpt"><?= h(postExcerpt($p)) ?></p>
+        </div>
+      </article>
+      <?php endforeach; ?>
+    </div>
+  </section>
+  <?php endif; ?>
+
+  <section class="hospitality-section hospitality-cta-band" id="contatti">
+    <div>
+      <span class="eyebrow">Prenotazione</span>
+      <h2>Se il posto è giusto, il prossimo passo deve essere semplice</h2>
+      <p>Contatto diretto, visita agli spazi, eventi e contenuti devono accompagnare verso una richiesta reale, non restare solo navigazione passiva.</p>
+    </div>
+    <div class="hospitality-cta-actions">
+      <a class="hospitality-cta hospitality-cta-primary" href="<?= h($hospitalityPrimaryCtaUrl) ?>" target="<?= preg_match('/^https?:\/\//i', $hospitalityPrimaryCtaUrl) ? '_blank' : '_self' ?>" rel="noopener"><?= h($hospitalityPrimaryCtaLabel) ?></a>
+      <a class="hospitality-cta hospitality-cta-secondary" href="<?= h($hospitalitySecondaryCtaUrl) ?>"><?= h($hospitalitySecondaryCtaLabel) ?></a>
+    </div>
+  </section>
+
   <?php else: ?>
 
   <!-- SEZIONI PER ARGOMENTI (HOME) -->
@@ -1690,7 +1926,26 @@ $mainContentHtml = ob_get_clean();
 
 ob_start();
 ?>
-<?php if (!$single && count($sliderPosts) > 0): ?>
+<?php if ($useHospitalityLanding): ?>
+<section class="hero hospitality-hero" style="background:
+  linear-gradient(120deg, rgba(0,0,0,0.52), rgba(0,0,0,0.22)),
+  url('<?= h($coverUrl ?: $placeholderImage) ?>') center/cover;">
+  <div class="hospitality-hero-inner">
+    <span class="eyebrow">Agriturismo · Natura · Esperienze</span>
+    <h1><?= h($displayTitle) ?></h1>
+    <p class="bio"><?= h($heroTagline ?: $bio) ?></p>
+    <div class="hospitality-hero-actions">
+      <a class="hospitality-cta hospitality-cta-primary" href="<?= h($hospitalityPrimaryCtaUrl) ?>" target="<?= preg_match('/^https?:\/\//i', $hospitalityPrimaryCtaUrl) ? '_blank' : '_self' ?>" rel="noopener"><?= h($hospitalityPrimaryCtaLabel) ?></a>
+      <a class="hospitality-cta hospitality-cta-secondary" href="<?= h($hospitalitySecondaryCtaUrl) ?>"><?= h($hospitalitySecondaryCtaLabel) ?></a>
+    </div>
+    <div class="hospitality-hero-facts">
+      <span><?= h($understanding['vertical_label'] ?? 'Hospitality') ?></span>
+      <span><?= h($understanding['business_model'] ?? 'Esperienze autentiche e convivialità') ?></span>
+      <span><?= h($understanding['audience'] ?? 'Ideale per chi cerca natura, tavola e relax') ?></span>
+    </div>
+  </div>
+</section>
+<?php elseif (!$single && count($sliderPosts) > 0): ?>
 <!-- SLIDER HERO -->
 <div class="slider-container" id="hero-slider">
   <div class="slider-track" id="slider-track">
@@ -1806,6 +2061,49 @@ $heroHtml = ob_get_clean();
 
 <script>
 document.addEventListener('DOMContentLoaded', () => {
+  const analyticsEndpoint = '/api/index.php?action=track';
+  const analyticsContext = {
+    slug: <?= json_encode($slug, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) ?>,
+    path: window.location.pathname + window.location.search,
+    post_id: <?= (int)($single['id'] ?? 0) ?>
+  };
+  const sendVisibilityEvent = (eventType, targetUrl = '') => {
+    if (navigator.doNotTrack === '1') return;
+    fetch(analyticsEndpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...analyticsContext, event_type: eventType, target_url: targetUrl }),
+      keepalive: true,
+      credentials: 'same-origin'
+    }).catch(() => {});
+  };
+  const classifyTrackedLink = (anchor) => {
+    const rawHref = anchor.getAttribute('href') || '';
+    const href = anchor.href || rawHref;
+    const text = (anchor.textContent || '').toLowerCase();
+    if (/^tel:/i.test(rawHref)) return 'call_click';
+    if (/^mailto:/i.test(rawHref)) return 'contact_click';
+    if (/wa\.me|whatsapp/i.test(href)) return 'whatsapp_click';
+    if (/google\.[^/]+\/maps|maps\.app\.goo\.gl|goo\.gl\/maps/i.test(href)) return 'directions_click';
+    if (/booking\.com|prenot|reserv/i.test(href + ' ' + text)) return 'booking_click';
+    if (/facebook\.com|instagram\.com|tiktok\.com|youtube\.com|youtu\.be|linkedin\.com|x\.com|twitter\.com/i.test(href)) return 'social_click';
+    try { if (new URL(href, window.location.href).origin !== window.location.origin) return 'external_click'; } catch (_) {}
+    return '';
+  };
+  const viewKey = `sts_view:${analyticsContext.path}`;
+  try {
+    if (!sessionStorage.getItem(viewKey)) {
+      sessionStorage.setItem(viewKey, '1');
+      sendVisibilityEvent('page_view');
+    }
+  } catch (_) {
+    sendVisibilityEvent('page_view');
+  }
+  document.querySelectorAll('a[href]').forEach(anchor => {
+    const eventType = classifyTrackedLink(anchor);
+    if (eventType) anchor.addEventListener('click', () => sendVisibilityEvent(eventType, anchor.href || ''));
+  });
+
   const navToggle = document.getElementById('nav-toggle');
   const navLinks = document.getElementById('nav-links');
   const navOverlay = document.getElementById('nav-overlay');

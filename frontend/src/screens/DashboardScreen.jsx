@@ -1105,6 +1105,7 @@ const [importMsg, setImportMsg] = useState(null);
   const posts = data?.posts || [];
   const connections = data?.connections || [];
   const sources = data?.sources || [];
+  const visibility = data?.visibility || {};
   const sourceByPlatform = sources.reduce((acc, source) => ({ ...acc, [source.platform]: source }), {});
   const connByPlatform = connections.reduce((acc, c) => ({ ...acc, [c.platform]: c }), {});
   return (
@@ -1205,16 +1206,46 @@ const [importMsg, setImportMsg] = useState(null);
           <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1.25rem' }}>
               {[
-                { n: posts.length, l: 'Contenuti elaborati', c: 'var(--primary)' },
-                { n: sources.length, l: 'Canali collegati', c: 'var(--teal)' },
-                { n: site?.seo_score || 0, l: 'Score SEO', c: (site?.seo_score >= 80) ? 'var(--teal)' : 'var(--amber)' },
-                { n: posts.filter(p => p.media_type === 'VIDEO').length, l: 'Video trascritti', c: 'var(--primary-dark)' },
+                { n: visibility.published_pages ?? (posts.length + 1), l: 'Pagine pubblicate', c: 'var(--primary)' },
+                { n: visibility.google_visible_pages ?? 0, l: 'Pagine apparse in Google', c: 'var(--teal)' },
+                { n: Number(visibility.impressions || 0).toLocaleString('it-IT'), l: 'Impressioni Google · 30 gg', c: 'var(--amber)' },
+                { n: Number(visibility.clicks || 0).toLocaleString('it-IT'), l: 'Clic da Google · 30 gg', c: 'var(--primary-dark)' },
+                { n: Number(visibility.unique_visitors || 0).toLocaleString('it-IT'), l: 'Visite uniche giornaliere · 30 gg', c: 'var(--teal)' },
+                { n: Number(visibility.actions || 0).toLocaleString('it-IT'), l: 'Azioni verso l’attività · 30 gg', c: 'var(--primary)' },
               ].map((s, i) => (
                 <div key={i} className="card" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', justifyContent: 'center', textAlign: 'center' }}>
                   <div style={{ fontSize: '42px', fontWeight: 800, color: s.c, lineHeight: 1, textShadow: `0 0 15px ${s.c}33` }}>{s.n}</div>
                   <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '12px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px' }}>{s.l}</div>
                 </div>
               ))}
+            </div>
+
+            <div className="card" style={{ padding: '1.5rem', background: 'var(--surface)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap', alignItems: 'flex-start' }}>
+                <div>
+                  <h3 style={{ marginBottom: '0.4rem', color: 'var(--text)' }}>La tua presenza ricercabile</h3>
+                  <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '14px', maxWidth: '720px', lineHeight: 1.6 }}>
+                    “Pagine apparse in Google” conta le URL che hanno ricevuto almeno un’impressione negli ultimi 30 giorni. Non è una stima: deriva da Google Search Console. Le azioni registrano clic sui contatti, non telefonate o prenotazioni completate.
+                  </p>
+                </div>
+                <div style={{ padding: '10px 14px', borderRadius: '999px', background: visibility.latest_search_date ? 'var(--teal-light)' : 'var(--amber-light)', color: visibility.latest_search_date ? 'var(--teal)' : 'var(--amber)', fontSize: '12px', fontWeight: 800 }}>
+                  {visibility.latest_search_date ? `Dati Google aggiornati al ${new Date(visibility.latest_search_date).toLocaleDateString('it-IT')}` : 'In attesa dei primi dati Google'}
+                </div>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '0.75rem', marginTop: '1.25rem' }}>
+                {[
+                  ['Clic sul numero', visibility.event_counts?.call_click || 0],
+                  ['Indicazioni', visibility.event_counts?.directions_click || 0],
+                  ['WhatsApp', visibility.event_counts?.whatsapp_click || 0],
+                  ['Prenotazione', visibility.event_counts?.booking_click || 0],
+                  ['Social', visibility.event_counts?.social_click || 0],
+                ].map(([label, value]) => (
+                  <div key={label} style={{ padding: '1rem', borderRadius: '12px', background: 'var(--bg)', border: '1px solid var(--border)' }}>
+                    <div style={{ fontSize: '24px', fontWeight: 800, color: 'var(--text)' }}>{value}</div>
+                    <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>{label}</div>
+                  </div>
+                ))}
+              </div>
             </div>
 
             {brandVoiceProfile && (
@@ -1241,6 +1272,29 @@ const [importMsg, setImportMsg] = useState(null);
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: 'var(--text-muted)', marginTop: '8px' }}>
                   <span>{seoAnalytics[0]?.record_date}</span>
                   <span>{seoAnalytics[seoAnalytics.length-1]?.record_date}</span>
+                </div>
+              </div>
+            )}
+
+            {(visibility.top_queries?.length > 0 || visibility.top_pages?.length > 0) && (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '1.25rem' }}>
+                <div className="card" style={{ padding: '1.5rem' }}>
+                  <h3 style={{ marginBottom: '1rem' }}>Ricerche che ti hanno mostrato</h3>
+                  {(visibility.top_queries || []).map((row, index) => (
+                    <div key={`${row.query_text}-${index}`} style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '1rem', padding: '0.75rem 0', borderBottom: '1px solid var(--border)' }}>
+                      <div style={{ fontSize: '14px', color: 'var(--text)' }}>{row.query_text}</div>
+                      <div style={{ fontSize: '12px', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>{row.impressions} impr · {row.clicks} clic</div>
+                    </div>
+                  ))}
+                </div>
+                <div className="card" style={{ padding: '1.5rem' }}>
+                  <h3 style={{ marginBottom: '1rem' }}>Pagine più visibili</h3>
+                  {(visibility.top_pages || []).map((row, index) => (
+                    <div key={`${row.page_url}-${index}`} style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '1rem', padding: '0.75rem 0', borderBottom: '1px solid var(--border)' }}>
+                      <a href={row.page_url} target="_blank" rel="noopener" style={{ fontSize: '14px', color: 'var(--primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{row.page_url.replace(window.location.origin, '')}</a>
+                      <div style={{ fontSize: '12px', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>{row.impressions} impr · {row.clicks} clic</div>
+                    </div>
+                  ))}
                 </div>
               </div>
             )}
@@ -1776,36 +1830,81 @@ const [importMsg, setImportMsg] = useState(null);
 
             {isAdmin && (
               <div className="glass-modal" style={{ marginBottom: '1.5rem', padding: '1.5rem' }}>
-                <h3 style={{ marginBottom: '1rem', color: 'var(--primary)' }}>Statistiche SEO Globali (Admin)</h3>
+                <h3 style={{ marginBottom: '0.35rem', color: 'var(--primary)' }}>Visibilità globale (Admin)</h3>
+                <p style={{ margin: '0 0 1rem', color: 'var(--text-muted)', fontSize: '13px' }}>Dettaglio operativo degli ultimi 30 giorni, separato per profilo.</p>
                 <div style={{ overflowX: 'auto' }}>
                   <table className="table" style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
                     <thead>
                       <tr>
                         <th style={{ padding: '12px', borderBottom: '1px solid var(--border)' }}>Utente</th>
                         <th style={{ padding: '12px', borderBottom: '1px solid var(--border)' }}>Sito</th>
-                        <th style={{ padding: '12px', borderBottom: '1px solid var(--border)' }}>Data</th>
+                        <th style={{ padding: '12px', borderBottom: '1px solid var(--border)' }}>Pubblicate</th>
+                        <th style={{ padding: '12px', borderBottom: '1px solid var(--border)' }}>Viste Google</th>
                         <th style={{ padding: '12px', borderBottom: '1px solid var(--border)' }}>Impression</th>
                         <th style={{ padding: '12px', borderBottom: '1px solid var(--border)' }}>Clic</th>
                         <th style={{ padding: '12px', borderBottom: '1px solid var(--border)' }}>CTR</th>
                         <th style={{ padding: '12px', borderBottom: '1px solid var(--border)' }}>Pos.</th>
+                        <th style={{ padding: '12px', borderBottom: '1px solid var(--border)' }}>Visitatori</th>
+                        <th style={{ padding: '12px', borderBottom: '1px solid var(--border)' }}>Azioni</th>
+                        <th style={{ padding: '12px', borderBottom: '1px solid var(--border)' }}>Ultimo dato</th>
                       </tr>
                     </thead>
                     <tbody>
                       {adminSeoStats.length === 0 ? (
-                        <tr><td colSpan="7" style={{ padding: '12px', textAlign: 'center' }}>Nessuna statistica disponibile</td></tr>
+                        <tr><td colSpan="11" style={{ padding: '12px', textAlign: 'center' }}>Nessuna statistica disponibile</td></tr>
                       ) : adminSeoStats.map((st, i) => (
                         <tr key={i}>
                           <td style={{ padding: '12px', borderBottom: '1px solid var(--border)' }}>{st.email}</td>
                           <td style={{ padding: '12px', borderBottom: '1px solid var(--border)' }}>{st.title}</td>
-                          <td style={{ padding: '12px', borderBottom: '1px solid var(--border)' }}>{st.record_date}</td>
+                          <td style={{ padding: '12px', borderBottom: '1px solid var(--border)' }}>{st.published_pages}</td>
+                          <td style={{ padding: '12px', borderBottom: '1px solid var(--border)' }}>{st.google_visible_pages}</td>
                           <td style={{ padding: '12px', borderBottom: '1px solid var(--border)' }}>{st.impressions}</td>
                           <td style={{ padding: '12px', borderBottom: '1px solid var(--border)' }}>{st.clicks}</td>
-                          <td style={{ padding: '12px', borderBottom: '1px solid var(--border)' }}>{st.ctr ? (st.ctr * 100).toFixed(2) + '%' : '-'}</td>
+                          <td style={{ padding: '12px', borderBottom: '1px solid var(--border)' }}>{st.ctr ? Number(st.ctr).toFixed(2) + '%' : '-'}</td>
                           <td style={{ padding: '12px', borderBottom: '1px solid var(--border)' }}>{st.position ? parseFloat(st.position).toFixed(1) : '-'}</td>
+                          <td style={{ padding: '12px', borderBottom: '1px solid var(--border)' }}>{st.unique_visitors}</td>
+                          <td style={{ padding: '12px', borderBottom: '1px solid var(--border)' }} title={`Telefono ${st.event_counts?.call_click || 0} · Indicazioni ${st.event_counts?.directions_click || 0} · WhatsApp ${st.event_counts?.whatsapp_click || 0} · Prenotazioni ${st.event_counts?.booking_click || 0}`}>{st.actions}</td>
+                          <td style={{ padding: '12px', borderBottom: '1px solid var(--border)', whiteSpace: 'nowrap' }}>{st.latest_search_date || '—'}</td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
+                </div>
+                <div style={{ display: 'grid', gap: '0.75rem', marginTop: '1rem' }}>
+                  {adminSeoStats.map(st => (
+                    <details key={st.id} style={{ border: '1px solid var(--border)', borderRadius: '12px', padding: '0.85rem 1rem', background: 'var(--bg)' }}>
+                      <summary style={{ cursor: 'pointer', fontWeight: 700, color: 'var(--text)' }}>
+                        {st.title || st.email} · dettaglio acquisizione e qualità
+                      </summary>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem', marginTop: '1rem' }}>
+                        <div>
+                          <div style={{ fontSize: '12px', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '0.5rem' }}>Stato operativo</div>
+                          <div style={{ fontSize: '13px', lineHeight: 1.8, color: 'var(--text)' }}>
+                            Slug: <strong>{st.slug}</strong><br />
+                            Copertura osservata: <strong>{st.published_pages ? Math.round((st.google_visible_pages / st.published_pages) * 100) : 0}%</strong><br />
+                            Tracking dal: <strong>{st.tracking_started || 'non ancora attivo'}</strong><br />
+                            Ultimo sync social: <strong>{st.last_sync || 'mai'}</strong>
+                          </div>
+                        </div>
+                        <div>
+                          <div style={{ fontSize: '12px', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '0.5rem' }}>Top query</div>
+                          {(st.top_queries || []).length === 0 ? <div style={{ fontSize: '13px', color: 'var(--text-muted)' }}>Nessun dato query</div> : (st.top_queries || []).map(q => (
+                            <div key={q.query_text} style={{ fontSize: '13px', marginBottom: '0.4rem', color: 'var(--text)' }}>{q.query_text} <span style={{ color: 'var(--text-muted)' }}>· {q.impressions} impr</span></div>
+                          ))}
+                        </div>
+                        <div>
+                          <div style={{ fontSize: '12px', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '0.5rem' }}>Azioni registrate</div>
+                          <div style={{ fontSize: '13px', lineHeight: 1.8, color: 'var(--text)' }}>
+                            Telefono: <strong>{st.event_counts?.call_click || 0}</strong><br />
+                            Indicazioni: <strong>{st.event_counts?.directions_click || 0}</strong><br />
+                            WhatsApp: <strong>{st.event_counts?.whatsapp_click || 0}</strong><br />
+                            Prenotazione: <strong>{st.event_counts?.booking_click || 0}</strong><br />
+                            Social: <strong>{st.event_counts?.social_click || 0}</strong>
+                          </div>
+                        </div>
+                      </div>
+                    </details>
+                  ))}
                 </div>
               </div>
             )}

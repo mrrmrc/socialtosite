@@ -17,6 +17,9 @@ define('ENCRYPTION_KEY', 'cambia_con_64_caratteri_hex');
 
 // URL base del sito (senza slash finale)
 define('BASE_URL', 'https://tuodominio.it');
+// Opzionale: property esatta di Google Search Console (es. sc-domain:tuodominio.it).
+// Se omessa, il cron prova a rilevarla automaticamente tra le property accessibili.
+// define('GSC_PROPERTY', 'sc-domain:tuodominio.it');
 
 // Origine consentita per le richieste CORS (default = BASE_URL).
 // Usa '*' solo in sviluppo locale.

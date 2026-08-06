@@ -38,6 +38,7 @@ require_once __DIR__ . '/middleware/logger.php';
 require_once __DIR__ . '/services/sync.php';
 require_once __DIR__ . '/services/ingest.php';
 require_once __DIR__ . '/services/editorial_engine.php';
+require_once __DIR__ . '/services/visibility.php';
 
 cors();
 
@@ -122,8 +123,16 @@ function normalizeSiteAiResult(array $result): array {
 }
 
 // ── Auth endpoints (no JWT) ───────────────────────────────────────────────
+if ($action === 'track' && $method === 'POST') {
+    $payload = body();
+    $ok = VisibilityAnalytics::recordEvent(is_array($payload) ? $payload : []);
+    if (!$ok) jsonError('Evento non valido', 422);
+    json(['ok' => true]);
+}
+
 if (in_array($action, ['login', 'register', 'site-public', 'debug-site', 'migrate'])) {
     if ($action === 'migrate') {
+        VisibilityAnalytics::ensureSchema();
         try { DB::execute('ALTER TABLE social_sources ADD COLUMN since_date DATE NULL'); } catch (Throwable $e) {}
         try { DB::execute('ALTER TABLE social_sources ADD COLUMN auto_publish TINYINT DEFAULT 1'); } catch (Throwable $e) {}
         try { DB::execute('ALTER TABLE social_sources ADD COLUMN max_posts INT NULL'); } catch (Throwable $e) {}
@@ -585,16 +594,22 @@ if ($action === 'admin-editorial-room' && $method === 'GET') {
 
 if ($action === 'admin-seo' && $method === 'GET') {
     requireAdmin($isAdmin);
-    // Ottieni le ultime statistiche SEO per ogni utente
-    $stats = DB::fetchAll('
-        SELECT u.id, u.email, u.slug, s.title, sa.record_date, sa.impressions, sa.clicks, sa.ctr, sa.position
+    VisibilityAnalytics::ensureSchema();
+    $users = DB::fetchAll('
+        SELECT u.id, u.email, u.slug, u.created_at, s.title, s.last_sync
         FROM users u
         LEFT JOIN sites s ON s.user_id = u.id
-        LEFT JOIN seo_analytics sa ON sa.user_id = u.id AND sa.record_date = (
-            SELECT MAX(record_date) FROM seo_analytics WHERE user_id = u.id
-        )
-        ORDER BY sa.clicks DESC, u.created_at DESC
+        ORDER BY u.created_at DESC
     ');
+    $stats = [];
+    foreach ($users as $row) {
+        $summary = VisibilityAnalytics::userSummary((int)$row['id']);
+        $stats[] = array_merge($row, $summary, [
+            'top_queries' => VisibilityAnalytics::topQueries((int)$row['id'], 5),
+            'top_pages' => VisibilityAnalytics::topPages((int)$row['id'], 5),
+        ]);
+    }
+    usort($stats, fn($a, $b) => ($b['impressions'] <=> $a['impressions']) ?: strcmp((string)$b['created_at'], (string)$a['created_at']));
     json(['stats' => $stats]);
 }
 
@@ -1039,8 +1054,15 @@ if ($action === 'site' && $method === 'GET') {
             }
             $p['tags'] = array_filter(array_map('trim', $decoded));
         }
-        $seoAnalytics = DB::fetchAll('SELECT record_date, impressions, clicks, ctr, position FROM seo_analytics WHERE user_id=? ORDER BY record_date ASC LIMIT 30', [$userId]);
-        json(['site' => $site, 'posts' => $posts, 'connections' => $connections, 'sources' => $sources, 'seo_analytics' => $seoAnalytics]);
+        VisibilityAnalytics::ensureSchema();
+        $seoAnalytics = DB::fetchAll(
+            'SELECT record_date, impressions, clicks, ctr, position FROM seo_analytics WHERE user_id=? AND record_date >= DATE_SUB(CURDATE(), INTERVAL 29 DAY) ORDER BY record_date ASC',
+            [$userId]
+        );
+        $visibility = VisibilityAnalytics::userSummary($userId);
+        $visibility['top_pages'] = VisibilityAnalytics::topPages($userId);
+        $visibility['top_queries'] = VisibilityAnalytics::topQueries($userId);
+        json(['site' => $site, 'posts' => $posts, 'connections' => $connections, 'sources' => $sources, 'seo_analytics' => $seoAnalytics, 'visibility' => $visibility]);
     } catch (Throwable $e) {
         file_put_contents(__DIR__ . '/site_error.log', $e->getMessage() . "\n" . $e->getTraceAsString());
         jsonError($e->getMessage());

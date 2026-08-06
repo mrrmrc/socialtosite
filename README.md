@@ -165,6 +165,15 @@ Per abilitare i link dei canali/profili social e il collegamento al post origina
 Per abilitare il profilo generato/editabile dalla scansione, importa anche `db/migration_profile_scan.sql`.
 Per abilitare agente editoriale, deduplica semantica e 10 layout selezionabili, importa anche `db/migration_agentic_layouts.sql`.
 
+## Metriche di visibilità
+
+- La dashboard utente mostra pagine pubblicate, URL apparse in Google, impressioni, clic e azioni verso l'attività negli ultimi 30 giorni.
+- Il pannello admin aggiunge copertura per profilo, query, pagine principali, stato del tracking e sincronizzazioni.
+- Le azioni pubbliche sono conteggiate senza cookie e memorizzano solo un hash pseudonimo giornaliero; i bot noti vengono esclusi.
+- I dati Google sono filtrati per il percorso del singolo profilo, così i totali del dominio non vengono attribuiti a ogni utente.
+- Per Search Console salva `config/gcp-credentials.json` solo sul server e concedi al service account accesso alla property. Il cron social aggiorna automaticamente anche le metriche quando il file è presente.
+- Su installazioni manuali è disponibile `db/migration_visibility_analytics.sql`; l'app crea comunque le tabelle mancanti al primo utilizzo.
+
 ---
 
 ## Registrazione app OAuth
