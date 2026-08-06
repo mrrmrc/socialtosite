@@ -1,5 +1,13 @@
 # SocialToSite — PHP + MySQL
 
+## Modello pubblico e SEO
+
+Ogni profilo pubblico fa parte della rete editoriale AllSocialToWeb e usa lo stesso tema accessibile e riconoscibile. Le personalizzazioni grafiche legacy restano disponibili agli amministratori, ma non modificano più il rendering pubblico.
+
+La pipeline SEO crea automaticamente, quando esistono prove sufficienti nei contenuti importati, pagine fondamentali come `chi-siamo`, `cosa-offriamo`, `per-chi` e FAQ. Ogni sezione generata dall'AI deve citare ID di post pubblicati realmente; affermazioni non verificabili vengono escluse e trasformate in domande da confermare. Le pagine `contenuti` e `contatti` sono deterministiche e collegano rispettivamente gli articoli e i canali ufficiali.
+
+La sitemap principale è un indice che include la sitemap dell'hub `/scopri` e una sitemap dedicata per ogni profilo. Il rebuild della fondazione SEO avviene dopo la sincronizzazione, dopo l'analisi della scheda business e dopo le correzioni dell'utente.
+
 ## Struttura del progetto
 
 ```

@@ -6,6 +6,7 @@ header("Pragma: no-cache");
 
 require_once __DIR__ . '/../config/db.php';
 require_once __DIR__ . '/../config/config.php';
+require_once __DIR__ . '/../api/services/seo_foundation.php';
 
 $slug   = $_GET['slug']   ?? '';
 $action = $_GET['action'] ?? 'site';
@@ -19,7 +20,7 @@ if (!$user) { http_response_code(404); echo '<h1>Sito non trovato</h1>'; exit; }
 $site  = DB::fetch('SELECT * FROM sites WHERE user_id=?', [$user['id']]);
 if (!$site) $site = []; // Fallback sicuro: evita crash su array access
 $sources = DB::fetchAll(
-    'SELECT platform, label, url FROM social_sources WHERE user_id=? AND active=1 ORDER BY platform, id DESC',
+    'SELECT platform, label, url, topic_summary FROM social_sources WHERE user_id=? AND active=1 ORDER BY platform, id DESC',
     [$user['id']]
 );
 $posts = DB::fetchAll(
@@ -36,6 +37,36 @@ foreach ($posts as &$p) {
 unset($p);
 
 $allPosts = $posts;
+$understandingForSeo = !empty($site['site_understanding']) ? json_decode($site['site_understanding'], true) : [];
+if (!is_array($understandingForSeo)) $understandingForSeo = [];
+$seoFoundation = SeoFoundation::cachedOrFallback((int)$user['id'], $site, $sources, $allPosts);
+$foundationPagesBySlug = [];
+foreach (($seoFoundation['pages'] ?? []) as $page) {
+    $pageSlug = strtolower(trim((string)($page['slug'] ?? '')));
+    if ($pageSlug !== '') $foundationPagesBySlug[$pageSlug] = $page;
+}
+if ($allPosts) {
+    $foundationPagesBySlug['contenuti'] = [
+        'slug' => 'contenuti',
+        'title' => 'Contenuti e aggiornamenti',
+        'meta_description' => 'Esperienze, approfondimenti e aggiornamenti pubblicati direttamente da ' . ($site['title'] ?? $user['name'] ?? $slug) . '.',
+        'intro' => 'Una raccolta ordinata dei contenuti pubblicati dall’attività, con collegamenti alle fonti social originali.',
+        'sections' => [],
+        'faq' => [],
+        'page_type' => 'archive',
+    ];
+}
+if ($sources) {
+    $foundationPagesBySlug['contatti'] = [
+        'slug' => 'contatti',
+        'title' => 'Contatti e canali ufficiali',
+        'meta_description' => 'Canali social e riferimenti ufficiali di ' . ($site['title'] ?? $user['name'] ?? $slug) . '.',
+        'intro' => 'Per informazioni aggiornate e richieste dirette utilizza uno dei canali ufficiali verificati qui sotto.',
+        'sections' => [],
+        'faq' => [],
+        'page_type' => 'contacts',
+    ];
+}
 
 $activeTag = strtolower(trim($_GET['tag'] ?? ''));
 if ($activeTag) {
@@ -49,10 +80,16 @@ if ($activeTag) {
     $posts = $filtered;
 }
 
-$postSlug = $_GET['post'] ?? '';
+$postSlug = trim((string)($_GET['post'] ?? ''), '/');
+$foundationPage = $postSlug !== '' ? ($foundationPagesBySlug[strtolower($postSlug)] ?? null) : null;
 $single   = null;
-if ($postSlug) {
+if ($postSlug && !$foundationPage) {
     foreach ($allPosts as $p) { if (($p['slug'] ?? '') === $postSlug) { $single = $p; break; } }
+}
+if ($postSlug !== '' && !$foundationPage && !$single && $action === 'site') {
+    http_response_code(404);
+    echo '<!doctype html><html lang="it"><meta charset="utf-8"><title>Pagina non trovata</title><body><main><h1>Pagina non trovata</h1><p><a href="/' . htmlspecialchars($slug, ENT_QUOTES, 'UTF-8') . '">Torna al sito</a></p></main></body></html>';
+    exit;
 }
 
 // ── Sitemap XML ─────────────────────────────────────────────────────────────
@@ -62,6 +99,11 @@ if ($action === 'sitemap') {
     echo '<?xml version="1.0" encoding="UTF-8"?>' . "\n";
     echo '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">' . "\n";
     echo "  <url><loc>$base</loc><changefreq>daily</changefreq><priority>1.0</priority></url>\n";
+    foreach ($foundationPagesBySlug as $page) {
+        $pageUrl = $base . '/' . rawurlencode($page['slug']);
+        $foundationLastmod = !empty($site['seo_foundation_updated_at']) ? '<lastmod>' . substr($site['seo_foundation_updated_at'], 0, 10) . '</lastmod>' : '';
+        echo "  <url><loc>" . htmlspecialchars($pageUrl, ENT_XML1, 'UTF-8') . "</loc>" . $foundationLastmod . "<changefreq>weekly</changefreq><priority>0.8</priority></url>\n";
+    }
     
     // Posts
     foreach ($allPosts as $p) {
@@ -352,6 +394,23 @@ if (!empty($mediaPosts)) {
         $menuLinks[] = ['label' => 'Media Center', 'url' => '/?view=media'];
     }
 }
+
+// Tutti i siti della rete condividono una navigazione stabile e crawlable.
+// Le vecchie scelte grafiche restano nei dati, ma non governano piu il sito pubblico.
+$menuLinks = [['label' => 'Home', 'url' => '/']];
+$preferredFoundationPages = [
+    'cosa-offriamo' => 'Cosa offriamo',
+    'chi-siamo' => 'Chi siamo',
+    'per-chi' => 'Per chi',
+    'contenuti' => 'Contenuti',
+    'domande-frequenti' => 'FAQ',
+    'contatti' => 'Contatti',
+];
+foreach ($preferredFoundationPages as $pageSlug => $label) {
+    if (isset($foundationPagesBySlug[$pageSlug])) {
+        $menuLinks[] = ['label' => $label, 'url' => '/' . $pageSlug];
+    }
+}
 $footerText   = $site['footer_text'] ?? '';
 $customCss    = $site['custom_css'] ?? '';
 $heroTagline  = h($site['hero_tagline'] ?? '');
@@ -499,6 +558,29 @@ $contentWidth = $densityMode === 'compact' ? '1040px' : ($densityMode === 'balan
 $heroPadding = $densityMode === 'compact' ? '6rem 1.5rem 4rem' : ($densityMode === 'balanced' ? '7rem 1.5rem 5rem' : '9rem 1.5rem 6rem');
 $gridMin = $cardsMode === 'cinematic' ? '360px' : ($cardsMode === 'product' ? '300px' : '320px');
 
+// Identita visiva unica AllSocialToWeb: leggibile, veloce e riconoscibile.
+$archetype = 'network-standard';
+$customCss = '';
+$fontHeading = 'Inter';
+$fontBody = 'Inter';
+$palPrimary = '#5B5CE2';
+$palSecondary = '#4038B7';
+$palBg = '#F6F7FB';
+$palSurface = '#FFFFFF';
+$palText = '#182033';
+$heroMode = 'product';
+$navMode = 'solid';
+$cardsMode = 'product';
+$densityMode = 'balanced';
+$primaryModel = 'tech-clarity';
+$secondaryModel = '';
+$radius = '18px';
+$cardShadow = '0 12px 36px rgba(24,32,51,0.08)';
+$glassmorphism = false;
+$contentWidth = '1160px';
+$heroPadding = '6rem 1.5rem 4rem';
+$gridMin = '300px';
+
 // ── Post per lo Slider (Top 3) ───────────────────────────────────────────────
 $sliderPosts = [];
 // 1. Prendi i featured (fino a 3)
@@ -585,7 +667,7 @@ $hospitalityPrimaryCtaUrl = !empty($sources[0]['url']) ? $sources[0]['url'] : $s
 $hospitalityPrimaryCtaLabel = $ctaText !== '' ? html_entity_decode($ctaText, ENT_QUOTES, 'UTF-8') : 'Prenota la tua esperienza';
 $hospitalitySecondaryCtaUrl = $siteUrl . '?view=media';
 $hospitalitySecondaryCtaLabel = 'Guarda gli spazi';
-$useHospitalityLanding = $isHospitalitySite && !$single && !$activeTag && $view !== 'media';
+$useHospitalityLanding = false;
 
 // Helper per titolo/body effettivi (usa edited_ se presente)
 function postTitle(array $p): string {
@@ -1241,6 +1323,14 @@ if (!isset($themeCSS[$archetype]) || !empty($site['site_ai_data'])) {
 // Sostituisce eventuali tag $accent nel CSS per sicurezza
 $activeCss = str_replace('#$accent', $accent, $activeCss);
 
+$sameAs = array_values(array_filter(array_map(static fn($source) => trim((string)($source['url'] ?? '')), $sources)));
+$businessSchemaType = (string)($seoFoundation['business_type'] ?? 'Organization');
+if (!in_array($businessSchemaType, ['Organization', 'LocalBusiness', 'LodgingBusiness', 'Restaurant', 'ProfessionalService', 'Person'], true)) $businessSchemaType = 'Organization';
+$businessSchema = ['@context'=>'https://schema.org','@type'=>$businessSchemaType,'@id'=>$siteUrl . '#identity','name'=>$displayTitle,'url'=>$siteUrl,'description'=>html_entity_decode($bio, ENT_QUOTES, 'UTF-8'),'sameAs'=>$sameAs];
+if ($logoUrl !== '') $businessSchema['logo'] = $logoUrl;
+if ($coverUrl !== '') $businessSchema['image'] = $coverUrl;
+$jsonLdFlags = JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT;
+
 // HTTP Link headers per sitemap e feed
 header('Link: <' . $siteUrl . '/sitemap.xml>; rel="sitemap"');
 header('Link: <' . $siteUrl . '/feed.xml>; rel="alternate"; type="application/atom+xml"');
@@ -1259,7 +1349,14 @@ header('Link: <' . $siteUrl . '/feed.xml>; rel="alternate"; type="application/at
   ?>
     <meta name="google-site-verification" content="<?= h($gsc) ?>" />
   <?php endif; ?>
-  <?php if ($single): ?>
+  <?php if ($foundationPage): ?>
+    <title><?= h($foundationPage['title']) ?> - <?= $title ?></title>
+    <meta name="description" content="<?= h($foundationPage['meta_description'] ?? $foundationPage['intro'] ?? '') ?>">
+    <meta property="og:title" content="<?= h($foundationPage['title']) ?> - <?= $title ?>">
+    <meta property="og:description" content="<?= h($foundationPage['meta_description'] ?? $foundationPage['intro'] ?? '') ?>">
+    <meta property="og:type" content="website">
+    <link rel="canonical" href="<?= $siteUrl . '/' . rawurlencode($foundationPage['slug']) ?>">
+  <?php elseif ($single): ?>
     <title><?= h(postTitle($single)) ?> - <?= $title ?></title>
     <meta name="description" content="<?= h(postExcerpt($single)) ?>">
     <meta property="og:title" content="<?= h(postTitle($single)) ?>">
@@ -1302,6 +1399,7 @@ header('Link: <' . $siteUrl . '/feed.xml>; rel="alternate"; type="application/at
     }
   }
   </script>
+  <script type="application/ld+json"><?= json_encode($businessSchema, $jsonLdFlags) ?></script>
   <?php if ($useHospitalityLanding): ?>
   <script type="application/ld+json">
   {
@@ -1316,7 +1414,19 @@ header('Link: <' . $siteUrl . '/feed.xml>; rel="alternate"; type="application/at
   </script>
   <?php endif; ?>
   
-  <?php if ($single): ?>
+  <?php if ($foundationPage):
+    $foundationUrl = $siteUrl . '/' . rawurlencode($foundationPage['slug']);
+    $webPageSchema = ['@context'=>'https://schema.org','@type'=>'WebPage','name'=>$foundationPage['title'],'description'=>$foundationPage['meta_description'] ?? $foundationPage['intro'] ?? '','url'=>$foundationUrl,'isPartOf'=>['@id'=>$siteUrl]];
+    $breadcrumbSchema = ['@context'=>'https://schema.org','@type'=>'BreadcrumbList','itemListElement'=>[['@type'=>'ListItem','position'=>1,'name'=>'Home','item'=>$siteUrl],['@type'=>'ListItem','position'=>2,'name'=>$foundationPage['title'],'item'=>$foundationUrl]]];
+  ?>
+  <script type="application/ld+json"><?= json_encode($webPageSchema, $jsonLdFlags) ?></script>
+  <script type="application/ld+json"><?= json_encode($breadcrumbSchema, $jsonLdFlags) ?></script>
+  <?php if (!empty($foundationPage['faq'])):
+    $faqSchema = ['@context'=>'https://schema.org','@type'=>'FAQPage','mainEntity'=>array_map(static fn($item) => ['@type'=>'Question','name'=>$item['question'],'acceptedAnswer'=>['@type'=>'Answer','text'=>$item['answer']]], $foundationPage['faq'])];
+  ?>
+  <script type="application/ld+json"><?= json_encode($faqSchema, $jsonLdFlags) ?></script>
+  <?php endif; ?>
+  <?php elseif ($single): ?>
   <script type="application/ld+json">
   {
     "@context": "https://schema.org",
@@ -1342,7 +1452,7 @@ header('Link: <' . $siteUrl . '/feed.xml>; rel="alternate"; type="application/at
     "datePublished": "<?= date(DATE_ATOM, strtotime($single['published_at'] ?? 'now')) ?>",
     "dateModified": "<?= date(DATE_ATOM, strtotime($single['published_at'] ?? 'now')) ?>",
     "author": [{
-        "@type": "Person",
+        "@type": "<?= $businessSchemaType === 'Person' ? 'Person' : 'Organization' ?>",
         "name": "<?= addslashes($site['title'] ?? $user['name'] ?? '') ?>",
         "url": "<?= $siteUrl ?>"
       }]
@@ -1594,16 +1704,47 @@ header('Link: <' . $siteUrl . '/feed.xml>; rel="alternate"; type="application/at
     .hospitality-media-item img { width: 100%; aspect-ratio: 4/5; object-fit: cover; display: block; }
     .hospitality-media-item span { display: block; padding: 0.95rem 1rem 1.1rem; font-weight: 600; line-height: 1.35; }
     .hospitality-cta-band { display: flex; justify-content: space-between; gap: 1.2rem; align-items: center; padding: 2rem; border-radius: 32px; background: linear-gradient(135deg, rgba(160,106,66,0.12), rgba(61,139,109,0.10)); border: 1px solid rgba(0,0,0,0.05); }
+
+    /* Identita unica della rete AllSocialToWeb */
+    :root { --accent:#5B5CE2; --bg:#F6F7FB; --card-bg:#fff; --text:#182033; --border:#E3E6EF; --radius:18px; }
+    body.theme-network-standard { background:#F6F7FB; color:#182033; }
+    .network-bar { background:#182033; color:#fff; padding:.55rem 1.25rem; font-size:.78rem; letter-spacing:.04em; text-align:center; }
+    .network-bar a { color:#fff; font-weight:800; }
+    .theme-network-standard .navbar { background:rgba(255,255,255,.96)!important; border-bottom:1px solid #E3E6EF; padding:1rem max(1.25rem,calc((100vw - 1160px)/2))!important; }
+    .theme-network-standard .nav-brand { color:#182033; }
+    .theme-network-standard .container { width:min(100%,1160px); }
+    .foundation-directory { margin:0 0 4rem; padding:2rem; border-radius:24px; background:#fff; border:1px solid #E3E6EF; }
+    .foundation-directory-head { max-width:720px; margin-bottom:1.4rem; }
+    .foundation-directory-head h2 { font-size:clamp(1.8rem,4vw,3rem); margin:.25rem 0 .65rem; }
+    .network-kicker { display:inline-block; color:#5B5CE2; font-size:.76rem; font-weight:800; letter-spacing:.12em; text-transform:uppercase; }
+    .foundation-card-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:1rem; }
+    .foundation-card { display:flex; flex-direction:column; gap:.7rem; padding:1.35rem; min-height:180px; color:#182033; background:#F8F9FD; border:1px solid #E3E6EF; border-radius:16px; }
+    .foundation-card:hover { border-color:#5B5CE2; transform:translateY(-2px); }
+    .foundation-card > span { font-size:1.15rem; font-weight:800; }
+    .foundation-card p { color:#566078; line-height:1.55; flex:1; }
+    .foundation-card strong { color:#5B5CE2; }
+    .foundation-page { max-width:900px; margin:0 auto; }
+    .foundation-header { padding:clamp(2rem,6vw,4.5rem); background:#182033; color:#fff; border-radius:28px; margin-bottom:1.5rem; }
+    .foundation-header h1 { font-size:clamp(2.6rem,6vw,4.8rem); line-height:1; margin:.75rem 0 1.2rem; color:#fff; }
+    .foundation-header p { max-width:720px; font-size:1.15rem; line-height:1.7; color:#E7E9F2; }
+    .foundation-section,.official-channels,.content-method { background:#fff; border:1px solid #E3E6EF; border-radius:18px; padding:clamp(1.3rem,4vw,2.2rem); margin-bottom:1rem; }
+    .foundation-section h2 { margin-bottom:.8rem; font-size:1.65rem; }
+    .foundation-section p { line-height:1.75; color:#46506A; }
+    .evidence-links { display:flex; flex-wrap:wrap; gap:.6rem; margin-top:1.2rem; font-size:.85rem; }
+    .evidence-links a { color:#4038B7; text-decoration:underline; }
+    .foundation-section details { border-top:1px solid #E3E6EF; padding:1rem 0; }
+    .foundation-section summary { font-weight:800; cursor:pointer; }
+    .official-channels { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:1rem; }
+    .official-channel { display:flex; flex-direction:column; gap:.5rem; padding:1.25rem; color:#182033; background:#F8F9FD; border-radius:14px; }
+    .official-channel span { color:#5B5CE2; }
+    .content-method { font-size:.9rem; line-height:1.65; color:#566078; border-left:4px solid #5B5CE2; }
+    .theme-network-standard .footer { background:#182033; border-radius:0; }
+    a:focus-visible,button:focus-visible,summary:focus-visible { outline:3px solid #FFBF47; outline-offset:3px; }
+    @media(max-width:768px){ .foundation-directory{padding:1.25rem}.foundation-header{border-radius:20px}.network-bar{font-size:.7rem}.theme-network-standard .navbar{padding:1rem 1.25rem!important} }
   </style>
 </head>
 <?php
   $layoutVariant = 'classic';
-  if ($heroMode === 'split' || $primaryModel === 'neo-brutal-pop' || $primaryModel === 'dark-cinematic') { $layoutVariant = 'split'; }
-  elseif ($primaryModel === 'warm-humanist') { $layoutVariant = 'sidebar'; }
-  elseif ($primaryModel === 'editorial-luxe' || $cardsMode === 'editorial') { $layoutVariant = 'magazine'; }
-  elseif (in_array($archetype, ['agency', 'fitness', 'brutalist', 'darkphoto', 'gamer'])) { $layoutVariant = 'split'; }
-  elseif (in_array($archetype, ['zen', 'blogger', 'portfolio', 'vaporwave'])) { $layoutVariant = 'sidebar'; }
-  elseif (in_array($archetype, ['magazine', 'authority', 'ecommerce', 'education'])) { $layoutVariant = 'magazine'; }
   
   // Unsplash Placeholder
   $unsplashKeyword = $archetype;
@@ -1617,6 +1758,7 @@ header('Link: <' . $siteUrl . '/feed.xml>; rel="alternate"; type="application/at
   }
 ?>
 <body class="theme-<?= h($archetype) ?> layout-<?= $layoutVariant ?>">
+<div class="network-bar">Parte della rete <a href="<?= BASE_URL ?>/scopri">AllSocialToWeb</a> · contenuti collegati alle fonti ufficiali</div>
 
 <?php
 ob_start();
@@ -1636,6 +1778,7 @@ ob_start();
         if ($href === '/' || $href === '') { $href = $siteUrl; }
         elseif (preg_match('/[?&]tag=([^&]+)/i', $href, $m)) { $href = $siteUrl . '?tag=' . $m[1]; }
         elseif (preg_match('/[?&]view=media/i', $href)) { $href = $siteUrl . '?view=media'; }
+        elseif (str_starts_with($href, '/')) { $href = $siteUrl . $href; }
         else { $href = h($href); }
     ?>
       <a href="<?= $href ?>" role="menuitem"><?= h($link['label']) ?></a>
@@ -1665,7 +1808,37 @@ $footerHtml = ob_get_clean();
 
 ob_start();
 ?>
-<?php if ($single): $p = $single; ?>
+<?php if ($foundationPage): ?>
+  <nav class="breadcrumb" aria-label="Percorso"><a href="<?= $siteUrl ?>">Home</a><span class="sep">/</span><span><?= h($foundationPage['title']) ?></span></nav>
+  <article class="foundation-page">
+    <header class="foundation-header">
+      <span class="network-kicker">Informazioni ufficiali organizzate da AllSocialToWeb</span>
+      <h1><?= h($foundationPage['title']) ?></h1>
+      <p><?= h($foundationPage['intro'] ?? '') ?></p>
+    </header>
+
+    <?php if (($foundationPage['page_type'] ?? '') === 'archive'): ?>
+      <section class="post-grid" aria-label="Contenuti pubblicati">
+        <?php foreach ($allPosts as $p): ?>
+        <article class="post"><?= mediaHtml($p) ?><div class="post-body"><div class="meta"><span><?= h($p['platform'] ?? '') ?></span><span><?= !empty($p['published_at']) ? date('d/m/Y', strtotime($p['published_at'])) : '' ?></span></div><h2><a href="<?= $siteUrl . '/' . h($p['slug'] ?? '') ?>"><?= h(postTitle($p)) ?></a></h2><p class="excerpt"><?= h(postExcerpt($p)) ?></p></div></article>
+        <?php endforeach; ?>
+      </section>
+    <?php elseif (($foundationPage['page_type'] ?? '') === 'contacts'): ?>
+      <section class="official-channels" aria-label="Canali ufficiali">
+        <?php foreach ($sources as $source): ?><a class="official-channel" href="<?= h($source['url']) ?>" target="_blank" rel="noopener"><strong><?= h($source['label'] ?: ucfirst($source['platform'])) ?></strong><span>Apri il canale ufficiale <?= h($source['platform']) ?> →</span></a><?php endforeach; ?>
+      </section>
+    <?php else: ?>
+      <?php foreach (($foundationPage['sections'] ?? []) as $section): ?>
+      <section class="foundation-section"><h2><?= h($section['heading'] ?? '') ?></h2><p><?= h($section['body'] ?? '') ?></p>
+        <?php if (!empty($section['evidence_post_ids'])): ?><div class="evidence-links"><span>Fonti:</span><?php foreach ($allPosts as $evidencePost): if (!in_array((int)$evidencePost['id'], array_map('intval', $section['evidence_post_ids']), true)) continue; ?><a href="<?= $siteUrl . '/' . h($evidencePost['slug']) ?>"><?= h(postTitle($evidencePost)) ?></a><?php endforeach; ?></div><?php endif; ?>
+      </section>
+      <?php endforeach; ?>
+      <?php if (!empty($foundationPage['faq'])): ?><section class="foundation-section"><h2>Domande frequenti</h2><?php foreach ($foundationPage['faq'] as $faq): ?><details><summary><?= h($faq['question']) ?></summary><p><?= h($faq['answer']) ?></p></details><?php endforeach; ?></section><?php endif; ?>
+    <?php endif; ?>
+    <aside class="content-method">Questa pagina è stata organizzata con assistenza AI usando esclusivamente informazioni e contenuti attribuiti ai canali ufficiali dell’attività. I collegamenti alle fonti permettono di verificarne il contesto.</aside>
+  </article>
+
+<?php elseif ($single): $p = $single; ?>
   <a class="back-btn" href="<?= $siteUrl ?>">← Torna ai contenuti</a>
   <article class="single-post" itemscope itemtype="https://schema.org/Article">
     <?= mediaHtml($p) ?>
@@ -1869,6 +2042,17 @@ ob_start();
 
   <?php else: ?>
 
+  <?php if (!empty($foundationPagesBySlug)): ?>
+  <section class="foundation-directory" aria-labelledby="foundation-heading">
+    <div class="foundation-directory-head"><span class="network-kicker">Informazioni essenziali</span><h2 id="foundation-heading">Scopri <?= $title ?></h2><p>Pagine tematiche costruite a partire dai contenuti e dai canali ufficiali dell’attività.</p></div>
+    <div class="foundation-card-grid">
+      <?php foreach ($preferredFoundationPages as $pageSlug => $label): if (!isset($foundationPagesBySlug[$pageSlug])) continue; $page = $foundationPagesBySlug[$pageSlug]; ?>
+      <a class="foundation-card" href="<?= $siteUrl . '/' . rawurlencode($pageSlug) ?>"><span><?= h($label) ?></span><p><?= h($page['meta_description'] ?? $page['intro'] ?? '') ?></p><strong>Approfondisci →</strong></a>
+      <?php endforeach; ?>
+    </div>
+  </section>
+  <?php endif; ?>
+
   <!-- SEZIONI PER ARGOMENTI (HOME) -->
   <?php foreach ($postsByTopic as $topic => $topicPosts): ?>
   <section class="topic-section">
@@ -1951,7 +2135,7 @@ ob_start();
     </div>
   </div>
 </section>
-<?php elseif (!$single && count($sliderPosts) > 0): ?>
+<?php elseif (!$single && !$foundationPage && count($sliderPosts) > 0): ?>
 <!-- SLIDER HERO -->
 <div class="slider-container" id="hero-slider">
   <div class="slider-track" id="slider-track">
@@ -1998,7 +2182,7 @@ ob_start();
   </div>
   <?php endif; ?>
 </div>
-<?php elseif (!$single): ?>
+<?php elseif (!$single && !$foundationPage): ?>
 <!-- HERO PLACEHOLDER SE NON CI SONO SLIDER -->
 <div class="hero placeholder-hero" style="background: url('<?= $coverUrl ?: $placeholderImage ?>') center/cover; position:relative;">
   <div style="position:absolute; inset:0; background:rgba(0,0,0,0.6);"></div>

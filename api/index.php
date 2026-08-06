@@ -39,6 +39,7 @@ require_once __DIR__ . '/services/sync.php';
 require_once __DIR__ . '/services/ingest.php';
 require_once __DIR__ . '/services/editorial_engine.php';
 require_once __DIR__ . '/services/visibility.php';
+require_once __DIR__ . '/services/seo_foundation.php';
 
 cors();
 
@@ -79,6 +80,9 @@ function ensureSiteSchemaUpgrades(): void {
         'ALTER TABLE sites ADD COLUMN editorial_last_run DATETIME NULL',
         'ALTER TABLE sites ADD COLUMN site_understanding LONGTEXT NULL',
         'ALTER TABLE sites ADD COLUMN site_understanding_corrections LONGTEXT NULL',
+        'ALTER TABLE sites ADD COLUMN seo_foundation LONGTEXT NULL',
+        'ALTER TABLE sites ADD COLUMN seo_foundation_hash CHAR(64) NULL',
+        'ALTER TABLE sites ADD COLUMN seo_foundation_updated_at DATETIME NULL',
     ];
 
     foreach ($queries as $query) {
@@ -145,6 +149,7 @@ if ($action === 'track' && $method === 'POST') {
 if (in_array($action, ['login', 'register', 'site-public', 'debug-site', 'migrate'])) {
     if ($action === 'migrate') {
         VisibilityAnalytics::ensureSchema();
+        SeoFoundation::ensureSchema();
         try { DB::execute('ALTER TABLE social_sources ADD COLUMN since_date DATE NULL'); } catch (Throwable $e) {}
         try { DB::execute('ALTER TABLE social_sources ADD COLUMN auto_publish TINYINT DEFAULT 1'); } catch (Throwable $e) {}
         try { DB::execute('ALTER TABLE social_sources ADD COLUMN max_posts INT NULL'); } catch (Throwable $e) {}
@@ -1044,10 +1049,11 @@ if ($action === 'site' && $method === 'GET') {
     try {
         $site  = DB::fetch('SELECT * FROM sites WHERE user_id=?', [$userId]);
         if ($site) {
-            $site['site_understanding'] = mergeUnderstanding(
+            $mergedUnderstanding = mergeUnderstanding(
                 $site['site_understanding'] ?? null,
                 $site['site_understanding_corrections'] ?? null
             );
+            $site['site_understanding'] = !empty($mergedUnderstanding) ? $mergedUnderstanding : null;
         }
         $posts = DB::fetchAll(
             'SELECT id, user_id, platform, platform_post_id, SUBSTR(raw_content, 1, 500) as raw_content, generated_title, generated_excerpt, generated_body, edited_body, tags, media_url, media_type, source_url, published_at, seo_score, slug, published
@@ -1202,6 +1208,9 @@ if (array_key_exists('theme', $b)) {
         $params[] = $userId;
         DB::execute('UPDATE sites SET ' . implode(', ', $fields) . ' WHERE user_id = ?', $params);
     }
+    if (array_key_exists('site_understanding', $b) || array_key_exists('profile_summary', $b) || array_key_exists('role_mission', $b) || array_key_exists('content_strategy', $b)) {
+        try { SeoFoundation::rebuild($userId, true); } catch (Throwable $e) {}
+    }
     json(['ok' => true]);
 }
 
@@ -1219,7 +1228,12 @@ if ($action === 'refresh-understanding' && $method === 'POST') {
         $site['site_understanding_corrections'] ?? null
     );
     DB::execute('UPDATE sites SET site_understanding=? WHERE user_id=?', [json_encode($understanding, JSON_UNESCAPED_UNICODE), $userId]);
-    json(['ok' => true, 'understanding' => $understanding]);
+    $foundation = SeoFoundation::rebuild($userId, true);
+    json(['ok' => true, 'understanding' => $understanding, 'seo_foundation' => $foundation]);
+}
+
+if ($action === 'rebuild-seo-foundation' && $method === 'POST') {
+    json(['ok' => true, 'seo_foundation' => SeoFoundation::rebuild($userId, true)]);
 }
 
 // ── POST design-site (3 proposte Graphic Designer) ───────────────────────
@@ -1706,6 +1720,8 @@ if ($action === 'finalize-sync' && $method === 'POST') {
             EditorialEngine::run($userId);
         }
     } catch (Throwable $e) { }
+
+    try { SeoFoundation::rebuild($userId); } catch (Throwable $e) { }
 
     DB::execute('UPDATE sites SET last_sync=NOW() WHERE user_id=?', [$userId]);
     json(['ok' => true]);

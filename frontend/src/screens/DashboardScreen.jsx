@@ -120,13 +120,14 @@ function buildEditorialIdeas(posts, understanding) {
   return ideas.slice(0, 6);
 }
 
-function SiteMapGraph({ posts, siteUrl, siteTitle }) {
+function SiteMapGraph({ posts, siteUrl, siteTitle, foundationPages = [] }) {
   const visiblePosts = posts.filter(post => Number(post.published) === 1).slice(0, 6);
   const positions = [[105,365],[235,365],[365,365],[495,365],[625,365],[755,365]];
   const topicCounts = {};
   visiblePosts.forEach(post => (post.tags || []).forEach(tag => { topicCounts[tag] = (topicCounts[tag] || 0) + 1; }));
   const topTopics = Object.entries(topicCounts).sort((a,b) => b[1] - a[1]).slice(0, 3).map(([label]) => label);
-  const topicPositions = topTopics.map((label, index) => ({ label, x: 300 + (index * 130) }));
+  const graphLabels = foundationPages.length ? foundationPages.slice(0, 4).map(page => page.title) : topTopics;
+  const topicPositions = graphLabels.map((label, index) => ({ label, x: 235 + (index * 130) }));
   const short = value => String(value || 'Articolo').replace(/\s+/g, ' ').slice(0, 24);
   return (
     <div style={{ overflowX: 'auto', paddingBottom: '0.5rem' }}>
@@ -136,12 +137,12 @@ function SiteMapGraph({ posts, siteUrl, siteTitle }) {
           <filter id="graphShadow"><feDropShadow dx="0" dy="5" stdDeviation="7" floodOpacity="0.13"/></filter>
         </defs>
         <path d="M430 82 L430 142" stroke="var(--border-strong)" strokeWidth="3" />
-        {topTopics.length === 0 && visiblePosts.length > 0 && <path d="M430 224 L430 312" stroke="var(--border-strong)" strokeWidth="2" />}
+        {graphLabels.length === 0 && visiblePosts.length > 0 && <path d="M430 224 L430 312" stroke="var(--border-strong)" strokeWidth="2" />}
         {topicPositions.map(topic => <path key={topic.label} d={`M430 224 C430 250 ${topic.x} 242 ${topic.x} 276`} fill="none" stroke="var(--primary)" strokeOpacity=".55" strokeWidth="2" />)}
-        {positions.slice(0, visiblePosts.length).map(([x], index) => { const postTags=visiblePosts[index]?.tags || []; const parent=topicPositions.find(topic => postTags.includes(topic.label)); const fromX=parent?.x || 430; return <path key={index} d={`M${fromX} 312 C${fromX} 334 ${x} 326 ${x} 350`} fill="none" stroke="var(--border-strong)" strokeWidth="2" />; })}
+        {positions.slice(0, visiblePosts.length).map(([x], index) => { const postTags=visiblePosts[index]?.tags || []; const parent=foundationPages.length ? topicPositions[index % Math.max(topicPositions.length, 1)] : topicPositions.find(topic => postTags.includes(topic.label)); const fromX=parent?.x || 430; return <path key={index} d={`M${fromX} 312 C${fromX} 334 ${x} 326 ${x} 350`} fill="none" stroke="var(--border-strong)" strokeWidth="2" />; })}
         <g filter="url(#graphShadow)"><rect x="310" y="22" width="240" height="60" rx="18" fill="url(#graphRoot)"/><text x="430" y="48" textAnchor="middle" fill="#fff" fontSize="15" fontWeight="800">ALLSOCIALTOWEB.COM</text><text x="430" y="67" textAnchor="middle" fill="rgba(255,255,255,.82)" fontSize="11">Hub pubblico /scopri</text></g>
         <g filter="url(#graphShadow)"><rect x="285" y="142" width="290" height="82" rx="20" fill="var(--surface)" stroke="var(--primary)" strokeWidth="2"/><text x="430" y="174" textAnchor="middle" fill="var(--text)" fontSize="17" fontWeight="800">{short(siteTitle || 'Il tuo sito')}</text><text x="430" y="198" textAnchor="middle" fill="var(--text-muted)" fontSize="12">{siteUrl.replace(window.location.origin, '')}</text></g>
-        {topicPositions.map(topic => <g key={topic.label}><rect x={topic.x-54} y="276" width="108" height="36" rx="18" fill="var(--primary-light)" stroke="var(--primary)"/><text x={topic.x} y="299" textAnchor="middle" fill="var(--primary)" fontSize="10" fontWeight="800">{short(topic.label).slice(0,18)}</text></g>)}
+        {topicPositions.map(topic => <g key={topic.label}><rect x={topic.x-58} y="276" width="116" height="36" rx="18" fill="var(--primary-light)" stroke="var(--primary)"/><text x={topic.x} y="299" textAnchor="middle" fill="var(--primary)" fontSize="10" fontWeight="800">{short(topic.label).slice(0,19)}</text></g>)}
         {visiblePosts.map((post, index) => { const [x,y]=positions[index]; return <g key={post.id}><rect x={x-56} y={y-15} width="112" height="58" rx="14" fill="var(--bg)" stroke="var(--border-strong)"/><text x={x} y={y+7} textAnchor="middle" fill="var(--text)" fontSize="10" fontWeight="700"><tspan x={x}>{short(post.generated_title).slice(0,16)}</tspan><tspan x={x} dy="14">{short(post.generated_title).slice(16,32)}</tspan></text></g> })}
         {visiblePosts.length === 0 && <text x="430" y="350" textAnchor="middle" fill="var(--text-muted)" fontSize="14">I prossimi articoli compariranno qui</text>}
       </svg>
@@ -297,7 +298,8 @@ const [importMsg, setImportMsg] = useState(null);
       }
       setTemplateStudio(normalizeStudioData(parsedSiteAiData, d.site?.theme || 'tech-clarity'));
       try {
-        const parsedUnderstanding = d.site?.site_understanding ? (typeof d.site.site_understanding === 'string' ? JSON.parse(d.site.site_understanding) : d.site.site_understanding) : null;
+        const rawUnderstanding = d.site?.site_understanding ? (typeof d.site.site_understanding === 'string' ? JSON.parse(d.site.site_understanding) : d.site.site_understanding) : null;
+        const parsedUnderstanding = rawUnderstanding && typeof rawUnderstanding === 'object' && Object.keys(rawUnderstanding).length ? rawUnderstanding : null;
         setUnderstandingReport(parsedUnderstanding);
         setUnderstandingDraft(parsedUnderstanding);
       } catch (e) {
@@ -793,6 +795,18 @@ const [importMsg, setImportMsg] = useState(null);
     setSavingProfile(false);
   }
 
+  async function rebuildSeoFoundation() {
+    setSavingProfile(true);
+    try {
+      await apiFetch('/api/index.php?action=rebuild-seo-foundation', { method: 'POST', body: JSON.stringify({}) }, token);
+      await loadData();
+      setSyncMsg({ ok: true, text: 'Pagine SEO fondamentali ricostruite usando le informazioni verificate.' });
+    } catch (err) {
+      setSyncMsg({ ok: false, text: err.message });
+    }
+    setSavingProfile(false);
+  }
+
   async function chooseTheme(theme) {
     setSelectedTheme(theme);
     try {
@@ -1191,8 +1205,11 @@ const [importMsg, setImportMsg] = useState(null);
   const connections = data?.connections || [];
   const sources = data?.sources || [];
   const visibility = data?.visibility || {};
+  let seoFoundation = {};
+  try { seoFoundation = typeof site?.seo_foundation === 'string' ? JSON.parse(site.seo_foundation) : (site?.seo_foundation || {}); } catch (_) { seoFoundation = {}; }
   const contentIdeas = buildEditorialIdeas(posts, understandingDraft || understandingReport);
   const publishedPosts = posts.filter(post => Number(post.published) === 1);
+  const networkPublishedPages = (visibility.published_pages ?? (publishedPosts.length + 1)) + (seoFoundation.pages || []).length + (publishedPosts.length ? 1 : 0) + (sources.length ? 1 : 0);
   const sourceByPlatform = sources.reduce((acc, source) => ({ ...acc, [source.platform]: source }), {});
   const connByPlatform = connections.reduce((acc, c) => ({ ...acc, [c.platform]: c }), {});
   return (
@@ -1222,7 +1239,7 @@ const [importMsg, setImportMsg] = useState(null);
             { id: 'overview', icon: '🏠', label: 'Home' },
             { id: 'site', icon: '📝', label: 'Articoli' },
             { id: 'sources', icon: '📡', label: 'Canali' },
-            { id: 'settings', icon: '🎨', label: 'Design' },
+            ...(user?.role === 'admin' ? [{ id: 'settings', icon: '🎨', label: 'Design legacy' }] : []),
             ...(user?.role === 'admin' ? [
               { id: 'general', icon: '⚙️', label: 'Impostazioni' }
             ] : []),
@@ -1293,8 +1310,8 @@ const [importMsg, setImportMsg] = useState(null);
           <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1.25rem' }}>
               {[
-                { n: visibility.published_pages ?? (posts.length + 1), l: 'Pagine pubblicate', c: 'var(--primary)' },
-                { n: visibility.published_pages ?? (posts.length + 1), l: 'Pagine collegate alla rete', c: 'var(--amber)' },
+                { n: networkPublishedPages, l: 'Pagine pubblicate', c: 'var(--primary)' },
+                { n: networkPublishedPages, l: 'Pagine collegate alla rete', c: 'var(--amber)' },
                 { n: Number(visibility.unique_visitors || 0).toLocaleString('it-IT'), l: 'Visite uniche giornaliere · 30 gg', c: 'var(--teal)' },
                 { n: Number(visibility.actions || 0).toLocaleString('it-IT'), l: 'Azioni verso l’attività · 30 gg', c: 'var(--primary)' },
               ].map((s, i) => (
@@ -1387,7 +1404,7 @@ const [importMsg, setImportMsg] = useState(null);
               <div className="card">
                 <h3 style={{ marginBottom: '1rem' }}>Scorciatoie veloci</h3>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  <button onClick={() => setTab('settings')} className="btn btn-outline" style={{ justifyContent: 'flex-start' }}>🎨 Modifica i colori e il font</button>
+                  <button onClick={() => setTab('seo')} className="btn btn-outline" style={{ justifyContent: 'flex-start' }}>🕸️ Controlla pagine e visibilità</button>
                   <button onClick={() => setTab('sources')} className="btn btn-outline" style={{ justifyContent: 'flex-start' }}>➕ Aggiungi un nuovo canale social</button>
                   <button onClick={() => setTab('site')} className="btn btn-outline" style={{ justifyContent: 'flex-start' }}>✏️ Rivedi un articolo pubblicato</button>
                 </div>
@@ -1881,7 +1898,7 @@ const [importMsg, setImportMsg] = useState(null);
                 <span style={{ padding: '9px 13px', borderRadius: '999px', background: 'var(--teal-light)', color: 'var(--teal)', fontSize: '12px', fontWeight: 800 }}>Attivo</span>
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem', marginTop: '1.25rem' }}>
-                {[['Pagine nella rete', visibility.published_pages ?? (publishedPosts.length + 1)], ['Canali osservati', sources.length], ['Visite · 30 giorni', visibility.unique_visitors || 0], ['Azioni · 30 giorni', visibility.actions || 0]].map(([label,value]) => <div key={label} style={{ padding: '1rem', borderRadius: '12px', background: 'var(--bg)', border: '1px solid var(--border)' }}><div style={{ fontSize: '26px', fontWeight: 850, color: 'var(--text)' }}>{value}</div><div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>{label}</div></div>)}
+                {[['Pagine nella rete', networkPublishedPages], ['Canali osservati', sources.length], ['Visite · 30 giorni', visibility.unique_visitors || 0], ['Azioni · 30 giorni', visibility.actions || 0]].map(([label,value]) => <div key={label} style={{ padding: '1rem', borderRadius: '12px', background: 'var(--bg)', border: '1px solid var(--border)' }}><div style={{ fontSize: '26px', fontWeight: 850, color: 'var(--text)' }}>{value}</div><div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>{label}</div></div>)}
               </div>
               <div style={{ display: 'flex', gap: '10px', marginTop: '1.2rem', flexWrap: 'wrap' }}>
                 <a href="/scopri" target="_blank" rel="noopener" className="btn btn-outline" style={{ textDecoration: 'none' }}>Apri la rete pubblica</a>
@@ -1890,9 +1907,24 @@ const [importMsg, setImportMsg] = useState(null);
             </div>
 
             <div className="glass-modal" style={{ marginBottom: '1.5rem', padding: '1.5rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem', alignItems: 'flex-start', flexWrap: 'wrap' }}>
+                <div>
+                  <h3 style={{ margin: '0 0 0.4rem', color: 'var(--text)' }}>Pagine fondamentali gestite dal sistema</h3>
+                  <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '14px', lineHeight: 1.6, maxWidth: '680px' }}>Il sistema crea solo pagine sostenute da informazioni reali nei tuoi contenuti. Quando correggi la scheda “Cosa ha capito l’AI”, anche questa struttura viene aggiornata.</p>
+                </div>
+                <button className="btn btn-primary" onClick={rebuildSeoFoundation} disabled={savingProfile}>{savingProfile ? 'Aggiornamento…' : 'Aggiorna pagine SEO'}</button>
+              </div>
+              <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginTop: '1.2rem' }}>
+                {(seoFoundation.pages || []).map(page => <a key={page.slug} href={`${siteUrl}/${page.slug}`} target="_blank" rel="noopener" style={{ padding: '9px 12px', borderRadius: '999px', background: 'var(--primary-light)', color: 'var(--primary)', fontWeight: 750, fontSize: '13px', textDecoration: 'none' }}>{page.title}</a>)}
+                {!(seoFoundation.pages || []).length && <span style={{ color: 'var(--text-muted)', fontSize: '14px' }}>Le prime pagine saranno create dopo l’analisi dei contenuti.</span>}
+              </div>
+              {!!site?.seo_foundation_updated_at && <div style={{ marginTop: '0.9rem', color: 'var(--text-muted)', fontSize: '12px' }}>Ultimo aggiornamento: {new Date(site.seo_foundation_updated_at).toLocaleString('it-IT')}</div>}
+            </div>
+
+            <div className="glass-modal" style={{ marginBottom: '1.5rem', padding: '1.5rem' }}>
               <h3 style={{ margin: '0 0 0.4rem', color: 'var(--text)' }}>🕸️ Mappa del tuo spazio nella rete</h3>
               <p style={{ margin: '0 0 1rem', color: 'var(--text-muted)', fontSize: '14px' }}>Questa è la struttura che rende i contenuti raggiungibili dal dominio principale fino ai singoli articoli.</p>
-              <SiteMapGraph posts={posts} siteUrl={siteUrl} siteTitle={data?.site?.title || user?.name || user?.slug} />
+              <SiteMapGraph posts={posts} siteUrl={siteUrl} siteTitle={data?.site?.title || user?.name || user?.slug} foundationPages={seoFoundation.pages || []} />
             </div>
 
             <div className="glass-modal" style={{ marginBottom: '1.5rem', padding: '1.5rem' }}>
@@ -2926,9 +2958,6 @@ const [importMsg, setImportMsg] = useState(null);
         </button>
         <button className={`mobile-nav-item ${tab === 'seo' ? 'active' : ''}`} onClick={() => setTab('seo')}>
           <span style={{fontSize: '20px'}}>🕸️</span> Mappa
-        </button>
-        <button className={`mobile-nav-item ${tab === 'settings' ? 'active' : ''}`} onClick={() => setTab('settings')}>
-          <span style={{fontSize: '20px'}}>🎨</span> Design
         </button>
       </div>
       

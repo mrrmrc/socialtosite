@@ -2075,5 +2075,62 @@ Testi da analizzare:
             return [];
         }
     }
+
+    public static function seoFoundation(array $site, array $sources, array $posts, array $understanding = []): array {
+        $sourceRows = array_map(static fn($source) => [
+            'platform' => $source['platform'] ?? '',
+            'label' => $source['label'] ?? '',
+            'url' => $source['url'] ?? '',
+            'topic_summary' => $source['topic_summary'] ?? '',
+        ], $sources);
+        $postRows = [];
+        foreach (array_slice($posts, 0, 30) as $post) {
+            $tags = is_array($post['tags'] ?? null) ? $post['tags'] : (json_decode($post['tags'] ?? '[]', true) ?: []);
+            $postRows[] = [
+                'id' => (int)($post['id'] ?? 0),
+                'title' => trim((string)($post['edited_title'] ?? $post['generated_title'] ?? '')),
+                'excerpt' => trim((string)($post['edited_excerpt'] ?? $post['generated_excerpt'] ?? '')),
+                'source_text' => mb_substr(trim((string)($post['raw_content'] ?? $post['transcript'] ?? '')), 0, 900),
+                'tags' => $tags,
+            ];
+        }
+
+        $prompt = "Sei l'architetto informativo di una rete di siti business. Costruisci una fondazione SEO utile alle persone, NON pagine create per manipolare Google.\n"
+            . "Usa esclusivamente fatti presenti nei dati forniti. Non inventare indirizzi, prezzi, servizi, localita, orari, contatti, certificazioni o risultati.\n"
+            . "Ogni sezione deve indicare evidence_post_ids reali. Se un fatto non e verificabile, inseriscilo in questions_to_confirm e non pubblicarlo come affermazione.\n"
+            . "Crea al massimo quattro pagine tra chi-siamo, cosa-offriamo, per-chi, domande-frequenti. Ometti una pagina se non ci sono elementi sufficienti.\n"
+            . "Il testo deve aggiungere organizzazione e utilita, non limitarsi a parafrasare lo stesso post.\n\n"
+            . "SITO:\n" . json_encode([
+                'title' => $site['title'] ?? '',
+                'bio' => $site['bio'] ?? '',
+                'profile_summary' => $site['profile_summary'] ?? '',
+                'role_mission' => $site['role_mission'] ?? '',
+                'content_strategy' => $site['content_strategy'] ?? '',
+            ], JSON_UNESCAPED_UNICODE) . "\n\n"
+            . "COMPRENSIONE CONFERMATA:\n" . json_encode($understanding, JSON_UNESCAPED_UNICODE) . "\n\n"
+            . "CANALI:\n" . json_encode($sourceRows, JSON_UNESCAPED_UNICODE) . "\n\n"
+            . "CONTENUTI CON ID:\n" . json_encode($postRows, JSON_UNESCAPED_UNICODE) . "\n\n"
+            . "Rispondi SOLO con JSON valido: {"
+            . '"business_type":"Organization|LocalBusiness|LodgingBusiness|Restaurant|ProfessionalService|Person",'
+            . '"summary":"sintesi verificabile",'
+            . '"location":"solo se verificata",'
+            . '"services":[{"name":"servizio","description":"descrizione verificabile","evidence_post_ids":[1]}],'
+            . '"audience":"pubblico verificabile",'
+            . '"facts":[{"text":"fatto","evidence_post_ids":[1]}],'
+            . '"questions_to_confirm":["informazione mancante"],'
+            . '"pages":[{"slug":"chi-siamo","title":"titolo descrittivo","meta_description":"max 155 caratteri","intro":"introduzione",'
+            . '"sections":[{"heading":"titolo sezione","body":"testo utile","evidence_post_ids":[1]}],'
+            . '"faq":[{"question":"domanda","answer":"risposta verificabile","evidence_post_ids":[1]}]}]}' ;
+
+        $text = self::gemini([['text' => $prompt]], [
+            'responseMimeType' => 'application/json',
+            'maxOutputTokens' => 8192,
+            'temperature' => 0.2,
+        ]);
+        $text = preg_replace('/```json|```/', '', trim($text));
+        $result = json_decode($text, true);
+        if (!is_array($result)) throw new RuntimeException('Fondazione SEO AI non valida');
+        return $result;
+    }
 }
 
