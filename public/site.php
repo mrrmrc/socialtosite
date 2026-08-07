@@ -713,7 +713,7 @@ function bodyHtml(?string $b): string {
 
 // ── Percorsi Vivi: trasforma i contenuti in esperienze guidate ─────────────
 $declaredStrategy = is_array($understanding['declared_strategy'] ?? null) ? $understanding['declared_strategy'] : [];
-$livingAudience = trim((string)($declaredStrategy['primary_audience'] ?? $understanding['audience'] ?? ''));
+$livingAudience = trim((string)($declaredStrategy['primary_audience'] ?? ''));
 $livingArea = trim((string)($declaredStrategy['geographic_area'] ?? ''));
 $livingDesiredAction = trim((string)($declaredStrategy['desired_action'] ?? ''));
 $livingCustomerNeeds = trim((string)($declaredStrategy['customer_needs'] ?? ''));
@@ -1801,6 +1801,7 @@ header('Link: <' . $siteUrl . '/feed.xml>; rel="alternate"; type="application/at
     .network-bar a { color:#fff; font-weight:800; }
     .theme-network-standard .navbar { background:rgba(255,255,255,.96)!important; border-bottom:1px solid #E3E6EF; padding:1rem max(1.25rem,calc((100vw - 1160px)/2))!important; }
     .theme-network-standard .nav-brand { color:#182033; }
+    .nav-brand-fallback { display:none; }
     .theme-network-standard .container { width:min(100%,1160px); }
     .foundation-directory { margin:0 0 4rem; padding:2rem; border-radius:24px; background:#fff; border:1px solid #E3E6EF; }
     .foundation-directory-head { max-width:720px; margin-bottom:1.4rem; }
@@ -1889,7 +1890,7 @@ header('Link: <' . $siteUrl . '/feed.xml>; rel="alternate"; type="application/at
 ob_start();
 ?>
   <a href="<?= $siteUrl ?>" class="nav-brand">
-    <?php if ($logoUrl): ?><img src="<?= h($logoUrl) ?>" alt="<?= $title ?> - Logo" style="height:40px;border-radius:8px;">
+    <?php if ($logoUrl): ?><img src="<?= h($logoUrl) ?>" alt="" style="height:40px;border-radius:8px;"><span class="nav-brand-fallback"><?= $title ?></span>
     <?php else: ?><?= $title ?><?php endif; ?>
   </a>
   <?php if ($menuLinks): ?>
@@ -2422,6 +2423,15 @@ if (!$single && !$foundationPage && $view === '' && !$activeTag && !empty($livin
 
 <script>
 document.addEventListener('DOMContentLoaded', () => {
+  document.querySelectorAll('.nav-brand img').forEach(image => {
+    const showBrandFallback = () => {
+      image.style.display = 'none';
+      const fallback = image.nextElementSibling;
+      if (fallback?.classList.contains('nav-brand-fallback')) fallback.style.display = 'inline';
+    };
+    image.addEventListener('error', showBrandFallback);
+    if (image.complete && image.naturalWidth === 0) showBrandFallback();
+  });
   const analyticsEndpoint = '/api/index.php?action=track';
   const analyticsContext = {
     slug: <?= json_encode($slug, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) ?>,
