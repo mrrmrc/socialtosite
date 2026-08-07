@@ -1600,14 +1600,14 @@ const [importMsg, setImportMsg] = useState(null);
             { id: 'living-space', icon: '✦', label: 'Spazio Vivo', external: true },
             { id: 'site', icon: '📝', label: 'Articoli' },
             { id: 'sources', icon: '📡', label: 'Canali' },
+            ...(user?.role === 'admin' ? [{ id: 'admin', icon: '👥', label: 'Gestione utenti' }] : []),
             ...(user?.role === 'admin' ? [{ id: 'settings', icon: '🎨', label: 'Design legacy' }] : []),
             ...(user?.role === 'admin' ? [
               { id: 'general', icon: '⚙️', label: 'Impostazioni' }
             ] : []),
             { id: 'seo', icon: '◎', label: 'Network della reperibilità' },
             { id: 'strategy', icon: '✓', label: 'Profilo guidato' },
-            { id: 'security', icon: '🔐', label: 'Password e sicurezza' },
-            ...(user?.role === 'admin' ? [{ id: 'admin', icon: '🛠', label: 'Admin' }] : [])
+            { id: 'security', icon: '🔐', label: 'Password e sicurezza' }
           ].map(item => (
             <button key={item.id} onClick={() => item.external ? window.open(siteUrl, '_blank', 'noopener') : setTab(item.id)}
               style={{
@@ -1638,6 +1638,7 @@ const [importMsg, setImportMsg] = useState(null);
         <div className="mobile-top-header">
           <div style={{ fontWeight: 800, fontSize: '16px', color: 'var(--primary)' }}><img src="/logo-cropped.png" alt="allsocialtoweb.com" style={{ height: '52px', width: 'auto', display: 'block' }} /></div>
           <div style={{ display: 'flex', gap: '8px' }}>
+            {user?.role === 'admin' && <button className="btn btn-outline" aria-label="Gestione utenti" onClick={() => setTab('admin')} style={{ padding: '8px 11px', fontSize: '14px' }}>👥</button>}
             <button className="btn btn-outline" aria-label="Password e sicurezza" onClick={() => setTab('security')} style={{ padding: '8px 11px', fontSize: '14px' }}>🔐</button>
             <button className="btn btn-outline" onClick={() => window.open(siteUrl, '_blank', 'noopener')} style={{ padding: '8px 16px', fontSize: '12px' }}>
               ✦ Spazio Vivo
@@ -1657,7 +1658,7 @@ const [importMsg, setImportMsg] = useState(null);
                 {tab === 'general' && 'Impostazioni Generali'}
               {tab === 'seo' && 'Network della Reperibilità'}
               {tab === 'security' && 'Password e sicurezza'}
-              {tab === 'admin' && 'Pannello Admin'}
+              {tab === 'admin' && 'Gestione utenti e amministrazione'}
             </h1>
             <div style={{ display: 'flex', gap: '12px' }}>
               <button className="btn btn-outline" onClick={syncNow} disabled={syncing} style={{ background: 'var(--surface)', border: '1px solid var(--border-strong)', padding: '10px 20px', borderRadius: '10px' }}>

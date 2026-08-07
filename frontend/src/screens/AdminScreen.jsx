@@ -42,7 +42,7 @@ const LAYOUT_LABELS = SITE_LAYOUTS.reduce((acc, layout) => {
 }, {});
 
 export function AdminScreen({ token, currentUser, adminPrompts, updatePrompt }) {
-  const [adminTab, setAdminTab] = useState('control-room');
+  const [adminTab, setAdminTab] = useState('users');
   const [users, setUsers] = useState([]);
   const [logs, setLogs] = useState([]);
   const [processes, setProcesses] = useState([]);
