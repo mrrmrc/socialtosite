@@ -202,7 +202,7 @@ function prefillStrategyFromAi(understanding) {
       offer_summary: current.offer_summary || understanding.business_model || '',
       primary_audience: current.primary_audience || understanding.audience || '',
       geographic_area: current.geographic_area || understanding.geographic_area || understanding.local_area || '',
-      priority_services: current.priority_services?.length ? current.priority_services : aiServices,
+      priority_services: [...new Set([...(current.priority_services || []), ...aiServices])],
       differentiators: current.differentiators || understanding.differentiators || understanding.value_proposition || '',
       customer_needs: current.customer_needs || understanding.customer_needs || '',
     },
