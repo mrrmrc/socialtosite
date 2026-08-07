@@ -324,6 +324,7 @@ $accentColor  = $site['accent_color'] ?? '';
 $accentSecondary = $site['accent_secondary'] ?? $site['accent_color'] ?? '';
 $logoUrl      = normalizeMediaUrl($site['logo_url'] ?? '');
 $coverUrl     = normalizeMediaUrl($site['cover_url'] ?? '');
+if (str_contains($logoUrl, 'profile_logo_fallback_')) $logoUrl = '';
 
 foreach ($allPosts as &$p) {
     $p['media_url'] = normalizeMediaUrl($p['media_url'] ?? '');
@@ -683,7 +684,18 @@ $hospitalityPrimaryCtaUrl = !empty($sources[0]['url']) ? $sources[0]['url'] : $s
 $hospitalityPrimaryCtaLabel = $ctaText !== '' ? html_entity_decode($ctaText, ENT_QUOTES, 'UTF-8') : 'Prenota la tua esperienza';
 $hospitalitySecondaryCtaUrl = $siteUrl . '?view=media';
 $hospitalitySecondaryCtaLabel = 'Guarda gli spazi';
-$useHospitalityLanding = false;
+$hospitalityIdentityText = mb_strtolower(implode(' ', [
+    $title,
+    (string)($understanding['vertical_label'] ?? ''),
+    (string)($understanding['business_model'] ?? ''),
+    implode(' ', (array)($understanding['declared_strategy']['priority_services'] ?? [])),
+]));
+$useHospitalityLanding = (bool)preg_match('/\b(agritur|ristor|hospitality|hotel|resort|b&b|bed and breakfast|osteria|trattoria|locanda|vacanz|soggiorn)\w*/u', $hospitalityIdentityText);
+$hospitalityFacts = array_values(array_unique(array_filter(array_merge(
+    [(string)($understanding['vertical_label'] ?? 'Ospitalità autentica')],
+    array_slice((array)($understanding['declared_strategy']['priority_services'] ?? []), 0, 2),
+    [(string)($understanding['declared_strategy']['geographic_area'] ?? '')]
+))));
 
 // Helper per titolo/body effettivi (usa edited_ se presente)
 function postTitle(array $p): string {
@@ -1980,6 +1992,48 @@ header('Link: <' . $siteUrl . '/feed.xml>; rel="alternate"; type="application/at
     .has-living-home .living-chapter-meta b{color:#191A1D}
     @media(max-width:900px){.has-living-home .living-media-grid{grid-template-columns:1fr}.has-living-home .living-media-position-0{grid-column:1;grid-row:1/3}.has-living-home .living-media-position-1,.has-living-home .living-media-position-2{display:none}.has-living-home .living-layout{grid-template-columns:1fr}.has-living-home .living-compass{display:grid;grid-template-columns:1fr auto;gap:.6rem 1rem;align-items:center;padding-bottom:1.5rem;border-bottom:1px solid rgba(25,26,29,.12)}.has-living-home .living-progress,.has-living-home .living-proof{display:none}.has-living-home .living-question{grid-column:1}.has-living-home .living-cta{grid-column:2;grid-row:1/3;width:auto}.has-living-home .living-stage{grid-template-columns:repeat(2,minmax(0,1fr))}}
     @media(max-width:620px){.has-living-home .network-trust{display:none}.has-living-home .living-portal{min-height:calc(100svh - 102px)}.has-living-home .living-intro{left:1.1rem;right:1.1rem;bottom:1.6rem;width:auto}.has-living-home .living-intro h1{font-size:clamp(3rem,15vw,5rem)}.living-brandmark{margin-bottom:.9rem}.has-living-home .living-command{display:block;padding:1.25rem 1rem}.has-living-home .living-command-label{display:block;margin-bottom:.75rem}.has-living-home .living-layout{padding:2rem 1rem;gap:1.5rem}.has-living-home .living-compass{display:block}.has-living-home .living-question{margin-bottom:1rem}.has-living-home .living-stage{grid-template-columns:1fr}.living-chapter-media{height:240px}.has-living-home .living-live-proof{display:none}}
+
+    /* Tema hospitality coerente: home, pagine SEO e articoli condividono lo stesso sito. */
+    .is-hospitality-site{--accent:#B75B3B;--bg:#F5F1E9;--card-bg:#FFFCF7;--text:#1E2822;--border:rgba(30,40,34,.13);background:var(--bg);color:var(--text)}
+    .is-hospitality-site .network-bar{background:#1E2822}
+    .is-hospitality-site .navbar{position:sticky;top:0;z-index:40;background:rgba(255,252,247,.94)!important;border-color:rgba(30,40,34,.12);backdrop-filter:blur(18px);padding:1rem max(1.2rem,calc((100vw - 1240px)/2))!important}
+    .is-hospitality-site .nav-brand{color:#1E2822;font-weight:850}
+    .is-hospitality-site .nav-links a{color:#445048}
+    .is-hospitality-site .container{width:min(100%,1240px);padding:clamp(2rem,5vw,5rem) clamp(1rem,3vw,2rem)}
+    .is-hospitality-site .hospitality-hero{min-height:calc(100svh - 116px);padding:clamp(5rem,10vw,9rem) clamp(1.2rem,6vw,7rem) clamp(3rem,7vw,6rem)}
+    .is-hospitality-site .hospitality-hero-inner{width:min(100%,1240px);padding:0;background:none;border-radius:0;backdrop-filter:none}
+    .is-hospitality-site .hospitality-hero h1{font-size:clamp(4rem,9vw,8.8rem);max-width:1050px;letter-spacing:-.075em;text-shadow:0 3px 35px rgba(0,0,0,.28)}
+    .is-hospitality-site .hospitality-hero .bio{font-size:clamp(1.05rem,1.8vw,1.35rem);max-width:680px;text-shadow:0 2px 16px rgba(0,0,0,.3)}
+    .is-hospitality-site .hospitality-cta-primary{background:#B75B3B}
+    .is-hospitality-site .hospitality-hero-facts span{background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.2);backdrop-filter:blur(10px)}
+    .is-hospitality-site .hospitality-section{margin-bottom:clamp(3.5rem,7vw,7rem)}
+    .is-hospitality-site .hospitality-section-head h2{font-size:clamp(2.5rem,5vw,4.8rem);letter-spacing:-.06em}
+    .is-hospitality-site .hospitality-pillar,.is-hospitality-site .hospitality-mini-card{border-radius:18px;box-shadow:none}
+    .is-hospitality-site .hospitality-card,.is-hospitality-site .hospitality-media-item{border-radius:18px;box-shadow:none;border:1px solid var(--border)}
+    .is-hospitality-site .footer{background:#1E2822}
+
+    .is-hospitality-site .breadcrumb{width:min(100%,1180px);margin:0 auto 1.2rem;padding:0 .25rem;color:#59645D;opacity:1}
+    .is-hospitality-site .breadcrumb a{color:#B75B3B;font-weight:750}
+    .is-hospitality-site .foundation-page{max-width:1180px;margin:0 auto}
+    .is-hospitality-site .foundation-header{position:relative;isolation:isolate;display:flex;min-height:58vh;flex-direction:column;justify-content:flex-end;padding:clamp(2rem,6vw,5rem);overflow:hidden;border:0;border-radius:24px;background:linear-gradient(90deg,rgba(16,24,19,.86),rgba(16,24,19,.34)),var(--foundation-cover) center/cover;color:#fff}
+    .is-hospitality-site .foundation-header::before{content:'';position:absolute;inset:0;z-index:-1;background:linear-gradient(0deg,rgba(10,18,13,.62),transparent 60%)}
+    .is-hospitality-site .foundation-header .network-kicker{color:#F2C5A9}
+    .is-hospitality-site .foundation-header h1{max-width:850px;margin:.7rem 0 1rem;color:#fff;font-size:clamp(3.6rem,8vw,7.5rem);line-height:.88;letter-spacing:-.075em}
+    .is-hospitality-site .foundation-header p{max-width:800px;margin:0;color:rgba(255,255,255,.86);font-size:clamp(1.05rem,1.7vw,1.3rem);line-height:1.6}
+    .is-hospitality-site .foundation-content-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1rem;margin:1rem 0}
+    .is-hospitality-site .foundation-content-grid>.post-grid,.is-hospitality-site .foundation-content-grid>.official-channels{grid-column:1/-1;width:100%}
+    .is-hospitality-site .foundation-section{height:100%;margin:0;padding:clamp(1.4rem,3vw,2.2rem);border:1px solid var(--border);border-radius:18px;background:#FFFCF7}
+    .is-hospitality-site .foundation-section h2{font-size:clamp(1.5rem,2.5vw,2.2rem);letter-spacing:-.035em}
+    .is-hospitality-site .foundation-section p{color:#566159}
+    .is-hospitality-site .evidence-links{align-items:flex-start;border-top:1px solid var(--border);padding-top:1rem}
+    .is-hospitality-site .evidence-links span{width:100%;color:#7B837E;font-size:.68rem;font-weight:850;letter-spacing:.12em;text-transform:uppercase}
+    .is-hospitality-site .evidence-links a{display:block;color:#87452E;text-decoration:none;font-weight:700}
+    .is-hospitality-site .content-method{margin:1rem 0 0;padding:1.1rem 1.3rem;border:0;border-radius:14px;background:#EAE4D9;color:#606861}
+    .is-hospitality-site .single-post{max-width:920px;padding:clamp(1.3rem,4vw,3.5rem);border-radius:22px;background:#FFFCF7;border:1px solid var(--border);box-shadow:none}
+    .is-hospitality-site .single-post h1{font-size:clamp(2.5rem,5vw,4.8rem);line-height:.98;letter-spacing:-.055em}
+    .is-hospitality-site .single-post>.media{margin:calc(clamp(1.3rem,4vw,3.5rem)*-1) calc(clamp(1.3rem,4vw,3.5rem)*-1) 2rem;overflow:hidden;border-radius:22px 22px 0 0}
+    .is-hospitality-site .single-post>.media img,.is-hospitality-site .single-post>.media video{width:100%;max-height:620px;object-fit:cover}
+    @media(max-width:760px){.is-hospitality-site .network-trust{display:none}.is-hospitality-site .container{padding:1rem}.is-hospitality-site .hospitality-hero{min-height:calc(100svh - 105px);padding:5rem 1.15rem 2.5rem}.is-hospitality-site .hospitality-hero h1{font-size:clamp(3.4rem,16vw,5.8rem)}.is-hospitality-site .foundation-header{min-height:62vh;border-radius:16px;padding:1.5rem}.is-hospitality-site .foundation-header h1{font-size:clamp(3.1rem,15vw,5rem)}.is-hospitality-site .foundation-content-grid{grid-template-columns:1fr}.is-hospitality-site .breadcrumb{padding:.5rem .25rem}.is-hospitality-site .hospitality-media-strip{grid-template-columns:1fr 1fr}}
   </style>
 </head>
 <?php
@@ -1996,8 +2050,8 @@ header('Link: <' . $siteUrl . '/feed.xml>; rel="alternate"; type="application/at
       $placeholderImage = "https://source.unsplash.com/1600x900/?" . urlencode($unsplashKeyword);
   }
 ?>
-<?php $isLivingHome = !$single && !$foundationPage && $view === '' && !$activeTag && !empty($livingPaths); ?>
-<body class="theme-<?= h($archetype) ?> layout-<?= $layoutVariant ?><?= $isLivingHome ? ' has-living-home' : '' ?>">
+<?php $isLivingHome = !$useHospitalityLanding && !$single && !$foundationPage && $view === '' && !$activeTag && !empty($livingPaths); ?>
+<body class="theme-<?= h($archetype) ?> layout-<?= $layoutVariant ?><?= $isLivingHome ? ' has-living-home' : '' ?><?= $useHospitalityLanding ? ' is-hospitality-site' : '' ?>">
 <div class="network-bar">
   <div class="network-signature">
     <a class="network-signature-brand" href="<?= BASE_URL ?>/scopri"><img src="/logo-cropped.png" alt=""><strong>AllSocialToWeb</strong></a>
@@ -2058,12 +2112,13 @@ ob_start();
 <?php if ($foundationPage): ?>
   <nav class="breadcrumb" aria-label="Percorso"><a href="<?= $siteUrl ?>">Home</a><span class="sep">/</span><span><?= h($foundationPage['title']) ?></span></nav>
   <article class="foundation-page">
-    <header class="foundation-header">
+    <header class="foundation-header"<?php if ($useHospitalityLanding): ?> style="--foundation-cover:url('<?= h($coverUrl ?: ($mediaPosts[0]['media_url'] ?? $placeholderImage)) ?>')"<?php endif; ?>>
       <span class="network-kicker">Informazioni ufficiali organizzate da AllSocialToWeb</span>
       <h1><?= h($foundationPage['title']) ?></h1>
       <p><?= h($foundationPage['intro'] ?? '') ?></p>
     </header>
 
+    <div class="foundation-content-grid">
     <?php if (($foundationPage['page_type'] ?? '') === 'archive'): ?>
       <section class="post-grid" aria-label="Contenuti pubblicati">
         <?php foreach ($allPosts as $p): ?>
@@ -2083,6 +2138,7 @@ ob_start();
       <?php endforeach; ?>
       <?php if (!empty($foundationPage['faq'])): ?><section class="foundation-section"><h2>Domande frequenti</h2><?php foreach ($foundationPage['faq'] as $faq): ?><details><summary><?= h($faq['question']) ?></summary><p><?= h($faq['answer']) ?></p></details><?php endforeach; ?></section><?php endif; ?>
     <?php endif; ?>
+    </div>
     <aside class="content-method">Questa pagina è stata organizzata con assistenza AI usando esclusivamente informazioni e contenuti attribuiti ai canali ufficiali dell’attività. I collegamenti alle fonti permettono di verificarne il contesto.</aside>
   </article>
 
@@ -2214,7 +2270,7 @@ ob_start();
     <div class="hospitality-split-copy">
       <span class="eyebrow">Sapori</span>
       <h2>Cucina, stagione e tavola condivisa</h2>
-      <p>Il sito deve far percepire subito che qui non si arriva solo per mangiare, ma per vivere un ritmo diverso, più pieno, più autentico.</p>
+      <p>Qui la cucina racconta il territorio: ingredienti, stagioni e convivialità diventano parte dell’esperienza.</p>
       <a class="hospitality-cta hospitality-cta-primary" href="<?= h($hospitalityPrimaryCtaUrl) ?>" target="<?= preg_match('/^https?:\/\//i', $hospitalityPrimaryCtaUrl) ? '_blank' : '_self' ?>" rel="noopener"><?= h($hospitalityPrimaryCtaLabel) ?></a>
     </div>
     <div class="hospitality-split-stack">
@@ -2430,7 +2486,7 @@ $mainContentHtml = ob_get_clean();
 
 ob_start();
 ?>
-<?php if ($useHospitalityLanding): ?>
+<?php if ($useHospitalityLanding && !$single && !$foundationPage && $view === '' && !$activeTag): ?>
 <section class="hero hospitality-hero" style="background:
   linear-gradient(120deg, rgba(0,0,0,0.52), rgba(0,0,0,0.22)),
   url('<?= h($coverUrl ?: $placeholderImage) ?>') center/cover;">
@@ -2443,9 +2499,7 @@ ob_start();
       <a class="hospitality-cta hospitality-cta-secondary" href="<?= h($hospitalitySecondaryCtaUrl) ?>"><?= h($hospitalitySecondaryCtaLabel) ?></a>
     </div>
     <div class="hospitality-hero-facts">
-      <span><?= h($understanding['vertical_label'] ?? 'Hospitality') ?></span>
-      <span><?= h($understanding['business_model'] ?? 'Esperienze autentiche e convivialità') ?></span>
-      <span><?= h($understanding['audience'] ?? 'Ideale per chi cerca natura, tavola e relax') ?></span>
+      <?php foreach (array_slice($hospitalityFacts, 0, 4) as $fact): ?><span><?= h($fact) ?></span><?php endforeach; ?>
     </div>
   </div>
 </section>
@@ -2508,7 +2562,7 @@ ob_start();
 <?php endif; ?>
 <?php
 $heroHtml = ob_get_clean();
-if (!$single && !$foundationPage && $view === '' && !$activeTag && !empty($livingPaths)) {
+if (!$useHospitalityLanding && !$single && !$foundationPage && $view === '' && !$activeTag && !empty($livingPaths)) {
     // Percorsi Vivi sostituisce il classico hero/slider nella home.
     $heroHtml = '';
 }
