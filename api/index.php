@@ -497,6 +497,39 @@ function requireAdmin(bool $isAdmin): void {
     if (!$isAdmin) jsonError('Permessi amministratore richiesti', 403);
 }
 
+// Logo del brand: usato solo quando i canali social non restituiscono una foto profilo valida
+// o quando l'utente vuole sostituire quella recuperata automaticamente.
+if ($action === 'site-logo-upload' && $method === 'POST') {
+    ensureSiteSchemaUpgrades();
+    $b = body();
+    $dataUrl = trim((string)($b['data_url'] ?? ''));
+    if (!preg_match('~^data:(image/(?:jpeg|png|webp));base64,([A-Za-z0-9+/=\r\n]+)$~', $dataUrl, $matches)) {
+        jsonError('Formato logo non valido. Usa JPG, PNG o WebP.', 422);
+    }
+    $binary = base64_decode(preg_replace('/\s+/', '', $matches[2]), true);
+    if ($binary === false || strlen($binary) < 32) jsonError('Il file del logo è vuoto o danneggiato.', 422);
+    if (strlen($binary) > 3 * 1024 * 1024) jsonError('Il logo deve pesare meno di 3 MB.', 413);
+
+    $mime = (new finfo(FILEINFO_MIME_TYPE))->buffer($binary) ?: '';
+    $extension = match ($mime) {
+        'image/jpeg' => 'jpg',
+        'image/png' => 'png',
+        'image/webp' => 'webp',
+        default => '',
+    };
+    if ($extension === '') jsonError('Il contenuto del file non è un’immagine supportata.', 422);
+
+    $directory = __DIR__ . '/../public/media';
+    if (!is_dir($directory) && !@mkdir($directory, 0775, true)) jsonError('Impossibile preparare la cartella del logo.', 500);
+    $filename = 'brand_logo_' . $userId . '_' . date('YmdHis') . '.' . $extension;
+    $path = $directory . '/' . $filename;
+    if (@file_put_contents($path, $binary, LOCK_EX) === false) jsonError('Impossibile salvare il logo.', 500);
+
+    $logoUrl = '/public/media/' . $filename;
+    DB::execute('UPDATE sites SET logo_url=? WHERE user_id=?', [$logoUrl, $userId]);
+    json(['ok' => true, 'logo_url' => $logoUrl]);
+}
+
 if ($action === 'me' && $method === 'GET') {
     json([
         'ok' => true,

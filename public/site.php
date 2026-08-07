@@ -324,9 +324,6 @@ $accentColor  = $site['accent_color'] ?? '';
 $accentSecondary = $site['accent_secondary'] ?? $site['accent_color'] ?? '';
 $logoUrl      = normalizeMediaUrl($site['logo_url'] ?? '');
 $coverUrl     = normalizeMediaUrl($site['cover_url'] ?? '');
-if ($logoUrl === '' && $coverUrl !== '') {
-    $logoUrl = $coverUrl;
-}
 
 foreach ($allPosts as &$p) {
     $p['media_url'] = normalizeMediaUrl($p['media_url'] ?? '');
@@ -1921,8 +1918,15 @@ header('Link: <' . $siteUrl . '/feed.xml>; rel="alternate"; type="application/at
     .living-archive > summary::after { content:'＋'; color:#5B5CE2; }
     .living-archive[open] > summary::after { content:'−'; }
     .living-archive-body { padding-top:2rem; }
+    /* La home Spazio Vivo occupa davvero la pagina: niente colonna-sito centrata. */
+    .has-living-home .container { width:100%; max-width:none; padding:0; }
+    .has-living-home .living-experience { width:100%; margin:0; padding:10px; border-radius:0; box-shadow:none; }
+    .has-living-home .living-portal { min-height:calc(100svh - 126px); border-radius:22px; }
+    .has-living-home .living-command,.has-living-home .living-layout { width:min(100%,1600px); margin-left:auto; margin-right:auto; }
+    .has-living-home .living-archive { width:min(1440px,calc(100% - 32px)); margin:2rem auto 3rem; }
     a:focus-visible,button:focus-visible,summary:focus-visible { outline:3px solid #FFBF47; outline-offset:3px; }
-    @media(max-width:768px){ .foundation-directory{padding:1.25rem}.foundation-header{border-radius:20px}.network-bar{font-size:.7rem;padding:.55rem .85rem}.network-signature{gap:.45rem}.network-signature-brand strong{display:none}.network-product-name{padding:.3rem .6rem}.network-trust{margin-left:auto;max-width:145px;text-align:right;line-height:1.25}.theme-network-standard .navbar{padding:1rem 1.25rem!important}.theme-network-standard .container{padding:1rem .65rem}.living-experience{padding:6px;border-radius:22px}.living-portal{min-height:72vh;border-radius:18px}.living-media-grid{grid-template-columns:1fr;grid-template-rows:1fr}.living-media-position-0{grid-column:1;grid-row:1}.living-media-position-1,.living-media-position-2{display:none}.living-portal::after{background:linear-gradient(0deg,rgba(8,11,25,.94) 0%,rgba(8,11,25,.36) 72%)}.living-intro{left:1.25rem;right:1.25rem;bottom:1.7rem;width:auto}.living-intro h1{font-size:clamp(3rem,15vw,5.2rem)}.living-intro p{font-size:.95rem}.living-portal-index{right:1rem;top:1rem}.living-command{display:block;padding:.8rem .35rem}.living-command-label{display:block;margin:0 0 .65rem;padding-left:.35rem}.living-layout{grid-template-columns:1fr}.living-compass{position:static;border-radius:18px}.living-chapter{flex-basis:88%;min-height:270px;border-radius:18px}.living-chapter::before{left:auto}.living-live-proof{align-items:flex-start}.living-live-proof i{flex:0 0 auto;margin-top:.3rem} }
+    @media(max-width:1050px) and (min-width:769px){.living-intro h1{font-size:clamp(3.5rem,9vw,6rem)}.living-layout{grid-template-columns:230px minmax(0,1fr)}.living-chapter{flex-basis:min(82%,520px)}.living-command{grid-template-columns:140px 1fr}}
+    @media(max-width:768px){ .foundation-directory{padding:1.25rem}.foundation-header{border-radius:20px}.network-bar{font-size:.7rem;padding:.55rem .85rem}.network-signature{gap:.45rem}.network-signature-brand strong{display:none}.network-product-name{padding:.3rem .6rem}.network-trust{margin-left:auto;max-width:145px;text-align:right;line-height:1.25}.theme-network-standard .navbar{padding:.75rem 1rem!important}.theme-network-standard .container{padding:1rem .65rem}.has-living-home .container{padding:0}.has-living-home .living-experience{padding:0}.living-experience{padding:6px;border-radius:22px}.living-portal,.has-living-home .living-portal{min-height:calc(100svh - 112px);border-radius:0}.living-media-grid{grid-template-columns:1fr;grid-template-rows:1fr}.living-media-position-0{grid-column:1;grid-row:1}.living-media-position-1,.living-media-position-2{display:none}.living-portal::after{background:linear-gradient(0deg,rgba(8,11,25,.96) 0%,rgba(8,11,25,.5) 68%,rgba(8,11,25,.18) 100%)}.living-intro{left:1rem;right:1rem;bottom:1.35rem;width:auto}.living-intro h1{font-size:clamp(2.75rem,14vw,5rem);line-height:.9}.living-intro p{font-size:.92rem;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}.living-kicker{font-size:.6rem}.living-portal-index{right:.85rem;top:.85rem}.living-portal-index strong{font-size:1.9rem}.living-command{display:block;padding:.85rem .7rem}.living-command-label{display:block;margin:0 0 .65rem;padding-left:.15rem}.living-intent{padding:.68rem .8rem}.living-layout{grid-template-columns:1fr;padding:0 .7rem .7rem}.living-compass{position:static;border-radius:18px}.living-chapter{flex-basis:88%;min-height:270px;border-radius:18px}.living-chapter::before{left:auto}.living-live-proof{align-items:flex-start}.living-live-proof i{flex:0 0 auto;margin-top:.3rem}.has-living-home .living-archive{width:calc(100% - 20px);margin:1rem auto 2rem} }
   </style>
 </head>
 <?php
@@ -1939,7 +1943,8 @@ header('Link: <' . $siteUrl . '/feed.xml>; rel="alternate"; type="application/at
       $placeholderImage = "https://source.unsplash.com/1600x900/?" . urlencode($unsplashKeyword);
   }
 ?>
-<body class="theme-<?= h($archetype) ?> layout-<?= $layoutVariant ?>">
+<?php $isLivingHome = !$single && !$foundationPage && $view === '' && !$activeTag && !empty($livingPaths); ?>
+<body class="theme-<?= h($archetype) ?> layout-<?= $layoutVariant ?><?= $isLivingHome ? ' has-living-home' : '' ?>">
 <div class="network-bar">
   <div class="network-signature">
     <a class="network-signature-brand" href="<?= BASE_URL ?>/scopri"><img src="/logo-cropped.png" alt=""><strong>AllSocialToWeb</strong></a>
@@ -2242,7 +2247,7 @@ ob_start();
           <?php if ($mediaType === 'video' || preg_match('~\.(mp4|mov|webm)(\?|$)~i', $mediaUrl)): ?>
             <video muted playsinline preload="metadata"><source src="<?= h($mediaUrl) ?>"></video><span class="living-media-play">▶</span>
           <?php else: ?>
-            <img src="<?= h($mediaUrl) ?>" alt="<?= h(postTitle($mediaPost)) ?>" loading="lazy">
+            <img src="<?= h($mediaUrl) ?>" alt="<?= h(postTitle($mediaPost)) ?>" loading="<?= $mediaIndex === 0 ? 'eager' : 'lazy' ?>"<?= $mediaIndex === 0 ? ' fetchpriority="high"' : '' ?>>
           <?php endif; ?>
           <span class="living-media-caption"><small><?= h(ucfirst((string)($mediaPost['platform'] ?? 'Social'))) ?></small><strong><?= h(postTitle($mediaPost)) ?></strong></span>
         </a>

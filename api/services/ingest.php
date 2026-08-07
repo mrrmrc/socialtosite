@@ -458,11 +458,6 @@ class Ingest {
                             if ($savedLogo && !empty($savedLogo['url'])) {
                                 DB::execute('UPDATE sites SET logo_url=? WHERE user_id=?', [$savedLogo['url'], $userId]);
                             }
-                        } elseif ($needsLogo && $coverUrl !== '') {
-                            $savedLogoFromCover = self::saveMedia($coverUrl, $source['platform'], 'profile_logo_fallback_' . $source['id'], 'jpg');
-                            if ($savedLogoFromCover && !empty($savedLogoFromCover['url'])) {
-                                DB::execute('UPDATE sites SET logo_url=? WHERE user_id=?', [$savedLogoFromCover['url'], $userId]);
-                            }
                         }
 
                         if ($needsCover && $coverUrl !== '') {

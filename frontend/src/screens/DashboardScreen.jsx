@@ -250,6 +250,103 @@ function buildVisibilityOpportunities(posts, visibility, understanding) {
   return opportunities.slice(0, 5);
 }
 
+function GuidedStrategy({
+  understanding, declared, progress, step, setStep, updateField, updateList,
+  save, saving, refresh, refreshing, logoUrl, uploadLogo, uploadingLogo, sourcesCount,
+}) {
+  const steps = [
+    { title: 'Identità', hint: 'Conferma chi sei e cosa offri' },
+    { title: 'Obiettivo', hint: 'Scegli il risultato più importante' },
+    { title: 'Pubblico', hint: 'Indica chi e dove vuoi raggiungere' },
+    { title: 'Differenza', hint: 'Spiega perché scegliere te' },
+  ];
+  const inferredActivity = understanding?.vertical_label || '';
+  const inferredOffer = understanding?.business_model || '';
+  const inferredAudience = understanding?.audience || '';
+  const socialSummary = [inferredActivity, inferredOffer].filter(Boolean).join(' · ');
+  const logoIsFallback = String(logoUrl || '').includes('profile_logo_fallback');
+  const hasConfirmedLogo = !!logoUrl && !logoIsFallback;
+  const next = () => setStep(current => Math.min(steps.length - 1, current + 1));
+  const previous = () => setStep(current => Math.max(0, current - 1));
+  const useSuggestion = (key, value) => value && updateField(key, value);
+
+  return <section className="guided-strategy" id="strategy" aria-labelledby="guided-strategy-title">
+    <div className="guided-strategy__intro">
+      <div>
+        <span className="guided-eyebrow">Configurazione assistita</span>
+        <h2 id="guided-strategy-title">Noi analizziamo. Tu confermi.</h2>
+        <p>Non devi inventare una strategia da zero. Abbiamo già letto i tuoi canali: ti mostriamo ciò che abbiamo capito e ti chiediamo solo le informazioni che i social non possono conoscere.</p>
+      </div>
+      <div className="guided-score" style={{ '--score': `${progress}%` }} aria-label={`Profilo completo al ${progress}%`}>
+        <strong>{progress}%</strong><span>profilo pronto</span>
+      </div>
+    </div>
+
+    <div className="guided-auto-panel">
+      <div className="guided-logo-box">
+        <div className="guided-logo-preview">
+          {logoUrl ? <img src={logoUrl} alt="Logo dell’attività" /> : <span>{(inferredActivity || 'A').slice(0, 1).toUpperCase()}</span>}
+        </div>
+        <div>
+          <span className={`guided-status ${hasConfirmedLogo ? 'is-ready' : 'is-needed'}`}>{hasConfirmedLogo ? '✓ Recuperato dai social' : logoIsFallback ? '! Immagine da confermare' : '! Non trovato sui social'}</span>
+          <strong>Logo identificativo</strong>
+          <small>{hasConfirmedLogo ? 'È già usato nello Spazio Vivo. Puoi sostituirlo quando vuoi.' : logoIsFallback ? 'Abbiamo trovato una copertina, non un logo certo. Sostituiscila con il marchio corretto.' : 'Facebook non ha restituito un’immagine utilizzabile. Caricane una tu.'}</small>
+          <label className="guided-upload">
+            {uploadingLogo ? 'Caricamento…' : logoUrl ? 'Sostituisci logo' : 'Carica logo'}
+            <input type="file" accept="image/png,image/jpeg,image/webp" onChange={uploadLogo} disabled={uploadingLogo} />
+          </label>
+        </div>
+      </div>
+      <div className="guided-ai-summary">
+        <span className="guided-status is-ready">✓ Fatto automaticamente</span>
+        <strong>Abbiamo analizzato {sourcesCount || 'i'} canal{sourcesCount === 1 ? 'e' : 'i'}</strong>
+        <p>{socialSummary || 'Stiamo costruendo la prima lettura della tua attività dai contenuti importati.'}</p>
+        <button type="button" className="guided-text-button" onClick={refresh} disabled={refreshing}>{refreshing ? 'Analisi in corso…' : 'Rileggi i social'}</button>
+      </div>
+    </div>
+
+    <nav className="guided-steps" aria-label="Passaggi del profilo">
+      {steps.map((item, index) => <button key={item.title} type="button" onClick={() => setStep(index)} className={index === step ? 'is-active' : index < step ? 'is-done' : ''} aria-current={index === step ? 'step' : undefined}>
+        <span>{index < step ? '✓' : index + 1}</span><b>{item.title}</b><small>{item.hint}</small>
+      </button>)}
+    </nav>
+
+    <div className="guided-step-card">
+      <div className="guided-step-heading"><span>PASSAGGIO {step + 1} DI {steps.length}</span><h3>{steps[step].hint}</h3><p>I campi con “nostra proposta” sono già stati dedotti: confermali oppure correggili.</p></div>
+
+      {step === 0 && <div className="guided-fields two-columns">
+        <label><span>Che tipo di attività sei? <em>Nostra proposta</em></span><input value={declared.activity_type || ''} onChange={e => updateField('activity_type', e.target.value)} placeholder={inferredActivity || 'Es. Agriturismo con ristorante'} />{!declared.activity_type && inferredActivity && <button type="button" onClick={() => useSuggestion('activity_type', inferredActivity)}>Usa “{inferredActivity}”</button>}</label>
+        <label><span>Cosa offri concretamente? <em>Nostra proposta</em></span><input value={declared.offer_summary || ''} onChange={e => updateField('offer_summary', e.target.value)} placeholder={inferredOffer || 'Es. Soggiorni, cucina locale ed eventi'} />{!declared.offer_summary && inferredOffer && <button type="button" onClick={() => useSuggestion('offer_summary', inferredOffer)}>Usa la proposta</button>}</label>
+      </div>}
+
+      {step === 1 && <div className="guided-fields">
+        <div><span className="guided-field-label">Qual è il risultato più importante? <em>Serve la tua scelta</em></span><div className="guided-choice-grid">{STRATEGY_GOALS.map(([value, label]) => <button key={value} type="button" onClick={() => updateField('primary_goal', value)} className={declared.primary_goal === value ? 'is-selected' : ''}>{declared.primary_goal === value ? '✓ ' : ''}{label}</button>)}</div></div>
+        <label><span>Quale azione deve compiere una persona? <em>Serve la tua risposta</em></span><input value={declared.desired_action || ''} onChange={e => updateField('desired_action', e.target.value)} placeholder="Es. Chiedere disponibilità su WhatsApp" /></label>
+      </div>}
+
+      {step === 2 && <div className="guided-fields two-columns">
+        <label><span>Chi vuoi raggiungere prima di tutti? <em>Serve la tua conferma</em></span><textarea value={declared.primary_audience || ''} onChange={e => updateField('primary_audience', e.target.value)} placeholder={inferredAudience || 'Es. Coppie e famiglie di Roma interessate a weekend nella natura'} />{!declared.primary_audience && inferredAudience && <button type="button" onClick={() => useSuggestion('primary_audience', inferredAudience)}>Usa la proposta</button>}</label>
+        <label><span>In quale territorio? <em>Serve la tua risposta</em></span><input value={declared.geographic_area || ''} onChange={e => updateField('geographic_area', e.target.value)} placeholder="Es. Roma, Lazio e Centro Italia" /></label>
+        <label className="full"><span>C’è anche un secondo pubblico? <i>Facoltativo</i></span><input value={declared.secondary_audience || ''} onChange={e => updateField('secondary_audience', e.target.value)} placeholder="Es. Aziende che cercano una location per eventi" /></label>
+      </div>}
+
+      {step === 3 && <div className="guided-fields two-columns">
+        <label><span>Quali offerte vuoi rendere più visibili? <em>Una per riga</em></span><textarea value={(declared.priority_services || []).join('\n')} onChange={e => updateList('priority_services', e.target.value)} placeholder={'Soggiorni weekend\nRistorante\nEventi privati'} /></label>
+        <label><span>Perché dovrebbero scegliere te? <em>Serve la tua voce</em></span><textarea value={declared.differentiators || ''} onChange={e => updateField('differentiators', e.target.value)} placeholder="Es. A 30 minuti da Roma, cucina autentica, contatto diretto con i proprietari" /></label>
+        <label className="full"><span>Quali dubbi fanno esitare i clienti? <i>Facoltativo</i></span><textarea value={declared.customer_needs || ''} onChange={e => updateField('customer_needs', e.target.value)} placeholder="Es. Se è adatto ai bambini, cosa comprende il prezzo, quanto dista da Roma" /></label>
+      </div>}
+
+      <div className="guided-actions">
+        <button type="button" className="btn btn-outline" onClick={previous} disabled={step === 0}>Indietro</button>
+        <span>Le modifiche vengono salvate soltanto alla fine.</span>
+        {step < steps.length - 1
+          ? <button type="button" className="btn btn-primary" onClick={next}>Continua →</button>
+          : <button type="button" className="btn btn-primary" onClick={save} disabled={saving}>{saving ? 'Salvataggio…' : 'Conferma e attiva il profilo'}</button>}
+      </div>
+    </div>
+  </section>;
+}
+
 function SiteMapGraph({ posts, siteUrl, siteTitle, foundationPages = [] }) {
   const visiblePosts = posts.filter(post => Number(post.published) === 1).slice(0, 6);
   const positions = [[105,365],[235,365],[365,365],[495,365],[625,365],[755,365]];
@@ -340,6 +437,8 @@ const [importMsg, setImportMsg] = useState(null);
   const [understandingReport, setUnderstandingReport] = useState(null);
   const [understandingDraft, setUnderstandingDraft] = useState(null);
   const [savingUnderstanding, setSavingUnderstanding] = useState(false);
+  const [strategyStep, setStrategyStep] = useState(0);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
   const [reachabilityDraft, setReachabilityDraft] = useState({ official_site_url: '', business_profile_url: '', primary_topic: '', service_areas: [], reciprocal_link_confirmed: false });
   const [savingReachability, setSavingReachability] = useState(false);
   const [preparingIdea, setPreparingIdea] = useState(-1);
@@ -916,6 +1015,39 @@ const [importMsg, setImportMsg] = useState(null);
     setSavingUnderstanding(false);
   }
 
+  async function uploadBrandLogo(event) {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+      setSyncMsg({ ok: false, text: 'Usa un logo JPG, PNG o WebP.' });
+      return;
+    }
+    if (file.size > 3 * 1024 * 1024) {
+      setSyncMsg({ ok: false, text: 'Il logo deve pesare meno di 3 MB.' });
+      return;
+    }
+    setUploadingLogo(true);
+    try {
+      const dataUrl = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+      const response = await apiFetch('/api/index.php?action=site-logo-upload', {
+        method: 'POST',
+        body: JSON.stringify({ data_url: dataUrl }),
+      }, token);
+      setLogoUrl(response.logo_url || '');
+      setSyncMsg({ ok: true, text: 'Logo salvato. È già visibile nello Spazio Vivo.' });
+      await loadData();
+    } catch (error) {
+      setSyncMsg({ ok: false, text: error.message });
+    }
+    setUploadingLogo(false);
+  }
+
   async function saveReachabilityNetwork() {
     setSavingReachability(true);
     try {
@@ -1420,7 +1552,7 @@ const [importMsg, setImportMsg] = useState(null);
               { id: 'general', icon: '⚙️', label: 'Impostazioni' }
             ] : []),
             { id: 'seo', icon: '◎', label: 'Network della reperibilità' },
-            { id: 'strategy', icon: '◎', label: 'Strategia · opzionale' },
+            { id: 'strategy', icon: '✓', label: 'Profilo guidato' },
             ...(user?.role === 'admin' ? [{ id: 'admin', icon: '🛠', label: 'Admin' }] : [])
           ].map(item => (
             <button key={item.id} onClick={() => item.external ? window.open(siteUrl, '_blank', 'noopener') : setTab(item.id)}
@@ -1461,7 +1593,7 @@ const [importMsg, setImportMsg] = useState(null);
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2.5rem' }}>
             <h1 style={{ margin: 0, fontSize: '28px', fontWeight: 700, color: 'var(--text)' }}>
               {tab === 'overview' && 'Panoramica'}
-              {tab === 'strategy' && 'Strategia · opzionale'}
+              {tab === 'strategy' && 'Profilo guidato'}
               {tab === 'site' && 'Gestione Contenuti'}
               {tab === 'sources' && 'I miei canali'}
               {tab === 'settings' && 'Design & Aspetto'}
@@ -1533,7 +1665,25 @@ const [importMsg, setImportMsg] = useState(null);
 
             </>}
 
-            {tab === 'strategy' && <div id="strategy" className="card" style={{ padding: '1.5rem', background: 'var(--surface)', border: '1px solid var(--primary)' }}>
+            {tab === 'strategy' && <GuidedStrategy
+              understanding={activeUnderstanding}
+              declared={declaredStrategy}
+              progress={strategyProgress}
+              step={strategyStep}
+              setStep={setStrategyStep}
+              updateField={updateDeclaredStrategy}
+              updateList={updateDeclaredStrategyList}
+              save={saveUnderstanding}
+              saving={savingUnderstanding}
+              refresh={refreshUnderstanding}
+              refreshing={savingProfile}
+              logoUrl={logoUrl}
+              uploadLogo={uploadBrandLogo}
+              uploadingLogo={uploadingLogo}
+              sourcesCount={sources.length}
+            />}
+
+            {false && <div id="strategy-legacy" className="card" style={{ padding: '1.5rem', background: 'var(--surface)', border: '1px solid var(--primary)' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1.25rem', alignItems: 'flex-start', flexWrap: 'wrap' }}>
                 <div style={{ maxWidth: '680px' }}>
                   <div style={{ color: 'var(--primary)', fontSize: '12px', fontWeight: 850, textTransform: 'uppercase', letterSpacing: '.08em' }}>Strategia dichiarata da te</div>
@@ -2181,7 +2331,7 @@ const [importMsg, setImportMsg] = useState(null);
               <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem', alignItems: 'flex-start', flexWrap: 'wrap' }}>
                 <div>
                   <h3 style={{ margin: '0 0 0.4rem', color: 'var(--text)' }}>Pagine fondamentali gestite dal sistema</h3>
-                  <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '14px', lineHeight: 1.6, maxWidth: '680px' }}>Il sistema crea pagine sostenute da informazioni reali nei contenuti. Se compili la Strategia opzionale, può renderle ancora più mirate.</p>
+                  <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '14px', lineHeight: 1.6, maxWidth: '680px' }}>Il sistema crea pagine sostenute da informazioni reali nei contenuti. Le conferme raccolte nel Profilo guidato le rendono ancora più mirate.</p>
                 </div>
                 <button className="btn btn-primary" onClick={rebuildSeoFoundation} disabled={savingProfile}>{savingProfile ? 'Aggiornamento…' : 'Aggiorna pagine SEO'}</button>
               </div>
@@ -2203,7 +2353,7 @@ const [importMsg, setImportMsg] = useState(null);
               <div style={{ maxWidth: '760px' }}>
                 <div style={{ color: 'var(--primary)', fontSize: '12px', fontWeight: 850, textTransform: 'uppercase', letterSpacing: '.08em' }}>Analisi azionabile</div>
                 <h3 style={{ margin: '0.4rem 0', color: 'var(--text)', fontSize: '22px' }}>Quello che i social da soli non possono fare</h3>
-                <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '14px', lineHeight: 1.65 }}>Incrociamo contenuti pubblicati, patrimonio visuale, ricerche Google e azioni nello Spazio Vivo. Se hai compilato la Strategia opzionale, useremo anche quella.</p>
+                <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '14px', lineHeight: 1.65 }}>Incrociamo contenuti pubblicati, patrimonio visuale, ricerche Google e azioni nello Spazio Vivo con le conferme raccolte nel Profilo guidato.</p>
               </div>
               <div style={{ display: 'grid', gap: '0.8rem', marginTop: '1.2rem' }}>
                 {visibilityOpportunities.map((opportunity, index) => (
