@@ -280,6 +280,10 @@ function humanizeDisplayName(?string $value): string {
     $value = preg_replace('/\s+/', ' ', $value);
     $value = trim($value);
 
+    if (preg_match('/^\p{Lu}{2}\p{Ll}+/u', $value)) {
+        $value = mb_strtoupper(mb_substr($value, 0, 1)) . mb_strtolower(mb_substr($value, 1));
+    }
+
     if (preg_match('/^[a-z0-9 ]+$/', $value)) {
         $value = ucwords(mb_strtolower($value));
     }
@@ -691,6 +695,7 @@ $hospitalityIdentityText = mb_strtolower(implode(' ', [
     implode(' ', (array)($understanding['declared_strategy']['priority_services'] ?? [])),
 ]));
 $useHospitalityLanding = (bool)preg_match('/\b(agritur|ristor|hospitality|hotel|resort|b&b|bed and breakfast|osteria|trattoria|locanda|vacanz|soggiorn)\w*/u', $hospitalityIdentityText);
+$hospitalityHeroImage = normalizeMediaUrl($mediaPosts[0]['media_url'] ?? '') ?: $coverUrl;
 $hospitalityFacts = array_values(array_unique(array_filter(array_merge(
     [(string)($understanding['vertical_label'] ?? 'Ospitalità autentica')],
     array_slice((array)($understanding['declared_strategy']['priority_services'] ?? []), 0, 2),
@@ -1998,6 +2003,8 @@ header('Link: <' . $siteUrl . '/feed.xml>; rel="alternate"; type="application/at
     .is-hospitality-site .network-bar{background:#1E2822}
     .is-hospitality-site .navbar{position:sticky;top:0;z-index:40;background:rgba(255,252,247,.94)!important;border-color:rgba(30,40,34,.12);backdrop-filter:blur(18px);padding:1rem max(1.2rem,calc((100vw - 1240px)/2))!important}
     .is-hospitality-site .nav-brand{color:#1E2822;font-weight:850}
+    .is-hospitality-site .nav-brand-fallback{display:inline}
+    .is-hospitality-site .nav-brand img{width:42px;height:42px;object-fit:contain;background:#fff}
     .is-hospitality-site .nav-links a{color:#445048}
     .is-hospitality-site .container{width:min(100%,1240px);padding:clamp(2rem,5vw,5rem) clamp(1rem,3vw,2rem)}
     .is-hospitality-site .hospitality-hero{min-height:calc(100svh - 116px);padding:clamp(5rem,10vw,9rem) clamp(1.2rem,6vw,7rem) clamp(3rem,7vw,6rem)}
@@ -2112,7 +2119,7 @@ ob_start();
 <?php if ($foundationPage): ?>
   <nav class="breadcrumb" aria-label="Percorso"><a href="<?= $siteUrl ?>">Home</a><span class="sep">/</span><span><?= h($foundationPage['title']) ?></span></nav>
   <article class="foundation-page">
-    <header class="foundation-header"<?php if ($useHospitalityLanding): ?> style="--foundation-cover:url('<?= h($coverUrl ?: ($mediaPosts[0]['media_url'] ?? $placeholderImage)) ?>')"<?php endif; ?>>
+    <header class="foundation-header"<?php if ($useHospitalityLanding): ?> style="--foundation-cover:url('<?= h($hospitalityHeroImage ?: $placeholderImage) ?>')"<?php endif; ?>>
       <span class="network-kicker">Informazioni ufficiali organizzate da AllSocialToWeb</span>
       <h1><?= h($foundationPage['title']) ?></h1>
       <p><?= h($foundationPage['intro'] ?? '') ?></p>
@@ -2489,7 +2496,7 @@ ob_start();
 <?php if ($useHospitalityLanding && !$single && !$foundationPage && $view === '' && !$activeTag): ?>
 <section class="hero hospitality-hero" style="background:
   linear-gradient(120deg, rgba(0,0,0,0.52), rgba(0,0,0,0.22)),
-  url('<?= h($coverUrl ?: $placeholderImage) ?>') center/cover;">
+  url('<?= h($hospitalityHeroImage ?: $placeholderImage) ?>') center/cover;">
   <div class="hospitality-hero-inner">
     <span class="eyebrow">Agriturismo · Natura · Esperienze</span>
     <h1><?= h($displayTitle) ?></h1>
