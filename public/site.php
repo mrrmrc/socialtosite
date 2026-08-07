@@ -696,6 +696,12 @@ $hospitalityIdentityText = mb_strtolower(implode(' ', [
 ]));
 $useHospitalityLanding = (bool)preg_match('/\b(agritur|ristor|hospitality|hotel|resort|b&b|bed and breakfast|osteria|trattoria|locanda|vacanz|soggiorn)\w*/u', $hospitalityIdentityText);
 $hospitalityHeroImage = normalizeMediaUrl($mediaPosts[0]['media_url'] ?? '') ?: $coverUrl;
+$hospitalityHeroCopy = trim((string)($heroTagline ?: $bio));
+if (mb_strlen($hospitalityHeroCopy) > 280) {
+    $shortCopy = mb_substr($hospitalityHeroCopy, 0, 280);
+    $lastSpace = mb_strrpos($shortCopy, ' ');
+    $hospitalityHeroCopy = rtrim($lastSpace !== false ? mb_substr($shortCopy, 0, $lastSpace) : $shortCopy, " ,.;:") . '…';
+}
 $hospitalityFacts = array_values(array_unique(array_filter(array_merge(
     [(string)($understanding['vertical_label'] ?? 'Ospitalità autentica')],
     array_slice((array)($understanding['declared_strategy']['priority_services'] ?? []), 0, 2),
@@ -2500,7 +2506,7 @@ ob_start();
   <div class="hospitality-hero-inner">
     <span class="eyebrow">Agriturismo · Natura · Esperienze</span>
     <h1><?= h($displayTitle) ?></h1>
-    <p class="bio"><?= h($heroTagline ?: $bio) ?></p>
+    <p class="bio"><?= h($hospitalityHeroCopy) ?></p>
     <div class="hospitality-hero-actions">
       <a class="hospitality-cta hospitality-cta-primary" href="<?= h($hospitalityPrimaryCtaUrl) ?>" target="<?= preg_match('/^https?:\/\//i', $hospitalityPrimaryCtaUrl) ? '_blank' : '_self' ?>" rel="noopener"><?= h($hospitalityPrimaryCtaLabel) ?></a>
       <a class="hospitality-cta hospitality-cta-secondary" href="<?= h($hospitalitySecondaryCtaUrl) ?>"><?= h($hospitalitySecondaryCtaLabel) ?></a>
