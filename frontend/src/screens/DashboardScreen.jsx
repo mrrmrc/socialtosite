@@ -190,6 +190,25 @@ function strategyCompletion(understanding) {
   return Math.round((required.filter(Boolean).length / required.length) * 100);
 }
 
+function prefillStrategyFromAi(understanding) {
+  if (!understanding || typeof understanding !== 'object') return understanding;
+  const current = understanding.declared_strategy || {};
+  const aiServices = (understanding.editorial_direction?.content_pillars || []).filter(Boolean).slice(0, 6);
+  return {
+    ...understanding,
+    declared_strategy: {
+      ...current,
+      activity_type: current.activity_type || understanding.vertical_label || '',
+      offer_summary: current.offer_summary || understanding.business_model || '',
+      primary_audience: current.primary_audience || understanding.audience || '',
+      geographic_area: current.geographic_area || understanding.geographic_area || understanding.local_area || '',
+      priority_services: current.priority_services?.length ? current.priority_services : aiServices,
+      differentiators: current.differentiators || understanding.differentiators || understanding.value_proposition || '',
+      customer_needs: current.customer_needs || understanding.customer_needs || '',
+    },
+  };
+}
+
 function buildVisibilityOpportunities(posts, visibility, understanding) {
   const strategy = understanding?.declared_strategy || {};
   const published = posts.filter(post => Number(post.published) === 1);
@@ -266,6 +285,7 @@ function GuidedStrategy({
   const socialSummary = [inferredActivity, inferredOffer].filter(Boolean).join(' · ');
   const logoIsFallback = String(logoUrl || '').includes('profile_logo_fallback');
   const hasConfirmedLogo = !!logoUrl && !logoIsFallback;
+  const [servicesText, setServicesText] = useState(() => (declared.priority_services || []).join('\n'));
   const next = () => setStep(current => Math.min(steps.length - 1, current + 1));
   const previous = () => setStep(current => Math.max(0, current - 1));
   const useSuggestion = (key, value) => value && updateField(key, value);
@@ -331,7 +351,7 @@ function GuidedStrategy({
       </div>}
 
       {step === 3 && <div className="guided-fields two-columns">
-        <label><span>Quali offerte vuoi rendere più visibili? <em>Una per riga</em></span><textarea value={(declared.priority_services || []).join('\n')} onChange={e => updateList('priority_services', e.target.value)} placeholder={'Soggiorni weekend\nRistorante\nEventi privati'} /></label>
+        <label><span>Quali offerte vuoi rendere più visibili? <em>Una per riga · precompilato dall’AI</em></span><textarea value={servicesText} onChange={e => { setServicesText(e.target.value); updateList('priority_services', e.target.value); }} placeholder={'Soggiorni weekend\nRistorante\nEventi privati'} /><small className="guided-field-help">Premi Invio dopo ogni voce. Puoi correggere, aggiungere o cancellare liberamente.</small></label>
         <label><span>Perché dovrebbero scegliere te? <em>Serve la tua voce</em></span><textarea value={declared.differentiators || ''} onChange={e => updateField('differentiators', e.target.value)} placeholder="Es. A 30 minuti da Roma, cucina autentica, contatto diretto con i proprietari" /></label>
         <label className="full"><span>Quali dubbi fanno esitare i clienti? <i>Facoltativo</i></span><textarea value={declared.customer_needs || ''} onChange={e => updateField('customer_needs', e.target.value)} placeholder="Es. Se è adatto ai bambini, cosa comprende il prezzo, quanto dista da Roma" /></label>
       </div>}
@@ -532,7 +552,7 @@ const [importMsg, setImportMsg] = useState(null);
       setTemplateStudio(normalizeStudioData(parsedSiteAiData, d.site?.theme || 'tech-clarity'));
       try {
         const rawUnderstanding = d.site?.site_understanding ? (typeof d.site.site_understanding === 'string' ? JSON.parse(d.site.site_understanding) : d.site.site_understanding) : null;
-        const parsedUnderstanding = rawUnderstanding && typeof rawUnderstanding === 'object' && Object.keys(rawUnderstanding).length ? rawUnderstanding : null;
+        const parsedUnderstanding = rawUnderstanding && typeof rawUnderstanding === 'object' && Object.keys(rawUnderstanding).length ? prefillStrategyFromAi(rawUnderstanding) : null;
         setUnderstandingReport(parsedUnderstanding);
         setUnderstandingDraft(parsedUnderstanding);
       } catch (e) {

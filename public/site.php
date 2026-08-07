@@ -792,6 +792,8 @@ foreach ($livingPathSeeds as $seedIndex => $seed) {
             'excerpt' => mb_substr(trim(strip_tags(postExcerpt($postItem))), 0, 190),
             'url' => $siteUrl . '/' . ($postItem['slug'] ?? ''),
             'source' => ucfirst((string)($postItem['platform'] ?? 'Contenuto ufficiale')),
+            'media_url' => normalizeMediaUrl($postItem['media_url'] ?? ''),
+            'media_type' => strtolower((string)($postItem['media_type'] ?? '')),
         ];
     }
     if (!$chapters) {
@@ -1927,6 +1929,57 @@ header('Link: <' . $siteUrl . '/feed.xml>; rel="alternate"; type="application/at
     a:focus-visible,button:focus-visible,summary:focus-visible { outline:3px solid #FFBF47; outline-offset:3px; }
     @media(max-width:1050px) and (min-width:769px){.living-intro h1{font-size:clamp(3.5rem,9vw,6rem)}.living-layout{grid-template-columns:230px minmax(0,1fr)}.living-chapter{flex-basis:min(82%,520px)}.living-command{grid-template-columns:140px 1fr}}
     @media(max-width:768px){ .foundation-directory{padding:1.25rem}.foundation-header{border-radius:20px}.network-bar{font-size:.7rem;padding:.55rem .85rem}.network-signature{gap:.45rem}.network-signature-brand strong{display:none}.network-product-name{padding:.3rem .6rem}.network-trust{margin-left:auto;max-width:145px;text-align:right;line-height:1.25}.theme-network-standard .navbar{padding:.75rem 1rem!important}.theme-network-standard .container{padding:1rem .65rem}.has-living-home .container{padding:0}.has-living-home .living-experience{padding:0}.living-experience{padding:6px;border-radius:22px}.living-portal,.has-living-home .living-portal{min-height:calc(100svh - 112px);border-radius:0}.living-media-grid{grid-template-columns:1fr;grid-template-rows:1fr}.living-media-position-0{grid-column:1;grid-row:1}.living-media-position-1,.living-media-position-2{display:none}.living-portal::after{background:linear-gradient(0deg,rgba(8,11,25,.96) 0%,rgba(8,11,25,.5) 68%,rgba(8,11,25,.18) 100%)}.living-intro{left:1rem;right:1rem;bottom:1.35rem;width:auto}.living-intro h1{font-size:clamp(2.75rem,14vw,5rem);line-height:.9}.living-intro p{font-size:.92rem;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}.living-kicker{font-size:.6rem}.living-portal-index{right:.85rem;top:.85rem}.living-portal-index strong{font-size:1.9rem}.living-command{display:block;padding:.85rem .7rem}.living-command-label{display:block;margin:0 0 .65rem;padding-left:.15rem}.living-intent{padding:.68rem .8rem}.living-layout{grid-template-columns:1fr;padding:0 .7rem .7rem}.living-compass{position:static;border-radius:18px}.living-chapter{flex-basis:88%;min-height:270px;border-radius:18px}.living-chapter::before{left:auto}.living-live-proof{align-items:flex-start}.living-live-proof i{flex:0 0 auto;margin-top:.3rem}.has-living-home .living-archive{width:calc(100% - 20px);margin:1rem auto 2rem} }
+
+    /* Direzione premium: un vero sito editoriale, non una console. */
+    .has-living-home{background:#F4F1EA;color:#191A1D}
+    .has-living-home .network-bar{background:#191A1D;padding:.55rem 1.4rem}
+    .has-living-home .navbar{position:sticky;top:0;z-index:30;background:rgba(244,241,234,.94)!important;border-color:rgba(25,26,29,.12);backdrop-filter:blur(18px);padding:1rem clamp(1.2rem,4vw,4.5rem)!important}
+    .has-living-home .nav-brand{font-size:1.05rem;letter-spacing:-.02em}
+    .has-living-home .living-experience{background:#F4F1EA;color:#191A1D}
+    .has-living-home .living-portal{min-height:calc(100svh - 118px);border-radius:0;background:#202020}
+    .has-living-home .living-portal::after{background:linear-gradient(90deg,rgba(12,13,15,.82) 0%,rgba(12,13,15,.46) 48%,rgba(12,13,15,.08) 76%),linear-gradient(0deg,rgba(12,13,15,.7),transparent 48%)}
+    .has-living-home .living-media-grid{gap:2px;transform:none;grid-template-columns:1.55fr .65fr;grid-template-rows:1fr 1fr}
+    .has-living-home .living-media-position-0{grid-column:1;grid-row:1/3}
+    .has-living-home .living-media-position-1{grid-column:2;grid-row:1}
+    .has-living-home .living-media-position-2{grid-column:2;grid-row:2}
+    .has-living-home .living-media-caption{display:none}
+    .living-brandmark{display:flex;align-items:center;gap:.8rem;margin-bottom:1.3rem;color:#fff;font-size:.85rem;font-weight:850;letter-spacing:.02em}
+    .living-brandmark img{width:46px;height:46px;object-fit:contain;border-radius:50%;background:#fff;padding:3px}
+    .has-living-home .living-intro{left:clamp(1.4rem,6vw,7rem);bottom:clamp(2rem,7vw,6rem);width:min(820px,80%)}
+    .has-living-home .living-intro h1{font-size:clamp(3.6rem,7.2vw,8.4rem);line-height:.87;letter-spacing:-.075em;max-width:900px}
+    .has-living-home .living-intro p{max-width:650px;color:rgba(255,255,255,.82);font-size:clamp(1rem,1.35vw,1.22rem)}
+    .living-hero-cta{display:inline-flex;align-items:center;gap:1.2rem;margin-top:1.35rem;padding:.85rem 1.1rem;background:#fff;color:#191A1D;border-radius:999px;font-size:.8rem;font-weight:850}
+    .living-hero-cta span{font-size:1rem}
+    .has-living-home .living-portal-index{top:2rem;right:clamp(1.4rem,4vw,4rem)}
+    .has-living-home .living-command{display:flex;align-items:center;gap:2rem;padding:2rem clamp(1.2rem,4vw,4rem);background:#F4F1EA;border-bottom:1px solid rgba(25,26,29,.13)}
+    .has-living-home .living-command-label{flex:0 0 auto;padding:0;color:#191A1D;font-size:.72rem}
+    .has-living-home .living-intents{gap:.6rem}
+    .has-living-home .living-intent{border:1px solid rgba(25,26,29,.18);background:transparent;color:#55575D;border-radius:999px;padding:.75rem 1rem}
+    .has-living-home .living-intent span{color:#8A8B91}
+    .has-living-home .living-intent[aria-pressed="true"]{background:#191A1D;border-color:#191A1D;color:#fff}
+    .has-living-home .living-layout{grid-template-columns:250px minmax(0,1fr);gap:2.5rem;padding:clamp(2rem,5vw,5rem) clamp(1.2rem,4vw,4rem)}
+    .has-living-home .living-compass{padding:0;background:transparent;border:0;border-radius:0;color:#191A1D;box-shadow:none}
+    .has-living-home .living-console-kicker{color:#777A80}
+    .has-living-home .living-path-name{color:#191A1D;font-size:1.55rem;letter-spacing:-.04em}
+    .has-living-home .living-progress{background:rgba(25,26,29,.15)}
+    .has-living-home .living-progress span{background:#E55D3D}
+    .has-living-home .living-question{color:#676970;font-size:.9rem}
+    .has-living-home .living-cta{background:#E55D3D;color:#fff;border-radius:999px}
+    .has-living-home .living-cta:hover{background:#191A1D;color:#fff}
+    .has-living-home .living-proof{color:#898B90;border-color:rgba(25,26,29,.12)}
+    .has-living-home .living-stage{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1.2rem;overflow:visible;padding:0}
+    .has-living-home .living-chapter{display:flex;min-height:0;padding:0;border:1px solid rgba(25,26,29,.12);border-radius:22px;background:#fff!important;color:#191A1D;overflow:hidden;box-shadow:0 18px 45px rgba(31,32,35,.07)}
+    .has-living-home .living-chapter::before{display:none}
+    .living-chapter-media{display:block;width:100%;height:clamp(190px,19vw,285px);overflow:hidden;background:#DDD9D1}
+    .living-chapter-media img,.living-chapter-media video{width:100%;height:100%;object-fit:cover;transition:transform .55s ease}
+    .has-living-home .living-chapter:hover .living-chapter-media img{transform:scale(1.035)}
+    .has-living-home .living-step{margin:1.15rem 1.25rem .55rem;color:#E55D3D}
+    .has-living-home .living-chapter strong{margin:0 1.25rem .55rem;color:#191A1D;font-size:clamp(1.2rem,1.7vw,1.65rem);line-height:1.08}
+    .has-living-home .living-chapter p{margin:0 1.25rem;color:#6B6D73;font-size:.86rem}
+    .has-living-home .living-chapter-meta{margin:1.1rem 1.25rem 1.25rem;color:#84868B;border-color:rgba(25,26,29,.1)}
+    .has-living-home .living-chapter-meta b{color:#191A1D}
+    @media(max-width:900px){.has-living-home .living-media-grid{grid-template-columns:1fr}.has-living-home .living-media-position-0{grid-column:1;grid-row:1/3}.has-living-home .living-media-position-1,.has-living-home .living-media-position-2{display:none}.has-living-home .living-layout{grid-template-columns:1fr}.has-living-home .living-compass{display:grid;grid-template-columns:1fr auto;gap:.6rem 1rem;align-items:center;padding-bottom:1.5rem;border-bottom:1px solid rgba(25,26,29,.12)}.has-living-home .living-progress,.has-living-home .living-proof{display:none}.has-living-home .living-question{grid-column:1}.has-living-home .living-cta{grid-column:2;grid-row:1/3;width:auto}.has-living-home .living-stage{grid-template-columns:repeat(2,minmax(0,1fr))}}
+    @media(max-width:620px){.has-living-home .network-trust{display:none}.has-living-home .living-portal{min-height:calc(100svh - 102px)}.has-living-home .living-intro{left:1.1rem;right:1.1rem;bottom:1.6rem;width:auto}.has-living-home .living-intro h1{font-size:clamp(3rem,15vw,5rem)}.living-brandmark{margin-bottom:.9rem}.has-living-home .living-command{display:block;padding:1.25rem 1rem}.has-living-home .living-command-label{display:block;margin-bottom:.75rem}.has-living-home .living-layout{padding:2rem 1rem;gap:1.5rem}.has-living-home .living-compass{display:block}.has-living-home .living-question{margin-bottom:1rem}.has-living-home .living-stage{grid-template-columns:1fr}.living-chapter-media{height:240px}.has-living-home .living-live-proof{display:none}}
   </style>
 </head>
 <?php
@@ -2255,14 +2308,16 @@ ob_start();
       </div>
       <?php endif; ?>
       <header class="living-intro">
+        <div class="living-brandmark"><?php if ($logoUrl): ?><img src="<?= h($logoUrl) ?>" alt="Logo <?= h($title) ?>"><?php endif; ?><strong><?= h($title) ?></strong></div>
         <span class="living-kicker">AllSocialToWeb / Spazio Vivo / <?= count($allPosts) ?> segnali attivi</span>
         <h1 id="living-title"><?= h($initialLivingPath['title']) ?></h1>
         <p id="living-subtitle"><?= h($initialLivingPath['subtitle']) ?></p>
         <div class="living-live-proof"><i></i><span>Patrimonio proveniente dai canali ufficiali, reso trovabile nel tempo</span></div>
+        <a class="living-hero-cta" href="#living-paths">Scopri le esperienze <span>↓</span></a>
       </header>
-      <div class="living-portal-index" aria-hidden="true"><strong><?= str_pad((string)count($mediaPosts), 2, '0', STR_PAD_LEFT) ?></strong><span>memorie<br>riattivate</span></div>
+      <div class="living-portal-index" aria-hidden="true"><strong><?= str_pad((string)count($mediaPosts), 2, '0', STR_PAD_LEFT) ?></strong><span>contenuti<br>disponibili</span></div>
     </div>
-    <div class="living-command">
+    <div class="living-command" id="living-paths">
       <span class="living-command-label">Cosa vuoi trovare?</span>
       <div class="living-intents" aria-label="Scegli il tuo percorso">
         <?php foreach ($livingPaths as $pathIndex => $path): ?>
@@ -2272,16 +2327,17 @@ ob_start();
     </div>
     <div class="living-layout">
       <aside class="living-compass" aria-label="Console del percorso">
-        <span class="living-console-kicker">Percorso attivo</span>
+        <span class="living-console-kicker">Stai esplorando</span>
         <div class="living-path-name" id="living-path-name"><?= h($initialLivingPath['path_name']) ?></div>
         <div class="living-progress" aria-hidden="true"><span></span></div>
         <div class="living-question" id="living-question"><?= h($initialLivingPath['question']) ?></div>
         <a class="living-cta" href="<?= h($livingCtaUrl) ?>"<?= preg_match('/^https?:\/\//i', $livingCtaUrl) ? ' target="_blank" rel="noopener"' : '' ?>>Attiva un contatto →</a>
-        <div class="living-proof">Non stai sfogliando pagine: stai attraversando contenuti verificabili collegati a ciò che cerchi.</div>
+        <div class="living-proof">Contenuti originali collegati ai canali ufficiali dell’attività.</div>
       </aside>
       <div class="living-stage" id="living-stage" aria-live="polite">
         <?php foreach ($initialLivingPath['chapters'] as $chapterIndex => $chapter): ?>
         <a class="living-chapter" data-index="<?= str_pad((string)($chapterIndex + 1), 2, '0', STR_PAD_LEFT) ?>" href="<?= h($chapter['url']) ?>">
+          <?php if (!empty($chapter['media_url'])): ?><span class="living-chapter-media"><?php if (($chapter['media_type'] ?? '') === 'video' || preg_match('~\.(mp4|mov|webm)(\?|$)~i', $chapter['media_url'])): ?><video muted playsinline preload="metadata"><source src="<?= h($chapter['media_url']) ?>"></video><?php else: ?><img src="<?= h($chapter['media_url']) ?>" alt="" loading="lazy"><?php endif; ?></span><?php endif; ?>
           <span class="living-step"><?= h($chapter['step']) ?></span>
           <strong><?= h($chapter['title']) ?></strong>
           <p><?= h($chapter['excerpt']) ?></p>
@@ -2565,6 +2621,25 @@ document.addEventListener('DOMContentLoaded', () => {
         link.className = 'living-chapter';
         link.dataset.index = String(chapterIndex + 1).padStart(2, '0');
         link.href = chapter.url || '#';
+        let media = null;
+        if (chapter.media_url) {
+          media = document.createElement('span');
+          media.className = 'living-chapter-media';
+          if (chapter.media_type === 'video' || /\.(mp4|mov|webm)(\?|$)/i.test(chapter.media_url)) {
+            const video = document.createElement('video');
+            video.muted = true;
+            video.playsInline = true;
+            video.preload = 'metadata';
+            video.src = chapter.media_url;
+            media.appendChild(video);
+          } else {
+            const image = document.createElement('img');
+            image.src = chapter.media_url;
+            image.alt = '';
+            image.loading = 'lazy';
+            media.appendChild(image);
+          }
+        }
         const step = document.createElement('span');
         step.className = 'living-step';
         step.textContent = chapter.step || '';
@@ -2579,6 +2654,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const enter = document.createElement('b');
         enter.textContent = 'Entra →';
         meta.append(source, enter);
+        if (media) link.appendChild(media);
         link.append(step, heading, excerpt, meta);
         link.addEventListener('click', () => sendVisibilityEvent('path_content_click', link.href));
         livingStage.appendChild(link);
