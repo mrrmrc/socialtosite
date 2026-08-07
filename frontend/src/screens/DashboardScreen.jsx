@@ -464,8 +464,41 @@ const [importMsg, setImportMsg] = useState(null);
   const [preparingIdea, setPreparingIdea] = useState(-1);
   const [promptDrafts, setPromptDrafts] = useState({});
   const [savingPromptName, setSavingPromptName] = useState('');
+  const [passwordForm, setPasswordForm] = useState({ current: '', next: '', confirm: '' });
+  const [changingPassword, setChangingPassword] = useState(false);
+  const [passwordMsg, setPasswordMsg] = useState(null);
   const deferredStudio = useDeferredValue(templateStudio);
   const siteUrl = `${window.location.origin}/${user?.slug}`;
+
+  async function changeOwnPassword(e) {
+    e.preventDefault();
+    setPasswordMsg(null);
+    if (passwordForm.next.length < 8) {
+      setPasswordMsg({ ok: false, text: 'La nuova password deve contenere almeno 8 caratteri.' });
+      return;
+    }
+    if (passwordForm.next !== passwordForm.confirm) {
+      setPasswordMsg({ ok: false, text: 'Le due nuove password non coincidono.' });
+      return;
+    }
+
+    setChangingPassword(true);
+    try {
+      const result = await apiFetch('/api/index.php?action=password-change', {
+        method: 'POST',
+        body: JSON.stringify({
+          current_password: passwordForm.current,
+          new_password: passwordForm.next,
+        }),
+      }, token);
+      setPasswordForm({ current: '', next: '', confirm: '' });
+      setPasswordMsg({ ok: true, text: result.message || 'Password aggiornata con successo.' });
+    } catch (e) {
+      setPasswordMsg({ ok: false, text: e.message });
+    } finally {
+      setChangingPassword(false);
+    }
+  }
 
   // ── Tema chiaro/scuro ──────────────────────────────────────────────────
   const [theme, setThemeState] = useState(() =>
@@ -1573,6 +1606,7 @@ const [importMsg, setImportMsg] = useState(null);
             ] : []),
             { id: 'seo', icon: '◎', label: 'Network della reperibilità' },
             { id: 'strategy', icon: '✓', label: 'Profilo guidato' },
+            { id: 'security', icon: '🔐', label: 'Password e sicurezza' },
             ...(user?.role === 'admin' ? [{ id: 'admin', icon: '🛠', label: 'Admin' }] : [])
           ].map(item => (
             <button key={item.id} onClick={() => item.external ? window.open(siteUrl, '_blank', 'noopener') : setTab(item.id)}
@@ -1603,9 +1637,12 @@ const [importMsg, setImportMsg] = useState(null);
         {/* Mobile Header (Only visible on mobile) */}
         <div className="mobile-top-header">
           <div style={{ fontWeight: 800, fontSize: '16px', color: 'var(--primary)' }}><img src="/logo-cropped.png" alt="allsocialtoweb.com" style={{ height: '52px', width: 'auto', display: 'block' }} /></div>
-          <button className="btn btn-outline" onClick={() => window.open(siteUrl, '_blank', 'noopener')} style={{ padding: '8px 16px', fontSize: '12px' }}>
-            ✦ Spazio Vivo
-          </button>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <button className="btn btn-outline" aria-label="Password e sicurezza" onClick={() => setTab('security')} style={{ padding: '8px 11px', fontSize: '14px' }}>🔐</button>
+            <button className="btn btn-outline" onClick={() => window.open(siteUrl, '_blank', 'noopener')} style={{ padding: '8px 16px', fontSize: '12px' }}>
+              ✦ Spazio Vivo
+            </button>
+          </div>
         </div>
 
         <div style={{ maxWidth: '1000px', margin: '0 auto' }}>
@@ -1619,6 +1656,7 @@ const [importMsg, setImportMsg] = useState(null);
               {tab === 'settings' && 'Design & Aspetto'}
                 {tab === 'general' && 'Impostazioni Generali'}
               {tab === 'seo' && 'Network della Reperibilità'}
+              {tab === 'security' && 'Password e sicurezza'}
               {tab === 'admin' && 'Pannello Admin'}
             </h1>
             <div style={{ display: 'flex', gap: '12px' }}>
@@ -3372,6 +3410,40 @@ const [importMsg, setImportMsg] = useState(null);
                 <a href={`${siteUrl}/sitemap.xml`} target="_blank" className="btn btn-outline" style={{ textDecoration: 'none', fontSize: '14px', padding: '12px 20px', fontWeight: 700 }}>Sitemap XML</a>
               </div>
             </div>
+          </div>
+        )}
+
+        {tab === 'security' && (
+          <div className="card" style={{ maxWidth: '680px', margin: '0 auto', padding: 'clamp(1.25rem, 4vw, 2rem)' }}>
+            <div style={{ width: '52px', height: '52px', borderRadius: '16px', display: 'grid', placeItems: 'center', background: 'var(--primary-light)', color: 'var(--primary)', fontSize: '24px', marginBottom: '1rem' }}>🔐</div>
+            <h2 style={{ margin: '0 0 0.5rem', color: 'var(--text)' }}>Cambia la tua password</h2>
+            <p style={{ margin: '0 0 1.5rem', color: 'var(--text-muted)', lineHeight: 1.6 }}>
+              Per proteggere il tuo account, conferma la password attuale e scegline una nuova di almeno 8 caratteri.
+            </p>
+
+            {passwordMsg && (
+              <div style={{ marginBottom: '1rem', padding: '12px 14px', borderRadius: 'var(--radius-sm)', background: passwordMsg.ok ? 'var(--teal-light)' : 'var(--red-light)', color: passwordMsg.ok ? '#0F6E56' : 'var(--red)', fontWeight: 700, fontSize: '14px' }}>
+                {passwordMsg.text}
+              </div>
+            )}
+
+            <form onSubmit={changeOwnPassword} style={{ display: 'grid', gap: '1rem' }}>
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <label className="label" htmlFor="current-password">Password attuale</label>
+                <input id="current-password" type="password" autoComplete="current-password" required value={passwordForm.current} onChange={e => setPasswordForm(current => ({ ...current, current: e.target.value }))} />
+              </div>
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <label className="label" htmlFor="new-password">Nuova password</label>
+                <input id="new-password" type="password" autoComplete="new-password" minLength={8} maxLength={72} required value={passwordForm.next} onChange={e => setPasswordForm(current => ({ ...current, next: e.target.value }))} />
+              </div>
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <label className="label" htmlFor="confirm-password">Ripeti la nuova password</label>
+                <input id="confirm-password" type="password" autoComplete="new-password" minLength={8} maxLength={72} required value={passwordForm.confirm} onChange={e => setPasswordForm(current => ({ ...current, confirm: e.target.value }))} />
+              </div>
+              <button className="btn btn-primary" disabled={changingPassword} style={{ justifyContent: 'center', marginTop: '0.5rem', padding: '13px 18px' }}>
+                {changingPassword ? 'Aggiornamento...' : 'Aggiorna password'}
+              </button>
+            </form>
           </div>
         )}
 

@@ -50,8 +50,10 @@ export function AdminScreen({ token, currentUser, adminPrompts, updatePrompt }) 
   const [editorialRoom, setEditorialRoom] = useState(null);
   const [controlRoomFilter, setControlRoomFilter] = useState('');
   const [form, setForm] = useState({ name: '', email: '', password: '', role: 'user' });
+  const [passwordDrafts, setPasswordDrafts] = useState({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
 
   useEffect(() => {
     if (adminTab === 'users' || adminTab === 'control-room') loadUsers();
@@ -148,6 +150,7 @@ export function AdminScreen({ token, currentUser, adminPrompts, updatePrompt }) 
 
   async function updateUser(id, patch) {
     setError('');
+    setNotice('');
     try {
       await apiFetch('/api/index.php?action=admin-update-user', {
         method: 'POST',
@@ -157,6 +160,28 @@ export function AdminScreen({ token, currentUser, adminPrompts, updatePrompt }) 
       if (adminTab === 'control-room' && String(id) === String(selectedControlUserId)) {
         await loadEditorialRoom(String(id));
       }
+    } catch (e) {
+      setError(e.message);
+    }
+  }
+
+  async function resetUserPassword(id) {
+    const newPassword = passwordDrafts[id] || '';
+    setError('');
+    setNotice('');
+    if (newPassword.length < 8) {
+      setError('La nuova password deve contenere almeno 8 caratteri.');
+      return;
+    }
+    if (!confirm('Impostare questa nuova password per l\'utente selezionato?')) return;
+
+    try {
+      await apiFetch('/api/index.php?action=admin-password-reset', {
+        method: 'POST',
+        body: JSON.stringify({ id, new_password: newPassword }),
+      }, token);
+      setPasswordDrafts(current => ({ ...current, [id]: '' }));
+      setNotice('Password aggiornata. Comunica la nuova credenziale all\'utente in modo sicuro.');
     } catch (e) {
       setError(e.message);
     }
@@ -366,6 +391,7 @@ export function AdminScreen({ token, currentUser, adminPrompts, updatePrompt }) 
       </div>
 
       {error && <div style={{ background: 'var(--red-light)', color: 'var(--red)', padding: '10px 14px', borderRadius: 'var(--radius-sm)', marginBottom: '1rem', fontSize: '13px' }}>{error}</div>}
+      {notice && <div style={{ background: 'var(--teal-light)', color: '#0F6E56', padding: '10px 14px', borderRadius: 'var(--radius-sm)', marginBottom: '1rem', fontSize: '13px', fontWeight: 700 }}>{notice}</div>}
 
       {adminTab === 'users' && (
         <div>
@@ -428,6 +454,32 @@ export function AdminScreen({ token, currentUser, adminPrompts, updatePrompt }) 
                         Elimina
                       </button>
                     </div>
+                  </div>
+
+                  <div style={{ marginTop: '12px', padding: '12px 14px', background: 'var(--bg)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', display: 'flex', alignItems: 'flex-end', gap: '10px', flexWrap: 'wrap' }}>
+                    <div style={{ flex: '1 1 240px' }}>
+                      <label className="label" htmlFor={`admin-password-${u.id}`}>Nuova password per {u.name || u.email}</label>
+                      <input
+                        id={`admin-password-${u.id}`}
+                        type="password"
+                        autoComplete="new-password"
+                        minLength={8}
+                        maxLength={72}
+                        placeholder="Minimo 8 caratteri"
+                        value={passwordDrafts[u.id] || ''}
+                        onChange={e => setPasswordDrafts(current => ({ ...current, [u.id]: e.target.value }))}
+                        style={{ width: '100%', padding: '9px 11px' }}
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      className="btn btn-outline"
+                      onClick={() => resetUserPassword(u.id)}
+                      disabled={(passwordDrafts[u.id] || '').length < 8}
+                      style={{ padding: '9px 14px', whiteSpace: 'nowrap' }}
+                    >
+                      Imposta password
+                    </button>
                   </div>
 
                   {u.sources && u.sources.length > 0 && (

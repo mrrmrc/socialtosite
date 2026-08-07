@@ -543,6 +543,38 @@ if ($action === 'me' && $method === 'GET') {
     ]);
 }
 
+// Ogni utente autenticato puo cambiare la propria password, confermando prima
+// quella attuale.
+if ($action === 'password-change' && $method === 'POST') {
+    $b = body();
+    $currentPassword = (string)($b['current_password'] ?? '');
+    $newPassword = (string)($b['new_password'] ?? '');
+
+    if ($currentPassword === '' || $newPassword === '') {
+        jsonError('Inserisci la password attuale e quella nuova', 422);
+    }
+    if (strlen($newPassword) < 8) {
+        jsonError('La nuova password deve contenere almeno 8 caratteri', 422);
+    }
+    if (strlen($newPassword) > 72) {
+        jsonError('La nuova password non puo superare 72 caratteri', 422);
+    }
+
+    $account = DB::fetch('SELECT password FROM users WHERE id=?', [$userId]);
+    if (!$account || !password_verify($currentPassword, (string)$account['password'])) {
+        jsonError('La password attuale non e corretta', 403);
+    }
+    if (password_verify($newPassword, (string)$account['password'])) {
+        jsonError('La nuova password deve essere diversa da quella attuale', 422);
+    }
+
+    DB::execute(
+        'UPDATE users SET password=? WHERE id=?',
+        [password_hash($newPassword, PASSWORD_BCRYPT), $userId]
+    );
+    json(['ok' => true, 'message' => 'Password aggiornata con successo']);
+}
+
 function uniqueUserSlug(string $source): string {
     $slug = slugify($source);
     if (!$slug) $slug = 'utente';
@@ -732,8 +764,10 @@ if ($action === 'admin-update-user' && $method === 'POST') {
     $role = $role === 'admin' ? 'admin' : 'user';
 
     DB::execute('UPDATE users SET name=?, plan=?, role=? WHERE id=?', [$name, $plan, $role, $targetId]);
-    if (isset($b['password']) && strlen($b['password']) >= 8) {
-        DB::execute('UPDATE users SET password=? WHERE id=?', [password_hash($b['password'], PASSWORD_BCRYPT), $targetId]);
+    if (array_key_exists('password', $b) && $b['password'] !== '') {
+        if (strlen((string)$b['password']) < 8) jsonError('La nuova password deve contenere almeno 8 caratteri', 422);
+        if (strlen((string)$b['password']) > 72) jsonError('La nuova password non puo superare 72 caratteri', 422);
+        DB::execute('UPDATE users SET password=? WHERE id=?', [password_hash((string)$b['password'], PASSWORD_BCRYPT), $targetId]);
     }
     
     if (array_key_exists('role_mission', $b) || array_key_exists('content_strategy', $b)) {
@@ -744,7 +778,28 @@ if ($action === 'admin-update-user' && $method === 'POST') {
     json(['ok' => true]);
 }
 
+// L'amministratore puo assegnare una nuova password a qualsiasi account senza
+// dover conoscere quella precedente.
+if ($action === 'admin-password-reset' && $method === 'POST') {
+    requireAdmin($isAdmin);
+    $b = body();
+    $targetId = (int)($b['id'] ?? 0);
+    $newPassword = (string)($b['new_password'] ?? '');
+
+    if ($targetId <= 0) jsonError('Utente non valido', 422);
+    if (strlen($newPassword) < 8) jsonError('La nuova password deve contenere almeno 8 caratteri', 422);
+    if (strlen($newPassword) > 72) jsonError('La nuova password non puo superare 72 caratteri', 422);
+    if (!DB::fetch('SELECT id FROM users WHERE id=?', [$targetId])) jsonError('Utente non trovato', 404);
+
+    DB::execute(
+        'UPDATE users SET password=? WHERE id=?',
+        [password_hash($newPassword, PASSWORD_BCRYPT), $targetId]
+    );
+    json(['ok' => true, 'message' => 'Password utente aggiornata con successo']);
+}
+
 if ($action === 'admin-delete-user' && $method === 'POST') {
+    requireAdmin($isAdmin);
     $b = body();
     $targetId = (int)($b['id'] ?? 0);
     if (!$targetId) jsonError('Utente non valido');
