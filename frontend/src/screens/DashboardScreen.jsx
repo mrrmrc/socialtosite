@@ -193,6 +193,7 @@ function strategyCompletion(understanding) {
 function buildVisibilityOpportunities(posts, visibility, understanding) {
   const strategy = understanding?.declared_strategy || {};
   const published = posts.filter(post => Number(post.published) === 1);
+  const visualAssets = published.filter(post => post.media_url).length;
   const opportunities = [];
   const queryCandidates = [...(visibility.top_queries || [])].filter(query => Number(query.impressions) >= 20);
   const topQuery = queryCandidates.sort((a, b) => {
@@ -201,13 +202,13 @@ function buildVisibilityOpportunities(posts, visibility, understanding) {
     return scoreB - scoreA;
   })[0];
 
-  if (strategyCompletion(understanding) < 100) {
+  if (visualAssets > 0) {
     opportunities.push({
-      level: 'Fondamentale',
-      title: 'Completa pubblico e obiettivi',
-      reason: 'I social raccontano ci\u00f2 che pubblichi, ma non sanno quale pubblico e quale risultato commerciale vuoi privilegiare.',
-      action: 'Completa la strategia',
-      target: 'strategy',
+      level: 'Patrimonio visuale',
+      title: `Dai nuova vita a ${visualAssets} immagini e video`,
+      reason: 'Nei social questo patrimonio scorre e scompare. Nello Spazio Vivo diventa organizzato, collegabile e trovabile anche nel tempo.',
+      action: 'Crea idee visuali',
+      target: 'ideas',
     });
   }
   if (topQuery) {
@@ -260,7 +261,7 @@ function SiteMapGraph({ posts, siteUrl, siteTitle, foundationPages = [] }) {
   const short = value => String(value || 'Articolo').replace(/\s+/g, ' ').slice(0, 24);
   return (
     <div style={{ overflowX: 'auto', paddingBottom: '0.5rem' }}>
-      <svg viewBox="0 0 860 445" role="img" aria-label="Grafo dei collegamenti dal dominio AllSocialToWeb al sito, ai temi e ai suoi articoli" style={{ width: '100%', minWidth: '690px', height: 'auto', display: 'block' }}>
+      <svg viewBox="0 0 860 445" role="img" aria-label="Grafo dei collegamenti dal dominio AllSocialToWeb allo Spazio Vivo, ai temi e ai suoi contenuti" style={{ width: '100%', minWidth: '690px', height: 'auto', display: 'block' }}>
         <defs>
           <linearGradient id="graphRoot" x1="0" x2="1"><stop stopColor="#6366f1"/><stop offset="1" stopColor="#06b6d4"/></linearGradient>
           <filter id="graphShadow"><feDropShadow dx="0" dy="5" stdDeviation="7" floodOpacity="0.13"/></filter>
@@ -270,7 +271,7 @@ function SiteMapGraph({ posts, siteUrl, siteTitle, foundationPages = [] }) {
         {topicPositions.map(topic => <path key={topic.label} d={`M430 224 C430 250 ${topic.x} 242 ${topic.x} 276`} fill="none" stroke="var(--primary)" strokeOpacity=".55" strokeWidth="2" />)}
         {positions.slice(0, visiblePosts.length).map(([x], index) => { const postTags=visiblePosts[index]?.tags || []; const parent=foundationPages.length ? topicPositions[index % Math.max(topicPositions.length, 1)] : topicPositions.find(topic => postTags.includes(topic.label)); const fromX=parent?.x || 430; return <path key={index} d={`M${fromX} 312 C${fromX} 334 ${x} 326 ${x} 350`} fill="none" stroke="var(--border-strong)" strokeWidth="2" />; })}
         <g filter="url(#graphShadow)"><rect x="310" y="22" width="240" height="60" rx="18" fill="url(#graphRoot)"/><text x="430" y="48" textAnchor="middle" fill="#fff" fontSize="15" fontWeight="800">ALLSOCIALTOWEB.COM</text><text x="430" y="67" textAnchor="middle" fill="rgba(255,255,255,.82)" fontSize="11">Hub pubblico /scopri</text></g>
-        <g filter="url(#graphShadow)"><rect x="285" y="142" width="290" height="82" rx="20" fill="var(--surface)" stroke="var(--primary)" strokeWidth="2"/><text x="430" y="174" textAnchor="middle" fill="var(--text)" fontSize="17" fontWeight="800">{short(siteTitle || 'Il tuo sito')}</text><text x="430" y="198" textAnchor="middle" fill="var(--text-muted)" fontSize="12">{siteUrl.replace(window.location.origin, '')}</text></g>
+        <g filter="url(#graphShadow)"><rect x="285" y="142" width="290" height="82" rx="20" fill="var(--surface)" stroke="var(--primary)" strokeWidth="2"/><text x="430" y="174" textAnchor="middle" fill="var(--text)" fontSize="17" fontWeight="800">{short(siteTitle || 'Spazio Vivo')}</text><text x="430" y="198" textAnchor="middle" fill="var(--text-muted)" fontSize="12">{siteUrl.replace(window.location.origin, '')}</text></g>
         {topicPositions.map(topic => <g key={topic.label}><rect x={topic.x-58} y="276" width="116" height="36" rx="18" fill="var(--primary-light)" stroke="var(--primary)"/><text x={topic.x} y="299" textAnchor="middle" fill="var(--primary)" fontSize="10" fontWeight="800">{short(topic.label).slice(0,19)}</text></g>)}
         {visiblePosts.map((post, index) => { const [x,y]=positions[index]; return <g key={post.id}><rect x={x-56} y={y-15} width="112" height="58" rx="14" fill="var(--bg)" stroke="var(--border-strong)"/><text x={x} y={y+7} textAnchor="middle" fill="var(--text)" fontSize="10" fontWeight="700"><tspan x={x}>{short(post.generated_title).slice(0,16)}</tspan><tspan x={x} dy="14">{short(post.generated_title).slice(16,32)}</tspan></text></g> })}
         {visiblePosts.length === 0 && <text x="430" y="350" textAnchor="middle" fill="var(--text-muted)" fontSize="14">I prossimi articoli compariranno qui</text>}
@@ -282,6 +283,7 @@ function SiteMapGraph({ posts, siteUrl, siteTitle, foundationPages = [] }) {
 
 export function DashboardScreen({ token, user, onLogout }) {
   const [tab, setTab] = useState('overview');
+  const [visibilitySection, setVisibilitySection] = useState('network');
   const [dashboardFilter, setDashboardFilter] = useState('all');
   const [data, setData] = useState(null);
   const [adminSeoStats, setAdminSeoStats] = useState([]);
@@ -338,6 +340,8 @@ const [importMsg, setImportMsg] = useState(null);
   const [understandingReport, setUnderstandingReport] = useState(null);
   const [understandingDraft, setUnderstandingDraft] = useState(null);
   const [savingUnderstanding, setSavingUnderstanding] = useState(false);
+  const [reachabilityDraft, setReachabilityDraft] = useState({ official_site_url: '', business_profile_url: '', primary_topic: '', service_areas: [], reciprocal_link_confirmed: false });
+  const [savingReachability, setSavingReachability] = useState(false);
   const [preparingIdea, setPreparingIdea] = useState(-1);
   const [promptDrafts, setPromptDrafts] = useState({});
   const [savingPromptName, setSavingPromptName] = useState('');
@@ -375,6 +379,7 @@ const [importMsg, setImportMsg] = useState(null);
       setFooterText(d.site?.footer_text || '');
       setHarmonizeAgent(d.site?.harmonize_agent || 'content_editor');
       setAccountType(d.site?.account_type || 'business');
+      setReachabilityDraft(d.reachability?.profile || { official_site_url: '', business_profile_url: '', primary_topic: '', service_areas: [], reciprocal_link_confirmed: false });
       let parsedEditorialSettings = { enabled: true, auto_run: true, min_posts: 8, strict_indexing_mode: true };
       let parsedEditorialDna = {};
       let parsedEditorialMemory = {};
@@ -883,8 +888,11 @@ const [importMsg, setImportMsg] = useState(null);
   }
 
   function openDashboardSection(target) {
-    if (target === 'strategy') setTab('overview');
-    else setTab('seo');
+    if (target === 'strategy') setTab('strategy');
+    else {
+      setTab('seo');
+      setVisibilitySection(target === 'modules' ? 'solutions' : target === 'ideas' ? 'ideas' : 'opportunities');
+    }
     window.setTimeout(() => document.getElementById(target)?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 80);
   }
 
@@ -906,6 +914,21 @@ const [importMsg, setImportMsg] = useState(null);
       setSyncMsg({ ok: false, text: error.message });
     }
     setSavingUnderstanding(false);
+  }
+
+  async function saveReachabilityNetwork() {
+    setSavingReachability(true);
+    try {
+      await apiFetch('/api/index.php?action=reachability-update', {
+        method: 'POST',
+        body: JSON.stringify(reachabilityDraft),
+      }, token);
+      setSyncMsg({ ok: true, text: 'Network della Reperibilità aggiornato. I collegamenti vengono ora usati nei segnali pubblici e nelle analisi.' });
+      await loadData();
+    } catch (error) {
+      setSyncMsg({ ok: false, text: error.message });
+    }
+    setSavingReachability(false);
   }
 
   async function createIdeaDraft(idea, index) {
@@ -1352,6 +1375,7 @@ const [importMsg, setImportMsg] = useState(null);
   const connections = data?.connections || [];
   const sources = data?.sources || [];
   const visibility = data?.visibility || {};
+  const reachability = data?.reachability || { score: 0, stage: 'configurazione', checks: [] };
   let seoFoundation = {};
   try { seoFoundation = typeof site?.seo_foundation === 'string' ? JSON.parse(site.seo_foundation) : (site?.seo_foundation || {}); } catch (_) { seoFoundation = {}; }
   const contentIdeas = buildEditorialIdeas(posts, understandingDraft || understandingReport);
@@ -1388,16 +1412,18 @@ const [importMsg, setImportMsg] = useState(null);
         <div style={{ padding: '24px 16px', display: 'flex', flexDirection: 'column', gap: '8px', flex: 1, overflowY: 'auto' }}>
           {[
             { id: 'overview', icon: '🏠', label: 'Home' },
+            { id: 'living-space', icon: '✦', label: 'Spazio Vivo', external: true },
             { id: 'site', icon: '📝', label: 'Articoli' },
             { id: 'sources', icon: '📡', label: 'Canali' },
             ...(user?.role === 'admin' ? [{ id: 'settings', icon: '🎨', label: 'Design legacy' }] : []),
             ...(user?.role === 'admin' ? [
               { id: 'general', icon: '⚙️', label: 'Impostazioni' }
             ] : []),
-            { id: 'seo', icon: '🕸️', label: 'Visibilità e idee' },
+            { id: 'seo', icon: '◎', label: 'Network della reperibilità' },
+            { id: 'strategy', icon: '◎', label: 'Strategia · opzionale' },
             ...(user?.role === 'admin' ? [{ id: 'admin', icon: '🛠', label: 'Admin' }] : [])
           ].map(item => (
-            <button key={item.id} onClick={() => setTab(item.id)}
+            <button key={item.id} onClick={() => item.external ? window.open(siteUrl, '_blank', 'noopener') : setTab(item.id)}
               style={{
                 padding: '14px 16px', borderRadius: '12px', textAlign: 'left',
                 background: tab === item.id ? 'var(--primary-light)' : 'transparent',
@@ -1425,8 +1451,8 @@ const [importMsg, setImportMsg] = useState(null);
         {/* Mobile Header (Only visible on mobile) */}
         <div className="mobile-top-header">
           <div style={{ fontWeight: 800, fontSize: '16px', color: 'var(--primary)' }}><img src="/logo-cropped.png" alt="allsocialtoweb.com" style={{ height: '52px', width: 'auto', display: 'block' }} /></div>
-          <button className="btn btn-outline" onClick={syncNow} disabled={syncing} style={{ padding: '8px 16px', fontSize: '12px' }}>
-            {syncing ? '?' : '? Social'}
+          <button className="btn btn-outline" onClick={() => window.open(siteUrl, '_blank', 'noopener')} style={{ padding: '8px 16px', fontSize: '12px' }}>
+            ✦ Spazio Vivo
           </button>
         </div>
 
@@ -1435,11 +1461,12 @@ const [importMsg, setImportMsg] = useState(null);
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2.5rem' }}>
             <h1 style={{ margin: 0, fontSize: '28px', fontWeight: 700, color: 'var(--text)' }}>
               {tab === 'overview' && 'Panoramica'}
+              {tab === 'strategy' && 'Strategia · opzionale'}
               {tab === 'site' && 'Gestione Contenuti'}
               {tab === 'sources' && 'I miei canali'}
               {tab === 'settings' && 'Design & Aspetto'}
                 {tab === 'general' && 'Impostazioni Generali'}
-              {tab === 'seo' && 'Visibilità, mappa e nuove idee'}
+              {tab === 'seo' && 'Network della Reperibilità'}
               {tab === 'admin' && 'Pannello Admin'}
             </h1>
             <div style={{ display: 'flex', gap: '12px' }}>
@@ -1457,8 +1484,9 @@ const [importMsg, setImportMsg] = useState(null);
             {!syncMsg.loading && <button onClick={() => setSyncMsg(null)} style={{background:'none', border:'none', cursor:'pointer', fontSize:'16px'}}>✕</button>}
           </div>
         )}
-        {tab === 'overview' && (
+        {(tab === 'overview' || tab === 'strategy') && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+            {tab === 'overview' && <>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1.25rem' }}>
               {[
                 { n: networkPublishedPages, l: 'Pagine pubblicate', c: 'var(--primary)' },
@@ -1503,7 +1531,9 @@ const [importMsg, setImportMsg] = useState(null);
               </div>
             </div>
 
-            <div id="strategy" className="card" style={{ padding: '1.5rem', background: 'var(--surface)', border: '1px solid var(--primary)' }}>
+            </>}
+
+            {tab === 'strategy' && <div id="strategy" className="card" style={{ padding: '1.5rem', background: 'var(--surface)', border: '1px solid var(--primary)' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1.25rem', alignItems: 'flex-start', flexWrap: 'wrap' }}>
                 <div style={{ maxWidth: '680px' }}>
                   <div style={{ color: 'var(--primary)', fontSize: '12px', fontWeight: 850, textTransform: 'uppercase', letterSpacing: '.08em' }}>Strategia dichiarata da te</div>
@@ -1557,26 +1587,15 @@ const [importMsg, setImportMsg] = useState(null);
                   <button className="btn btn-primary" onClick={saveUnderstanding} disabled={savingUnderstanding} style={{ padding: '10px 18px' }}>{savingUnderstanding ? 'Salvataggio…' : 'Salva la mia strategia'}</button>
                 </div>
               </div>
-            </div>
-            
-            <div className="card" style={{ background: 'linear-gradient(135deg, var(--primary-dark), var(--primary))', color: '#fff', border: 'none', boxShadow: '0 10px 30px -10px rgba(0, 240, 255, 0.4)' }}>
-              <h2 style={{ marginBottom: '1rem', color: '#fff', fontSize: '24px', letterSpacing: '-0.5px' }}>🌍 Il tuo sito è online</h2>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
-                <div style={{ background: 'rgba(0,0,0,0.2)', padding: '16px 20px', borderRadius: '12px', fontFamily: 'monospace', fontSize: '16px', flex: 1, minWidth: '250px', border: '1px solid rgba(255,255,255,0.1)' }}>
-                  {siteUrl}
-                </div>
-                <div style={{ display: 'flex', gap: '12px' }}>
-                  <a href={siteUrl} target="_blank" rel="noopener" className="btn" style={{ background: '#000', color: '#fff', textDecoration: 'none', borderRadius: '12px' }}>Apri sito</a>
-                  <button className="btn" onClick={() => navigator.clipboard.writeText(siteUrl).then(() => alert('Copiato!'))} style={{ background: 'rgba(255,255,255,0.2)', color: '#fff', borderRadius: '12px' }}>Copia link</button>
-                </div>
-              </div>
-            </div>
+            </div>}
+
+            {tab === 'overview' && <>
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.5rem' }}>
               <div className="card">
                 <h3 style={{ marginBottom: '1rem' }}>Sincronizzazione automatica</h3>
                 <p style={{ fontSize: '14px', color: 'var(--text-muted)', marginBottom: '1rem' }}>
-                  Il tuo sito si aggiorna automaticamente ogni 6 ore prelevando i contenuti dalle fonti social attive.
+                  Il tuo Spazio Vivo si aggiorna automaticamente ogni 6 ore prelevando i contenuti dalle fonti social attive.
                 </p>
                 <div style={{ padding: '12px', background: 'var(--gray-light)', borderRadius: '8px', fontSize: '13px', display: 'flex', justifyContent: 'space-between' }}>
                   <span style={{ fontWeight: 600 }}>Ultimo sync:</span>
@@ -1593,6 +1612,7 @@ const [importMsg, setImportMsg] = useState(null);
                 </div>
               </div>
             </div>
+            </>}
           </div>
         )}
 
@@ -1929,7 +1949,7 @@ const [importMsg, setImportMsg] = useState(null);
               <div style={{ display: 'flex', gap: '8px' }}>
                 <a href={siteUrl} target="_blank" rel="noopener"
                   style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '8px 14px', background: 'var(--purple)', color: '#fff', borderRadius: 'var(--radius-sm)', textDecoration: 'none', fontSize: '13px', fontWeight: 500 }}>
-                  🌍 Apri sito pubblico
+                  ✦ Apri lo Spazio Vivo
                 </a>
                 <a href={`${siteUrl}/sitemap.xml`} target="_blank" rel="noopener"
                   style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '8px 14px', background: 'var(--surface)', border: '1px solid var(--border-strong)', color: 'var(--text)', borderRadius: 'var(--radius-sm)', textDecoration: 'none', fontSize: '13px' }}>
@@ -2072,11 +2092,73 @@ const [importMsg, setImportMsg] = useState(null);
         {/* Tab: SEO */}
         {tab === 'seo' && (
           <div>
+            <div className="glass-modal" style={{ marginBottom: '1.25rem', padding: '0.65rem', display: 'flex', gap: '8px', flexWrap: 'wrap', position: 'sticky', top: '12px', zIndex: 20 }}>
+              {[
+                ['network', '◎ Network'],
+                ['opportunities', '◉ Opportunità'],
+                ['solutions', '⚡ Aumenta la visibilità'],
+                ['ideas', '✦ Idee contenuti'],
+                ['overview', '◎ Dati e struttura'],
+              ].map(([section, label]) => <button key={section} className={`btn ${visibilitySection === section ? 'btn-primary' : 'btn-outline'}`} onClick={() => setVisibilitySection(section)} style={{ flex: '1 1 170px', justifyContent: 'center' }}>{label}</button>)}
+            </div>
+
+            {visibilitySection === 'network' && <>
+              <section className="glass-modal" style={{ marginBottom: '1.25rem', padding: 'clamp(1.25rem, 3vw, 2rem)', color: '#fff', background: 'radial-gradient(circle at 88% 8%, rgba(243,92,118,.34), transparent 27%), linear-gradient(135deg,#151A2D,#292359 68%,#48257A)', border: 'none', overflow: 'hidden' }}>
+                <div className="reachability-hero-grid" style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) auto', alignItems: 'center', gap: '1.5rem' }}>
+                  <div>
+                    <div style={{ color: '#D9CEFF', fontSize: '12px', fontWeight: 850, letterSpacing: '.1em', textTransform: 'uppercase' }}>AllSocialToWeb · controllo continuo</div>
+                    <h2 style={{ margin: '.45rem 0 .65rem', color: '#fff', fontSize: 'clamp(25px,4vw,40px)', letterSpacing: '-.04em' }}>Network della Reperibilità</h2>
+                    <p style={{ maxWidth: '720px', margin: 0, color: 'rgba(255,255,255,.76)', lineHeight: 1.65 }}>Unisce Spazio Vivo, sito ufficiale, social e motori di ricerca. Verifica ciò che è pubblicato, collegato, rilevato e capace di generare un’azione.</p>
+                    <span style={{ display: 'inline-flex', marginTop: '.85rem', padding: '.4rem .7rem', borderRadius: '999px', background: 'rgba(255,255,255,.11)', border: '1px solid rgba(255,255,255,.2)', color: '#fff', fontSize: '11px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.06em' }}>Fase attuale · {reachability.stage || 'configurazione'}</span>
+                  </div>
+                  <div style={{ width: '132px', height: '132px', borderRadius: '50%', display: 'grid', placeItems: 'center', textAlign: 'center', background: `conic-gradient(#8E7CFF ${Number(reachability.score || 0) * 3.6}deg, rgba(255,255,255,.12) 0)`, boxShadow: 'inset 0 0 0 12px rgba(17,20,39,.72)' }}>
+                    <div><strong style={{ display: 'block', fontSize: '34px', lineHeight: 1 }}>{reachability.score || 0}</strong><span style={{ fontSize: '11px', color: 'rgba(255,255,255,.7)' }}>/ 100 verificato</span></div>
+                  </div>
+                </div>
+                <div className="reachability-funnel" style={{ display: 'grid', gridTemplateColumns: 'repeat(4,minmax(120px,1fr))', gap: '8px', marginTop: '1.5rem' }}>
+                  {[
+                    ['Pubblicato', reachability.published_pages || 0, (reachability.published_pages || 0) > 0],
+                    ['Rilevato da Google', reachability.google_visible_pages || 0, (reachability.google_visible_pages || 0) > 0],
+                    ['Clic ottenuti', reachability.clicks || 0, (reachability.clicks || 0) > 0],
+                    ['Azioni generate', reachability.actions || 0, (reachability.actions || 0) > 0],
+                  ].map(([label, value, active]) => <div key={label} style={{ padding: '1rem', borderRadius: '14px', background: active ? 'rgba(255,255,255,.15)' : 'rgba(255,255,255,.07)', border: `1px solid ${active ? 'rgba(217,206,255,.5)' : 'rgba(255,255,255,.1)'}` }}><strong style={{ display: 'block', fontSize: '24px' }}>{value}</strong><span style={{ color: 'rgba(255,255,255,.7)', fontSize: '11px' }}>{label}</span></div>)}
+                </div>
+              </section>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(310px,1fr))', gap: '1.25rem', alignItems: 'start' }}>
+                <section className="glass-modal" style={{ padding: '1.5rem' }}>
+                  <div style={{ fontSize: '12px', color: 'var(--primary)', fontWeight: 850, textTransform: 'uppercase', letterSpacing: '.08em' }}>Stato verificabile</div>
+                  <h3 style={{ margin: '.4rem 0 .35rem', color: 'var(--text)' }}>Cosa rende trovabile la tua presenza</h3>
+                  <p style={{ margin: '0 0 1.15rem', color: 'var(--text-muted)', fontSize: '13px', lineHeight: 1.55 }}>Ogni voce completata corrisponde a un segnale reale, non a una promessa di posizione.</p>
+                  <div style={{ display: 'grid', gap: '.65rem' }}>
+                    {(reachability.checks || []).map(check => <div key={check.id} style={{ display: 'grid', gridTemplateColumns: '32px 1fr', gap: '.75rem', alignItems: 'center', padding: '.8rem', borderRadius: '12px', border: '1px solid var(--border)', background: check.done ? 'var(--teal-light)' : 'var(--bg)' }}>
+                      <div style={{ width: '32px', height: '32px', display: 'grid', placeItems: 'center', borderRadius: '50%', background: check.done ? 'var(--teal)' : 'var(--border)', color: check.done ? '#fff' : 'var(--text-muted)', fontWeight: 900 }}>{check.done ? '✓' : '·'}</div>
+                      <div><strong style={{ display: 'block', color: 'var(--text)', fontSize: '13px' }}>{check.label}</strong><span style={{ color: 'var(--text-muted)', fontSize: '11px', lineHeight: 1.35 }}>{check.detail}</span></div>
+                    </div>)}
+                  </div>
+                </section>
+
+                <section className="glass-modal" style={{ padding: '1.5rem', border: '1px solid var(--primary)' }}>
+                  <div style={{ fontSize: '12px', color: 'var(--primary)', fontWeight: 850, textTransform: 'uppercase', letterSpacing: '.08em' }}>Punto centrale</div>
+                  <h3 style={{ margin: '.4rem 0 .35rem', color: 'var(--text)' }}>Collega la tua presenza ufficiale</h3>
+                  <p style={{ margin: '0 0 1.2rem', color: 'var(--text-muted)', fontSize: '13px', lineHeight: 1.55 }}>Questi riferimenti permettono di costruire un’identità coerente tra sito, Spazio Vivo, social e presenza locale.</p>
+                  <label style={{ display: 'block', marginBottom: '.9rem' }}><span style={{ display: 'block', marginBottom: '.35rem', fontSize: '12px', fontWeight: 750 }}>Sito ufficiale</span><input value={reachabilityDraft.official_site_url || ''} onChange={e => setReachabilityDraft(prev => ({ ...prev, official_site_url: e.target.value }))} placeholder="https://www.tuodominio.it" style={{ width: '100%', padding: '11px 13px', borderRadius: '10px', border: '1px solid var(--border-strong)', background: 'var(--bg)', color: 'var(--text)' }} /></label>
+                  <label style={{ display: 'block', marginBottom: '.9rem' }}><span style={{ display: 'block', marginBottom: '.35rem', fontSize: '12px', fontWeight: 750 }}>Profilo Google dell’attività</span><input value={reachabilityDraft.business_profile_url || ''} onChange={e => setReachabilityDraft(prev => ({ ...prev, business_profile_url: e.target.value }))} placeholder="Link Google Maps o Business Profile" style={{ width: '100%', padding: '11px 13px', borderRadius: '10px', border: '1px solid var(--border-strong)', background: 'var(--bg)', color: 'var(--text)' }} /></label>
+                  <label style={{ display: 'block', marginBottom: '.9rem' }}><span style={{ display: 'block', marginBottom: '.35rem', fontSize: '12px', fontWeight: 750 }}>Per cosa vuoi essere trovato principalmente?</span><input value={reachabilityDraft.primary_topic || ''} onChange={e => setReachabilityDraft(prev => ({ ...prev, primary_topic: e.target.value }))} placeholder="Es. agriturismo con ristorante vicino Roma" style={{ width: '100%', padding: '11px 13px', borderRadius: '10px', border: '1px solid var(--border-strong)', background: 'var(--bg)', color: 'var(--text)' }} /></label>
+                  <label style={{ display: 'block', marginBottom: '.9rem' }}><span style={{ display: 'block', marginBottom: '.35rem', fontSize: '12px', fontWeight: 750 }}>Territori serviti · uno per riga</span><textarea value={(reachabilityDraft.service_areas || []).join('\n')} onChange={e => setReachabilityDraft(prev => ({ ...prev, service_areas: e.target.value.split('\n') }))} placeholder={'Roma\nCastelli Romani\nLazio'} rows={3} style={{ width: '100%', padding: '11px 13px', borderRadius: '10px', border: '1px solid var(--border-strong)', background: 'var(--bg)', color: 'var(--text)', resize: 'vertical' }} /></label>
+                  <label style={{ display: 'flex', gap: '.65rem', alignItems: 'flex-start', padding: '.85rem', borderRadius: '11px', background: 'var(--bg)', border: '1px solid var(--border)', fontSize: '12px', lineHeight: 1.45, marginBottom: '1rem' }}><input type="checkbox" checked={!!reachabilityDraft.reciprocal_link_confirmed} onChange={e => setReachabilityDraft(prev => ({ ...prev, reciprocal_link_confirmed: e.target.checked }))} style={{ marginTop: '2px' }} /><span>Ho inserito nel sito ufficiale un collegamento allo Spazio Vivo. Questo crea un ponte percorribile in entrambe le direzioni.</span></label>
+                  <button className="btn btn-primary" onClick={saveReachabilityNetwork} disabled={savingReachability} style={{ width: '100%', justifyContent: 'center' }}>{savingReachability ? 'Aggiornamento…' : 'Aggiorna il Network'}</button>
+                </section>
+              </div>
+              <div style={{ marginTop: '1rem', padding: '1rem 1.15rem', borderRadius: '14px', background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text-muted)', fontSize: '12px', lineHeight: 1.55 }}><strong style={{ color: 'var(--text)' }}>Garanzia operativa:</strong> AllSocialToWeb può garantire pubblicazione, accessibilità, collegamenti, segnali tecnici e monitoraggio. L’indicizzazione e la posizione finale restano decisioni dei motori di ricerca.</div>
+            </>}
+
+            {visibilitySection === 'overview' && <>
             <div className="glass-modal" style={{ marginBottom: '1.5rem', padding: '1.5rem' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap', alignItems: 'flex-start' }}>
                 <div>
                   <h3 style={{ margin: '0 0 0.45rem', color: 'var(--primary)' }}>🌐 La rete sta distribuendo i tuoi contenuti</h3>
-                  <p style={{ margin: 0, fontSize: '14px', color: 'var(--text-muted)', lineHeight: 1.65, maxWidth: '700px' }}>Il tuo sito e i suoi articoli sono collegati dall’hub pubblico di AllSocialToWeb e inseriti nella mappa generale del dominio. Ogni nuovo articolo entra automaticamente nella rete, senza configurazioni da parte tua.</p>
+                  <p style={{ margin: 0, fontSize: '14px', color: 'var(--text-muted)', lineHeight: 1.65, maxWidth: '700px' }}>Il tuo Spazio Vivo e i suoi contenuti sono collegati dall’hub pubblico di AllSocialToWeb. Ogni nuovo contenuto entra automaticamente nella rete, senza configurazioni da parte tua.</p>
                 </div>
                 <span style={{ padding: '9px 13px', borderRadius: '999px', background: 'var(--teal-light)', color: 'var(--teal)', fontSize: '12px', fontWeight: 800 }}>Attivo</span>
               </div>
@@ -2085,7 +2167,7 @@ const [importMsg, setImportMsg] = useState(null);
                   ['Pagine nella rete', networkPublishedPages],
                   ['Viste su Google · 30 giorni', Number(visibility.impressions || 0).toLocaleString('it-IT')],
                   ['Clic da Google · 30 giorni', Number(visibility.clicks || 0).toLocaleString('it-IT')],
-                  ['Visite al sito · 30 giorni', Number(visibility.unique_visitors || 0).toLocaleString('it-IT')],
+                  ['Visite allo Spazio Vivo · 30 giorni', Number(visibility.unique_visitors || 0).toLocaleString('it-IT')],
                   ['Azioni verso l’attività', Number(visibility.actions || 0).toLocaleString('it-IT')],
                 ].map(([label,value]) => <div key={label} style={{ padding: '1rem', borderRadius: '12px', background: 'var(--bg)', border: '1px solid var(--border)' }}><div style={{ fontSize: '26px', fontWeight: 850, color: 'var(--text)' }}>{value}</div><div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>{label}</div></div>)}
               </div>
@@ -2099,7 +2181,7 @@ const [importMsg, setImportMsg] = useState(null);
               <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem', alignItems: 'flex-start', flexWrap: 'wrap' }}>
                 <div>
                   <h3 style={{ margin: '0 0 0.4rem', color: 'var(--text)' }}>Pagine fondamentali gestite dal sistema</h3>
-                  <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '14px', lineHeight: 1.6, maxWidth: '680px' }}>Il sistema crea solo pagine sostenute da informazioni reali nei tuoi contenuti e dalla strategia che hai dichiarato in Home.</p>
+                  <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '14px', lineHeight: 1.6, maxWidth: '680px' }}>Il sistema crea pagine sostenute da informazioni reali nei contenuti. Se compili la Strategia opzionale, può renderle ancora più mirate.</p>
                 </div>
                 <button className="btn btn-primary" onClick={rebuildSeoFoundation} disabled={savingProfile}>{savingProfile ? 'Aggiornamento…' : 'Aggiorna pagine SEO'}</button>
               </div>
@@ -2115,12 +2197,13 @@ const [importMsg, setImportMsg] = useState(null);
               <p style={{ margin: '0 0 1rem', color: 'var(--text-muted)', fontSize: '14px' }}>Questa è la struttura che rende i contenuti raggiungibili dal dominio principale fino ai singoli articoli.</p>
               <SiteMapGraph posts={posts} siteUrl={siteUrl} siteTitle={data?.site?.title || user?.name || user?.slug} foundationPages={seoFoundation.pages || []} />
             </div>
+            </>}
 
-            <div className="glass-modal" style={{ marginBottom: '1.5rem', padding: '1.5rem', border: '1px solid var(--primary)' }}>
+            {visibilitySection === 'opportunities' && <div className="glass-modal" style={{ marginBottom: '1.5rem', padding: '1.5rem', border: '1px solid var(--primary)' }}>
               <div style={{ maxWidth: '760px' }}>
                 <div style={{ color: 'var(--primary)', fontSize: '12px', fontWeight: 850, textTransform: 'uppercase', letterSpacing: '.08em' }}>Analisi azionabile</div>
                 <h3 style={{ margin: '0.4rem 0', color: 'var(--text)', fontSize: '22px' }}>Quello che i social da soli non possono fare</h3>
-                <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '14px', lineHeight: 1.65 }}>Incrociamo la strategia dichiarata, i contenuti pubblicati, le ricerche Google e le azioni sul sito. Ogni suggerimento spiega il dato o la lacuna da cui nasce.</p>
+                <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '14px', lineHeight: 1.65 }}>Incrociamo contenuti pubblicati, patrimonio visuale, ricerche Google e azioni nello Spazio Vivo. Se hai compilato la Strategia opzionale, useremo anche quella.</p>
               </div>
               <div style={{ display: 'grid', gap: '0.8rem', marginTop: '1.2rem' }}>
                 {visibilityOpportunities.map((opportunity, index) => (
@@ -2131,9 +2214,9 @@ const [importMsg, setImportMsg] = useState(null);
                   </div>
                 ))}
               </div>
-            </div>
+            </div>}
 
-            <div id="ideas" className="glass-modal" style={{ marginBottom: '1.5rem', padding: '1.5rem' }}>
+            {visibilitySection === 'ideas' && <div id="ideas" className="glass-modal" style={{ marginBottom: '1.5rem', padding: '1.5rem' }}>
               <h3 style={{ margin: '0 0 0.4rem', color: 'var(--text)' }}>💡 Contenuti costruiti sui tuoi obiettivi</h3>
               <p style={{ margin: '0 0 1.2rem', color: 'var(--text-muted)', fontSize: '14px' }}>Queste idee combinano ciò che emerge dai social con pubblico, territorio, servizi prioritari e obiettivi indicati da te.</p>
               <div style={{ display: 'grid', gap: '0.8rem' }}>
@@ -2151,9 +2234,9 @@ const [importMsg, setImportMsg] = useState(null);
                   </div>
                 ))}
               </div>
-            </div>
+            </div>}
 
-            <div id="modules" className="glass-modal" style={{ marginBottom: '1.5rem', padding: '1.5rem', background: 'linear-gradient(145deg, var(--surface), var(--primary-light))' }}>
+            {visibilitySection === 'solutions' && <div id="modules" className="glass-modal" style={{ marginBottom: '1.5rem', padding: '1.5rem', background: 'linear-gradient(145deg, var(--surface), var(--primary-light))' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem', alignItems: 'flex-start', flexWrap: 'wrap' }}>
                 <div style={{ maxWidth: '720px' }}>
                   <div style={{ color: 'var(--primary)', fontSize: '12px', fontWeight: 850, textTransform: 'uppercase', letterSpacing: '.08em' }}>Soluzioni modulari</div>
@@ -2175,9 +2258,9 @@ const [importMsg, setImportMsg] = useState(null);
                 ))}
               </div>
               <div style={{ marginTop: '1rem', color: 'var(--text-muted)', fontSize: '12px', lineHeight: 1.55 }}>I prezzi mostrati sono proposte commerciali e non includono eventuali budget pubblicitari. Nessun risultato di posizionamento o vendita viene garantito.</div>
-            </div>
+            </div>}
 
-            {isAdmin && (
+            {isAdmin && visibilitySection === 'overview' && (
               <div className="glass-modal" style={{ marginBottom: '1.5rem', padding: '1.5rem' }}>
                 <h3 style={{ marginBottom: '0.35rem', color: 'var(--primary)' }}>Visibilità globale (Admin)</h3>
                 <p style={{ margin: '0 0 1rem', color: 'var(--text-muted)', fontSize: '13px' }}>Dettaglio operativo degli ultimi 30 giorni, separato per profilo.</p>
@@ -3102,7 +3185,7 @@ const [importMsg, setImportMsg] = useState(null);
             <div className="glass-modal" style={{ marginBottom: '1.5rem', padding: '1.5rem' }}>
               <h3 style={{ marginBottom: '0.5rem', color: 'var(--primary)' }}>Sincronizzazione automatica</h3>
               <p style={{ fontSize: '14px', color: 'var(--text-muted)', marginBottom: '0.75rem', fontWeight: 500 }}>
-                Il tuo sito si aggiorna automaticamente ogni 6 ore quando pubblichi nuovi contenuti sui social.
+                Il tuo Spazio Vivo si aggiorna automaticamente ogni 6 ore quando pubblichi nuovi contenuti sui social.
               </p>
               {site?.last_sync && (
                 <p style={{ fontSize: '14px', color: 'var(--primary-dark)', fontWeight: 700 }}>
@@ -3112,10 +3195,10 @@ const [importMsg, setImportMsg] = useState(null);
             </div>
 
             <div className="glass-modal" style={{ padding: '1.5rem' }}>
-              <h3 style={{ marginBottom: '1rem', color: 'var(--primary)' }}>🌍 Il tuo sito pubblico</h3>
+              <h3 style={{ marginBottom: '1rem', color: 'var(--primary)' }}>✦ Il tuo Spazio Vivo</h3>
               <div style={{ background: 'rgba(0,240,255,0.05)', border: '1px solid rgba(0,240,255,0.2)', padding: '14px 18px', borderRadius: 'var(--radius-sm)', fontFamily: 'monospace', fontSize: '15px', marginBottom: '16px', wordBreak: 'break-all', color: 'var(--text)' }}>{siteUrl}</div>
               <div style={{ display: 'flex', gap: '12px' }}>
-                <a href={siteUrl} target="_blank" rel="noopener" className="btn btn-primary" style={{ textDecoration: 'none', padding: '12px 20px', fontWeight: 700 }}>🌍 APRI SITO</a>
+                <a href={siteUrl} target="_blank" rel="noopener" className="btn btn-primary" style={{ textDecoration: 'none', padding: '12px 20px', fontWeight: 700 }}>✦ APRI LO SPAZIO VIVO</a>
                 <a href={`${siteUrl}/sitemap.xml`} target="_blank" className="btn btn-outline" style={{ textDecoration: 'none', fontSize: '14px', padding: '12px 20px', fontWeight: 700 }}>Sitemap XML</a>
               </div>
             </div>

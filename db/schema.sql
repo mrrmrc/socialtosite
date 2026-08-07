@@ -102,6 +102,8 @@ CREATE TABLE IF NOT EXISTS sites (
   seo_foundation LONGTEXT,
   seo_foundation_hash CHAR(64),
   seo_foundation_updated_at DATETIME,
+  reachability_profile LONGTEXT,
+  reachability_updated_at DATETIME,
   gsc_verification VARCHAR(255),
   last_sync     DATETIME,
   created_at    DATETIME DEFAULT NOW(),

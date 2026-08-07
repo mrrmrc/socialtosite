@@ -40,6 +40,7 @@ require_once __DIR__ . '/services/ingest.php';
 require_once __DIR__ . '/services/editorial_engine.php';
 require_once __DIR__ . '/services/visibility.php';
 require_once __DIR__ . '/services/seo_foundation.php';
+require_once __DIR__ . '/services/reachability.php';
 
 cors();
 
@@ -83,6 +84,8 @@ function ensureSiteSchemaUpgrades(): void {
         'ALTER TABLE sites ADD COLUMN seo_foundation LONGTEXT NULL',
         'ALTER TABLE sites ADD COLUMN seo_foundation_hash CHAR(64) NULL',
         'ALTER TABLE sites ADD COLUMN seo_foundation_updated_at DATETIME NULL',
+        'ALTER TABLE sites ADD COLUMN reachability_profile LONGTEXT NULL',
+        'ALTER TABLE sites ADD COLUMN reachability_updated_at DATETIME NULL',
     ];
 
     foreach ($queries as $query) {
@@ -1105,7 +1108,8 @@ if ($action === 'site' && $method === 'GET') {
         // funzionando e a costruire suggerimenti SEO basati su evidenze reali.
         $visibility['top_queries'] = VisibilityAnalytics::topQueries($userId, 6);
         $visibility['top_pages'] = VisibilityAnalytics::topPages($userId, 6);
-        json(['site' => $site, 'posts' => $posts, 'connections' => $connections, 'sources' => $sources, 'visibility' => $visibility]);
+        $reachability = ReachabilityNetwork::summary($userId, $site, $sources, $posts, $visibility);
+        json(['site' => $site, 'posts' => $posts, 'connections' => $connections, 'sources' => $sources, 'visibility' => $visibility, 'reachability' => $reachability]);
     } catch (Throwable $e) {
         file_put_contents(__DIR__ . '/site_error.log', $e->getMessage() . "\n" . $e->getTraceAsString());
         jsonError($e->getMessage());
@@ -1264,6 +1268,11 @@ if ($action === 'refresh-understanding' && $method === 'POST') {
 
 if ($action === 'rebuild-seo-foundation' && $method === 'POST') {
     json(['ok' => true, 'seo_foundation' => SeoFoundation::rebuild($userId, true)]);
+}
+
+if ($action === 'reachability-update' && $method === 'POST') {
+    $profile = ReachabilityNetwork::update($userId, body());
+    json(['ok' => true, 'profile' => $profile]);
 }
 
 // ── POST design-site (3 proposte Graphic Designer) ───────────────────────

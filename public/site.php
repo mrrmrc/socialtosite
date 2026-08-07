@@ -7,6 +7,7 @@ header("Pragma: no-cache");
 require_once __DIR__ . '/../config/db.php';
 require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/../api/services/seo_foundation.php';
+require_once __DIR__ . '/../api/services/reachability.php';
 
 $slug   = $_GET['slug']   ?? '';
 $action = $_GET['action'] ?? 'site';
@@ -19,10 +20,21 @@ if (!$user) { http_response_code(404); echo '<h1>Sito non trovato</h1>'; exit; }
 
 $site  = DB::fetch('SELECT * FROM sites WHERE user_id=?', [$user['id']]);
 if (!$site) $site = []; // Fallback sicuro: evita crash su array access
+$reachabilityProfile = ReachabilityNetwork::normalize(ReachabilityNetwork::decode($site['reachability_profile'] ?? null));
 $sources = DB::fetchAll(
     'SELECT platform, label, url, topic_summary FROM social_sources WHERE user_id=? AND active=1 ORDER BY platform, id DESC',
     [$user['id']]
 );
+$officialSiteUrl = trim((string)($reachabilityProfile['official_site_url'] ?? ''));
+if ($officialSiteUrl === '') {
+    foreach ($sources as $source) {
+        if (strtolower((string)($source['platform'] ?? '')) !== 'website') continue;
+        $fallbackProfile = ReachabilityNetwork::normalize(['official_site_url' => $source['url'] ?? '']);
+        $officialSiteUrl = $fallbackProfile['official_site_url'];
+        if ($officialSiteUrl !== '') break;
+    }
+}
+$businessProfileUrl = trim((string)($reachabilityProfile['business_profile_url'] ?? ''));
 $posts = DB::fetchAll(
     'SELECT * FROM posts WHERE user_id=? AND published=1 ORDER BY featured DESC, published_at DESC',
     [$user['id']]
@@ -97,7 +109,7 @@ if ($action === 'sitemap') {
     header('Content-Type: application/xml; charset=utf-8');
     $base = BASE_URL . '/' . $slug;
     echo '<?xml version="1.0" encoding="UTF-8"?>' . "\n";
-    echo '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">' . "\n";
+    echo '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">' . "\n";
     echo "  <url><loc>$base</loc><changefreq>daily</changefreq><priority>1.0</priority></url>\n";
     foreach ($foundationPagesBySlug as $page) {
         $pageUrl = $base . '/' . rawurlencode($page['slug']);
@@ -109,7 +121,14 @@ if ($action === 'sitemap') {
     foreach ($allPosts as $p) {
         $loc = "$base/{$p['slug']}";
         $mod = substr($p['published_at'] ?? $p['imported_at'] ?? '', 0, 10);
-        echo "  <url><loc>$loc</loc><lastmod>$mod</lastmod><priority>0.8</priority></url>\n";
+        $locXml = htmlspecialchars($loc, ENT_XML1, 'UTF-8');
+        $imageXml = '';
+        if (!empty($p['media_url']) && strtolower((string)($p['media_type'] ?? '')) !== 'video') {
+            $mediaXml = htmlspecialchars((string)$p['media_url'], ENT_XML1, 'UTF-8');
+            $captionXml = htmlspecialchars(postTitle($p), ENT_XML1, 'UTF-8');
+            $imageXml = "<image:image><image:loc>$mediaXml</image:loc><image:caption>$captionXml</image:caption></image:image>";
+        }
+        echo "  <url><loc>$locXml</loc><lastmod>$mod</lastmod>$imageXml<priority>0.8</priority></url>\n";
     }
     echo '</urlset>';
     exit;
@@ -1409,15 +1428,20 @@ if (!isset($themeCSS[$archetype]) || !empty($site['site_ai_data'])) {
 // Sostituisce eventuali tag $accent nel CSS per sicurezza
 $activeCss = str_replace('#$accent', $accent, $activeCss);
 
-$sameAs = array_values(array_filter(array_map(static fn($source) => trim((string)($source['url'] ?? '')), $sources)));
+$sameAs = array_values(array_unique(array_filter(array_merge(
+    array_map(static fn($source) => trim((string)($source['url'] ?? '')), $sources),
+    [$officialSiteUrl, $businessProfileUrl]
+))));
 $businessSchemaType = (string)($seoFoundation['business_type'] ?? 'Organization');
 if (!in_array($businessSchemaType, ['Organization', 'LocalBusiness', 'LodgingBusiness', 'Restaurant', 'ProfessionalService', 'Person'], true)) $businessSchemaType = 'Organization';
 $identityText = mb_strtolower($displayTitle . ' ' . html_entity_decode($bio, ENT_QUOTES, 'UTF-8') . ' ' . ($understanding['vertical_label'] ?? '') . ' ' . ($understanding['vertical_slug'] ?? ''));
 if ($businessSchemaType === 'Organization' && preg_match('/agritur|hospital|hotel|b&b|resort|country house|alloggi|camere/u', $identityText)) $businessSchemaType = 'LodgingBusiness';
 elseif ($businessSchemaType === 'Organization' && preg_match('/ristor|trattoria|pizzer|osteria/u', $identityText)) $businessSchemaType = 'Restaurant';
-$businessSchema = ['@context'=>'https://schema.org','@type'=>$businessSchemaType,'@id'=>$siteUrl . '#identity','name'=>$displayTitle,'url'=>$siteUrl,'description'=>html_entity_decode($bio, ENT_QUOTES, 'UTF-8'),'sameAs'=>$sameAs];
+$businessSchema = ['@context'=>'https://schema.org','@type'=>$businessSchemaType,'@id'=>$siteUrl . '#identity','name'=>$displayTitle,'url'=>$officialSiteUrl ?: $siteUrl,'mainEntityOfPage'=>$siteUrl,'description'=>html_entity_decode($bio, ENT_QUOTES, 'UTF-8'),'sameAs'=>$sameAs];
 if ($logoUrl !== '') $businessSchema['logo'] = $logoUrl;
 if ($coverUrl !== '') $businessSchema['image'] = $coverUrl;
+if (!empty($reachabilityProfile['primary_topic'])) $businessSchema['knowsAbout'] = $reachabilityProfile['primary_topic'];
+if (!empty($reachabilityProfile['service_areas'])) $businessSchema['areaServed'] = array_map(static fn($area) => ['@type'=>'Place','name'=>$area], $reachabilityProfile['service_areas']);
 $jsonLdFlags = JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT;
 
 // HTTP Link headers per sitemap e feed
@@ -1797,8 +1821,12 @@ header('Link: <' . $siteUrl . '/feed.xml>; rel="alternate"; type="application/at
     /* Identita unica della rete AllSocialToWeb */
     :root { --accent:#5B5CE2; --bg:#F6F7FB; --card-bg:#fff; --text:#182033; --border:#E3E6EF; --radius:18px; }
     body.theme-network-standard { background:#F6F7FB; color:#182033; }
-    .network-bar { background:#182033; color:#fff; padding:.55rem 1.25rem; font-size:.78rem; letter-spacing:.04em; text-align:center; }
-    .network-bar a { color:#fff; font-weight:800; }
+    .network-bar { background:linear-gradient(110deg,#151A2D 0%,#252058 58%,#5B2FA8 100%); color:#fff; padding:.65rem 1.25rem; font-size:.78rem; letter-spacing:.02em; }
+    .network-signature { width:min(100%,1160px); margin:0 auto; display:flex; align-items:center; gap:.75rem; }
+    .network-signature-brand { display:inline-flex; align-items:center; gap:.55rem; color:#fff; font-weight:800; }
+    .network-signature-brand img { width:28px; height:28px; object-fit:contain; filter:drop-shadow(0 3px 8px rgba(0,0,0,.2)); }
+    .network-product-name { display:inline-flex; align-items:center; min-height:30px; padding:.35rem .75rem; border:1px solid rgba(255,255,255,.22); border-radius:999px; background:rgba(255,255,255,.11); font-weight:800; }
+    .network-trust { margin-left:auto; color:rgba(255,255,255,.76); }
     .theme-network-standard .navbar { background:rgba(255,255,255,.96)!important; border-bottom:1px solid #E3E6EF; padding:1rem max(1.25rem,calc((100vw - 1160px)/2))!important; }
     .theme-network-standard .nav-brand { color:#182033; }
     .nav-brand-fallback { display:none; }
@@ -1830,11 +1858,28 @@ header('Link: <' . $siteUrl . '/feed.xml>; rel="alternate"; type="application/at
     .content-method { font-size:.9rem; line-height:1.65; color:#566078; border-left:4px solid #5B5CE2; }
     .theme-network-standard .footer { background:#182033; border-radius:0; }
     /* Percorsi Vivi: esperienza primaria della home */
-    .living-experience { margin:0 0 3rem; padding:clamp(1.3rem,4vw,3rem); border-radius:32px; background:radial-gradient(circle at 86% 0%,rgba(91,92,226,.18),transparent 34%),#EEF1F8; border:1px solid #DDE2EE; overflow:hidden; }
+    .living-experience { position:relative; margin:0 0 3rem; padding:clamp(1.3rem,4vw,3rem); border-radius:32px; background:radial-gradient(circle at 88% -5%,rgba(112,66,238,.25),transparent 33%),radial-gradient(circle at 4% 42%,rgba(243,92,118,.11),transparent 26%),#EEF1F8; border:1px solid #DDE2EE; overflow:hidden; box-shadow:0 28px 80px rgba(33,31,90,.09); }
     .living-intro { max-width:820px; margin-bottom:1.4rem; }
     .living-kicker { display:inline-flex; align-items:center; gap:.5rem; color:#5B5CE2; font-size:.78rem; font-weight:800; letter-spacing:.1em; text-transform:uppercase; }
     .living-intro h1 { margin:.55rem 0 .75rem; font-size:clamp(2.5rem,6vw,5.2rem); line-height:.98; letter-spacing:-.055em; color:#182033; }
     .living-intro p { max-width:720px; color:#566078; font-size:1.08rem; line-height:1.7; }
+    .living-media-vault { position:relative; margin:1.8rem 0; padding:clamp(1rem,3vw,1.5rem); border-radius:26px; color:#fff; background:radial-gradient(circle at 92% 4%,rgba(243,92,118,.35),transparent 25%),linear-gradient(140deg,#151A2D,#292359 72%,#40226C); box-shadow:0 22px 48px rgba(24,32,51,.18); overflow:hidden; }
+    .living-media-vault::before { content:'✦'; position:absolute; right:1.2rem; top:-2.4rem; color:rgba(255,255,255,.07); font-size:10rem; line-height:1; pointer-events:none; }
+    .living-media-vault-head { position:relative; display:flex; justify-content:space-between; align-items:end; gap:2rem; margin-bottom:1rem; }
+    .living-media-vault-head span { color:#D9CEFF; font-size:.72rem; font-weight:900; letter-spacing:.12em; text-transform:uppercase; }
+    .living-media-vault-head h2 { max-width:700px; margin:.3rem 0 0; color:#fff; font-size:clamp(1.55rem,3.4vw,2.65rem); line-height:1.05; letter-spacing:-.035em; }
+    .living-media-vault-head p { max-width:330px; margin:0; color:rgba(255,255,255,.72); font-size:.88rem; line-height:1.5; }
+    .living-media-grid { position:relative; display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); grid-auto-rows:155px; gap:.75rem; }
+    .living-media-item { position:relative; display:block; min-width:0; overflow:hidden; border:1px solid rgba(255,255,255,.14); border-radius:17px; background:#252A40; color:#fff; transform:translateZ(0); }
+    .living-media-featured { grid-column:span 2; grid-row:span 2; }
+    .living-media-item img,.living-media-item video { width:100%; height:100%; display:block; object-fit:cover; transition:transform .45s ease,filter .45s ease; }
+    .living-media-item::after { content:''; position:absolute; inset:30% 0 0; background:linear-gradient(transparent,rgba(8,10,20,.92)); pointer-events:none; }
+    .living-media-item:hover img,.living-media-item:hover video { transform:scale(1.045); filter:saturate(1.12); }
+    .living-media-caption { position:absolute; z-index:2; left:.8rem; right:.8rem; bottom:.7rem; display:flex; flex-direction:column; gap:.15rem; }
+    .living-media-caption small { color:#D8CDFF; font-size:.64rem; font-weight:900; letter-spacing:.08em; text-transform:uppercase; }
+    .living-media-caption strong { display:-webkit-box; overflow:hidden; color:#fff; font-size:.82rem; line-height:1.25; -webkit-line-clamp:2; -webkit-box-orient:vertical; }
+    .living-media-featured .living-media-caption strong { font-size:1.05rem; }
+    .living-media-play { position:absolute; z-index:3; top:.7rem; right:.7rem; display:grid; width:2rem; height:2rem; place-items:center; border-radius:50%; background:rgba(255,255,255,.9); color:#292359; font-size:.72rem; box-shadow:0 6px 18px rgba(0,0,0,.25); }
     .living-intents { display:flex; flex-wrap:wrap; gap:.65rem; margin:1.4rem 0 1.8rem; }
     .living-intent { appearance:none; border:1px solid #D6DCE8; background:#fff; color:#182033; padding:.75rem 1rem; border-radius:999px; font:inherit; font-weight:700; cursor:pointer; transition:transform .2s,border-color .2s,background .2s; }
     .living-intent:hover { transform:translateY(-2px); border-color:#5B5CE2; }
@@ -1866,7 +1911,7 @@ header('Link: <' . $siteUrl . '/feed.xml>; rel="alternate"; type="application/at
     .living-archive[open] > summary::after { content:'−'; }
     .living-archive-body { padding-top:2rem; }
     a:focus-visible,button:focus-visible,summary:focus-visible { outline:3px solid #FFBF47; outline-offset:3px; }
-    @media(max-width:768px){ .foundation-directory{padding:1.25rem}.foundation-header{border-radius:20px}.network-bar{font-size:.7rem}.theme-network-standard .navbar{padding:1rem 1.25rem!important}.living-experience{border-radius:22px}.living-layout{grid-template-columns:1fr}.living-compass{position:static}.living-stage{padding-left:1.9rem}.living-chapter::before{left:-1.55rem}.living-intro h1{font-size:clamp(2.25rem,12vw,3.5rem)} }
+    @media(max-width:768px){ .foundation-directory{padding:1.25rem}.foundation-header{border-radius:20px}.network-bar{font-size:.7rem;padding:.55rem .85rem}.network-signature{gap:.45rem}.network-signature-brand strong{display:none}.network-product-name{padding:.3rem .6rem}.network-trust{margin-left:auto;max-width:145px;text-align:right;line-height:1.25}.theme-network-standard .navbar{padding:1rem 1.25rem!important}.living-experience{border-radius:22px}.living-media-vault-head{display:block}.living-media-vault-head p{margin-top:.7rem}.living-media-grid{grid-template-columns:repeat(2,minmax(0,1fr));grid-auto-rows:135px}.living-media-featured{grid-column:span 2;grid-row:span 2}.living-layout{grid-template-columns:1fr}.living-compass{position:static}.living-stage{padding-left:1.9rem}.living-chapter::before{left:-1.55rem}.living-intro h1{font-size:clamp(2.25rem,12vw,3.5rem)} }
   </style>
 </head>
 <?php
@@ -1884,7 +1929,13 @@ header('Link: <' . $siteUrl . '/feed.xml>; rel="alternate"; type="application/at
   }
 ?>
 <body class="theme-<?= h($archetype) ?> layout-<?= $layoutVariant ?>">
-<div class="network-bar">Parte della rete <a href="<?= BASE_URL ?>/scopri">AllSocialToWeb</a> · contenuti collegati alle fonti ufficiali</div>
+<div class="network-bar">
+  <div class="network-signature">
+    <a class="network-signature-brand" href="<?= BASE_URL ?>/scopri"><img src="/logo-cropped.png" alt=""><strong>AllSocialToWeb</strong></a>
+    <span class="network-product-name">✦ Spazio Vivo</span>
+    <span class="network-trust">Contenuti collegati alle fonti ufficiali</span>
+  </div>
+</div>
 
 <?php
 ob_start();
@@ -1925,8 +1976,9 @@ ob_start();
     <?php endforeach; ?>
   </div>
   <?php endif; ?>
+  <?php if ($officialSiteUrl): ?><p><a href="<?= h($officialSiteUrl) ?>" target="_blank" rel="noopener">Visita il sito ufficiale →</a></p><?php endif; ?>
   <div class="footer-bottom">
-    <span>&copy; <?= date('Y') ?> <?= $title ?>. Creato con <a href="<?= BASE_URL ?>">SocialToSite</a>.</span>
+    <span>&copy; <?= date('Y') ?> <?= $title ?>. Uno <a href="<?= BASE_URL ?>">Spazio Vivo AllSocialToWeb</a>.</span>
     <span><a href="<?= BASE_URL ?>/scopri">Esplora la rete</a> · <a href="<?= $siteUrl ?>/sitemap.xml">Sitemap</a></span>
   </div>
 <?php
@@ -1951,6 +2003,7 @@ ob_start();
       </section>
     <?php elseif (($foundationPage['page_type'] ?? '') === 'contacts'): ?>
       <section class="official-channels" aria-label="Canali ufficiali">
+        <?php if ($officialSiteUrl): ?><a class="official-channel" href="<?= h($officialSiteUrl) ?>" target="_blank" rel="noopener"><strong>Sito ufficiale</strong><span>Vai al sito dell’attività →</span></a><?php endif; ?>
         <?php foreach ($sources as $source): ?><a class="official-channel" href="<?= h($source['url']) ?>" target="_blank" rel="noopener"><strong><?= h($source['label'] ?: ucfirst($source['platform'])) ?></strong><span>Apri il canale ufficiale <?= h($source['platform']) ?> →</span></a><?php endforeach; ?>
       </section>
     <?php else: ?>
@@ -2171,10 +2224,30 @@ ob_start();
   <?php if (!empty($livingPaths)): $initialLivingPath = $livingPaths[0]; ?>
   <section class="living-experience" id="percorsi-vivi" aria-labelledby="living-title">
     <header class="living-intro">
-      <span class="living-kicker">✦ Esplora per intenzione, non per menu</span>
+      <span class="living-kicker">AllSocialToWeb · Spazio Vivo</span>
       <h1 id="living-title"><?= h($initialLivingPath['title']) ?></h1>
       <p id="living-subtitle"><?= h($initialLivingPath['subtitle']) ?></p>
     </header>
+    <?php if (!empty($mediaPosts)): ?>
+    <section class="living-media-vault" aria-labelledby="media-vault-title">
+      <div class="living-media-vault-head">
+        <div><span>Patrimonio ritrovato</span><h2 id="media-vault-title">Immagini e video che non scompaiono più nel feed</h2></div>
+        <p><?= count($mediaPosts) ?> contenuti visuali ora organizzati, collegabili e trovabili nel tempo.</p>
+      </div>
+      <div class="living-media-grid">
+        <?php foreach (array_slice($mediaPosts, 0, 8) as $mediaIndex => $mediaPost): $mediaUrl = $mediaPost['media_url'] ?? ''; $mediaType = strtolower((string)($mediaPost['media_type'] ?? '')); ?>
+        <a class="living-media-item<?= $mediaIndex === 0 ? ' living-media-featured' : '' ?>" href="<?= $siteUrl . '/' . h($mediaPost['slug'] ?? '') ?>">
+          <?php if ($mediaType === 'video' || preg_match('~\.(mp4|mov|webm)(\?|$)~i', $mediaUrl)): ?>
+            <video muted playsinline preload="metadata"><source src="<?= h($mediaUrl) ?>"></video><span class="living-media-play">▶</span>
+          <?php else: ?>
+            <img src="<?= h($mediaUrl) ?>" alt="<?= h(postTitle($mediaPost)) ?>" loading="lazy">
+          <?php endif; ?>
+          <span class="living-media-caption"><small><?= h(ucfirst((string)($mediaPost['platform'] ?? 'Social'))) ?></small><strong><?= h(postTitle($mediaPost)) ?></strong></span>
+        </a>
+        <?php endforeach; ?>
+      </div>
+    </section>
+    <?php endif; ?>
     <div class="living-intents" aria-label="Scegli il tuo percorso">
       <?php foreach ($livingPaths as $pathIndex => $path): ?>
       <button type="button" class="living-intent" data-path-index="<?= $pathIndex ?>" aria-pressed="<?= $pathIndex === 0 ? 'true' : 'false' ?>"><?= h($path['label']) ?></button>
@@ -2431,6 +2504,11 @@ document.addEventListener('DOMContentLoaded', () => {
     };
     image.addEventListener('error', showBrandFallback);
     if (image.complete && image.naturalWidth === 0) showBrandFallback();
+  });
+  document.querySelectorAll('.living-media-item img, .living-media-item video').forEach(media => {
+    const removeBrokenItem = () => media.closest('.living-media-item')?.remove();
+    media.addEventListener('error', removeBrokenItem);
+    if (media.tagName === 'IMG' && media.complete && media.naturalWidth === 0) removeBrokenItem();
   });
   const analyticsEndpoint = '/api/index.php?action=track';
   const analyticsContext = {

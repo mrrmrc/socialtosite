@@ -179,6 +179,8 @@ h3 { font-size: 18px; font-weight: 600; }
 .mobile-nav { display: none; }
 
 @media (max-width: 768px) {
+  .reachability-hero-grid { grid-template-columns: 1fr !important; }
+  .reachability-funnel { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
   .desktop-sidebar { display: none !important; }
   .mobile-top-header {
     display: flex; justify-content: space-between; align-items: center;
