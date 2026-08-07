@@ -10,12 +10,11 @@ class SeoFoundation {
         static $done = false;
         if ($done) return;
         $done = true;
-        foreach ([
-            'ALTER TABLE sites ADD COLUMN seo_foundation LONGTEXT NULL',
-            'ALTER TABLE sites ADD COLUMN seo_foundation_hash CHAR(64) NULL',
-            'ALTER TABLE sites ADD COLUMN seo_foundation_updated_at DATETIME NULL',
-        ] as $query) {
-            try { DB::execute($query); } catch (Throwable $e) {}
+        $existing = [];
+        try { foreach (DB::fetchAll('SHOW COLUMNS FROM sites') as $column) $existing[$column['Field']] = true; } catch (Throwable $e) { return; }
+        foreach (['seo_foundation'=>'LONGTEXT NULL','seo_foundation_hash'=>'CHAR(64) NULL','seo_foundation_updated_at'=>'DATETIME NULL'] as $column => $definition) {
+            if (isset($existing[$column])) continue;
+            try { DB::execute("ALTER TABLE sites ADD COLUMN `$column` $definition"); } catch (Throwable $e) {}
         }
     }
 
@@ -144,7 +143,7 @@ class SeoFoundation {
         return $cached ?: self::fallback($site, $sources, $posts, $understanding);
     }
 
-    public static function rebuild(int $userId, bool $force = false): array {
+    public static function rebuild(int $userId, bool $force = false, bool $allowAi = true): array {
         self::ensureSchema();
         $site = DB::fetch('SELECT * FROM sites WHERE user_id=?', [$userId]) ?: [];
         $sources = DB::fetchAll('SELECT platform, label, url, topic_summary FROM social_sources WHERE user_id=? AND active=1 ORDER BY id', [$userId]);
@@ -156,7 +155,7 @@ class SeoFoundation {
         }
         $fallback = self::fallback($site, $sources, $posts, $understanding);
         $foundation = $fallback;
-        if ($posts) {
+        if ($posts && $allowAi) {
             try { $foundation = self::normalize(AI::seoFoundation($site, $sources, $posts, $understanding), $posts, $fallback); } catch (Throwable $e) {}
         }
         DB::execute('UPDATE sites SET seo_foundation=?, seo_foundation_hash=?, seo_foundation_updated_at=NOW() WHERE user_id=?', [json_encode($foundation, JSON_UNESCAPED_UNICODE), $fingerprint, $userId]);

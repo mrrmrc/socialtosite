@@ -3272,7 +3272,7 @@ const [importMsg, setImportMsg] = useState(null);
           <span style={{fontSize: '20px'}}>📡</span> Canali
         </button>
         <button className={`mobile-nav-item ${tab === 'seo' ? 'active' : ''}`} onClick={() => setTab('seo')}>
-          <span style={{fontSize: '20px'}}>🕸️</span> Mappa
+          <span style={{fontSize: '20px'}}>◎</span> Network
         </button>
       </div>
       

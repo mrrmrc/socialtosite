@@ -61,38 +61,27 @@ function ensureSiteSchemaUpgrades(): void {
     if ($done) return;
     $done = true;
 
-    $queries = [
-        'ALTER TABLE sites ADD COLUMN cover_url TEXT NULL',
-        'ALTER TABLE sites ADD COLUMN logo_url TEXT NULL',
-        'ALTER TABLE sites ADD COLUMN footer_text TEXT NULL',
-        'ALTER TABLE sites ADD COLUMN accent_color VARCHAR(50) NULL',
-        'ALTER TABLE sites ADD COLUMN accent_secondary VARCHAR(50) NULL',
-        'ALTER TABLE sites ADD COLUMN header_layout VARCHAR(50) NULL',
-        'ALTER TABLE sites ADD COLUMN custom_css TEXT NULL',
-        'ALTER TABLE sites ADD COLUMN hero_tagline TEXT NULL',
-        'ALTER TABLE sites ADD COLUMN cta_text TEXT NULL',
-        'ALTER TABLE sites ADD COLUMN generated_layouts LONGTEXT NULL',
-        'ALTER TABLE sites ADD COLUMN site_ai_data LONGTEXT NULL',
-        'ALTER TABLE sites ADD COLUMN design_archetype VARCHAR(100) NULL',
-        'ALTER TABLE sites ADD COLUMN editorial_dna LONGTEXT NULL',
-        'ALTER TABLE sites ADD COLUMN editorial_memory LONGTEXT NULL',
-        'ALTER TABLE sites ADD COLUMN editorial_engine_state LONGTEXT NULL',
-        'ALTER TABLE sites ADD COLUMN editorial_settings LONGTEXT NULL',
-        'ALTER TABLE sites ADD COLUMN editorial_last_run DATETIME NULL',
-        'ALTER TABLE sites ADD COLUMN site_understanding LONGTEXT NULL',
-        'ALTER TABLE sites ADD COLUMN site_understanding_corrections LONGTEXT NULL',
-        'ALTER TABLE sites ADD COLUMN seo_foundation LONGTEXT NULL',
-        'ALTER TABLE sites ADD COLUMN seo_foundation_hash CHAR(64) NULL',
-        'ALTER TABLE sites ADD COLUMN seo_foundation_updated_at DATETIME NULL',
-        'ALTER TABLE sites ADD COLUMN reachability_profile LONGTEXT NULL',
-        'ALTER TABLE sites ADD COLUMN reachability_updated_at DATETIME NULL',
+    $definitions = [
+        'cover_url'=>'TEXT NULL', 'logo_url'=>'TEXT NULL', 'footer_text'=>'TEXT NULL',
+        'accent_color'=>'VARCHAR(50) NULL', 'accent_secondary'=>'VARCHAR(50) NULL',
+        'header_layout'=>'VARCHAR(50) NULL', 'custom_css'=>'TEXT NULL', 'hero_tagline'=>'TEXT NULL',
+        'cta_text'=>'TEXT NULL', 'generated_layouts'=>'LONGTEXT NULL', 'site_ai_data'=>'LONGTEXT NULL',
+        'design_archetype'=>'VARCHAR(100) NULL', 'editorial_dna'=>'LONGTEXT NULL',
+        'editorial_memory'=>'LONGTEXT NULL', 'editorial_engine_state'=>'LONGTEXT NULL',
+        'editorial_settings'=>'LONGTEXT NULL', 'editorial_last_run'=>'DATETIME NULL',
+        'site_understanding'=>'LONGTEXT NULL', 'site_understanding_corrections'=>'LONGTEXT NULL',
+        'seo_foundation'=>'LONGTEXT NULL', 'seo_foundation_hash'=>'CHAR(64) NULL',
+        'seo_foundation_updated_at'=>'DATETIME NULL', 'reachability_profile'=>'LONGTEXT NULL',
+        'reachability_updated_at'=>'DATETIME NULL', 'account_type'=>"VARCHAR(50) DEFAULT 'business'",
+        'harmonize_agent'=>"VARCHAR(50) NOT NULL DEFAULT 'content_editor'",
     ];
-
-    foreach ($queries as $query) {
-        try {
-            DB::execute($query);
-        } catch (Throwable $e) {
-        }
+    $existing = [];
+    try {
+        foreach (DB::fetchAll('SHOW COLUMNS FROM sites') as $column) $existing[$column['Field']] = true;
+    } catch (Throwable $e) { return; }
+    foreach ($definitions as $column => $definition) {
+        if (isset($existing[$column])) continue;
+        try { DB::execute("ALTER TABLE sites ADD COLUMN `$column` $definition"); } catch (Throwable $e) {}
     }
 }
 
@@ -1063,9 +1052,12 @@ if ($action === 'delete-layout' && $method === 'POST') {
     json(['ok' => true]);
 }
 
-try { DB::execute("ALTER TABLE posts ADD COLUMN edited_title VARCHAR(255)"); } catch(Exception $e) {}
-try { DB::execute("ALTER TABLE posts ADD COLUMN edited_body LONGTEXT"); } catch(Exception $e) {}
-try { DB::execute("ALTER TABLE posts ADD COLUMN edited_excerpt TEXT"); } catch(Exception $e) {}
+$postColumns = [];
+try { foreach (DB::fetchAll('SHOW COLUMNS FROM posts') as $column) $postColumns[$column['Field']] = true; } catch (Throwable $e) {}
+foreach (['edited_title'=>'VARCHAR(255) NULL','edited_body'=>'LONGTEXT NULL','edited_excerpt'=>'TEXT NULL'] as $column => $definition) {
+    if (isset($postColumns[$column])) continue;
+    try { DB::execute("ALTER TABLE posts ADD COLUMN `$column` $definition"); } catch (Throwable $e) {}
+}
 
 // ── GET site ──────────────────────────────────────────────────────────────
 if ($action === 'site' && $method === 'GET') {
@@ -1185,9 +1177,6 @@ if ($action === 'site-update' && $method === 'POST') {
     ensureSiteSchemaUpgrades();
     $b = body();
     
-    // Auto-patch database for account_type (se non esiste)
-    try { DB::execute("ALTER TABLE sites ADD COLUMN account_type VARCHAR(50) DEFAULT 'business'"); } catch (\Exception $e) {}
-    
     $fields = [];
     $params = [];
     if (array_key_exists('title', $b)) { $fields[] = 'title = ?'; $params[] = $b['title']; }
@@ -1243,7 +1232,7 @@ if (array_key_exists('theme', $b)) {
         DB::execute('UPDATE sites SET ' . implode(', ', $fields) . ' WHERE user_id = ?', $params);
     }
     if (array_key_exists('site_understanding', $b) || array_key_exists('site_understanding_corrections', $b) || array_key_exists('profile_summary', $b) || array_key_exists('role_mission', $b) || array_key_exists('content_strategy', $b)) {
-        try { SeoFoundation::rebuild($userId, true); } catch (Throwable $e) {}
+        try { SeoFoundation::rebuild($userId, true, false); } catch (Throwable $e) {}
     }
     json(['ok' => true]);
 }

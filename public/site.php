@@ -1857,53 +1857,64 @@ header('Link: <' . $siteUrl . '/feed.xml>; rel="alternate"; type="application/at
     .official-channel span { color:#5B5CE2; }
     .content-method { font-size:.9rem; line-height:1.65; color:#566078; border-left:4px solid #5B5CE2; }
     .theme-network-standard .footer { background:#182033; border-radius:0; }
-    /* Percorsi Vivi: esperienza primaria della home */
-    .living-experience { position:relative; margin:0 0 3rem; padding:clamp(1.3rem,4vw,3rem); border-radius:32px; background:radial-gradient(circle at 88% -5%,rgba(112,66,238,.25),transparent 33%),radial-gradient(circle at 4% 42%,rgba(243,92,118,.11),transparent 26%),#EEF1F8; border:1px solid #DDE2EE; overflow:hidden; box-shadow:0 28px 80px rgba(33,31,90,.09); }
-    .living-intro { max-width:820px; margin-bottom:1.4rem; }
-    .living-kicker { display:inline-flex; align-items:center; gap:.5rem; color:#5B5CE2; font-size:.78rem; font-weight:800; letter-spacing:.1em; text-transform:uppercase; }
-    .living-intro h1 { margin:.55rem 0 .75rem; font-size:clamp(2.5rem,6vw,5.2rem); line-height:.98; letter-spacing:-.055em; color:#182033; }
-    .living-intro p { max-width:720px; color:#566078; font-size:1.08rem; line-height:1.7; }
-    .living-media-vault { position:relative; margin:1.8rem 0; padding:clamp(1rem,3vw,1.5rem); border-radius:26px; color:#fff; background:radial-gradient(circle at 92% 4%,rgba(243,92,118,.35),transparent 25%),linear-gradient(140deg,#151A2D,#292359 72%,#40226C); box-shadow:0 22px 48px rgba(24,32,51,.18); overflow:hidden; }
-    .living-media-vault::before { content:'✦'; position:absolute; right:1.2rem; top:-2.4rem; color:rgba(255,255,255,.07); font-size:10rem; line-height:1; pointer-events:none; }
-    .living-media-vault-head { position:relative; display:flex; justify-content:space-between; align-items:end; gap:2rem; margin-bottom:1rem; }
-    .living-media-vault-head span { color:#D9CEFF; font-size:.72rem; font-weight:900; letter-spacing:.12em; text-transform:uppercase; }
-    .living-media-vault-head h2 { max-width:700px; margin:.3rem 0 0; color:#fff; font-size:clamp(1.55rem,3.4vw,2.65rem); line-height:1.05; letter-spacing:-.035em; }
-    .living-media-vault-head p { max-width:330px; margin:0; color:rgba(255,255,255,.72); font-size:.88rem; line-height:1.5; }
-    .living-media-grid { position:relative; display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); grid-auto-rows:155px; gap:.75rem; }
-    .living-media-item { position:relative; display:block; min-width:0; overflow:hidden; border:1px solid rgba(255,255,255,.14); border-radius:17px; background:#252A40; color:#fff; transform:translateZ(0); }
-    .living-media-featured { grid-column:span 2; grid-row:span 2; }
-    .living-media-item img,.living-media-item video { width:100%; height:100%; display:block; object-fit:cover; transition:transform .45s ease,filter .45s ease; }
-    .living-media-item::after { content:''; position:absolute; inset:30% 0 0; background:linear-gradient(transparent,rgba(8,10,20,.92)); pointer-events:none; }
-    .living-media-item:hover img,.living-media-item:hover video { transform:scale(1.045); filter:saturate(1.12); }
-    .living-media-caption { position:absolute; z-index:2; left:.8rem; right:.8rem; bottom:.7rem; display:flex; flex-direction:column; gap:.15rem; }
-    .living-media-caption small { color:#D8CDFF; font-size:.64rem; font-weight:900; letter-spacing:.08em; text-transform:uppercase; }
-    .living-media-caption strong { display:-webkit-box; overflow:hidden; color:#fff; font-size:.82rem; line-height:1.25; -webkit-line-clamp:2; -webkit-box-orient:vertical; }
-    .living-media-featured .living-media-caption strong { font-size:1.05rem; }
-    .living-media-play { position:absolute; z-index:3; top:.7rem; right:.7rem; display:grid; width:2rem; height:2rem; place-items:center; border-radius:50%; background:rgba(255,255,255,.9); color:#292359; font-size:.72rem; box-shadow:0 6px 18px rgba(0,0,0,.25); }
-    .living-intents { display:flex; flex-wrap:wrap; gap:.65rem; margin:1.4rem 0 1.8rem; }
-    .living-intent { appearance:none; border:1px solid #D6DCE8; background:#fff; color:#182033; padding:.75rem 1rem; border-radius:999px; font:inherit; font-weight:700; cursor:pointer; transition:transform .2s,border-color .2s,background .2s; }
-    .living-intent:hover { transform:translateY(-2px); border-color:#5B5CE2; }
-    .living-intent[aria-pressed="true"] { background:#5B5CE2; color:#fff; border-color:#5B5CE2; }
-    .living-layout { display:grid; grid-template-columns:minmax(0,1fr) minmax(240px,300px); gap:1.25rem; align-items:start; }
-    .living-stage { position:relative; padding-left:2.35rem; min-height:320px; }
-    .living-stage::before { content:''; position:absolute; left:.85rem; top:1rem; bottom:2rem; width:2px; background:linear-gradient(#5B5CE2,#C9CFDD); }
-    .living-chapter { position:relative; display:block; padding:1.2rem 1.25rem; margin-bottom:.8rem; border:1px solid #DDE2EE; border-radius:19px; background:#fff; color:#182033; transition:transform .2s,border-color .2s,box-shadow .2s; }
-    .living-chapter:hover { transform:translateY(-2px); border-color:#5B5CE2; box-shadow:0 12px 30px rgba(24,32,51,.08); }
-    .living-chapter::before { content:''; position:absolute; left:-2rem; top:1.35rem; width:1rem; height:1rem; border-radius:50%; background:#EEF1F8; border:4px solid #5B5CE2; }
-    .living-step { display:block; margin-bottom:.35rem; color:#5B5CE2; font-size:.75rem; font-weight:800; letter-spacing:.04em; text-transform:uppercase; }
-    .living-chapter strong { display:block; margin-bottom:.35rem; font-size:1.15rem; line-height:1.3; }
-    .living-chapter p { color:#667085; line-height:1.55; }
-    .living-chapter-meta { display:flex; justify-content:space-between; gap:1rem; margin-top:.85rem; padding-top:.75rem; border-top:1px solid #E7EAF1; color:#667085; font-size:.78rem; }
-    .living-chapter-meta b { color:#5B5CE2; }
-    .living-compass { position:sticky; top:6rem; padding:1.25rem; border:1px solid #DDE2EE; border-radius:22px; background:#fff; color:#182033; box-shadow:0 16px 34px rgba(24,32,51,.06); }
-    .living-compass h2 { font-size:1.05rem; margin:0 0 .8rem; }
-    .living-path-name { font-weight:800; }
-    .living-progress { height:.45rem; margin:.7rem 0 1rem; border-radius:999px; background:#E1E5EE; overflow:hidden; }
-    .living-progress span { display:block; width:64%; height:100%; background:linear-gradient(90deg,#5B5CE2,#F35C76); }
-    .living-question { padding:1rem; margin-bottom:.9rem; border-radius:15px; background:#F3F0FF; color:#403A5F; line-height:1.55; font-size:.9rem; }
-    .living-cta { display:flex; align-items:center; justify-content:center; width:100%; min-height:48px; padding:.75rem 1rem; border-radius:13px; background:#5B5CE2; color:#fff; font-weight:800; text-align:center; }
-    .living-cta:hover { background:#4038B7; color:#fff; }
-    .living-proof { margin-top:1rem; padding-top:.9rem; border-top:1px solid #E3E6EF; color:#667085; font-size:.78rem; line-height:1.55; }
+    /* Spazio Vivo: portale visuale, non homepage tradizionale */
+    .theme-network-standard .container { max-width:1440px; }
+    .living-experience { position:relative; margin:0 0 3rem; padding:10px; border-radius:36px; background:#0C1020; color:#fff; overflow:hidden; box-shadow:0 38px 100px rgba(15,15,45,.24); }
+    .living-portal { position:relative; min-height:min(76vh,760px); border-radius:28px; overflow:hidden; background:radial-gradient(circle at 73% 22%,rgba(123,92,255,.38),transparent 30%),linear-gradient(145deg,#12172B,#20194A 60%,#6B275E); isolation:isolate; }
+    .living-portal::after { content:''; position:absolute; inset:0; z-index:1; background:linear-gradient(90deg,rgba(8,11,25,.92) 0%,rgba(8,11,25,.58) 42%,rgba(8,11,25,.08) 73%),linear-gradient(0deg,rgba(8,11,25,.78),transparent 42%); pointer-events:none; }
+    .living-media-grid { position:absolute; inset:0; display:grid; grid-template-columns:1.15fr .85fr 1fr; grid-template-rows:1fr .7fr; gap:7px; transform:scale(1.035); }
+    .living-media-item { position:relative; display:block; min-width:0; overflow:hidden; background:#252A40; color:#fff; }
+    .living-media-position-0 { grid-column:1 / 3; grid-row:1 / 3; }
+    .living-media-position-1 { grid-column:3; grid-row:1; }
+    .living-media-position-2 { grid-column:3; grid-row:2; }
+    .living-media-position-3,.living-media-position-4,.living-media-position-5,.living-media-position-6,.living-media-position-7 { display:none; }
+    .living-media-item img,.living-media-item video { width:100%; height:100%; display:block; object-fit:cover; filter:saturate(.92) contrast(1.04); transition:transform .8s cubic-bezier(.2,.8,.2,1),filter .5s; }
+    .living-media-item:hover img,.living-media-item:hover video { transform:scale(1.055); filter:saturate(1.15) contrast(1.02); }
+    .living-media-item::after { content:''; position:absolute; inset:0; background:linear-gradient(0deg,rgba(7,8,18,.74),transparent 48%); pointer-events:none; }
+    .living-media-caption { position:absolute; z-index:2; left:1.2rem; right:1.2rem; bottom:1rem; display:flex; flex-direction:column; gap:.25rem; opacity:.82; }
+    .living-media-caption small { color:#D8CDFF; font-size:.65rem; font-weight:900; letter-spacing:.12em; text-transform:uppercase; }
+    .living-media-caption strong { display:-webkit-box; overflow:hidden; color:#fff; font-size:.9rem; line-height:1.25; -webkit-line-clamp:2; -webkit-box-orient:vertical; }
+    .living-media-play { position:absolute; z-index:3; top:1rem; right:1rem; display:grid; width:2.5rem; height:2.5rem; place-items:center; border-radius:50%; background:#fff; color:#20194A; }
+    .living-intro { position:absolute; z-index:3; left:clamp(1.4rem,5vw,5rem); bottom:clamp(2rem,7vw,5.5rem); width:min(700px,76%); }
+    .living-kicker { display:inline-flex; color:#D9CEFF; font-size:.7rem; font-weight:900; letter-spacing:.14em; text-transform:uppercase; }
+    .living-intro h1 { margin:.65rem 0 .9rem; color:#fff; font-size:clamp(3.2rem,7.8vw,7.7rem); line-height:.85; letter-spacing:-.072em; text-wrap:balance; }
+    .living-intro p { max-width:630px; margin:0; color:rgba(255,255,255,.76); font-size:clamp(1rem,1.5vw,1.25rem); line-height:1.55; }
+    .living-live-proof { display:flex; align-items:center; gap:.6rem; margin-top:1.2rem; color:rgba(255,255,255,.66); font-size:.75rem; }
+    .living-live-proof i { width:8px; height:8px; border-radius:50%; background:#69F0C0; box-shadow:0 0 0 6px rgba(105,240,192,.12); animation:livingPulse 2s infinite; }
+    @keyframes livingPulse { 50% { box-shadow:0 0 0 12px rgba(105,240,192,0); } }
+    .living-portal-index { position:absolute; z-index:3; right:2rem; top:1.7rem; display:flex; align-items:flex-start; gap:.6rem; color:#fff; }
+    .living-portal-index strong { font-size:2.4rem; line-height:.85; letter-spacing:-.08em; }
+    .living-portal-index span { color:rgba(255,255,255,.58); font-size:.62rem; line-height:1.15; text-transform:uppercase; letter-spacing:.08em; }
+    .living-command { display:grid; grid-template-columns:170px 1fr; gap:1rem; align-items:center; padding:1rem .5rem .4rem; }
+    .living-command-label { padding-left:1rem; color:rgba(255,255,255,.5); font-size:.72rem; font-weight:900; letter-spacing:.12em; text-transform:uppercase; }
+    .living-intents { display:flex; gap:.45rem; margin:0; overflow-x:auto; scrollbar-width:none; }
+    .living-intents::-webkit-scrollbar { display:none; }
+    .living-intent { flex:0 0 auto; appearance:none; display:flex; align-items:center; gap:.6rem; border:1px solid rgba(255,255,255,.13); background:rgba(255,255,255,.055); color:rgba(255,255,255,.72); padding:.75rem .95rem; border-radius:12px; font:inherit; font-size:.78rem; font-weight:800; cursor:pointer; transition:.25s ease; }
+    .living-intent span { color:rgba(255,255,255,.35); font-size:.62rem; }
+    .living-intent:hover { transform:translateY(-2px); border-color:rgba(255,255,255,.42); color:#fff; }
+    .living-intent[aria-pressed="true"] { background:#fff; color:#17152B; border-color:#fff; }
+    .living-intent[aria-pressed="true"] span { color:#6B5BDE; }
+    .living-layout { display:grid; grid-template-columns:280px minmax(0,1fr); gap:10px; padding-top:10px; align-items:stretch; }
+    .living-compass { position:relative; padding:1.4rem; border:1px solid rgba(255,255,255,.1); border-radius:24px; background:linear-gradient(150deg,rgba(255,255,255,.1),rgba(255,255,255,.045)); color:#fff; box-shadow:none; }
+    .living-console-kicker { color:#AFA3FF; font-size:.65rem; font-weight:900; letter-spacing:.12em; text-transform:uppercase; }
+    .living-path-name { margin-top:.45rem; color:#fff; font-size:1.2rem; font-weight:900; line-height:1.15; }
+    .living-progress { height:2px; margin:1rem 0; background:rgba(255,255,255,.13); overflow:hidden; }
+    .living-progress span { display:block; width:64%; height:100%; background:linear-gradient(90deg,#8E7CFF,#F35C76); }
+    .living-question { padding:0; margin:0 0 1.2rem; background:none; color:rgba(255,255,255,.64); line-height:1.55; font-size:.82rem; }
+    .living-cta { display:flex; align-items:center; justify-content:center; width:100%; min-height:48px; padding:.75rem 1rem; border-radius:13px; background:#fff; color:#17152B; font-weight:900; text-align:center; }
+    .living-cta:hover { background:#D9CEFF; color:#17152B; }
+    .living-proof { margin-top:1rem; padding-top:.9rem; border-top:1px solid rgba(255,255,255,.1); color:rgba(255,255,255,.42); font-size:.69rem; line-height:1.5; }
+    .living-stage { display:flex; gap:10px; min-width:0; overflow-x:auto; scroll-snap-type:x mandatory; scrollbar-color:#5B5CE2 transparent; padding:0 0 .55rem; }
+    .living-stage::before { display:none; }
+    .living-chapter { position:relative; flex:0 0 min(72%,560px); min-height:280px; display:flex; flex-direction:column; justify-content:flex-end; padding:clamp(1.25rem,3vw,2rem); margin:0; border:1px solid rgba(255,255,255,.1); border-radius:24px; background:radial-gradient(circle at 90% 10%,rgba(142,124,255,.3),transparent 30%),linear-gradient(145deg,#171C31,#252047); color:#fff; scroll-snap-align:start; overflow:hidden; transition:.25s ease; }
+    .living-chapter:nth-child(2n) { background:radial-gradient(circle at 90% 10%,rgba(243,92,118,.26),transparent 30%),linear-gradient(145deg,#21172B,#3B203F); }
+    .living-chapter:hover { transform:translateY(-3px); border-color:rgba(255,255,255,.34); box-shadow:none; }
+    .living-chapter::before { content:attr(data-index); position:absolute; right:1rem; top:-1.3rem; width:auto; height:auto; border:0; background:none; color:rgba(255,255,255,.055); font-size:9rem; font-weight:900; letter-spacing:-.1em; }
+    .living-step { display:block; margin-bottom:.7rem; color:#BEB4FF; font-size:.67rem; font-weight:900; letter-spacing:.1em; text-transform:uppercase; }
+    .living-chapter strong { display:block; max-width:480px; margin-bottom:.55rem; color:#fff; font-size:clamp(1.35rem,2.4vw,2rem); line-height:1.08; letter-spacing:-.025em; }
+    .living-chapter p { max-width:480px; margin:0; color:rgba(255,255,255,.62); line-height:1.5; font-size:.86rem; }
+    .living-chapter-meta { display:flex; justify-content:space-between; gap:1rem; margin-top:1.2rem; padding-top:.85rem; border-top:1px solid rgba(255,255,255,.1); color:rgba(255,255,255,.48); font-size:.7rem; }
+    .living-chapter-meta b { color:#fff; }
     .living-archive { margin:0 0 3rem; }
     .living-archive > summary { list-style:none; display:flex; justify-content:space-between; gap:1rem; padding:1rem 1.2rem; border:1px solid #DDE2EE; border-radius:16px; background:#fff; color:#182033; font-weight:800; cursor:pointer; }
     .living-archive > summary::-webkit-details-marker { display:none; }
@@ -1911,7 +1922,7 @@ header('Link: <' . $siteUrl . '/feed.xml>; rel="alternate"; type="application/at
     .living-archive[open] > summary::after { content:'−'; }
     .living-archive-body { padding-top:2rem; }
     a:focus-visible,button:focus-visible,summary:focus-visible { outline:3px solid #FFBF47; outline-offset:3px; }
-    @media(max-width:768px){ .foundation-directory{padding:1.25rem}.foundation-header{border-radius:20px}.network-bar{font-size:.7rem;padding:.55rem .85rem}.network-signature{gap:.45rem}.network-signature-brand strong{display:none}.network-product-name{padding:.3rem .6rem}.network-trust{margin-left:auto;max-width:145px;text-align:right;line-height:1.25}.theme-network-standard .navbar{padding:1rem 1.25rem!important}.living-experience{border-radius:22px}.living-media-vault-head{display:block}.living-media-vault-head p{margin-top:.7rem}.living-media-grid{grid-template-columns:repeat(2,minmax(0,1fr));grid-auto-rows:135px}.living-media-featured{grid-column:span 2;grid-row:span 2}.living-layout{grid-template-columns:1fr}.living-compass{position:static}.living-stage{padding-left:1.9rem}.living-chapter::before{left:-1.55rem}.living-intro h1{font-size:clamp(2.25rem,12vw,3.5rem)} }
+    @media(max-width:768px){ .foundation-directory{padding:1.25rem}.foundation-header{border-radius:20px}.network-bar{font-size:.7rem;padding:.55rem .85rem}.network-signature{gap:.45rem}.network-signature-brand strong{display:none}.network-product-name{padding:.3rem .6rem}.network-trust{margin-left:auto;max-width:145px;text-align:right;line-height:1.25}.theme-network-standard .navbar{padding:1rem 1.25rem!important}.theme-network-standard .container{padding:1rem .65rem}.living-experience{padding:6px;border-radius:22px}.living-portal{min-height:72vh;border-radius:18px}.living-media-grid{grid-template-columns:1fr;grid-template-rows:1fr}.living-media-position-0{grid-column:1;grid-row:1}.living-media-position-1,.living-media-position-2{display:none}.living-portal::after{background:linear-gradient(0deg,rgba(8,11,25,.94) 0%,rgba(8,11,25,.36) 72%)}.living-intro{left:1.25rem;right:1.25rem;bottom:1.7rem;width:auto}.living-intro h1{font-size:clamp(3rem,15vw,5.2rem)}.living-intro p{font-size:.95rem}.living-portal-index{right:1rem;top:1rem}.living-command{display:block;padding:.8rem .35rem}.living-command-label{display:block;margin:0 0 .65rem;padding-left:.35rem}.living-layout{grid-template-columns:1fr}.living-compass{position:static;border-radius:18px}.living-chapter{flex-basis:88%;min-height:270px;border-radius:18px}.living-chapter::before{left:auto}.living-live-proof{align-items:flex-start}.living-live-proof i{flex:0 0 auto;margin-top:.3rem} }
   </style>
 </head>
 <?php
@@ -2223,20 +2234,11 @@ ob_start();
 
   <?php if (!empty($livingPaths)): $initialLivingPath = $livingPaths[0]; ?>
   <section class="living-experience" id="percorsi-vivi" aria-labelledby="living-title">
-    <header class="living-intro">
-      <span class="living-kicker">AllSocialToWeb · Spazio Vivo</span>
-      <h1 id="living-title"><?= h($initialLivingPath['title']) ?></h1>
-      <p id="living-subtitle"><?= h($initialLivingPath['subtitle']) ?></p>
-    </header>
-    <?php if (!empty($mediaPosts)): ?>
-    <section class="living-media-vault" aria-labelledby="media-vault-title">
-      <div class="living-media-vault-head">
-        <div><span>Patrimonio ritrovato</span><h2 id="media-vault-title">Immagini e video che non scompaiono più nel feed</h2></div>
-        <p><?= count($mediaPosts) ?> contenuti visuali ora organizzati, collegabili e trovabili nel tempo.</p>
-      </div>
+    <div class="living-portal">
+      <?php if (!empty($mediaPosts)): ?>
       <div class="living-media-grid">
         <?php foreach (array_slice($mediaPosts, 0, 8) as $mediaIndex => $mediaPost): $mediaUrl = $mediaPost['media_url'] ?? ''; $mediaType = strtolower((string)($mediaPost['media_type'] ?? '')); ?>
-        <a class="living-media-item<?= $mediaIndex === 0 ? ' living-media-featured' : '' ?>" href="<?= $siteUrl . '/' . h($mediaPost['slug'] ?? '') ?>">
+        <a class="living-media-item living-media-position-<?= $mediaIndex ?>" href="<?= $siteUrl . '/' . h($mediaPost['slug'] ?? '') ?>">
           <?php if ($mediaType === 'video' || preg_match('~\.(mp4|mov|webm)(\?|$)~i', $mediaUrl)): ?>
             <video muted playsinline preload="metadata"><source src="<?= h($mediaUrl) ?>"></video><span class="living-media-play">▶</span>
           <?php else: ?>
@@ -2246,17 +2248,35 @@ ob_start();
         </a>
         <?php endforeach; ?>
       </div>
-    </section>
-    <?php endif; ?>
-    <div class="living-intents" aria-label="Scegli il tuo percorso">
-      <?php foreach ($livingPaths as $pathIndex => $path): ?>
-      <button type="button" class="living-intent" data-path-index="<?= $pathIndex ?>" aria-pressed="<?= $pathIndex === 0 ? 'true' : 'false' ?>"><?= h($path['label']) ?></button>
-      <?php endforeach; ?>
+      <?php endif; ?>
+      <header class="living-intro">
+        <span class="living-kicker">AllSocialToWeb / Spazio Vivo / <?= count($allPosts) ?> segnali attivi</span>
+        <h1 id="living-title"><?= h($initialLivingPath['title']) ?></h1>
+        <p id="living-subtitle"><?= h($initialLivingPath['subtitle']) ?></p>
+        <div class="living-live-proof"><i></i><span>Patrimonio proveniente dai canali ufficiali, reso trovabile nel tempo</span></div>
+      </header>
+      <div class="living-portal-index" aria-hidden="true"><strong><?= str_pad((string)count($mediaPosts), 2, '0', STR_PAD_LEFT) ?></strong><span>memorie<br>riattivate</span></div>
+    </div>
+    <div class="living-command">
+      <span class="living-command-label">Cosa vuoi trovare?</span>
+      <div class="living-intents" aria-label="Scegli il tuo percorso">
+        <?php foreach ($livingPaths as $pathIndex => $path): ?>
+        <button type="button" class="living-intent" data-path-index="<?= $pathIndex ?>" aria-pressed="<?= $pathIndex === 0 ? 'true' : 'false' ?>"><span><?= str_pad((string)($pathIndex + 1), 2, '0', STR_PAD_LEFT) ?></span><?= h($path['label']) ?></button>
+        <?php endforeach; ?>
+      </div>
     </div>
     <div class="living-layout">
+      <aside class="living-compass" aria-label="Console del percorso">
+        <span class="living-console-kicker">Percorso attivo</span>
+        <div class="living-path-name" id="living-path-name"><?= h($initialLivingPath['path_name']) ?></div>
+        <div class="living-progress" aria-hidden="true"><span></span></div>
+        <div class="living-question" id="living-question"><?= h($initialLivingPath['question']) ?></div>
+        <a class="living-cta" href="<?= h($livingCtaUrl) ?>"<?= preg_match('/^https?:\/\//i', $livingCtaUrl) ? ' target="_blank" rel="noopener"' : '' ?>>Attiva un contatto →</a>
+        <div class="living-proof">Non stai sfogliando pagine: stai attraversando contenuti verificabili collegati a ciò che cerchi.</div>
+      </aside>
       <div class="living-stage" id="living-stage" aria-live="polite">
-        <?php foreach ($initialLivingPath['chapters'] as $chapter): ?>
-        <a class="living-chapter" href="<?= h($chapter['url']) ?>">
+        <?php foreach ($initialLivingPath['chapters'] as $chapterIndex => $chapter): ?>
+        <a class="living-chapter" data-index="<?= str_pad((string)($chapterIndex + 1), 2, '0', STR_PAD_LEFT) ?>" href="<?= h($chapter['url']) ?>">
           <span class="living-step"><?= h($chapter['step']) ?></span>
           <strong><?= h($chapter['title']) ?></strong>
           <p><?= h($chapter['excerpt']) ?></p>
@@ -2264,14 +2284,6 @@ ob_start();
         </a>
         <?php endforeach; ?>
       </div>
-      <aside class="living-compass" aria-label="Bussola del percorso">
-        <h2>🧭 La tua bussola</h2>
-        <div class="living-path-name" id="living-path-name"><?= h($initialLivingPath['path_name']) ?></div>
-        <div class="living-progress" aria-hidden="true"><span></span></div>
-        <div class="living-question" id="living-question"><?= h($initialLivingPath['question']) ?></div>
-        <a class="living-cta" href="<?= h($livingCtaUrl) ?>"<?= preg_match('/^https?:\/\//i', $livingCtaUrl) ? ' target="_blank" rel="noopener"' : '' ?>><?= h($livingCtaLabel) ?> →</a>
-        <div class="living-proof">I contenuti provengono dai canali ufficiali e vengono organizzati intorno a ciò che vuoi ottenere.</div>
-      </aside>
     </div>
   </section>
   <?php endif; ?>
@@ -2543,9 +2555,10 @@ document.addEventListener('DOMContentLoaded', () => {
       livingQuestion.textContent = path.question || '';
       livingRoot.querySelectorAll('.living-intent').forEach((button, buttonIndex) => button.setAttribute('aria-pressed', buttonIndex === index ? 'true' : 'false'));
       livingStage.replaceChildren();
-      (path.chapters || []).forEach(chapter => {
+      (path.chapters || []).forEach((chapter, chapterIndex) => {
         const link = document.createElement('a');
         link.className = 'living-chapter';
+        link.dataset.index = String(chapterIndex + 1).padStart(2, '0');
         link.href = chapter.url || '#';
         const step = document.createElement('span');
         step.className = 'living-step';

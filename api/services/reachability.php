@@ -6,11 +6,11 @@ class ReachabilityNetwork {
     public static function ensureSchema(): void {
         if (self::$schemaReady) return;
         self::$schemaReady = true;
-        foreach ([
-            'ALTER TABLE sites ADD COLUMN reachability_profile LONGTEXT NULL',
-            'ALTER TABLE sites ADD COLUMN reachability_updated_at DATETIME NULL',
-        ] as $query) {
-            try { DB::execute($query); } catch (Throwable $e) {}
+        $existing = [];
+        try { foreach (DB::fetchAll('SHOW COLUMNS FROM sites') as $column) $existing[$column['Field']] = true; } catch (Throwable $e) { return; }
+        foreach (['reachability_profile'=>'LONGTEXT NULL','reachability_updated_at'=>'DATETIME NULL'] as $column => $definition) {
+            if (isset($existing[$column])) continue;
+            try { DB::execute("ALTER TABLE sites ADD COLUMN `$column` $definition"); } catch (Throwable $e) {}
         }
     }
 
