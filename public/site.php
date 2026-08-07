@@ -711,6 +711,92 @@ function bodyHtml(?string $b): string {
     return $out;
 }
 
+// ── Percorsi Vivi: trasforma i contenuti in esperienze guidate ─────────────
+$declaredStrategy = is_array($understanding['declared_strategy'] ?? null) ? $understanding['declared_strategy'] : [];
+$livingAudience = trim((string)($declaredStrategy['primary_audience'] ?? $understanding['audience'] ?? ''));
+$livingArea = trim((string)($declaredStrategy['geographic_area'] ?? ''));
+$livingDesiredAction = trim((string)($declaredStrategy['desired_action'] ?? ''));
+$livingCustomerNeeds = trim((string)($declaredStrategy['customer_needs'] ?? ''));
+$livingServices = array_values(array_filter(array_map('trim', (array)($declaredStrategy['priority_services'] ?? []))));
+if (!$livingServices) $livingServices = array_values(array_filter(array_map('trim', (array)($understanding['editorial_direction']['content_pillars'] ?? []))));
+if (!$livingServices) $livingServices = array_map(static fn($tag) => humanizeDisplayName((string)$tag), array_slice($topTags, 0, 3));
+
+$livingCtaUrl = isset($foundationPagesBySlug['contatti']) ? $siteUrl . '/contatti' : (!empty($sources[0]['url']) ? $sources[0]['url'] : $siteUrl);
+$livingCtaLabel = $livingDesiredAction !== '' ? $livingDesiredAction : 'Raccontaci cosa cerchi';
+$livingPathSeeds = [[
+    'key' => 'inizia',
+    'label' => '✨ Da dove iniziare',
+    'title' => 'Inizia da ciò che vuoi ottenere',
+    'subtitle' => $livingAudience !== ''
+        ? 'Un percorso costruito per ' . $livingAudience . ($livingArea !== '' ? ', con attenzione a ' . $livingArea : '') . '.'
+        : 'Non cercare tra pagine e articoli: lasciati guidare dai contenuti più utili per capire, scegliere e agire.',
+    'topic' => '',
+]];
+foreach (array_slice($livingServices, 0, 3) as $index => $service) {
+    $livingPathSeeds[] = [
+        'key' => 'percorso-' . ($index + 1),
+        'label' => ['🌿 ', '💡 ', '🎯 '][$index] . humanizeDisplayName($service),
+        'title' => 'Esplora ' . humanizeDisplayName($service),
+        'subtitle' => 'Contenuti, prove e informazioni ufficiali organizzati come un percorso, non come un semplice archivio.',
+        'topic' => $service,
+    ];
+}
+$livingFallbackSeeds = [
+    ['key'=>'scopri','label'=>'🌐 Scopri','title'=>'Scopri cosa rende unica questa attività','subtitle'=>'Una selezione guidata dei contenuti che spiegano identità, esperienza e valore.','topic'=>''],
+    ['key'=>'scegli','label'=>'🧭 Scegli','title'=>'Trova ciò che fa davvero per te','subtitle'=>'Confronta possibilità e approfondimenti senza perderti tra post e menu.','topic'=>''],
+    ['key'=>'agisci','label'=>'⚡ Agisci','title'=>'Dal contenuto al prossimo passo','subtitle'=>'Arriva al contatto con il contesto necessario per fare una richiesta più semplice e precisa.','topic'=>''],
+];
+foreach ($livingFallbackSeeds as $fallbackSeed) {
+    if (count($livingPathSeeds) >= 4) break;
+    $livingPathSeeds[] = $fallbackSeed;
+}
+
+$livingPaths = [];
+$livingStepLabels = ['01 · Immagina', '02 · Esplora', '03 · Approfondisci', '04 · Scegli'];
+foreach ($livingPathSeeds as $seedIndex => $seed) {
+    $matchedPosts = [];
+    $topicWords = array_values(array_filter(preg_split('/\s+/u', mb_strtolower((string)$seed['topic'])), static fn($word) => mb_strlen($word) >= 4));
+    foreach ($allPosts as $postItem) {
+        $haystack = mb_strtolower(postTitle($postItem) . ' ' . postExcerpt($postItem) . ' ' . implode(' ', $postItem['tags'] ?? []));
+        if (!$topicWords || array_filter($topicWords, static fn($word) => str_contains($haystack, $word))) $matchedPosts[] = $postItem;
+        if (count($matchedPosts) >= 4) break;
+    }
+    if (count($matchedPosts) < 4) {
+        foreach ($allPosts as $postItem) {
+            if (in_array((int)$postItem['id'], array_map(static fn($post) => (int)$post['id'], $matchedPosts), true)) continue;
+            $matchedPosts[] = $postItem;
+            if (count($matchedPosts) >= 4) break;
+        }
+    }
+    $chapters = [];
+    foreach (array_slice($matchedPosts, 0, 4) as $chapterIndex => $postItem) {
+        $chapters[] = [
+            'step' => $livingStepLabels[$chapterIndex] ?? ('0' . ($chapterIndex + 1)),
+            'title' => postTitle($postItem),
+            'excerpt' => mb_substr(trim(strip_tags(postExcerpt($postItem))), 0, 190),
+            'url' => $siteUrl . '/' . ($postItem['slug'] ?? ''),
+            'source' => ucfirst((string)($postItem['platform'] ?? 'Contenuto ufficiale')),
+        ];
+    }
+    if (!$chapters) {
+        foreach (array_slice($foundationPagesBySlug, 0, 4) as $pageSlug => $page) {
+            $chapters[] = [
+                'step' => $livingStepLabels[count($chapters)] ?? 'Approfondisci',
+                'title' => $page['title'] ?? humanizeDisplayName((string)$pageSlug),
+                'excerpt' => mb_substr(trim(strip_tags((string)($page['intro'] ?? $page['meta_description'] ?? ''))), 0, 190),
+                'url' => $siteUrl . '/' . $pageSlug,
+                'source' => 'Informazioni ufficiali',
+            ];
+        }
+    }
+    $pathDisplayName = trim((string)preg_replace('/^[^\p{L}\p{N}]+/u', '', (string)$seed['label']));
+    $livingPaths[] = $seed + [
+        'path_name' => 'Percorso “' . ($pathDisplayName !== '' ? $pathDisplayName : 'Su misura') . '”',
+        'question' => $livingCustomerNeeds !== '' ? $livingCustomerNeeds : 'Hai un’esigenza specifica? Il percorso può adattarsi a ciò che stai cercando.',
+        'chapters' => $chapters,
+    ];
+}
+
 // ── CSS temi ─────────────────────────────────────────────────────────────────
 $accent = ltrim((string)($accentColor ?: '#7F77DD'), '#');
 $accent2 = $accentSecondary ?: '';
@@ -1742,8 +1828,44 @@ header('Link: <' . $siteUrl . '/feed.xml>; rel="alternate"; type="application/at
     .official-channel span { color:#5B5CE2; }
     .content-method { font-size:.9rem; line-height:1.65; color:#566078; border-left:4px solid #5B5CE2; }
     .theme-network-standard .footer { background:#182033; border-radius:0; }
+    /* Percorsi Vivi: esperienza primaria della home */
+    .living-experience { margin:0 0 3rem; padding:clamp(1.3rem,4vw,3rem); border-radius:32px; background:radial-gradient(circle at 86% 0%,rgba(91,92,226,.18),transparent 34%),#EEF1F8; border:1px solid #DDE2EE; overflow:hidden; }
+    .living-intro { max-width:820px; margin-bottom:1.4rem; }
+    .living-kicker { display:inline-flex; align-items:center; gap:.5rem; color:#5B5CE2; font-size:.78rem; font-weight:800; letter-spacing:.1em; text-transform:uppercase; }
+    .living-intro h1 { margin:.55rem 0 .75rem; font-size:clamp(2.5rem,6vw,5.2rem); line-height:.98; letter-spacing:-.055em; color:#182033; }
+    .living-intro p { max-width:720px; color:#566078; font-size:1.08rem; line-height:1.7; }
+    .living-intents { display:flex; flex-wrap:wrap; gap:.65rem; margin:1.4rem 0 1.8rem; }
+    .living-intent { appearance:none; border:1px solid #D6DCE8; background:#fff; color:#182033; padding:.75rem 1rem; border-radius:999px; font:inherit; font-weight:700; cursor:pointer; transition:transform .2s,border-color .2s,background .2s; }
+    .living-intent:hover { transform:translateY(-2px); border-color:#5B5CE2; }
+    .living-intent[aria-pressed="true"] { background:#5B5CE2; color:#fff; border-color:#5B5CE2; }
+    .living-layout { display:grid; grid-template-columns:minmax(0,1fr) minmax(240px,300px); gap:1.25rem; align-items:start; }
+    .living-stage { position:relative; padding-left:2.35rem; min-height:320px; }
+    .living-stage::before { content:''; position:absolute; left:.85rem; top:1rem; bottom:2rem; width:2px; background:linear-gradient(#5B5CE2,#C9CFDD); }
+    .living-chapter { position:relative; display:block; padding:1.2rem 1.25rem; margin-bottom:.8rem; border:1px solid #DDE2EE; border-radius:19px; background:#fff; color:#182033; transition:transform .2s,border-color .2s,box-shadow .2s; }
+    .living-chapter:hover { transform:translateY(-2px); border-color:#5B5CE2; box-shadow:0 12px 30px rgba(24,32,51,.08); }
+    .living-chapter::before { content:''; position:absolute; left:-2rem; top:1.35rem; width:1rem; height:1rem; border-radius:50%; background:#EEF1F8; border:4px solid #5B5CE2; }
+    .living-step { display:block; margin-bottom:.35rem; color:#5B5CE2; font-size:.75rem; font-weight:800; letter-spacing:.04em; text-transform:uppercase; }
+    .living-chapter strong { display:block; margin-bottom:.35rem; font-size:1.15rem; line-height:1.3; }
+    .living-chapter p { color:#667085; line-height:1.55; }
+    .living-chapter-meta { display:flex; justify-content:space-between; gap:1rem; margin-top:.85rem; padding-top:.75rem; border-top:1px solid #E7EAF1; color:#667085; font-size:.78rem; }
+    .living-chapter-meta b { color:#5B5CE2; }
+    .living-compass { position:sticky; top:6rem; padding:1.25rem; border:1px solid #DDE2EE; border-radius:22px; background:#fff; color:#182033; box-shadow:0 16px 34px rgba(24,32,51,.06); }
+    .living-compass h2 { font-size:1.05rem; margin:0 0 .8rem; }
+    .living-path-name { font-weight:800; }
+    .living-progress { height:.45rem; margin:.7rem 0 1rem; border-radius:999px; background:#E1E5EE; overflow:hidden; }
+    .living-progress span { display:block; width:64%; height:100%; background:linear-gradient(90deg,#5B5CE2,#F35C76); }
+    .living-question { padding:1rem; margin-bottom:.9rem; border-radius:15px; background:#F3F0FF; color:#403A5F; line-height:1.55; font-size:.9rem; }
+    .living-cta { display:flex; align-items:center; justify-content:center; width:100%; min-height:48px; padding:.75rem 1rem; border-radius:13px; background:#5B5CE2; color:#fff; font-weight:800; text-align:center; }
+    .living-cta:hover { background:#4038B7; color:#fff; }
+    .living-proof { margin-top:1rem; padding-top:.9rem; border-top:1px solid #E3E6EF; color:#667085; font-size:.78rem; line-height:1.55; }
+    .living-archive { margin:0 0 3rem; }
+    .living-archive > summary { list-style:none; display:flex; justify-content:space-between; gap:1rem; padding:1rem 1.2rem; border:1px solid #DDE2EE; border-radius:16px; background:#fff; color:#182033; font-weight:800; cursor:pointer; }
+    .living-archive > summary::-webkit-details-marker { display:none; }
+    .living-archive > summary::after { content:'＋'; color:#5B5CE2; }
+    .living-archive[open] > summary::after { content:'−'; }
+    .living-archive-body { padding-top:2rem; }
     a:focus-visible,button:focus-visible,summary:focus-visible { outline:3px solid #FFBF47; outline-offset:3px; }
-    @media(max-width:768px){ .foundation-directory{padding:1.25rem}.foundation-header{border-radius:20px}.network-bar{font-size:.7rem}.theme-network-standard .navbar{padding:1rem 1.25rem!important} }
+    @media(max-width:768px){ .foundation-directory{padding:1.25rem}.foundation-header{border-radius:20px}.network-bar{font-size:.7rem}.theme-network-standard .navbar{padding:1rem 1.25rem!important}.living-experience{border-radius:22px}.living-layout{grid-template-columns:1fr}.living-compass{position:static}.living-stage{padding-left:1.9rem}.living-chapter::before{left:-1.55rem}.living-intro h1{font-size:clamp(2.25rem,12vw,3.5rem)} }
   </style>
 </head>
 <?php
@@ -2045,6 +2167,45 @@ ob_start();
 
   <?php else: ?>
 
+  <?php if (!empty($livingPaths)): $initialLivingPath = $livingPaths[0]; ?>
+  <section class="living-experience" id="percorsi-vivi" aria-labelledby="living-title">
+    <header class="living-intro">
+      <span class="living-kicker">✦ Esplora per intenzione, non per menu</span>
+      <h1 id="living-title"><?= h($initialLivingPath['title']) ?></h1>
+      <p id="living-subtitle"><?= h($initialLivingPath['subtitle']) ?></p>
+    </header>
+    <div class="living-intents" aria-label="Scegli il tuo percorso">
+      <?php foreach ($livingPaths as $pathIndex => $path): ?>
+      <button type="button" class="living-intent" data-path-index="<?= $pathIndex ?>" aria-pressed="<?= $pathIndex === 0 ? 'true' : 'false' ?>"><?= h($path['label']) ?></button>
+      <?php endforeach; ?>
+    </div>
+    <div class="living-layout">
+      <div class="living-stage" id="living-stage" aria-live="polite">
+        <?php foreach ($initialLivingPath['chapters'] as $chapter): ?>
+        <a class="living-chapter" href="<?= h($chapter['url']) ?>">
+          <span class="living-step"><?= h($chapter['step']) ?></span>
+          <strong><?= h($chapter['title']) ?></strong>
+          <p><?= h($chapter['excerpt']) ?></p>
+          <span class="living-chapter-meta"><span>✓ <?= h($chapter['source']) ?></span><b>Entra →</b></span>
+        </a>
+        <?php endforeach; ?>
+      </div>
+      <aside class="living-compass" aria-label="Bussola del percorso">
+        <h2>🧭 La tua bussola</h2>
+        <div class="living-path-name" id="living-path-name"><?= h($initialLivingPath['path_name']) ?></div>
+        <div class="living-progress" aria-hidden="true"><span></span></div>
+        <div class="living-question" id="living-question"><?= h($initialLivingPath['question']) ?></div>
+        <a class="living-cta" href="<?= h($livingCtaUrl) ?>"<?= preg_match('/^https?:\/\//i', $livingCtaUrl) ? ' target="_blank" rel="noopener"' : '' ?>><?= h($livingCtaLabel) ?> →</a>
+        <div class="living-proof">I contenuti provengono dai canali ufficiali e vengono organizzati intorno a ciò che vuoi ottenere.</div>
+      </aside>
+    </div>
+  </section>
+  <?php endif; ?>
+
+  <details class="living-archive">
+    <summary>Preferisci esplorare tutto? Apri l’archivio completo</summary>
+    <div class="living-archive-body">
+
   <?php if (!empty($foundationPagesBySlug)): ?>
   <section class="foundation-directory" aria-labelledby="foundation-heading">
     <div class="foundation-directory-head"><span class="network-kicker">Informazioni essenziali</span><h2 id="foundation-heading">Scopri <?= $title ?></h2><p>Pagine tematiche costruite a partire dai contenuti e dai canali ufficiali dell’attività.</p></div>
@@ -2110,6 +2271,9 @@ ob_start();
     <p style="font-size:1.2rem;">Il sito è pronto. In attesa di nuovi contenuti.</p>
   </div>
   <?php endif; ?>
+
+    </div>
+  </details>
 
   <?php endif; ?>
 
@@ -2197,6 +2361,10 @@ ob_start();
 <?php endif; ?>
 <?php
 $heroHtml = ob_get_clean();
+if (!$single && !$foundationPage && $view === '' && !$activeTag && !empty($livingPaths)) {
+    // Percorsi Vivi sostituisce il classico hero/slider nella home.
+    $heroHtml = '';
+}
 ?>
 
 <!-- RENDER LAYOUT -->
@@ -2270,6 +2438,50 @@ document.addEventListener('DOMContentLoaded', () => {
       credentials: 'same-origin'
     }).catch(() => {});
   };
+  const livingPaths = <?= json_encode($livingPaths, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
+  const livingRoot = document.getElementById('percorsi-vivi');
+  if (livingRoot && Array.isArray(livingPaths) && livingPaths.length) {
+    const livingTitle = document.getElementById('living-title');
+    const livingSubtitle = document.getElementById('living-subtitle');
+    const livingStage = document.getElementById('living-stage');
+    const livingPathName = document.getElementById('living-path-name');
+    const livingQuestion = document.getElementById('living-question');
+    const renderLivingPath = (index, trackSelection = false) => {
+      const path = livingPaths[index];
+      if (!path) return;
+      livingTitle.textContent = path.title || '';
+      livingSubtitle.textContent = path.subtitle || '';
+      livingPathName.textContent = path.path_name || '';
+      livingQuestion.textContent = path.question || '';
+      livingRoot.querySelectorAll('.living-intent').forEach((button, buttonIndex) => button.setAttribute('aria-pressed', buttonIndex === index ? 'true' : 'false'));
+      livingStage.replaceChildren();
+      (path.chapters || []).forEach(chapter => {
+        const link = document.createElement('a');
+        link.className = 'living-chapter';
+        link.href = chapter.url || '#';
+        const step = document.createElement('span');
+        step.className = 'living-step';
+        step.textContent = chapter.step || '';
+        const heading = document.createElement('strong');
+        heading.textContent = chapter.title || '';
+        const excerpt = document.createElement('p');
+        excerpt.textContent = chapter.excerpt || '';
+        const meta = document.createElement('span');
+        meta.className = 'living-chapter-meta';
+        const source = document.createElement('span');
+        source.textContent = `✓ ${chapter.source || 'Contenuto ufficiale'}`;
+        const enter = document.createElement('b');
+        enter.textContent = 'Entra →';
+        meta.append(source, enter);
+        link.append(step, heading, excerpt, meta);
+        link.addEventListener('click', () => sendVisibilityEvent('path_content_click', link.href));
+        livingStage.appendChild(link);
+      });
+      if (trackSelection) sendVisibilityEvent('path_select');
+    };
+    livingRoot.querySelectorAll('.living-intent').forEach((button, index) => button.addEventListener('click', () => renderLivingPath(index, true)));
+    livingRoot.querySelectorAll('.living-chapter').forEach(link => link.addEventListener('click', () => sendVisibilityEvent('path_content_click', link.href)));
+  }
   const classifyTrackedLink = (anchor) => {
     const rawHref = anchor.getAttribute('href') || '';
     const href = anchor.href || rawHref;

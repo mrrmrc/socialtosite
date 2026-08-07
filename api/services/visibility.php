@@ -71,6 +71,7 @@ class VisibilityAnalytics {
         $allowedTypes = [
             'page_view', 'call_click', 'directions_click', 'whatsapp_click',
             'booking_click', 'social_click', 'contact_click', 'external_click',
+            'path_select', 'path_content_click',
         ];
         $eventType = trim((string)($payload['event_type'] ?? ''));
         if (!in_array($eventType, $allowedTypes, true)) return false;

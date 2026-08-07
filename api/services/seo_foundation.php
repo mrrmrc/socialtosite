@@ -30,6 +30,9 @@ class SeoFoundation {
         $mission = trim((string)($site['role_mission'] ?? ''));
         $business = trim((string)($understanding['business_model'] ?? ''));
         $audience = trim((string)($understanding['audience'] ?? ''));
+        $declared = is_array($understanding['declared_strategy'] ?? null) ? $understanding['declared_strategy'] : [];
+        $location = trim((string)($declared['geographic_area'] ?? ''));
+        $services = array_values(array_filter(array_map('trim', (array)($declared['priority_services'] ?? []))));
         $pillars = array_values(array_filter($understanding['editorial_direction']['content_pillars'] ?? []));
         $validIds = array_map(static fn($post) => (int)($post['id'] ?? 0), $posts);
         $evidence = array_slice(array_values(array_filter($validIds)), 0, 8);
@@ -84,8 +87,8 @@ class SeoFoundation {
         return [
             'business_type' => $businessType,
             'summary' => $summary,
-            'location' => '',
-            'services' => [],
+            'location' => $location,
+            'services' => $services,
             'audience' => $audience,
             'facts' => [],
             'questions_to_confirm' => array_values(array_filter($understanding['editorial_direction']['critical_unknowns'] ?? [])),

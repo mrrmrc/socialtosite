@@ -101,7 +101,27 @@ function decodeJsonObject($value): array {
 }
 
 function mergeUnderstanding($generated, $corrections): array {
-    return array_replace_recursive(decodeJsonObject($generated), decodeJsonObject($corrections));
+    $merged = array_replace_recursive(decodeJsonObject($generated), decodeJsonObject($corrections));
+    $declared = is_array($merged['declared_strategy'] ?? null) ? $merged['declared_strategy'] : [];
+
+    // I dati dichiarati dal cliente prevalgono sulle deduzioni ricavate dai social.
+    if (trim((string)($declared['activity_type'] ?? '')) !== '') {
+        $merged['vertical_label'] = trim((string)$declared['activity_type']);
+    }
+    if (trim((string)($declared['offer_summary'] ?? '')) !== '') {
+        $merged['business_model'] = trim((string)$declared['offer_summary']);
+    }
+    if (trim((string)($declared['primary_audience'] ?? '')) !== '') {
+        $audiences = [trim((string)$declared['primary_audience'])];
+        if (trim((string)($declared['secondary_audience'] ?? '')) !== '') $audiences[] = trim((string)$declared['secondary_audience']);
+        $merged['audience'] = implode(' Pubblico secondario: ', $audiences);
+    }
+    $services = array_values(array_filter(array_map('trim', (array)($declared['priority_services'] ?? []))));
+    if ($services) {
+        $existingPillars = array_values(array_filter((array)($merged['editorial_direction']['content_pillars'] ?? [])));
+        $merged['editorial_direction']['content_pillars'] = array_values(array_unique(array_merge($services, $existingPillars)));
+    }
+    return $merged;
 }
 
 function normalizeSiteAiResult(array $result): array {
@@ -1081,11 +1101,10 @@ if ($action === 'site' && $method === 'GET') {
         }
         VisibilityAnalytics::ensureSchema();
         $visibility = VisibilityAnalytics::userSummary($userId);
-        if (!$isAdmin) {
-            foreach (['google_visible_pages', 'impressions', 'clicks', 'ctr', 'position', 'latest_search_date'] as $technicalMetric) {
-                unset($visibility[$technicalMetric]);
-            }
-        }
+        // Sono dati del proprietario del profilo: servono a spiegare cosa sta
+        // funzionando e a costruire suggerimenti SEO basati su evidenze reali.
+        $visibility['top_queries'] = VisibilityAnalytics::topQueries($userId, 6);
+        $visibility['top_pages'] = VisibilityAnalytics::topPages($userId, 6);
         json(['site' => $site, 'posts' => $posts, 'connections' => $connections, 'sources' => $sources, 'visibility' => $visibility]);
     } catch (Throwable $e) {
         file_put_contents(__DIR__ . '/site_error.log', $e->getMessage() . "\n" . $e->getTraceAsString());
@@ -1201,6 +1220,17 @@ if (array_key_exists('theme', $b)) {
         $fields[] = 'site_understanding_corrections = ?';
         $params[] = $encodedUnderstanding;
     }
+    if (array_key_exists('site_understanding_corrections', $b)) {
+        $existingRow = DB::fetch('SELECT site_understanding, site_understanding_corrections FROM sites WHERE user_id=?', [$userId]);
+        $mergedCorrections = array_replace_recursive(
+            decodeJsonObject($existingRow['site_understanding_corrections'] ?? null),
+            decodeJsonObject($b['site_understanding_corrections'])
+        );
+        $fields[] = 'site_understanding_corrections = ?';
+        $params[] = json_encode($mergedCorrections, JSON_UNESCAPED_UNICODE);
+        $fields[] = 'site_understanding = ?';
+        $params[] = json_encode(mergeUnderstanding($existingRow['site_understanding'] ?? null, $mergedCorrections), JSON_UNESCAPED_UNICODE);
+    }
     if (array_key_exists('harmonize_agent', $b)) { $fields[] = 'harmonize_agent = ?'; $params[] = $b['harmonize_agent']; }
     if (array_key_exists('account_type', $b)) { $fields[] = 'account_type = ?'; $params[] = $b['account_type']; }
 
@@ -1208,7 +1238,7 @@ if (array_key_exists('theme', $b)) {
         $params[] = $userId;
         DB::execute('UPDATE sites SET ' . implode(', ', $fields) . ' WHERE user_id = ?', $params);
     }
-    if (array_key_exists('site_understanding', $b) || array_key_exists('profile_summary', $b) || array_key_exists('role_mission', $b) || array_key_exists('content_strategy', $b)) {
+    if (array_key_exists('site_understanding', $b) || array_key_exists('site_understanding_corrections', $b) || array_key_exists('profile_summary', $b) || array_key_exists('role_mission', $b) || array_key_exists('content_strategy', $b)) {
         try { SeoFoundation::rebuild($userId, true); } catch (Throwable $e) {}
     }
     json(['ok' => true]);

@@ -41,6 +41,43 @@ const EDITORIAL_AGENT_META = {
   site_ai: { icon: '🏗️', title: 'Site AI', role: 'Compone identita, design e configurazione complessiva del sito.' },
 };
 
+const STRATEGY_GOALS = [
+  ['bookings', 'Ricevere prenotazioni'],
+  ['contacts', 'Ottenere contatti'],
+  ['store_visits', 'Portare persone in sede'],
+  ['sales', 'Vendere prodotti o servizi'],
+  ['awareness', 'Aumentare la notoriet\u00e0'],
+  ['events', 'Promuovere eventi'],
+];
+
+const VISIBILITY_MODULES = [
+  {
+    name: 'Piano editoriale',
+    price: '\u20ac19/mese',
+    description: 'Priorit\u00e0, argomenti e calendario mensile costruiti sul pubblico che vuoi raggiungere.',
+    deliverables: ['Analisi mensile', 'Idee ordinate per impatto', 'Brief pronti per la scrittura'],
+  },
+  {
+    name: 'SEO Boost',
+    price: '\u20ac39/mese',
+    description: 'Interventi sulle opportunit\u00e0 Google che i soli contenuti social non riescono a coprire.',
+    deliverables: ['Query e pagine da migliorare', 'Titoli e testi ottimizzati', 'Collegamenti interni'],
+    featured: true,
+  },
+  {
+    name: 'Visibilit\u00e0 locale',
+    price: '\u20ac49/mese',
+    description: 'Pagine dedicate a territorio, servizi e intenzioni di ricerca locali.',
+    deliverables: ['Analisi geografica', 'Pagine locali', 'Call to action mirate'],
+  },
+  {
+    name: 'Content Growth',
+    price: '\u20ac69/mese',
+    description: 'Produzione continuativa di nuovi contenuti SEO coerenti con strategia e obiettivi.',
+    deliverables: ['Nuovi articoli', 'Copertura dei temi mancanti', 'Aggiornamento dei contenuti'],
+  },
+];
+
 function normalizeStudioData(raw, selectedTheme = 'tech-clarity') {
   const preset = SITE_LAYOUTS.find(layout => layout.id === selectedTheme) || SITE_LAYOUTS[0];
   const source = raw && typeof raw === 'object' ? raw : {};
@@ -97,7 +134,25 @@ function buildEditorialIdeas(posts, understanding) {
   const published = posts.filter(post => Number(post.published) === 1);
   const searchableText = published.map(post => `${post.generated_title || ''} ${(post.tags || []).join(' ')}`.toLowerCase()).join(' ');
   const pillars = understanding?.editorial_direction?.content_pillars || [];
+  const declared = understanding?.declared_strategy || {};
   const ideas = [];
+
+  if (declared.primary_audience) {
+    const audienceLabel = String(declared.primary_audience).split(/[.,;]/)[0].slice(0, 80);
+    ideas.push({
+      title: `Una guida pensata per ${audienceLabel}`,
+      reason: `Il pubblico prioritario dichiarato non emerge dai social in modo affidabile: questo contenuto lo intercetta esplicitamente.`,
+      type: 'Pubblico prioritario',
+    });
+  }
+
+  (declared.priority_services || []).slice(0, 2).forEach(service => {
+    ideas.push({
+      title: `${service}: guida completa, vantaggi e domande frequenti`,
+      reason: 'Hai indicato questo servizio come prioritario: merita una pagina capace di essere trovata e di portare all\u2019azione.',
+      type: 'Obiettivo commerciale',
+    });
+  });
 
   pillars.forEach((pillar, index) => {
     const words = String(pillar).toLowerCase().split(/\s+/).filter(word => word.length > 4);
@@ -118,6 +173,80 @@ function buildEditorialIdeas(posts, understanding) {
   if (published.length < 8) ideas.push({ title: 'Racconta il servizio più richiesto con un caso concreto', reason: 'Il sito ha ancora pochi contenuti: un esempio reale aumenta completezza e fiducia.', type: 'Priorità alta' });
   ideas.push({ title: 'Le 5 domande che i clienti fanno prima di scegliere', reason: 'Un contenuto utile intercetta dubbi reali e crea nuovi collegamenti interni.', type: 'Sempre utile' });
   return ideas.slice(0, 6);
+}
+
+function strategyCompletion(understanding) {
+  const strategy = understanding?.declared_strategy || {};
+  const required = [
+    strategy.activity_type,
+    strategy.offer_summary,
+    strategy.primary_goal,
+    strategy.primary_audience,
+    strategy.geographic_area,
+    strategy.priority_services?.length,
+    strategy.differentiators,
+    strategy.desired_action,
+  ];
+  return Math.round((required.filter(Boolean).length / required.length) * 100);
+}
+
+function buildVisibilityOpportunities(posts, visibility, understanding) {
+  const strategy = understanding?.declared_strategy || {};
+  const published = posts.filter(post => Number(post.published) === 1);
+  const opportunities = [];
+  const queryCandidates = [...(visibility.top_queries || [])].filter(query => Number(query.impressions) >= 20);
+  const topQuery = queryCandidates.sort((a, b) => {
+    const scoreA = Number(a.impressions) * (1 - Math.min(Number(a.ctr || 0), 100) / 100);
+    const scoreB = Number(b.impressions) * (1 - Math.min(Number(b.ctr || 0), 100) / 100);
+    return scoreB - scoreA;
+  })[0];
+
+  if (strategyCompletion(understanding) < 100) {
+    opportunities.push({
+      level: 'Fondamentale',
+      title: 'Completa pubblico e obiettivi',
+      reason: 'I social raccontano ci\u00f2 che pubblichi, ma non sanno quale pubblico e quale risultato commerciale vuoi privilegiare.',
+      action: 'Completa la strategia',
+      target: 'strategy',
+    });
+  }
+  if (topQuery) {
+    opportunities.push({
+      level: 'Dato Google',
+      title: `Rafforza la ricerca \u201c${topQuery.query_text}\u201d`,
+      reason: `Google l\u2019ha mostrata ${Number(topQuery.impressions).toLocaleString('it-IT')} volte con ${Number(topQuery.clicks || 0).toLocaleString('it-IT')} clic: c\u2019\u00e8 domanda reale da trasformare in una pagina pi\u00f9 efficace.`,
+      action: 'Prepara un contenuto',
+      target: 'ideas',
+    });
+  }
+  if (strategy.geographic_area && published.length < 12) {
+    opportunities.push({
+      level: 'SEO locale',
+      title: `Costruisci autorevolezza in ${strategy.geographic_area}`,
+      reason: 'Una presenza social non crea da sola pagine stabili per servizi, territorio e ricerche locali.',
+      action: 'Scopri il modulo locale',
+      target: 'modules',
+    });
+  }
+  if (Number(visibility.unique_visitors || 0) > 0 && Number(visibility.actions || 0) === 0) {
+    opportunities.push({
+      level: 'Conversione',
+      title: 'Trasforma le visite in contatti',
+      reason: 'Il sito riceve visite, ma negli ultimi 30 giorni non risultano azioni verso l\u2019attivit\u00e0. Servono messaggi e call to action pi\u00f9 mirati.',
+      action: 'Valuta SEO Boost',
+      target: 'modules',
+    });
+  }
+  if (published.length < 8) {
+    opportunities.push({
+      level: 'Copertura',
+      title: 'Crea pagine che restano trovabili',
+      reason: `Hai ${published.length} contenuti pubblicati. Per una SEO efficace servono pagine che rispondano in modo completo alle domande del pubblico, non solo post social riconvertiti.`,
+      action: 'Vedi le idee',
+      target: 'ideas',
+    });
+  }
+  return opportunities.slice(0, 5);
 }
 
 function SiteMapGraph({ posts, siteUrl, siteTitle, foundationPages = [] }) {
@@ -745,15 +874,33 @@ const [importMsg, setImportMsg] = useState(null);
     updateUnderstandingNested(section, key, value.split('\n').map(item => item.trim()).filter(Boolean));
   }
 
+  function updateDeclaredStrategy(key, value) {
+    updateUnderstandingNested('declared_strategy', key, value);
+  }
+
+  function updateDeclaredStrategyList(key, value) {
+    updateDeclaredStrategy(key, value.split('\n').map(item => item.trim()).filter(Boolean));
+  }
+
+  function openDashboardSection(target) {
+    if (target === 'strategy') setTab('overview');
+    else setTab('seo');
+    window.setTimeout(() => document.getElementById(target)?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 80);
+  }
+
   async function saveUnderstanding() {
     setSavingUnderstanding(true);
     try {
       await apiFetch('/api/index.php?action=site-update', {
         method: 'POST',
-        body: JSON.stringify({ site_understanding: understandingDraft || {} }),
+        body: JSON.stringify({
+          site_understanding_corrections: {
+            declared_strategy: understandingDraft?.declared_strategy || {},
+          },
+        }),
       }, token);
       setUnderstandingReport(understandingDraft);
-      setSyncMsg({ ok: true, text: 'Correzioni salvate. Da ora guideranno la creazione dei prossimi contenuti.' });
+      setSyncMsg({ ok: true, text: 'Strategia salvata. Da ora guiderà pagine SEO, analisi e prossimi contenuti.' });
       await loadData();
     } catch (error) {
       setSyncMsg({ ok: false, text: error.message });
@@ -788,7 +935,7 @@ const [importMsg, setImportMsg] = useState(null);
       setUnderstandingReport(res.understanding || null);
       setUnderstandingDraft(res.understanding || null);
       await loadData();
-      setSyncMsg({ ok: true, text: 'Scheda di comprensione aggiornata.' });
+      setSyncMsg({ ok: true, text: 'Proposta AI aggiornata senza modificare la strategia dichiarata da te.' });
     } catch (err) {
       setSyncMsg({ ok: false, text: err.message });
     }
@@ -1208,6 +1355,10 @@ const [importMsg, setImportMsg] = useState(null);
   let seoFoundation = {};
   try { seoFoundation = typeof site?.seo_foundation === 'string' ? JSON.parse(site.seo_foundation) : (site?.seo_foundation || {}); } catch (_) { seoFoundation = {}; }
   const contentIdeas = buildEditorialIdeas(posts, understandingDraft || understandingReport);
+  const activeUnderstanding = understandingDraft || understandingReport || {};
+  const declaredStrategy = activeUnderstanding.declared_strategy || {};
+  const strategyProgress = strategyCompletion(activeUnderstanding);
+  const visibilityOpportunities = buildVisibilityOpportunities(posts, visibility, activeUnderstanding);
   const publishedPosts = posts.filter(post => Number(post.published) === 1);
   const networkPublishedPages = (visibility.published_pages ?? (publishedPosts.length + 1)) + (seoFoundation.pages || []).length + (publishedPosts.length ? 1 : 0) + (sources.length ? 1 : 0);
   const sourceByPlatform = sources.reduce((acc, source) => ({ ...acc, [source.platform]: source }), {});
@@ -1336,6 +1487,8 @@ const [importMsg, setImportMsg] = useState(null);
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '0.75rem', marginTop: '1.25rem' }}>
                 {[
+                  ['Percorsi scelti', visibility.event_counts?.path_select || 0],
+                  ['Contenuti aperti', visibility.event_counts?.path_content_click || 0],
                   ['Clic sul numero', visibility.event_counts?.call_click || 0],
                   ['Indicazioni', visibility.event_counts?.directions_click || 0],
                   ['WhatsApp', visibility.event_counts?.whatsapp_click || 0],
@@ -1350,30 +1503,60 @@ const [importMsg, setImportMsg] = useState(null);
               </div>
             </div>
 
-            <div className="card" style={{ padding: '1.5rem', background: 'var(--surface)', border: '1px solid var(--primary)' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem', alignItems: 'flex-start', flexWrap: 'wrap' }}>
-                <div>
-                  <h3 style={{ margin: '0 0 0.45rem', color: 'var(--primary)' }}>🧠 Cosa ha capito l’AI</h3>
-                  <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '14px', lineHeight: 1.6, maxWidth: '680px' }}>Queste informazioni guidano i prossimi articoli, i suggerimenti e il modo in cui viene presentata la tua attività. Le tue correzioni hanno sempre priorità e non vengono cancellate dalle analisi successive.</p>
+            <div id="strategy" className="card" style={{ padding: '1.5rem', background: 'var(--surface)', border: '1px solid var(--primary)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1.25rem', alignItems: 'flex-start', flexWrap: 'wrap' }}>
+                <div style={{ maxWidth: '680px' }}>
+                  <div style={{ color: 'var(--primary)', fontSize: '12px', fontWeight: 850, textTransform: 'uppercase', letterSpacing: '.08em' }}>Strategia dichiarata da te</div>
+                  <h3 style={{ margin: '0.4rem 0', color: 'var(--text)', fontSize: '22px' }}>Aiutaci a raggiungere le persone giuste</h3>
+                  <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '14px', lineHeight: 1.65 }}>Dai social possiamo capire cosa pubblichi. Solo tu puoi dirci quali clienti vuoi raggiungere, dove si trovano e quale azione vuoi ottenere. Le tue risposte hanno sempre priorità sulle ipotesi dell’AI.</p>
                 </div>
-                <button className="btn btn-primary" onClick={saveUnderstanding} disabled={savingUnderstanding || !understandingDraft} style={{ padding: '10px 16px' }}>{savingUnderstanding ? 'Salvataggio…' : 'Salva correzioni'}</button>
+                <div style={{ minWidth: '180px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', fontWeight: 800, color: 'var(--text)', marginBottom: '7px' }}><span>Profilo strategico</span><span>{strategyProgress}%</span></div>
+                  <div style={{ height: '9px', background: 'var(--bg)', borderRadius: '999px', overflow: 'hidden', border: '1px solid var(--border)' }}><div style={{ width: `${strategyProgress}%`, height: '100%', background: 'linear-gradient(90deg, var(--primary), var(--teal))', transition: 'width .25s ease' }} /></div>
+                </div>
               </div>
-              {!understandingDraft ? (
-                <div style={{ marginTop: '1.2rem', padding: '1rem', borderRadius: '12px', background: 'var(--amber-light)', color: 'var(--text)', display: 'flex', justifyContent: 'space-between', gap: '1rem', alignItems: 'center', flexWrap: 'wrap' }}><span>L’AI non ha ancora completato questa scheda.</span><button className="btn btn-primary" onClick={refreshUnderstanding} disabled={savingProfile}>{savingProfile ? 'Analisi…' : 'Analizza ora'}</button></div>
-              ) : (
-                <div style={{ display: 'grid', gap: '1rem', marginTop: '1.25rem' }}>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem' }}>
-                    <label className="form-group"><span className="label">Tipo di attività</span><input value={understandingDraft.vertical_label || ''} onChange={e => updateUnderstandingField('vertical_label', e.target.value)} /></label>
-                    <label className="form-group"><span className="label">Cosa offre</span><input value={understandingDraft.business_model || ''} onChange={e => updateUnderstandingField('business_model', e.target.value)} /></label>
-                  </div>
-                  <label className="form-group"><span className="label">A chi si rivolge</span><textarea value={understandingDraft.audience || ''} onChange={e => updateUnderstandingField('audience', e.target.value)} style={{ minHeight: '76px', resize: 'vertical' }} /></label>
-                  <label className="form-group"><span className="label">Come dovrebbe raccontarsi</span><textarea value={understandingDraft.editorial_direction?.summary || ''} onChange={e => updateUnderstandingNested('editorial_direction', 'summary', e.target.value)} style={{ minHeight: '76px', resize: 'vertical' }} /></label>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '1rem' }}>
-                    <label className="form-group"><span className="label">Argomenti principali · uno per riga</span><textarea value={(understandingDraft.editorial_direction?.content_pillars || []).join('\n')} onChange={e => updateUnderstandingNestedList('editorial_direction', 'content_pillars', e.target.value)} style={{ minHeight: '110px', resize: 'vertical' }} /></label>
-                    <label className="form-group"><span className="label">Informazioni da chiarire · una per riga</span><textarea value={(understandingDraft.editorial_direction?.critical_unknowns || []).join('\n')} onChange={e => updateUnderstandingNestedList('editorial_direction', 'critical_unknowns', e.target.value)} style={{ minHeight: '110px', resize: 'vertical' }} /></label>
+
+              <div style={{ marginTop: '1.4rem', padding: '1rem', background: 'var(--primary-light)', borderRadius: '14px', color: 'var(--text)', fontSize: '13px', lineHeight: 1.6 }}>
+                <strong>La base proposta dall’AI:</strong> {activeUnderstanding.vertical_label || 'attività da definire'}{activeUnderstanding.business_model ? ` · ${activeUnderstanding.business_model}` : ''}. Confermala attraverso le risposte qui sotto: non useremo più le supposizioni come se fossero dati certi.
+              </div>
+
+              <div style={{ display: 'grid', gap: '1.15rem', marginTop: '1.35rem' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1rem' }}>
+                  <label className="form-group"><span className="label">Che tipo di attività sei?</span><input value={declaredStrategy.activity_type || ''} onChange={e => updateDeclaredStrategy('activity_type', e.target.value)} placeholder="Es. agriturismo con ristorante e ospitalità" /></label>
+                  <label className="form-group"><span className="label">Cosa offri concretamente?</span><input value={declaredStrategy.offer_summary || ''} onChange={e => updateDeclaredStrategy('offer_summary', e.target.value)} placeholder="Es. soggiorni, cucina locale, piscina ed eventi" /></label>
+                </div>
+
+                <div>
+                  <div className="label" style={{ marginBottom: '0.65rem' }}>Qual è il risultato più importante?</div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                    {STRATEGY_GOALS.map(([value, label]) => <button key={value} type="button" onClick={() => updateDeclaredStrategy('primary_goal', value)} style={{ padding: '9px 12px', borderRadius: '999px', cursor: 'pointer', border: declaredStrategy.primary_goal === value ? '1px solid var(--primary)' : '1px solid var(--border-strong)', background: declaredStrategy.primary_goal === value ? 'var(--primary)' : 'var(--bg)', color: declaredStrategy.primary_goal === value ? '#fff' : 'var(--text)', fontWeight: 700, fontSize: '13px' }}>{label}</button>)}
                   </div>
                 </div>
-              )}
+
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(270px, 1fr))', gap: '1rem' }}>
+                  <label className="form-group"><span className="label">Pubblico principale che vuoi raggiungere</span><textarea value={declaredStrategy.primary_audience || ''} onChange={e => updateDeclaredStrategy('primary_audience', e.target.value)} placeholder="Es. coppie e famiglie di Roma, 30–60 anni, interessate a weekend nella natura" style={{ minHeight: '92px', resize: 'vertical' }} /></label>
+                  <label className="form-group"><span className="label">Pubblico secondario · facoltativo</span><textarea value={declaredStrategy.secondary_audience || ''} onChange={e => updateDeclaredStrategy('secondary_audience', e.target.value)} placeholder="Es. aziende che cercano una location per eventi e ritiri" style={{ minHeight: '92px', resize: 'vertical' }} /></label>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem' }}>
+                  <label className="form-group"><span className="label">Territorio da raggiungere</span><input value={declaredStrategy.geographic_area || ''} onChange={e => updateDeclaredStrategy('geographic_area', e.target.value)} placeholder="Es. Roma, Lazio e Centro Italia" /></label>
+                  <label className="form-group"><span className="label">Azione che desideri ottenere</span><input value={declaredStrategy.desired_action || ''} onChange={e => updateDeclaredStrategy('desired_action', e.target.value)} placeholder="Es. richiesta disponibilità su WhatsApp" /></label>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(270px, 1fr))', gap: '1rem' }}>
+                  <label className="form-group"><span className="label">Servizi o prodotti prioritari · uno per riga</span><textarea value={(declaredStrategy.priority_services || []).join('\n')} onChange={e => updateDeclaredStrategyList('priority_services', e.target.value)} placeholder={'Soggiorni weekend\nRistorante\nEventi privati'} style={{ minHeight: '112px', resize: 'vertical' }} /></label>
+                  <label className="form-group"><span className="label">Perché dovrebbero scegliere te?</span><textarea value={declaredStrategy.differentiators || ''} onChange={e => updateDeclaredStrategy('differentiators', e.target.value)} placeholder="Elementi distintivi, esperienza, metodo, posizione, qualità o vantaggi concreti" style={{ minHeight: '112px', resize: 'vertical' }} /></label>
+                </div>
+
+                <label className="form-group"><span className="label">Quali esigenze o dubbi ha questo pubblico? · facoltativo</span><textarea value={declaredStrategy.customer_needs || ''} onChange={e => updateDeclaredStrategy('customer_needs', e.target.value)} placeholder="Es. vuole sapere se la struttura è adatta ai bambini, quanto dista da Roma e cosa è incluso" style={{ minHeight: '82px', resize: 'vertical' }} /></label>
+
+                {!!(activeUnderstanding.editorial_direction?.critical_unknowns || []).length && <div style={{ padding: '1rem', borderRadius: '14px', background: 'var(--amber-light)', color: 'var(--text)' }}><div style={{ fontWeight: 800, marginBottom: '0.45rem' }}>Cose che i social non ci hanno permesso di capire</div><div style={{ fontSize: '13px', lineHeight: 1.65 }}>{activeUnderstanding.editorial_direction.critical_unknowns.join(' · ')}</div></div>}
+
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', flexWrap: 'wrap' }}>
+                  <button className="btn btn-outline" onClick={refreshUnderstanding} disabled={savingProfile}>{savingProfile ? 'Analisi…' : 'Aggiorna la proposta AI'}</button>
+                  <button className="btn btn-primary" onClick={saveUnderstanding} disabled={savingUnderstanding} style={{ padding: '10px 18px' }}>{savingUnderstanding ? 'Salvataggio…' : 'Salva la mia strategia'}</button>
+                </div>
+              </div>
             </div>
             
             <div className="card" style={{ background: 'linear-gradient(135deg, var(--primary-dark), var(--primary))', color: '#fff', border: 'none', boxShadow: '0 10px 30px -10px rgba(0, 240, 255, 0.4)' }}>
@@ -1898,7 +2081,13 @@ const [importMsg, setImportMsg] = useState(null);
                 <span style={{ padding: '9px 13px', borderRadius: '999px', background: 'var(--teal-light)', color: 'var(--teal)', fontSize: '12px', fontWeight: 800 }}>Attivo</span>
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem', marginTop: '1.25rem' }}>
-                {[['Pagine nella rete', networkPublishedPages], ['Canali osservati', sources.length], ['Visite · 30 giorni', visibility.unique_visitors || 0], ['Azioni · 30 giorni', visibility.actions || 0]].map(([label,value]) => <div key={label} style={{ padding: '1rem', borderRadius: '12px', background: 'var(--bg)', border: '1px solid var(--border)' }}><div style={{ fontSize: '26px', fontWeight: 850, color: 'var(--text)' }}>{value}</div><div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>{label}</div></div>)}
+                {[
+                  ['Pagine nella rete', networkPublishedPages],
+                  ['Viste su Google · 30 giorni', Number(visibility.impressions || 0).toLocaleString('it-IT')],
+                  ['Clic da Google · 30 giorni', Number(visibility.clicks || 0).toLocaleString('it-IT')],
+                  ['Visite al sito · 30 giorni', Number(visibility.unique_visitors || 0).toLocaleString('it-IT')],
+                  ['Azioni verso l’attività', Number(visibility.actions || 0).toLocaleString('it-IT')],
+                ].map(([label,value]) => <div key={label} style={{ padding: '1rem', borderRadius: '12px', background: 'var(--bg)', border: '1px solid var(--border)' }}><div style={{ fontSize: '26px', fontWeight: 850, color: 'var(--text)' }}>{value}</div><div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>{label}</div></div>)}
               </div>
               <div style={{ display: 'flex', gap: '10px', marginTop: '1.2rem', flexWrap: 'wrap' }}>
                 <a href="/scopri" target="_blank" rel="noopener" className="btn btn-outline" style={{ textDecoration: 'none' }}>Apri la rete pubblica</a>
@@ -1910,7 +2099,7 @@ const [importMsg, setImportMsg] = useState(null);
               <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem', alignItems: 'flex-start', flexWrap: 'wrap' }}>
                 <div>
                   <h3 style={{ margin: '0 0 0.4rem', color: 'var(--text)' }}>Pagine fondamentali gestite dal sistema</h3>
-                  <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '14px', lineHeight: 1.6, maxWidth: '680px' }}>Il sistema crea solo pagine sostenute da informazioni reali nei tuoi contenuti. Quando correggi la scheda “Cosa ha capito l’AI”, anche questa struttura viene aggiornata.</p>
+                  <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '14px', lineHeight: 1.6, maxWidth: '680px' }}>Il sistema crea solo pagine sostenute da informazioni reali nei tuoi contenuti e dalla strategia che hai dichiarato in Home.</p>
                 </div>
                 <button className="btn btn-primary" onClick={rebuildSeoFoundation} disabled={savingProfile}>{savingProfile ? 'Aggiornamento…' : 'Aggiorna pagine SEO'}</button>
               </div>
@@ -1927,9 +2116,26 @@ const [importMsg, setImportMsg] = useState(null);
               <SiteMapGraph posts={posts} siteUrl={siteUrl} siteTitle={data?.site?.title || user?.name || user?.slug} foundationPages={seoFoundation.pages || []} />
             </div>
 
-            <div className="glass-modal" style={{ marginBottom: '1.5rem', padding: '1.5rem' }}>
-              <h3 style={{ margin: '0 0 0.4rem', color: 'var(--text)' }}>💡 Prossimi contenuti consigliati</h3>
-              <p style={{ margin: '0 0 1.2rem', color: 'var(--text-muted)', fontSize: '14px' }}>Le idee nascono da ciò che l’AI ha capito dell’attività e dai temi già presenti. Correggendo la scheda in Home cambieranno anche questi suggerimenti.</p>
+            <div className="glass-modal" style={{ marginBottom: '1.5rem', padding: '1.5rem', border: '1px solid var(--primary)' }}>
+              <div style={{ maxWidth: '760px' }}>
+                <div style={{ color: 'var(--primary)', fontSize: '12px', fontWeight: 850, textTransform: 'uppercase', letterSpacing: '.08em' }}>Analisi azionabile</div>
+                <h3 style={{ margin: '0.4rem 0', color: 'var(--text)', fontSize: '22px' }}>Quello che i social da soli non possono fare</h3>
+                <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '14px', lineHeight: 1.65 }}>Incrociamo la strategia dichiarata, i contenuti pubblicati, le ricerche Google e le azioni sul sito. Ogni suggerimento spiega il dato o la lacuna da cui nasce.</p>
+              </div>
+              <div style={{ display: 'grid', gap: '0.8rem', marginTop: '1.2rem' }}>
+                {visibilityOpportunities.map((opportunity, index) => (
+                  <div key={`${opportunity.title}-${index}`} style={{ display: 'grid', gridTemplateColumns: 'auto 1fr auto', gap: '1rem', alignItems: 'center', padding: '1rem', border: '1px solid var(--border)', background: 'var(--bg)', borderRadius: '14px' }}>
+                    <div style={{ width: '38px', height: '38px', borderRadius: '12px', display: 'grid', placeItems: 'center', background: 'var(--primary-light)', color: 'var(--primary)', fontWeight: 850 }}>{index + 1}</div>
+                    <div><div style={{ fontSize: '11px', fontWeight: 800, color: 'var(--primary)', textTransform: 'uppercase', letterSpacing: '.5px' }}>{opportunity.level}</div><div style={{ fontWeight: 800, color: 'var(--text)', marginTop: '3px' }}>{opportunity.title}</div><div style={{ color: 'var(--text-muted)', fontSize: '13px', lineHeight: 1.5, marginTop: '4px' }}>{opportunity.reason}</div></div>
+                    <button className="btn btn-outline" onClick={() => openDashboardSection(opportunity.target)} style={{ padding: '8px 12px', fontSize: '12px', whiteSpace: 'nowrap' }}>{opportunity.action}</button>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div id="ideas" className="glass-modal" style={{ marginBottom: '1.5rem', padding: '1.5rem' }}>
+              <h3 style={{ margin: '0 0 0.4rem', color: 'var(--text)' }}>💡 Contenuti costruiti sui tuoi obiettivi</h3>
+              <p style={{ margin: '0 0 1.2rem', color: 'var(--text-muted)', fontSize: '14px' }}>Queste idee combinano ciò che emerge dai social con pubblico, territorio, servizi prioritari e obiettivi indicati da te.</p>
               <div style={{ display: 'grid', gap: '0.8rem' }}>
                 {contentIdeas.map((idea, index) => (
                   <div key={`${idea.title}-${index}`} style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '1rem', padding: '1rem', border: '1px solid var(--border)', background: 'var(--bg)', borderRadius: '14px' }}>
@@ -1945,6 +2151,30 @@ const [importMsg, setImportMsg] = useState(null);
                   </div>
                 ))}
               </div>
+            </div>
+
+            <div id="modules" className="glass-modal" style={{ marginBottom: '1.5rem', padding: '1.5rem', background: 'linear-gradient(145deg, var(--surface), var(--primary-light))' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem', alignItems: 'flex-start', flexWrap: 'wrap' }}>
+                <div style={{ maxWidth: '720px' }}>
+                  <div style={{ color: 'var(--primary)', fontSize: '12px', fontWeight: 850, textTransform: 'uppercase', letterSpacing: '.08em' }}>Soluzioni modulari</div>
+                  <h3 style={{ margin: '0.4rem 0', color: 'var(--text)', fontSize: '22px' }}>Vuoi accelerare la visibilità?</h3>
+                  <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '14px', lineHeight: 1.65 }}>L’analisi di base resta inclusa. Puoi attivare solo gli interventi che ti servono, con costo e attività dichiarati prima dell’acquisto.</p>
+                </div>
+                <span style={{ padding: '9px 13px', borderRadius: '999px', background: 'var(--surface)', color: 'var(--primary)', border: '1px solid var(--primary)', fontSize: '12px', fontWeight: 800 }}>Nessun vincolo</span>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(215px, 1fr))', gap: '1rem', marginTop: '1.3rem' }}>
+                {VISIBILITY_MODULES.map(module => (
+                  <div key={module.name} style={{ padding: '1.15rem', borderRadius: '16px', background: 'var(--surface)', border: module.featured ? '2px solid var(--primary)' : '1px solid var(--border)', boxShadow: module.featured ? '0 10px 24px rgba(79,70,229,.12)' : 'none', display: 'flex', flexDirection: 'column' }}>
+                    {module.featured && <div style={{ alignSelf: 'flex-start', padding: '4px 8px', borderRadius: '999px', background: 'var(--primary)', color: '#fff', fontSize: '10px', fontWeight: 850, textTransform: 'uppercase', marginBottom: '0.7rem' }}>Consigliato</div>}
+                    <div style={{ fontSize: '17px', fontWeight: 850, color: 'var(--text)' }}>{module.name}</div>
+                    <div style={{ fontSize: '23px', fontWeight: 900, color: 'var(--primary)', marginTop: '0.35rem' }}>{module.price}</div>
+                    <p style={{ color: 'var(--text-muted)', fontSize: '13px', lineHeight: 1.55, minHeight: '60px' }}>{module.description}</p>
+                    <div style={{ display: 'grid', gap: '0.45rem', marginBottom: '1rem' }}>{module.deliverables.map(item => <div key={item} style={{ color: 'var(--text)', fontSize: '12px' }}>✓ {item}</div>)}</div>
+                    <a href={`mailto:support@ideesitiweb.it?subject=${encodeURIComponent(`Richiesta modulo ${module.name} - ${user?.slug || ''}`)}`} className={`btn ${module.featured ? 'btn-primary' : 'btn-outline'}`} style={{ marginTop: 'auto', textDecoration: 'none', justifyContent: 'center' }}>Richiedi attivazione</a>
+                  </div>
+                ))}
+              </div>
+              <div style={{ marginTop: '1rem', color: 'var(--text-muted)', fontSize: '12px', lineHeight: 1.55 }}>I prezzi mostrati sono proposte commerciali e non includono eventuali budget pubblicitari. Nessun risultato di posizionamento o vendita viene garantito.</div>
             </div>
 
             {isAdmin && (
@@ -2014,6 +2244,8 @@ const [importMsg, setImportMsg] = useState(null);
                         <div>
                           <div style={{ fontSize: '12px', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '0.5rem' }}>Azioni registrate</div>
                           <div style={{ fontSize: '13px', lineHeight: 1.8, color: 'var(--text)' }}>
+                            Percorsi scelti: <strong>{st.event_counts?.path_select || 0}</strong><br />
+                            Contenuti aperti: <strong>{st.event_counts?.path_content_click || 0}</strong><br />
                             Telefono: <strong>{st.event_counts?.call_click || 0}</strong><br />
                             Indicazioni: <strong>{st.event_counts?.directions_click || 0}</strong><br />
                             WhatsApp: <strong>{st.event_counts?.whatsapp_click || 0}</strong><br />
