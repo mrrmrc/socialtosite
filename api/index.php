@@ -815,6 +815,53 @@ if ($action === 'admin-prompts' && $method === 'GET') {
     json(['prompts' => $prompts]);
 }
 
+// Laboratorio privato: dieci modi di fruire lo Spazio Vivo usando soltanto
+// il patrimonio reale di San Germano. Nessuna variante modifica il sito live.
+if ($action === 'admin-spazio-vivo-lab' && $method === 'GET') {
+    requireAdmin($isAdmin);
+    $labUser = DB::fetch('SELECT id, name, slug FROM users WHERE slug=? LIMIT 1', ['sangermano']);
+    if (!$labUser) jsonError('Profilo sangermano non trovato', 404);
+
+    $labSite = DB::fetch(
+        'SELECT title, bio, profile_summary, logo_url, cover_url, accent_color, site_understanding
+           FROM sites WHERE user_id=? LIMIT 1',
+        [$labUser['id']]
+    ) ?: [];
+    $labPosts = DB::fetchAll(
+        'SELECT id, platform, generated_title, generated_excerpt, tags, media_url, media_type, source_url, published_at, slug
+           FROM posts
+          WHERE user_id=? AND published=1
+          ORDER BY published_at DESC, id DESC
+          LIMIT 40',
+        [$labUser['id']]
+    );
+    foreach ($labPosts as &$labPost) {
+        $decodedTags = json_decode($labPost['tags'] ?? '[]', true);
+        if (!is_array($decodedTags)) $decodedTags = [];
+        $labPost['tags'] = array_values(array_filter(array_map('trim', $decodedTags)));
+    }
+    unset($labPost);
+    $labSources = DB::fetchAll(
+        'SELECT platform, label, url FROM social_sources WHERE user_id=? AND active=1 ORDER BY platform, id',
+        [$labUser['id']]
+    );
+
+    json([
+        'ok' => true,
+        'profile' => [
+            'name' => ($labSite['title'] ?? '') ?: ($labUser['name'] ?: 'Agriturismo San Germano'),
+            'slug' => $labUser['slug'],
+            'bio' => $labSite['profile_summary'] ?: ($labSite['bio'] ?? ''),
+            'logo_url' => $labSite['logo_url'] ?? '',
+            'cover_url' => $labSite['cover_url'] ?? '',
+            'accent_color' => $labSite['accent_color'] ?? '#8C6BFF',
+        ],
+        'posts' => $labPosts,
+        'sources' => $labSources,
+        'generated_at' => date(DATE_ATOM),
+    ]);
+}
+
 if ($action === 'admin-editorial-engine' && $method === 'GET') {
     requireAdmin($isAdmin);
     json(['ok' => true, 'engine' => EditorialEngine::getState($userId)]);
