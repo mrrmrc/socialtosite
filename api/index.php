@@ -625,7 +625,9 @@ if ($action === 'spazio-vivo-mode' && $method === 'POST') {
         'UPDATE sites SET living_space_mode=?, living_space_mode_updated_at=NOW() WHERE user_id=?',
         [$selectedMode, $userId]
     );
-    json(['ok' => true, 'mode' => $selectedMode, 'updated_at' => date(DATE_ATOM)]);
+    $savedMode = DB::fetch('SELECT living_space_mode, living_space_mode_updated_at FROM sites WHERE user_id=? LIMIT 1', [$userId]);
+    if (($savedMode['living_space_mode'] ?? '') !== $selectedMode) jsonError('La modalità non è stata salvata. Riprova.', 500);
+    json(['ok' => true, 'mode' => $savedMode['living_space_mode'], 'updated_at' => $savedMode['living_space_mode_updated_at']]);
 }
 
 function uniqueUserSlug(string $source): string {
