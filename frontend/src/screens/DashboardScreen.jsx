@@ -130,12 +130,30 @@ function encodeStudioPreviewData(data) {
   }
 }
 
-function buildEditorialIdeas(posts, understanding) {
+function buildEditorialIdeas(posts, understanding, visibility = {}) {
   const published = posts.filter(post => Number(post.published) === 1);
   const searchableText = published.map(post => `${post.generated_title || ''} ${(post.tags || []).join(' ')}`.toLowerCase()).join(' ');
   const pillars = understanding?.editorial_direction?.content_pillars || [];
   const declared = understanding?.declared_strategy || {};
+  const visualAssets = published.filter(post => post.media_url).length;
+  const topQuery = [...(visibility.top_queries || [])]
+    .filter(query => Number(query.impressions) >= 20)
+    .sort((a, b) => {
+      const scoreA = Number(a.impressions) * (1 - Math.min(Number(a.ctr || 0), 100) / 100);
+      const scoreB = Number(b.impressions) * (1 - Math.min(Number(b.ctr || 0), 100) / 100);
+      return scoreB - scoreA;
+    })[0];
   const ideas = [];
+
+  if (topQuery) {
+    ideas.push({
+      title: `Rispondi alla ricerca “${topQuery.query_text}”`,
+      reason: `Google ha già mostrato questa ricerca ${Number(topQuery.impressions).toLocaleString('it-IT')} volte: sviluppala in un contenuto completo, con una risposta chiara e una call to action pertinente.`,
+      type: 'Domanda reale su Google',
+      priority: 'Da creare subito',
+      source: 'Dati Google degli ultimi 30 giorni',
+    });
+  }
 
   if (declared.primary_audience) {
     const audienceLabel = String(declared.primary_audience).split(/[.,;]/)[0].slice(0, 80);
@@ -143,6 +161,8 @@ function buildEditorialIdeas(posts, understanding) {
       title: `Una guida pensata per ${audienceLabel}`,
       reason: `Il pubblico prioritario dichiarato non emerge dai social in modo affidabile: questo contenuto lo intercetta esplicitamente.`,
       type: 'Pubblico prioritario',
+      priority: 'Alta priorità',
+      source: 'Profilo guidato',
     });
   }
 
@@ -151,8 +171,30 @@ function buildEditorialIdeas(posts, understanding) {
       title: `${service}: guida completa, vantaggi e domande frequenti`,
       reason: 'Hai indicato questo servizio come prioritario: merita una pagina capace di essere trovata e di portare all\u2019azione.',
       type: 'Obiettivo commerciale',
+      priority: 'Alta priorità',
+      source: 'Servizi prioritari',
     });
   });
+
+  if (declared.geographic_area) {
+    ideas.push({
+      title: `Come scegliere il servizio giusto a ${declared.geographic_area}`,
+      reason: 'Un contenuto locale stabile collega offerta, territorio e domande concrete delle persone che si trovano nella tua area.',
+      type: 'Visibilità locale',
+      priority: 'Consigliata',
+      source: 'Territorio dichiarato',
+    });
+  }
+
+  if (visualAssets > 0) {
+    ideas.push({
+      title: 'Dietro le quinte: una storia costruita con le tue immagini migliori',
+      reason: `Hai già ${visualAssets} foto o video pubblicati: trasformali in un racconto utile che resti consultabile e non scompaia nel flusso social.`,
+      type: 'Idea visuale',
+      priority: 'Pronta da sviluppare',
+      source: 'Media già disponibili',
+    });
+  }
 
   pillars.forEach((pillar, index) => {
     const words = String(pillar).toLowerCase().split(/\s+/).filter(word => word.length > 4);
@@ -162,17 +204,26 @@ function buildEditorialIdeas(posts, understanding) {
         title: `Una guida pratica su “${pillar}”`,
         reason: covered ? 'Tema importante da approfondire con un nuovo punto di vista.' : 'Tema riconosciuto dall’AI ma ancora poco coperto nel sito.',
         type: covered ? 'Approfondimento' : 'Tema mancante',
+        priority: covered ? 'Da approfondire' : 'Alta priorità',
+        source: 'Analisi dei contenuti',
       });
     }
   });
 
   (understanding?.editorial_direction?.critical_unknowns || []).slice(0, 2).forEach(item => {
-    ideas.push({ title: `Rispondi chiaramente a: ${item}`, reason: 'Chiarire questo punto aiuta clienti e AI a capire meglio l’attività.', type: 'Domanda cliente' });
+    ideas.push({ title: `Rispondi chiaramente a: ${item}`, reason: 'Chiarire questo punto aiuta clienti e AI a capire meglio l’attività.', type: 'Domanda cliente', priority: 'Consigliata', source: 'Informazioni ancora mancanti' });
   });
 
-  if (published.length < 8) ideas.push({ title: 'Racconta il servizio più richiesto con un caso concreto', reason: 'Il sito ha ancora pochi contenuti: un esempio reale aumenta completezza e fiducia.', type: 'Priorità alta' });
-  ideas.push({ title: 'Le 5 domande che i clienti fanno prima di scegliere', reason: 'Un contenuto utile intercetta dubbi reali e crea nuovi collegamenti interni.', type: 'Sempre utile' });
-  return ideas.slice(0, 6);
+  if (published.length < 8) ideas.push({ title: 'Racconta il servizio più richiesto con un caso concreto', reason: 'Il sito ha ancora pochi contenuti: un esempio reale aumenta completezza e fiducia.', type: 'Caso reale', priority: 'Alta priorità', source: 'Copertura del sito' });
+  ideas.push({ title: 'Le 5 domande che i clienti fanno prima di scegliere', reason: 'Un contenuto utile intercetta dubbi reali e crea nuovi collegamenti interni.', type: 'Sempre utile', priority: 'Evergreen', source: 'Formato ad alta utilità' });
+
+  const seenTitles = new Set();
+  return ideas.filter(idea => {
+    const key = idea.title.toLowerCase().trim();
+    if (seenTitles.has(key)) return false;
+    seenTitles.add(key);
+    return true;
+  }).slice(0, 8);
 }
 
 function strategyCompletion(understanding) {
@@ -207,66 +258,6 @@ function prefillStrategyFromAi(understanding) {
       customer_needs: current.customer_needs || understanding.customer_needs || '',
     },
   };
-}
-
-function buildVisibilityOpportunities(posts, visibility, understanding) {
-  const strategy = understanding?.declared_strategy || {};
-  const published = posts.filter(post => Number(post.published) === 1);
-  const visualAssets = published.filter(post => post.media_url).length;
-  const opportunities = [];
-  const queryCandidates = [...(visibility.top_queries || [])].filter(query => Number(query.impressions) >= 20);
-  const topQuery = queryCandidates.sort((a, b) => {
-    const scoreA = Number(a.impressions) * (1 - Math.min(Number(a.ctr || 0), 100) / 100);
-    const scoreB = Number(b.impressions) * (1 - Math.min(Number(b.ctr || 0), 100) / 100);
-    return scoreB - scoreA;
-  })[0];
-
-  if (visualAssets > 0) {
-    opportunities.push({
-      level: 'Patrimonio visuale',
-      title: `Dai nuova vita a ${visualAssets} immagini e video`,
-      reason: 'Nei social questo patrimonio scorre e scompare. Nello Spazio Vivo diventa organizzato, collegabile e trovabile anche nel tempo.',
-      action: 'Crea idee visuali',
-      target: 'ideas',
-    });
-  }
-  if (topQuery) {
-    opportunities.push({
-      level: 'Dato Google',
-      title: `Rafforza la ricerca \u201c${topQuery.query_text}\u201d`,
-      reason: `Google l\u2019ha mostrata ${Number(topQuery.impressions).toLocaleString('it-IT')} volte con ${Number(topQuery.clicks || 0).toLocaleString('it-IT')} clic: c\u2019\u00e8 domanda reale da trasformare in una pagina pi\u00f9 efficace.`,
-      action: 'Prepara un contenuto',
-      target: 'ideas',
-    });
-  }
-  if (strategy.geographic_area && published.length < 12) {
-    opportunities.push({
-      level: 'SEO locale',
-      title: `Costruisci autorevolezza in ${strategy.geographic_area}`,
-      reason: 'Una presenza social non crea da sola pagine stabili per servizi, territorio e ricerche locali.',
-      action: 'Scopri il modulo locale',
-      target: 'modules',
-    });
-  }
-  if (Number(visibility.unique_visitors || 0) > 0 && Number(visibility.actions || 0) === 0) {
-    opportunities.push({
-      level: 'Conversione',
-      title: 'Trasforma le visite in contatti',
-      reason: 'Il sito riceve visite, ma negli ultimi 30 giorni non risultano azioni verso l\u2019attivit\u00e0. Servono messaggi e call to action pi\u00f9 mirati.',
-      action: 'Valuta SEO Boost',
-      target: 'modules',
-    });
-  }
-  if (published.length < 8) {
-    opportunities.push({
-      level: 'Copertura',
-      title: 'Crea pagine che restano trovabili',
-      reason: `Hai ${published.length} contenuti pubblicati. Per una SEO efficace servono pagine che rispondano in modo completo alle domande del pubblico, non solo post social riconvertiti.`,
-      action: 'Vedi le idee',
-      target: 'ideas',
-    });
-  }
-  return opportunities.slice(0, 5);
 }
 
 function GuidedStrategy({
@@ -1043,7 +1034,7 @@ const [importMsg, setImportMsg] = useState(null);
     if (target === 'strategy') setTab('strategy');
     else {
       setTab('seo');
-      setVisibilitySection(target === 'modules' ? 'solutions' : target === 'ideas' ? 'ideas' : 'opportunities');
+      setVisibilitySection(target === 'modules' ? 'solutions' : target === 'overview' ? 'overview' : 'ideas');
     }
     window.setTimeout(() => document.getElementById(target)?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 80);
   }
@@ -1563,11 +1554,10 @@ const [importMsg, setImportMsg] = useState(null);
   const reachability = data?.reachability || { score: 0, stage: 'configurazione', checks: [] };
   let seoFoundation = {};
   try { seoFoundation = typeof site?.seo_foundation === 'string' ? JSON.parse(site.seo_foundation) : (site?.seo_foundation || {}); } catch (_) { seoFoundation = {}; }
-  const contentIdeas = buildEditorialIdeas(posts, understandingDraft || understandingReport);
+  const contentIdeas = buildEditorialIdeas(posts, understandingDraft || understandingReport, visibility);
   const activeUnderstanding = understandingDraft || understandingReport || {};
   const declaredStrategy = activeUnderstanding.declared_strategy || {};
   const strategyProgress = strategyCompletion(activeUnderstanding);
-  const visibilityOpportunities = buildVisibilityOpportunities(posts, visibility, activeUnderstanding);
   const publishedPosts = posts.filter(post => Number(post.published) === 1);
   const networkPublishedPages = (visibility.published_pages ?? (publishedPosts.length + 1)) + (seoFoundation.pages || []).length + (publishedPosts.length ? 1 : 0) + (sources.length ? 1 : 0);
   const sourceByPlatform = sources.reduce((acc, source) => ({ ...acc, [source.platform]: source }), {});
@@ -2304,11 +2294,10 @@ const [importMsg, setImportMsg] = useState(null);
             <div className="glass-modal" style={{ marginBottom: '1.25rem', padding: '0.65rem', display: 'flex', gap: '8px', flexWrap: 'wrap', position: 'sticky', top: '12px', zIndex: 20 }}>
               {[
                 ['network', '◎ Network'],
-                ['opportunities', '◉ Opportunità'],
-                ['solutions', '⚡ Aumenta la visibilità'],
                 ['ideas', '✦ Idee contenuti'],
+                ['solutions', '⚡ Aumenta la visibilità'],
                 ['overview', '◎ Dati e struttura'],
-              ].map(([section, label]) => <button key={section} className={`btn ${visibilitySection === section ? 'btn-primary' : 'btn-outline'}`} onClick={() => setVisibilitySection(section)} style={{ flex: '1 1 170px', justifyContent: 'center' }}>{label}</button>)}
+              ].map(([section, label]) => <button key={section} className={`btn ${visibilitySection === section ? 'btn-primary' : 'btn-outline'} ${section === 'ideas' ? 'visibility-ideas-tab' : ''}`} onClick={() => setVisibilitySection(section)} style={{ flex: section === 'ideas' ? '1.35 1 220px' : '1 1 170px', justifyContent: 'center' }}>{label}</button>)}
             </div>
 
             {visibilitySection === 'network' && <>
@@ -2408,46 +2397,35 @@ const [importMsg, setImportMsg] = useState(null);
             </div>
             </>}
 
-            {visibilitySection === 'opportunities' && <div className="glass-modal" style={{ marginBottom: '1.5rem', padding: '1.5rem', border: '1px solid var(--primary)' }}>
-              <div style={{ maxWidth: '760px' }}>
-                <div style={{ color: 'var(--primary)', fontSize: '12px', fontWeight: 850, textTransform: 'uppercase', letterSpacing: '.08em' }}>Analisi azionabile</div>
-                <h3 style={{ margin: '0.4rem 0', color: 'var(--text)', fontSize: '22px' }}>Quello che i social da soli non possono fare</h3>
-                <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '14px', lineHeight: 1.65 }}>Incrociamo contenuti pubblicati, patrimonio visuale, ricerche Google e azioni nello Spazio Vivo con le conferme raccolte nel Profilo guidato.</p>
-              </div>
-              <div style={{ display: 'grid', gap: '0.8rem', marginTop: '1.2rem' }}>
-                {visibilityOpportunities.map((opportunity, index) => (
-                  <div key={`${opportunity.title}-${index}`} style={{ display: 'grid', gridTemplateColumns: 'auto 1fr auto', gap: '1rem', alignItems: 'center', padding: '1rem', border: '1px solid var(--border)', background: 'var(--bg)', borderRadius: '14px' }}>
-                    <div style={{ width: '38px', height: '38px', borderRadius: '12px', display: 'grid', placeItems: 'center', background: 'var(--primary-light)', color: 'var(--primary)', fontWeight: 850 }}>{index + 1}</div>
-                    <div><div style={{ fontSize: '11px', fontWeight: 800, color: 'var(--primary)', textTransform: 'uppercase', letterSpacing: '.5px' }}>{opportunity.level}</div><div style={{ fontWeight: 800, color: 'var(--text)', marginTop: '3px' }}>{opportunity.title}</div><div style={{ color: 'var(--text-muted)', fontSize: '13px', lineHeight: 1.5, marginTop: '4px' }}>{opportunity.reason}</div></div>
-                    <button className="btn btn-outline" onClick={() => openDashboardSection(opportunity.target)} style={{ padding: '8px 12px', fontSize: '12px', whiteSpace: 'nowrap' }}>{opportunity.action}</button>
-                  </div>
-                ))}
-              </div>
-            </div>}
-
             {visibilitySection === 'ideas' && <div id="ideas" className="glass-modal content-ideas-panel" style={{ marginBottom: '1.5rem', padding: '1.5rem' }}>
               <div className="content-ideas-heading">
                 <div>
-                  <div className="content-ideas-eyebrow">Suggerimenti personalizzati · {contentIdeas.length} proposte</div>
-                  <h3>Ultime idee per i tuoi contenuti</h3>
-                  <p>Qui trovi cosa pubblicare adesso e perché può essere utile proprio alla tua attività. Le proposte usano i tuoi social, il pubblico indicato, il territorio, i servizi prioritari e i temi ancora poco coperti.</p>
+                  <div className="content-ideas-eyebrow">Il tuo prossimo contenuto parte da qui</div>
+                  <h3>Idee contenuti su misura per te</h3>
+                  <p>Non sono spunti generici: ogni proposta nasce dai tuoi social, dai media disponibili, dalle ricerche Google e dalle priorità che hai indicato. Le prime idee sono quelle su cui conviene lavorare adesso.</p>
                 </div>
                 <button className="btn btn-outline" onClick={refreshUnderstanding} disabled={savingProfile}>{savingProfile ? 'Aggiornamento…' : 'Aggiorna le idee'}</button>
               </div>
-              <div className="content-ideas-source"><strong>Come usarle:</strong> scegli un’idea, crea la bozza e poi personalizzala nell’editor prima di pubblicarla.</div>
-              <div style={{ display: 'grid', gap: '0.8rem' }}>
+              <div className="content-ideas-summary">
+                <div><strong>{contentIdeas.length}</strong><span>proposte pronte</span></div>
+                <div><strong>{publishedPosts.filter(post => post.media_url).length}</strong><span>media utilizzabili</span></div>
+                <div><strong>{(visibility.top_queries || []).length}</strong><span>segnali Google analizzati</span></div>
+              </div>
+              <div className="content-ideas-source"><strong>Come usarle:</strong> parti dalla prima proposta, genera una bozza e personalizzala nell’editor. Nulla viene pubblicato automaticamente.</div>
+              <div className="content-ideas-grid">
                 {contentIdeas.map((idea, index) => (
-                  <div key={`${idea.title}-${index}`} className="content-idea-card">
-                    <div style={{ width: '34px', height: '34px', borderRadius: '11px', display: 'grid', placeItems: 'center', background: 'var(--primary-light)', color: 'var(--primary)', fontWeight: 850 }}>{index + 1}</div>
-                    <div>
-                      <div style={{ fontSize: '11px', fontWeight: 800, color: 'var(--primary)', textTransform: 'uppercase', letterSpacing: '.5px' }}>{idea.type}</div>
-                      <div style={{ fontWeight: 800, color: 'var(--text)', marginTop: '3px' }}>{idea.title}</div>
-                      <div style={{ color: 'var(--text-muted)', fontSize: '13px', lineHeight: 1.5, marginTop: '4px' }}>{idea.reason}</div>
-                      <button className="btn btn-outline" onClick={() => createIdeaDraft(idea, index)} disabled={preparingIdea !== -1} style={{ marginTop: '0.8rem', padding: '8px 12px', fontSize: '12px' }}>
+                  <article key={`${idea.title}-${index}`} className={`content-idea-card ${index === 0 ? 'content-idea-card--featured' : ''}`}>
+                    <div className="content-idea-number">{index + 1}</div>
+                    <div className="content-idea-body">
+                      <div className="content-idea-meta"><span>{idea.type}</span><em>{idea.priority}</em></div>
+                      <h4>{idea.title}</h4>
+                      <p>{idea.reason}</p>
+                      <div className="content-idea-source">Basata su: {idea.source}</div>
+                      <button className={`btn ${index === 0 ? 'btn-primary' : 'btn-outline'}`} onClick={() => createIdeaDraft(idea, index)} disabled={preparingIdea !== -1}>
                         {preparingIdea === index ? 'Preparazione bozza…' : 'Crea una bozza da questa idea'}
                       </button>
                     </div>
-                  </div>
+                  </article>
                 ))}
               </div>
             </div>}

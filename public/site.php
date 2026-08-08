@@ -2104,6 +2104,61 @@ header('Link: <' . $siteUrl . '/feed.xml>; rel="alternate"; type="application/at
     @media(max-width:900px){.has-living-home .living-media-grid{grid-template-columns:1fr}.has-living-home .living-media-position-0{grid-column:1;grid-row:1/3}.has-living-home .living-media-position-1,.has-living-home .living-media-position-2{display:none}.has-living-home .living-layout{grid-template-columns:1fr}.has-living-home .living-compass{display:grid;grid-template-columns:1fr auto;gap:.6rem 1rem;align-items:center;padding-bottom:1.5rem;border-bottom:1px solid rgba(25,26,29,.12)}.has-living-home .living-progress,.has-living-home .living-proof{display:none}.has-living-home .living-question{grid-column:1}.has-living-home .living-cta{grid-column:2;grid-row:1/3;width:auto}.has-living-home .living-stage{grid-template-columns:repeat(2,minmax(0,1fr))}}
     @media(max-width:620px){.has-living-home .network-trust{display:none}.has-living-home .living-portal{min-height:calc(100svh - 102px)}.has-living-home .living-intro{left:1.1rem;right:1.1rem;bottom:1.6rem;width:auto}.has-living-home .living-intro h1{font-size:clamp(3rem,15vw,5rem)}.living-brandmark{margin-bottom:.9rem}.has-living-home .living-command{display:block;padding:1.25rem 1rem}.has-living-home .living-command-label{display:block;margin-bottom:.75rem}.has-living-home .living-layout{padding:2rem 1rem;gap:1.5rem}.has-living-home .living-compass{display:block}.has-living-home .living-question{margin-bottom:1rem}.has-living-home .living-stage{grid-template-columns:1fr}.living-chapter-media{height:240px}.has-living-home .living-live-proof{display:none}}
 
+    /* Social Intelligence Wall: il prodotto, prima del sito editoriale. */
+    .social-pulse{--pulse-lime:#C8FF36;--pulse-violet:#8C6BFF;position:relative;width:100%;margin:0 0 3.5rem;padding:10px;background:#08090D;color:#fff;overflow:hidden}
+    .social-pulse-hero{position:relative;min-height:68svh;display:flex;flex-direction:column;justify-content:flex-end;padding:clamp(2rem,7vw,7rem);overflow:hidden;background:radial-gradient(circle at 83% 16%,rgba(140,107,255,.55),transparent 27%),radial-gradient(circle at 12% 90%,rgba(200,255,54,.18),transparent 30%),linear-gradient(135deg,#10111A 0%,#18142B 56%,#311D45 100%)}
+    .social-pulse-hero::before{content:'LIVE';position:absolute;right:-.04em;top:-.18em;color:rgba(255,255,255,.035);font-size:clamp(11rem,35vw,36rem);font-weight:950;line-height:1;letter-spacing:-.12em;pointer-events:none}
+    .social-pulse-hero::after{content:'';position:absolute;right:clamp(1.2rem,5vw,5rem);bottom:clamp(2rem,6vw,5rem);width:clamp(80px,13vw,180px);aspect-ratio:1;border:1px solid rgba(255,255,255,.25);border-radius:50%;box-shadow:0 0 0 22px rgba(255,255,255,.035),0 0 0 44px rgba(255,255,255,.025);animation:pulseOrbit 7s linear infinite}
+    @keyframes pulseOrbit{50%{transform:scale(.92) rotate(180deg)}100%{transform:rotate(360deg)}}
+    .social-pulse-brand{position:absolute;left:clamp(2rem,7vw,7rem);top:clamp(2rem,5vw,4rem);display:flex;align-items:center;gap:.75rem;font-size:.82rem;font-weight:850;z-index:1}
+    .social-pulse-brand img{width:44px;height:44px;object-fit:contain;border-radius:50%;padding:3px;background:#fff}
+    .social-pulse-kicker{position:relative;z-index:1;display:flex;align-items:center;gap:.65rem;margin-bottom:1rem;color:rgba(255,255,255,.65);font-size:.68rem;font-weight:900;letter-spacing:.13em;text-transform:uppercase}
+    .social-pulse-kicker i,.social-pulse-now i,.social-signal-meta i{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--pulse-lime);box-shadow:0 0 0 6px rgba(200,255,54,.1)}
+    .social-pulse-hero h1{position:relative;z-index:1;max-width:1100px;margin:0;color:#fff;font-size:clamp(3.6rem,9vw,10rem);line-height:.78;letter-spacing:-.085em;text-wrap:balance}
+    .social-pulse-hero h1 em{color:var(--pulse-lime);font-style:normal}
+    .social-pulse-hero>p{position:relative;z-index:1;max-width:620px;margin:1.6rem 0 0;color:rgba(255,255,255,.67);font-size:clamp(1rem,1.5vw,1.25rem);line-height:1.6}
+    .social-pulse-stats{position:relative;z-index:1;display:flex;gap:.7rem;flex-wrap:wrap;margin-top:1.5rem}
+    .social-pulse-stats span{padding:.65rem .85rem;border:1px solid rgba(255,255,255,.14);border-radius:999px;background:rgba(255,255,255,.055);color:rgba(255,255,255,.62);font-size:.7rem;text-transform:uppercase;letter-spacing:.05em}
+    .social-pulse-stats strong{color:#fff;font-size:.9rem}
+    .social-pulse-scroll{position:relative;z-index:2;align-self:flex-start;display:inline-flex;align-items:center;gap:1.3rem;margin-top:1.35rem;padding:.9rem 1.2rem;border-radius:999px;background:#fff;color:#0B0C10;font-size:.78rem;font-weight:900}
+    .social-pulse-scroll span{color:#6A44E5}
+    .social-pulse-console{position:sticky;top:74px;z-index:20;display:flex;justify-content:space-between;align-items:center;gap:1.2rem;padding:1rem clamp(1rem,4vw,4rem);border-top:1px solid rgba(255,255,255,.1);border-bottom:1px solid rgba(255,255,255,.1);background:rgba(8,9,13,.9);backdrop-filter:blur(18px)}
+    .social-pulse-console>div:first-child{display:flex;align-items:center;gap:1.2rem;min-width:0}
+    .social-pulse-console-label{flex:0 0 auto;color:rgba(255,255,255,.42);font-size:.62rem;font-weight:900;letter-spacing:.12em;text-transform:uppercase}
+    .social-pulse-filters{display:flex;gap:.45rem;overflow-x:auto;scrollbar-width:none}
+    .social-pulse-filters::-webkit-scrollbar{display:none}
+    .social-pulse-filter{appearance:none;flex:0 0 auto;padding:.62rem .9rem;border:1px solid rgba(255,255,255,.15);border-radius:999px;background:transparent;color:rgba(255,255,255,.64);font:inherit;font-size:.72rem;font-weight:800;cursor:pointer}
+    .social-pulse-filter:hover,.social-pulse-filter.is-active{border-color:var(--pulse-lime);background:var(--pulse-lime);color:#101207}
+    .social-pulse-now{display:flex;align-items:center;gap:.55rem;white-space:nowrap;color:rgba(255,255,255,.5);font-size:.68rem;text-transform:uppercase;letter-spacing:.07em}
+    .social-pulse-now strong{color:#fff}
+    .social-wall{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));grid-auto-flow:dense;gap:8px;padding:8px 0;background:#08090D}
+    .social-signal{position:relative;min-height:370px;overflow:hidden;background:#151722;transition:opacity .25s ease,transform .25s ease}
+    .social-signal.is-hidden{display:none}
+    .social-signal>a{position:absolute;inset:0;display:flex;flex-direction:column;color:#fff}
+    .social-signal--lead{grid-column:span 2;grid-row:span 2;min-height:748px}
+    .social-signal--text:nth-child(4n+2){background:linear-gradient(145deg,#422A68,#151722)}
+    .social-signal--text:nth-child(4n+3){background:linear-gradient(145deg,#20383A,#10171A)}
+    .social-signal .media{position:absolute;inset:0;margin:0!important;border-radius:0!important}
+    .social-signal .media::after{content:'';position:absolute;inset:0;background:linear-gradient(0deg,rgba(6,7,11,.96) 0%,rgba(6,7,11,.18) 74%)}
+    .social-signal .media img,.social-signal .media video,.social-signal .media iframe{width:100%;height:100%;object-fit:cover;border:0;transition:transform .7s cubic-bezier(.2,.8,.2,1)}
+    .social-signal:hover .media img,.social-signal:hover .media video{transform:scale(1.045)}
+    .social-signal-body{position:relative;z-index:2;display:flex;flex-direction:column;justify-content:flex-end;height:100%;padding:clamp(1.1rem,2vw,1.8rem);background:linear-gradient(0deg,rgba(7,8,12,.94),transparent 70%)}
+    .social-signal--text .social-signal-body{background:none}
+    .social-signal-meta{display:flex;justify-content:space-between;gap:.7rem;align-items:center;margin-bottom:auto;color:rgba(255,255,255,.55);font-size:.62rem;font-weight:900;letter-spacing:.08em;text-transform:uppercase}
+    .social-signal-meta span{display:flex;align-items:center;gap:.55rem}
+    .social-signal-meta i{width:6px;height:6px;box-shadow:none}
+    .social-signal h2{margin:2.5rem 0 .65rem;color:#fff;font-size:clamp(1.35rem,2vw,2.15rem);line-height:1.02;letter-spacing:-.035em}
+    .social-signal--lead h2{max-width:760px;font-size:clamp(2.5rem,5vw,5.8rem);line-height:.9}
+    .social-signal p{display:-webkit-box;margin:0;color:rgba(255,255,255,.58);font-size:.82rem;line-height:1.5;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+    .social-signal-open{display:flex;justify-content:space-between;align-items:center;margin-top:1.2rem;padding-top:.85rem;border-top:1px solid rgba(255,255,255,.12);color:rgba(255,255,255,.7);font-size:.68rem;font-weight:900;text-transform:uppercase;letter-spacing:.08em}
+    .social-signal-open b{color:var(--pulse-lime);font-size:1.1rem}
+    .social-pulse-footer{display:flex;align-items:baseline;gap:.65rem;padding:clamp(1.5rem,4vw,3.5rem);background:var(--pulse-lime);color:#0B0D08}
+    .social-pulse-footer span{font-size:clamp(1.4rem,3vw,3rem);font-weight:500;letter-spacing:-.04em}
+    .social-pulse-footer strong{font-size:clamp(1.4rem,3vw,3rem);letter-spacing:-.05em}
+    .social-pulse-footer a{margin-left:auto;color:#0B0D08;font-size:.76rem;font-weight:900;text-transform:uppercase;white-space:nowrap}
+    @media(max-width:1050px){.social-wall{grid-template-columns:repeat(2,minmax(0,1fr))}.social-pulse-hero::after{display:none}.social-pulse-footer{align-items:flex-start;flex-direction:column}.social-pulse-footer a{margin:1rem 0 0}}
+    @media(max-width:620px){.social-pulse{padding:0}.social-pulse-hero{min-height:calc(100svh - 102px);padding:6rem 1rem 2rem}.social-pulse-brand{left:1rem;top:1.3rem}.social-pulse-hero h1{font-size:clamp(3.4rem,18vw,5.4rem);line-height:.82}.social-pulse-hero>p{font-size:.94rem}.social-pulse-stats span:nth-child(3){display:none}.social-pulse-console{top:64px;padding:.8rem}.social-pulse-console-label,.social-pulse-now{display:none}.social-wall{grid-template-columns:1fr;gap:5px}.social-signal,.social-signal--lead{grid-column:auto;grid-row:auto;min-height:72svh}.social-signal--text{min-height:430px}.social-signal--lead h2{font-size:clamp(2.5rem,12vw,4.2rem)}.social-pulse-footer{padding:2rem 1rem}}
+
     /* Tema hospitality coerente: home, pagine SEO e articoli condividono lo stesso sito. */
     .is-hospitality-site{--accent:#B75B3B;--bg:#F5F1E9;--card-bg:#FFFCF7;--text:#1E2822;--border:rgba(30,40,34,.13);background:var(--bg);color:var(--text)}
     .is-hospitality-site .network-bar{background:#1E2822}
@@ -2163,7 +2218,7 @@ header('Link: <' . $siteUrl . '/feed.xml>; rel="alternate"; type="application/at
       $placeholderImage = "https://source.unsplash.com/1600x900/?" . urlencode($unsplashKeyword);
   }
 ?>
-<?php $isLivingHome = !$useHospitalityLanding && !$single && !$foundationPage && $view === '' && !$activeTag && !empty($livingPaths); ?>
+<?php $isLivingHome = !$useHospitalityLanding && !$single && !$foundationPage && $view === '' && !$activeTag && !empty($chronologicalPosts); ?>
 <body class="theme-<?= h($archetype) ?> layout-<?= $layoutVariant ?><?= $isLivingHome ? ' has-living-home' : '' ?><?= $useHospitalityLanding ? ' is-hospitality-site' : '' ?>">
 <div class="network-bar">
   <div class="network-signature">
@@ -2459,62 +2514,61 @@ ob_start();
 
   <?php else: ?>
 
-  <?php if (!empty($livingPaths)): $initialLivingPath = $livingPaths[0]; ?>
-  <section class="living-experience" id="percorsi-vivi" aria-labelledby="living-title">
-    <div class="living-portal">
-      <?php if (!empty($mediaPosts)): ?>
-      <div class="living-media-grid">
-        <?php foreach (array_slice($mediaPosts, 0, 8) as $mediaIndex => $mediaPost): $mediaUrl = $mediaPost['media_url'] ?? ''; $mediaType = strtolower((string)($mediaPost['media_type'] ?? '')); ?>
-        <a class="living-media-item living-media-position-<?= $mediaIndex ?>" href="<?= $siteUrl . '/' . h($mediaPost['slug'] ?? '') ?>">
-          <?php if ($mediaType === 'video' || preg_match('~\.(mp4|mov|webm)(\?|$)~i', $mediaUrl)): ?>
-            <video muted playsinline preload="metadata"><source src="<?= h($mediaUrl) ?>"></video><span class="living-media-play">▶</span>
-          <?php else: ?>
-            <img src="<?= h($mediaUrl) ?>" alt="<?= h(postTitle($mediaPost)) ?>" loading="<?= $mediaIndex === 0 ? 'eager' : 'lazy' ?>"<?= $mediaIndex === 0 ? ' fetchpriority="high"' : '' ?>>
-          <?php endif; ?>
-          <span class="living-media-caption"><small><?= h(ucfirst((string)($mediaPost['platform'] ?? 'Social'))) ?></small><strong><?= h(postTitle($mediaPost)) ?></strong></span>
+  <?php if (!empty($chronologicalPosts)):
+    $wallPosts = array_slice($chronologicalPosts, 0, 16);
+    $wallPlatforms = [];
+    foreach ($wallPosts as $wallPost) {
+        $wallPlatform = strtolower(trim((string)($wallPost['platform'] ?? 'social')));
+        if ($wallPlatform !== '') $wallPlatforms[$wallPlatform] = ucfirst($wallPlatform);
+    }
+  ?>
+  <section class="social-pulse" id="social-pulse" aria-labelledby="social-pulse-title">
+    <header class="social-pulse-hero">
+      <div class="social-pulse-brand"><?php if ($logoUrl): ?><img src="<?= h($logoUrl) ?>" alt="Logo <?= h($title) ?>"><?php endif; ?><strong><?= h($title) ?></strong></div>
+      <span class="social-pulse-kicker"><i></i> Social Intelligence Wall · aggiornato dai canali ufficiali</span>
+      <h1 id="social-pulse-title">Tutto ciò che pubblichiamo.<br><em>Vivo, insieme.</em></h1>
+      <p><?= $bio ?: 'Social, articoli, immagini e video non scorrono più via: diventano un unico spazio vivo da esplorare.' ?></p>
+      <div class="social-pulse-stats">
+        <span><strong><?= count($allPosts) ?></strong> segnali raccolti</span>
+        <span><strong><?= count($wallPlatforms) ?></strong> canali connessi</span>
+        <span><strong><?= count($mediaPosts) ?></strong> media vivi</span>
+      </div>
+      <a class="social-pulse-scroll" href="#wall-stream">Entra nel flusso <span>↓</span></a>
+    </header>
+
+    <div class="social-pulse-console" id="wall-stream">
+      <div>
+        <span class="social-pulse-console-label">Filtra il flusso</span>
+        <div class="social-pulse-filters" aria-label="Filtra i contenuti per canale">
+          <button type="button" class="social-pulse-filter is-active" data-wall-filter="all" aria-pressed="true">Tutto</button>
+          <?php foreach ($wallPlatforms as $wallPlatform => $wallPlatformLabel): ?>
+          <button type="button" class="social-pulse-filter" data-wall-filter="<?= h(networkTopicSlug($wallPlatform)) ?>" aria-pressed="false"><?= h($wallPlatformLabel) ?></button>
+          <?php endforeach; ?>
+        </div>
+      </div>
+      <div class="social-pulse-now"><i></i><span>Feed attivo</span><strong><?= date('H:i') ?></strong></div>
+    </div>
+
+    <div class="social-wall" aria-live="polite">
+      <?php foreach ($wallPosts as $wallIndex => $wallPost):
+        $wallPostUrl = $siteUrl . '/' . h($wallPost['slug'] ?? '');
+        $wallPlatform = networkTopicSlug((string)($wallPost['platform'] ?? 'social'));
+        $wallHasMedia = !empty($wallPost['media_url']);
+      ?>
+      <article class="social-signal<?= $wallIndex === 0 ? ' social-signal--lead' : '' ?><?= $wallHasMedia ? ' social-signal--media' : ' social-signal--text' ?>" data-wall-platform="<?= h($wallPlatform) ?>">
+        <a href="<?= $wallPostUrl ?>">
+          <?php if ($wallHasMedia): ?><?= mediaHtml($wallPost) ?><?php endif; ?>
+          <div class="social-signal-body">
+            <div class="social-signal-meta"><span><i></i><?= h(ucfirst((string)($wallPost['platform'] ?? 'Social'))) ?></span><time><?= $wallPost['published_at'] ? date('d.m.Y', strtotime($wallPost['published_at'])) : 'Ora' ?></time></div>
+            <h2><?= h(postTitle($wallPost)) ?></h2>
+            <p><?= h(postExcerpt($wallPost)) ?></p>
+            <span class="social-signal-open">Apri il segnale <b>↗</b></span>
+          </div>
         </a>
-        <?php endforeach; ?>
-      </div>
-      <?php endif; ?>
-      <header class="living-intro">
-        <div class="living-brandmark"><?php if ($logoUrl): ?><img src="<?= h($logoUrl) ?>" alt="Logo <?= h($title) ?>"><?php endif; ?><strong><?= h($title) ?></strong></div>
-        <span class="living-kicker">AllSocialToWeb / Spazio Vivo / <?= count($allPosts) ?> segnali attivi</span>
-        <h1 id="living-title"><?= h($initialLivingPath['title']) ?></h1>
-        <p id="living-subtitle"><?= h($initialLivingPath['subtitle']) ?></p>
-        <div class="living-live-proof"><i></i><span>Patrimonio proveniente dai canali ufficiali, reso trovabile nel tempo</span></div>
-        <a class="living-hero-cta" href="#living-paths">Scopri le esperienze <span>↓</span></a>
-      </header>
-      <div class="living-portal-index" aria-hidden="true"><strong><?= str_pad((string)count($mediaPosts), 2, '0', STR_PAD_LEFT) ?></strong><span>contenuti<br>disponibili</span></div>
+      </article>
+      <?php endforeach; ?>
     </div>
-    <div class="living-command" id="living-paths">
-      <span class="living-command-label">Cosa vuoi trovare?</span>
-      <div class="living-intents" aria-label="Scegli il tuo percorso">
-        <?php foreach ($livingPaths as $pathIndex => $path): ?>
-        <button type="button" class="living-intent" data-path-index="<?= $pathIndex ?>" aria-pressed="<?= $pathIndex === 0 ? 'true' : 'false' ?>"><span><?= str_pad((string)($pathIndex + 1), 2, '0', STR_PAD_LEFT) ?></span><?= h($path['label']) ?></button>
-        <?php endforeach; ?>
-      </div>
-    </div>
-    <div class="living-layout">
-      <aside class="living-compass" aria-label="Console del percorso">
-        <span class="living-console-kicker">Stai esplorando</span>
-        <div class="living-path-name" id="living-path-name"><?= h($initialLivingPath['path_name']) ?></div>
-        <div class="living-progress" aria-hidden="true"><span></span></div>
-        <div class="living-question" id="living-question"><?= h($initialLivingPath['question']) ?></div>
-        <a class="living-cta" href="<?= h($livingCtaUrl) ?>"<?= preg_match('/^https?:\/\//i', $livingCtaUrl) ? ' target="_blank" rel="noopener"' : '' ?>>Attiva un contatto →</a>
-        <div class="living-proof">Contenuti originali collegati ai canali ufficiali dell’attività.</div>
-      </aside>
-      <div class="living-stage" id="living-stage" aria-live="polite">
-        <?php foreach ($initialLivingPath['chapters'] as $chapterIndex => $chapter): ?>
-        <a class="living-chapter" data-index="<?= str_pad((string)($chapterIndex + 1), 2, '0', STR_PAD_LEFT) ?>" href="<?= h($chapter['url']) ?>">
-          <?php if (!empty($chapter['media_url'])): ?><span class="living-chapter-media"><?php if (($chapter['media_type'] ?? '') === 'video' || preg_match('~\.(mp4|mov|webm)(\?|$)~i', $chapter['media_url'])): ?><video muted playsinline preload="metadata"><source src="<?= h($chapter['media_url']) ?>"></video><?php else: ?><img src="<?= h($chapter['media_url']) ?>" alt="" loading="lazy"><?php endif; ?></span><?php endif; ?>
-          <span class="living-step"><?= h($chapter['step']) ?></span>
-          <strong><?= h($chapter['title']) ?></strong>
-          <p><?= h($chapter['excerpt']) ?></p>
-          <span class="living-chapter-meta"><span>✓ <?= h($chapter['source']) ?></span><b>Entra →</b></span>
-        </a>
-        <?php endforeach; ?>
-      </div>
-    </div>
+    <footer class="social-pulse-footer"><span>Non è un feed copiato.</span><strong>È la memoria pubblica e navigabile dell’attività.</strong><a href="#categorie">Esplora per tema →</a></footer>
   </section>
   <?php endif; ?>
 
@@ -2707,8 +2761,8 @@ ob_start();
 <?php endif; ?>
 <?php
 $heroHtml = ob_get_clean();
-if (!$useHospitalityLanding && !$single && !$foundationPage && $view === '' && !$activeTag && !empty($livingPaths)) {
-    // Percorsi Vivi sostituisce il classico hero/slider nella home.
+if ($isLivingHome) {
+    // La Social Intelligence Wall sostituisce il classico hero/slider nella home.
     $heroHtml = '';
 }
 ?>
@@ -2863,6 +2917,18 @@ document.addEventListener('DOMContentLoaded', () => {
     livingRoot.querySelectorAll('.living-intent').forEach((button, index) => button.addEventListener('click', () => renderLivingPath(index, true)));
     livingRoot.querySelectorAll('.living-chapter').forEach(link => link.addEventListener('click', () => sendVisibilityEvent('path_content_click', link.href)));
   }
+  const wallFilters = document.querySelectorAll('[data-wall-filter]');
+  const wallSignals = document.querySelectorAll('[data-wall-platform]');
+  wallFilters.forEach(button => button.addEventListener('click', () => {
+    const selectedPlatform = button.dataset.wallFilter || 'all';
+    wallFilters.forEach(filterButton => {
+      const active = filterButton === button;
+      filterButton.classList.toggle('is-active', active);
+      filterButton.setAttribute('aria-pressed', active ? 'true' : 'false');
+    });
+    wallSignals.forEach(signal => signal.classList.toggle('is-hidden', selectedPlatform !== 'all' && signal.dataset.wallPlatform !== selectedPlatform));
+    sendVisibilityEvent('social_wall_filter', selectedPlatform);
+  }));
   const classifyTrackedLink = (anchor) => {
     const rawHref = anchor.getAttribute('href') || '';
     const href = anchor.href || rawHref;
