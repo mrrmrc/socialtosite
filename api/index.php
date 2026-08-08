@@ -74,6 +74,8 @@ function ensureSiteSchemaUpgrades(): void {
         'seo_foundation_updated_at'=>'DATETIME NULL', 'reachability_profile'=>'LONGTEXT NULL',
         'reachability_updated_at'=>'DATETIME NULL', 'account_type'=>"VARCHAR(50) DEFAULT 'business'",
         'harmonize_agent'=>"VARCHAR(50) NOT NULL DEFAULT 'content_editor'",
+        'living_space_mode'=>"VARCHAR(30) NOT NULL DEFAULT 'pulse'",
+        'living_space_mode_updated_at'=>'DATETIME NULL',
     ];
     $existing = [];
     try {
@@ -573,6 +575,57 @@ if ($action === 'password-change' && $method === 'POST') {
         [password_hash($newPassword, PASSWORD_BCRYPT), $userId]
     );
     json(['ok' => true, 'message' => 'Password aggiornata con successo']);
+}
+
+// Ogni proprietario sceglie come i visitatori entrano nel proprio Spazio Vivo.
+// L'anteprima e la lettura non cambiano nulla; solo il POST conferma la scelta.
+if ($action === 'spazio-vivo-modes' && $method === 'GET') {
+    ensureSiteSchemaUpgrades();
+    $modeSite = DB::fetch(
+        'SELECT title, bio, profile_summary, logo_url, cover_url, accent_color, living_space_mode, living_space_mode_updated_at
+           FROM sites WHERE user_id=? LIMIT 1',
+        [$userId]
+    ) ?: [];
+    $modePosts = DB::fetchAll(
+        'SELECT id, platform, generated_title, generated_excerpt, tags, media_url, media_type, source_url, published_at, slug
+           FROM posts
+          WHERE user_id=? AND published=1
+          ORDER BY published_at DESC, id DESC
+          LIMIT 40',
+        [$userId]
+    );
+    foreach ($modePosts as &$modePost) {
+        $decodedTags = json_decode($modePost['tags'] ?? '[]', true);
+        if (!is_array($decodedTags)) $decodedTags = [];
+        $modePost['tags'] = array_values(array_filter(array_map('trim', $decodedTags)));
+    }
+    unset($modePost);
+    json([
+        'ok' => true,
+        'profile' => [
+            'name' => ($modeSite['title'] ?? '') ?: ($me['name'] ?? 'Il tuo Spazio Vivo'),
+            'slug' => $me['slug'] ?? '',
+            'bio' => ($modeSite['profile_summary'] ?? '') ?: ($modeSite['bio'] ?? ''),
+            'logo_url' => $modeSite['logo_url'] ?? '',
+            'cover_url' => $modeSite['cover_url'] ?? '',
+            'accent_color' => $modeSite['accent_color'] ?? '#8C6BFF',
+            'living_space_mode' => $modeSite['living_space_mode'] ?? 'pulse',
+            'living_space_mode_updated_at' => $modeSite['living_space_mode_updated_at'] ?? null,
+        ],
+        'posts' => $modePosts,
+    ]);
+}
+
+if ($action === 'spazio-vivo-mode' && $method === 'POST') {
+    ensureSiteSchemaUpgrades();
+    $allowedModes = ['pulse', 'stories', 'constellation', 'timeline', 'compass', 'mixer', 'cinema', 'answers', 'atlas', 'adaptive'];
+    $selectedMode = strtolower(trim((string)(body()['mode'] ?? '')));
+    if (!in_array($selectedMode, $allowedModes, true)) jsonError('Modalità Spazio Vivo non valida', 422);
+    DB::execute(
+        'UPDATE sites SET living_space_mode=?, living_space_mode_updated_at=NOW() WHERE user_id=?',
+        [$selectedMode, $userId]
+    );
+    json(['ok' => true, 'mode' => $selectedMode, 'updated_at' => date(DATE_ATOM)]);
 }
 
 function uniqueUserSlug(string $source): string {

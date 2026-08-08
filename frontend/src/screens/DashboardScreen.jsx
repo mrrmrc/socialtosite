@@ -1605,6 +1605,7 @@ const [importMsg, setImportMsg] = useState(null);
           {[
             { id: 'overview', icon: '🏠', label: 'Home' },
             { id: 'living-space', icon: '✦', label: 'Spazio Vivo', external: true },
+            { id: 'experience', icon: '◇', label: 'Scegli esperienza' },
             { id: 'site', icon: '📝', label: 'Articoli' },
             { id: 'sources', icon: '📡', label: 'Canali' },
             ...(user?.role === 'admin' ? [{ id: 'admin', icon: '👥', label: 'Gestione utenti' }] : []),
@@ -1647,8 +1648,8 @@ const [importMsg, setImportMsg] = useState(null);
           <div style={{ display: 'flex', gap: '8px' }}>
             {user?.role === 'admin' && <button className="btn btn-outline" aria-label="Gestione utenti" onClick={() => setTab('admin')} style={{ padding: '8px 11px', fontSize: '14px' }}>👥</button>}
             <button className="btn btn-outline" aria-label="Password e sicurezza" onClick={() => setTab('security')} style={{ padding: '8px 11px', fontSize: '14px' }}>🔐</button>
-            <button className="btn btn-outline" onClick={() => window.open(siteUrl, '_blank', 'noopener')} style={{ padding: '8px 16px', fontSize: '12px' }}>
-              ✦ Spazio Vivo
+            <button className="btn btn-outline" onClick={() => setTab('experience')} style={{ padding: '8px 16px', fontSize: '12px' }}>
+              ◇ Scegli Spazio Vivo
             </button>
           </div>
         </div>
@@ -1660,6 +1661,7 @@ const [importMsg, setImportMsg] = useState(null);
               {tab === 'overview' && 'Panoramica'}
               {tab === 'strategy' && 'Profilo guidato'}
               {tab === 'site' && 'Gestione Contenuti'}
+              {tab === 'experience' && 'Scegli il tuo Spazio Vivo'}
               {tab === 'sources' && 'I miei canali'}
               {tab === 'settings' && 'Design & Aspetto'}
                 {tab === 'general' && 'Impostazioni Generali'}
@@ -2129,6 +2131,8 @@ const [importMsg, setImportMsg] = useState(null);
           );
         })()}
 
+        {tab === 'experience' && <SpazioVivoLab token={token} onConfirmed={loadData} />}
+
         {/* Tab: Sito */}
         {tab === 'site' && (() => {
           const allPlatforms = [...new Set(posts.map(p => p.platform))].sort();
@@ -2323,7 +2327,7 @@ const [importMsg, setImportMsg] = useState(null);
               ].map(([section, label]) => <button key={section} className={`btn ${visibilitySection === section ? 'btn-primary' : 'btn-outline'} ${section === 'ideas' ? 'visibility-ideas-tab' : ''}`} onClick={() => setVisibilitySection(section)} style={{ flex: section === 'ideas' ? '1.35 1 220px' : '1 1 170px', justifyContent: 'center' }}>{label}</button>)}
             </div>
 
-            {isAdmin && visibilitySection === 'lab' && <SpazioVivoLab token={token} />}
+            {isAdmin && visibilitySection === 'lab' && <SpazioVivoLab token={token} adminPreview />}
 
             {visibilitySection === 'network' && <>
               <section className="glass-modal" style={{ marginBottom: '1.25rem', padding: 'clamp(1.25rem, 3vw, 2rem)', color: '#fff', background: 'radial-gradient(circle at 88% 8%, rgba(243,92,118,.34), transparent 27%), linear-gradient(135deg,#151A2D,#292359 68%,#48257A)', border: 'none', overflow: 'hidden' }}>
