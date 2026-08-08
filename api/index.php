@@ -87,6 +87,35 @@ function ensureSiteSchemaUpgrades(): void {
     }
 }
 
+function ensurePostMediaSchema(): void {
+    static $done = false;
+    if ($done) return;
+    $done = true;
+    $definitions = [
+        'media_display_width'=>'TINYINT UNSIGNED NULL',
+        'media_alignment'=>"VARCHAR(20) NOT NULL DEFAULT 'center'",
+    ];
+    $existing = [];
+    try { foreach (DB::fetchAll('SHOW COLUMNS FROM posts') as $column) $existing[$column['Field']] = true; } catch (Throwable $e) { return; }
+    foreach ($definitions as $column => $definition) {
+        if (isset($existing[$column])) continue;
+        try { DB::execute("ALTER TABLE posts ADD COLUMN `$column` $definition"); } catch (Throwable $e) {}
+    }
+}
+
+function ensureSocialSyncSchema(): void {
+    static $done = false;
+    if ($done) return;
+    $done = true;
+    foreach (['social_sources', 'social_connections'] as $table) {
+        try {
+            $columns = [];
+            foreach (DB::fetchAll("SHOW COLUMNS FROM `$table`") as $column) $columns[$column['Field']] = true;
+            if (!isset($columns['auto_sync'])) DB::execute("ALTER TABLE `$table` ADD COLUMN auto_sync TINYINT NOT NULL DEFAULT 1");
+        } catch (Throwable $e) {}
+    }
+}
+
 function decodeJsonObject($value): array {
     if (is_array($value)) return $value;
     if (!is_string($value) || trim($value) === '') return [];
@@ -530,6 +559,27 @@ if ($action === 'site-logo-upload' && $method === 'POST') {
     $logoUrl = '/public/media/' . $filename;
     DB::execute('UPDATE sites SET logo_url=? WHERE user_id=?', [$logoUrl, $userId]);
     json(['ok' => true, 'logo_url' => $logoUrl]);
+}
+
+if ($action === 'post-media-upload' && $method === 'POST') {
+    ensurePostMediaSchema();
+    $b = body();
+    $postId = (int)($b['post_id'] ?? 0);
+    $dataUrl = trim((string)($b['data_url'] ?? ''));
+    if (!$postId || !DB::fetch('SELECT id FROM posts WHERE id=? AND user_id=?', [$postId, $userId])) jsonError('Articolo non valido', 404);
+    if (!preg_match('~^data:(image/(?:jpeg|png|webp));base64,([A-Za-z0-9+/=\r\n]+)$~', $dataUrl, $matches)) jsonError('Formato immagine non valido. Usa JPG, PNG o WebP.', 422);
+    $binary = base64_decode(preg_replace('/\s+/', '', $matches[2]), true);
+    if ($binary === false || strlen($binary) < 32) jsonError('Immagine vuota o danneggiata', 422);
+    if (strlen($binary) > 8 * 1024 * 1024) jsonError('L’immagine deve pesare meno di 8 MB', 413);
+    $mime = (new finfo(FILEINFO_MIME_TYPE))->buffer($binary) ?: '';
+    $extension = match ($mime) { 'image/jpeg'=>'jpg', 'image/png'=>'png', 'image/webp'=>'webp', default=>'' };
+    if ($extension === '') jsonError('Il file caricato non è un’immagine supportata', 422);
+    $directory = __DIR__ . '/../public/media';
+    if (!is_dir($directory) && !@mkdir($directory, 0775, true)) jsonError('Impossibile preparare la cartella media', 500);
+    $filename = 'article_' . $userId . '_' . $postId . '_' . date('YmdHis') . '.' . $extension;
+    if (@file_put_contents($directory . '/' . $filename, $binary, LOCK_EX) === false) jsonError('Impossibile salvare l’immagine', 500);
+    $mediaUrl = '/public/media/' . $filename;
+    json(['ok'=>true, 'media_url'=>$mediaUrl, 'media_type'=>'IMAGE']);
 }
 
 if ($action === 'me' && $method === 'GET') {
@@ -1022,12 +1072,14 @@ if ($action === 'social-source-create' && $method === 'POST') {
 }
 
 if ($action === 'social-source-upsert' && $method === 'POST') {
+    ensureSocialSyncSchema();
     $b = body();
     $platform = trim($b['platform'] ?? '');
     $url = trim($b['url'] ?? '');
     $label = trim($b['label'] ?? '');
     $sinceDate = trim($b['since_date'] ?? '');
     $autoPublish = (int)($b['auto_publish'] ?? 1);
+    $autoSync = !array_key_exists('auto_sync', $b) || !empty($b['auto_sync']) ? 1 : 0;
     $maxPosts = isset($b['max_posts']) && $b['max_posts'] !== '' ? (int)$b['max_posts'] : null;
     if ($sinceDate && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $sinceDate)) $sinceDate = null;
 
@@ -1057,16 +1109,17 @@ if ($action === 'social-source-upsert' && $method === 'POST') {
                     topic_summary=?,
                     since_date=?,
                     auto_publish=?,
+                    auto_sync=?,
                     max_posts=?,
                     active=1
               WHERE id=? AND user_id=?',
-            [$label, $url, $topic, $sinceDate, $autoPublish, $maxPosts, $existing['id'], $userId]
+            [$label, $url, $topic, $sinceDate, $autoPublish, $autoSync, $maxPosts, $existing['id'], $userId]
         );
         $id = (int)$existing['id'];
     } else {
         $id = DB::insert(
-            'INSERT INTO social_sources (user_id, platform, label, url, topic_summary, since_date, auto_publish, max_posts) VALUES (?,?,?,?,?,?,?,?)',
-            [$userId, $platform, $label, $url, $topic, $sinceDate, $autoPublish, $maxPosts]
+            'INSERT INTO social_sources (user_id, platform, label, url, topic_summary, since_date, auto_publish, auto_sync, max_posts) VALUES (?,?,?,?,?,?,?,?,?)',
+            [$userId, $platform, $label, $url, $topic, $sinceDate, $autoPublish, $autoSync, $maxPosts]
         );
     }
 
@@ -1078,6 +1131,7 @@ if ($action === 'social-source-upsert' && $method === 'POST') {
         'topic_summary' => $topic,
         'since_date' => $sinceDate,
         'auto_publish' => $autoPublish,
+        'auto_sync' => $autoSync,
         'max_posts' => $maxPosts,
     ]];
     if (!array_key_exists('scan_now', $b) || !empty($b['scan_now'])) {
@@ -1096,10 +1150,12 @@ if ($action === 'social-source-upsert' && $method === 'POST') {
 }
 
 if ($action === 'social-connection-update' && $method === 'POST') {
+    ensureSocialSyncSchema();
     $b = body();
     $platform = trim($b['platform'] ?? '');
     $sinceDate = trim($b['since_date'] ?? '');
     $autoPublish = (int)($b['auto_publish'] ?? 1);
+    $autoSync = !array_key_exists('auto_sync', $b) || !empty($b['auto_sync']) ? 1 : 0;
     $maxPosts = isset($b['max_posts']) && $b['max_posts'] !== '' ? (int)$b['max_posts'] : null;
     if ($sinceDate && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $sinceDate)) $sinceDate = null;
     
@@ -1111,9 +1167,10 @@ if ($action === 'social-connection-update' && $method === 'POST') {
         'UPDATE social_connections
             SET since_date=?,
                 auto_publish=?,
+                auto_sync=?,
                 max_posts=?
           WHERE user_id=? AND platform=?',
-        [$sinceDate, $autoPublish, $maxPosts, $userId, $platform]
+        [$sinceDate, $autoPublish, $autoSync, $maxPosts, $userId, $platform]
     );
 
     json(['ok' => true]);
@@ -1252,6 +1309,8 @@ foreach (['edited_title'=>'VARCHAR(255) NULL','edited_body'=>'LONGTEXT NULL','ed
 // ── GET site ──────────────────────────────────────────────────────────────
 if ($action === 'site' && $method === 'GET') {
     try {
+        ensurePostMediaSchema();
+        ensureSocialSyncSchema();
         $site  = DB::fetch('SELECT * FROM sites WHERE user_id=?', [$userId]);
         if ($site) {
             $mergedUnderstanding = mergeUnderstanding(
@@ -1261,7 +1320,7 @@ if ($action === 'site' && $method === 'GET') {
             $site['site_understanding'] = !empty($mergedUnderstanding) ? $mergedUnderstanding : null;
         }
         $posts = DB::fetchAll(
-            'SELECT id, user_id, platform, platform_post_id, SUBSTR(raw_content, 1, 500) as raw_content, generated_title, generated_excerpt, generated_body, edited_body, tags, media_url, media_type, source_url, published_at, seo_score, slug, published
+            'SELECT id, user_id, platform, platform_post_id, SUBSTR(raw_content, 1, 500) as raw_content, generated_title, generated_excerpt, generated_body, edited_body, edited_title, edited_excerpt, tags, media_url, media_type, media_display_width, media_alignment, source_url, published_at, seo_score, slug, published
                FROM posts
               WHERE user_id=?
                 AND seo_score >= 0
@@ -1271,10 +1330,10 @@ if ($action === 'site' && $method === 'GET') {
         );
         file_put_contents(__DIR__ . '/../public/debug.json', json_encode(array_map(function($p) { return ['id' => $p['id'], 'title' => $p['generated_title'], 'gen_body_len' => strlen($p['generated_body'] ?? ''), 'edited_body_len' => strlen($p['edited_body'] ?? '')]; }, array_slice($posts, 0, 10))));
         $connections = DB::fetchAll(
-            'SELECT platform, handle, active, since_date, auto_publish, max_posts FROM social_connections WHERE user_id=?', [$userId]
+            'SELECT platform, handle, active, since_date, auto_publish, auto_sync, max_posts FROM social_connections WHERE user_id=?', [$userId]
         );
         $sources = DB::fetchAll(
-            'SELECT id, platform, label, url, topic_summary, active, since_date, auto_publish, max_posts FROM social_sources WHERE user_id=? AND active=1 ORDER BY platform, id DESC',
+            'SELECT id, platform, label, url, topic_summary, active, since_date, auto_publish, auto_sync, max_posts FROM social_sources WHERE user_id=? AND active=1 ORDER BY platform, id DESC',
             [$userId]
         );
         foreach ($posts as &$p) {
@@ -1339,6 +1398,7 @@ if ($action === 'post-feature' && $method === 'POST') {
 
 // ── EDIT post (CMS editoriale) ────────────────────────────────────────────
 if ($action === 'post-update' && $method === 'POST') {
+    ensurePostMediaSchema();
     $b = body();
     $id = (int)($b['id'] ?? 0);
     if (!$id) jsonError('ID post mancante');
@@ -1349,6 +1409,20 @@ if ($action === 'post-update' && $method === 'POST') {
     if (array_key_exists('edited_excerpt', $b)){ $fields[] = 'edited_excerpt=?'; $params[] = $b['edited_excerpt']; }
     if (array_key_exists('tags', $b))         { $fields[] = 'tags=?'; $params[] = is_array($b['tags']) ? json_encode($b['tags']) : $b['tags']; }
     if (array_key_exists('published', $b))    { $fields[] = 'published=?';    $params[] = (int)$b['published']; }
+    if (array_key_exists('media_url', $b)) {
+        $mediaUrl = trim((string)$b['media_url']);
+        if ($mediaUrl !== '' && !filter_var($mediaUrl, FILTER_VALIDATE_URL) && !str_starts_with($mediaUrl, '/public/media/')) jsonError('Indirizzo immagine non valido', 422);
+        $mediaType = strtoupper(trim((string)($b['media_type'] ?? 'IMAGE')));
+        if (!in_array($mediaType, ['IMAGE', 'VIDEO'], true)) $mediaType = 'IMAGE';
+        $fields[] = 'media_url=?'; $params[] = $mediaUrl;
+        $fields[] = 'media_type=?'; $params[] = $mediaUrl === '' ? '' : $mediaType;
+    }
+    if (array_key_exists('media_display_width', $b)) { $fields[] = 'media_display_width=?'; $params[] = max(30, min(100, (int)$b['media_display_width'])); }
+    if (array_key_exists('media_alignment', $b)) {
+        $alignment = strtolower(trim((string)$b['media_alignment']));
+        if (!in_array($alignment, ['left', 'center', 'right'], true)) $alignment = 'center';
+        $fields[] = 'media_alignment=?'; $params[] = $alignment;
+    }
     if (empty($fields)) json(['ok' => true]);
     $params[] = $id; $params[] = $userId;
     DB::execute('UPDATE posts SET ' . implode(',', $fields) . ' WHERE id=? AND user_id=?', $params);

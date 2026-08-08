@@ -25,17 +25,19 @@ register_shutdown_function(function (): void {
 
 echo "[" . date('Y-m-d H:i:s') . "] Avvio sync automatico...\n";
 
+Sync::ensureAutoSyncSchema();
+
 $users = DB::fetchAll('
-    SELECT DISTINCT user_id FROM social_connections WHERE active=1
+    SELECT DISTINCT user_id FROM social_connections WHERE active=1 AND auto_sync=1
     UNION
-    SELECT DISTINCT user_id FROM social_sources WHERE active=1
+    SELECT DISTINCT user_id FROM social_sources WHERE active=1 AND auto_sync=1
 ');
 
 foreach ($users as $row) {
     $userId = $row['user_id'];
     echo "  Utente $userId...";
     try {
-        $results = Sync::syncUser($userId);
+        $results = Sync::syncUser($userId, 20, null, true);
         $new = array_sum(array_column($results, 'new'));
         echo " OK ($new nuovi contenuti)\n";
 

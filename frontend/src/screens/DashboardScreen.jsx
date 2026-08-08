@@ -831,12 +831,12 @@ const [importMsg, setImportMsg] = useState(null);
     setCheckingPlatform(prev => ({...prev, [platform]: false}));
   }
 
-  async function savePlatformSource(platform, url, since_date = null, auto_publish = 1, max_posts = null, topic_summary = null) {
+  async function savePlatformSource(platform, url, since_date = null, auto_publish = 1, max_posts = null, topic_summary = null, auto_sync = 1) {
     setSourceMsg(null);
     try {
       await apiFetch('/api/index.php?action=social-source-upsert', {
         method: 'POST',
-        body: JSON.stringify({ platform, label: SOCIAL[platform]?.label || platform, url, since_date, auto_publish, max_posts, topic_summary })
+        body: JSON.stringify({ platform, label: SOCIAL[platform]?.label || platform, url, since_date, auto_publish, max_posts, topic_summary, auto_sync, scan_now: false })
       }, token);
       await loadData();
     } catch (err) {
@@ -844,15 +844,33 @@ const [importMsg, setImportMsg] = useState(null);
     }
   }
 
-  async function saveConnectionSettings(platform, since_date, auto_publish, max_posts = null) {
+  async function saveConnectionSettings(platform, since_date, auto_publish, max_posts = null, auto_sync = 1) {
     try {
       await apiFetch('/api/index.php?action=social-connection-update', {
         method: 'POST',
-        body: JSON.stringify({ platform, since_date, auto_publish, max_posts })
+        body: JSON.stringify({ platform, since_date, auto_publish, max_posts, auto_sync })
       }, token);
       await loadData();
     } catch (err) {
       alert(err.message);
+    }
+  }
+
+  async function syncAllChannels() {
+    setScanning(true);
+    setScanProgress([]);
+    setScanMsg({ ok: true, text: 'Sincronizzazione manuale di tutti i canali attivi...', loading: true });
+    try {
+      await apiFetch('/api/index.php?action=sync', {
+        method: 'POST',
+        body: JSON.stringify({ limit: parseInt(syncLimit) || 20 })
+      }, token);
+      await processPendingLoop(true);
+      await loadData();
+    } catch (err) {
+      setScanMsg({ ok: false, text: err.message });
+    } finally {
+      setScanning(false);
     }
   }
 
@@ -1491,7 +1509,45 @@ const [importMsg, setImportMsg] = useState(null);
   // ── CMS Editoriale ───────────────────────────────────────────────────────
   const [editingPost, setEditingPost] = useState(null); // {id, title, body, excerpt, tags}
   const [cmsSaving, setCmsSaving] = useState(false);
+  const [postImageUploading, setPostImageUploading] = useState(false);
   const [cmsFilter, setCmsFilter] = useState('all');
+
+  function openPostEditor(post) {
+    setEditingPost({
+      id: post.id,
+      title: post.edited_title || post.generated_title || '',
+      body: post.edited_body || post.generated_body || '',
+      excerpt: post.edited_excerpt || post.generated_excerpt || '',
+      tags: (post.tags || []).join(', '),
+      mediaUrl: post.media_url || '',
+      mediaType: post.media_type || '',
+      mediaWidth: Number(post.media_display_width || 100),
+      mediaAlignment: post.media_alignment || 'center',
+      imagePixelWidth: 1200,
+    });
+  }
+
+  async function uploadPostImage(file) {
+    if (!editingPost || !file) return;
+    if (!file.type.startsWith('image/')) { alert('Seleziona un file immagine JPG, PNG o WebP.'); return; }
+    if (file.size > 12 * 1024 * 1024) { alert('L’immagine originale deve pesare meno di 12 MB.'); return; }
+    setPostImageUploading(true);
+    try {
+      const originalData = await new Promise((resolve, reject) => { const reader = new FileReader(); reader.onload = () => resolve(reader.result); reader.onerror = reject; reader.readAsDataURL(file); });
+      const image = await new Promise((resolve, reject) => { const element = new Image(); element.onload = () => resolve(element); element.onerror = reject; element.src = originalData; });
+      const target = Number(editingPost.imagePixelWidth || 1200);
+      const scale = target > 0 ? Math.min(1, target / image.width) : 1;
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.max(1, Math.round(image.width * scale));
+      canvas.height = Math.max(1, Math.round(image.height * scale));
+      canvas.getContext('2d').drawImage(image, 0, 0, canvas.width, canvas.height);
+      const outputType = file.type === 'image/png' ? 'image/png' : 'image/jpeg';
+      const dataUrl = canvas.toDataURL(outputType, 0.88);
+      const result = await apiFetch('/api/index.php?action=post-media-upload', { method: 'POST', body: JSON.stringify({ post_id: editingPost.id, data_url: dataUrl }) }, token);
+      setEditingPost(current => current ? { ...current, mediaUrl: result.media_url, mediaType: result.media_type } : current);
+    } catch (err) { alert(err.message || 'Impossibile caricare l’immagine.'); }
+    finally { setPostImageUploading(false); }
+  }
 
   async function savePostEdit() {
     if (!editingPost) return;
@@ -1505,6 +1561,10 @@ const [importMsg, setImportMsg] = useState(null);
           edited_body: editingPost.body,
           edited_excerpt: editingPost.excerpt,
           tags: editingPost.tags.split(',').map(t => t.trim()).filter(Boolean),
+          media_url: editingPost.mediaUrl,
+          media_type: editingPost.mediaType,
+          media_display_width: editingPost.mediaWidth,
+          media_alignment: editingPost.mediaAlignment,
         })
       }, token);
       setEditingPost(null);
@@ -1811,9 +1871,9 @@ const [importMsg, setImportMsg] = useState(null);
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.5rem' }}>
               <div className="card">
-                <h3 style={{ marginBottom: '1rem' }}>Sincronizzazione automatica</h3>
+                <h3 style={{ marginBottom: '1rem' }}>Sincronizzazione dei canali</h3>
                 <p style={{ fontSize: '14px', color: 'var(--text-muted)', marginBottom: '1rem' }}>
-                  Il tuo Spazio Vivo si aggiorna automaticamente ogni 6 ore prelevando i contenuti dalle fonti social attive.
+                  Ogni canale può aggiornarsi automaticamente ogni 6 ore oppure restare manuale. Puoi deciderlo nella sezione Canali.
                 </p>
                 <div style={{ padding: '12px', background: 'var(--gray-light)', borderRadius: '8px', fontSize: '13px', display: 'flex', justifyContent: 'space-between' }}>
                   <span style={{ fontWeight: 600 }}>Ultimo sync:</span>
@@ -1849,6 +1909,7 @@ const [importMsg, setImportMsg] = useState(null);
               handle: c.handle,
               since_date: c.since_date,
               auto_publish: c.auto_publish,
+              auto_sync: c.auto_sync,
               max_posts: c.max_posts,
               label: c.handle ? `@${c.handle}` : '',
             });
@@ -1868,7 +1929,9 @@ const [importMsg, setImportMsg] = useState(null);
               label: s.label,
               since_date: s.since_date,
               auto_publish: s.auto_publish,
+              auto_sync: s.auto_sync,
               max_posts: s.max_posts,
+              topic_summary: s.topic_summary,
               hasDuplicateOAuth: hasOAuth,
             });
           });
@@ -1967,7 +2030,7 @@ const [importMsg, setImportMsg] = useState(null);
                       >
                         {repairingMedia ? 'Riparazione media...' : 'Ripara immagini'}
                       </button>
-                      <button onClick={scanSources} disabled={scanning || repairingMedia}
+                      <button onClick={syncAllChannels} disabled={scanning || repairingMedia}
                         className="btn btn-primary" style={{ fontSize: '13px', padding: '8px 18px' }}>
                         {scanning ? '⟳ Sincronizzazione...' : '🔄 Sincronizza tutti'}
                       </button>
@@ -2007,7 +2070,10 @@ const [importMsg, setImportMsg] = useState(null);
                                   color: channel.type === 'oauth' ? '#0F6E56' : 'var(--purple-dark)',
                                   padding: '1px 7px', borderRadius: '10px', fontWeight: 500
                                 }}>
-                                  {channel.type === 'oauth' ? '🔗 Connesso con account' : '🔍 Acquisizione automatica'}
+                                  {channel.type === 'oauth' ? '🔗 Connesso con account' : '🔍 Fonte tramite indirizzo'}
+                                </span>
+                                <span style={{ background: (channel.auto_sync ?? 1) === 1 ? 'var(--teal-light)' : 'var(--gray-light)', color: (channel.auto_sync ?? 1) === 1 ? '#0F6E56' : 'var(--text-muted)', padding: '1px 7px', borderRadius: '10px', fontWeight: 600 }}>
+                                  {(channel.auto_sync ?? 1) === 1 ? 'Auto ogni 6 ore' : 'Solo manuale'}
                                 </span>
                               </div>
                             </div>
@@ -2018,31 +2084,40 @@ const [importMsg, setImportMsg] = useState(null);
                         </div>
 
                         {/* Impostazioni sync inline */}
-                        <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr auto auto', gap: '10px', alignItems: 'center', paddingTop: '8px', borderTop: '1px solid var(--border)' }}>
+                        <div className="channel-sync-settings">
                           <span style={{ fontSize: '12px', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>Dal:</span>
                           <input type="date" defaultValue={channel.since_date || ''}
                             title="Importa contenuti da questa data in poi"
                             onBlur={e => {
-                              if (channel.type === 'oauth') saveConnectionSettings(channel.rawPlatform, e.target.value, channel.auto_publish ?? 1, channel.max_posts);
-                              else savePlatformSource(channel.rawPlatform, channel.url, e.target.value, channel.auto_publish ?? 1, channel.max_posts);
+                              if (channel.type === 'oauth') saveConnectionSettings(channel.rawPlatform, e.target.value, channel.auto_publish ?? 1, channel.max_posts, channel.auto_sync ?? 1);
+                              else savePlatformSource(channel.rawPlatform, channel.url, e.target.value, channel.auto_publish ?? 1, channel.max_posts, channel.topic_summary, channel.auto_sync ?? 1);
                             }}
                             style={{ padding: '5px 8px', fontSize: '12px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', width: '100%' }} />
                           <input type="number" min="1" max="500" placeholder="Max" defaultValue={channel.max_posts || ''}
                             title="Numero massimo di post da importare"
                             onBlur={e => {
                               const val = e.target.value || null;
-                              if (channel.type === 'oauth') saveConnectionSettings(channel.rawPlatform, channel.since_date, channel.auto_publish ?? 1, val);
-                              else savePlatformSource(channel.rawPlatform, channel.url, channel.since_date, channel.auto_publish ?? 1, val);
+                              if (channel.type === 'oauth') saveConnectionSettings(channel.rawPlatform, channel.since_date, channel.auto_publish ?? 1, val, channel.auto_sync ?? 1);
+                              else savePlatformSource(channel.rawPlatform, channel.url, channel.since_date, channel.auto_publish ?? 1, val, channel.topic_summary, channel.auto_sync ?? 1);
                             }}
                             style={{ padding: '5px 8px', fontSize: '12px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', width: '70px' }} />
                           <label style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '12px', cursor: 'pointer', whiteSpace: 'nowrap' }}>
                             <input type="checkbox" defaultChecked={(channel.auto_publish ?? 1) === 1}
                               onChange={e => {
                                 const ap = e.target.checked ? 1 : 0;
-                                if (channel.type === 'oauth') saveConnectionSettings(channel.rawPlatform, channel.since_date, ap, channel.max_posts);
-                                else savePlatformSource(channel.rawPlatform, channel.url, channel.since_date, ap, channel.max_posts);
+                                if (channel.type === 'oauth') saveConnectionSettings(channel.rawPlatform, channel.since_date, ap, channel.max_posts, channel.auto_sync ?? 1);
+                                else savePlatformSource(channel.rawPlatform, channel.url, channel.since_date, ap, channel.max_posts, channel.topic_summary, channel.auto_sync ?? 1);
                               }} />
                             Pubblica auto
+                          </label>
+                          <label style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '12px', cursor: 'pointer', whiteSpace: 'nowrap' }} title="Se disattivato, il canale viene aggiornato solo con Sincronizza tutti">
+                            <input type="checkbox" defaultChecked={(channel.auto_sync ?? 1) === 1}
+                              onChange={e => {
+                                const automatic = e.target.checked ? 1 : 0;
+                                if (channel.type === 'oauth') saveConnectionSettings(channel.rawPlatform, channel.since_date, channel.auto_publish ?? 1, channel.max_posts, automatic);
+                                else savePlatformSource(channel.rawPlatform, channel.url, channel.since_date, channel.auto_publish ?? 1, channel.max_posts, channel.topic_summary, automatic);
+                              }} />
+                            Sincronizza automaticamente
                           </label>
                         </div>
                       </div>
@@ -2248,7 +2323,7 @@ const [importMsg, setImportMsg] = useState(null);
 
                     {/* Azioni Fondo Card */}
                     <div className="article-card-footer">
-                      <button onClick={() => setEditingPost({id: post.id, title: post.edited_title || post.generated_title || '', body: post.edited_body || post.generated_body || '', excerpt: post.edited_excerpt || post.generated_excerpt || '', tags: (post.tags || []).join(', ')})} style={{ flex: '1', padding: '10px', fontSize: '13px', fontWeight: 800, borderRadius: 'var(--radius-sm)', background: 'var(--primary)', color: '#fff', border: 'none', cursor: 'pointer', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '6px', transition: 'all 0.2s', boxShadow: '0 4px 12px rgba(99,102,241,0.3)' }}>
+                      <button onClick={() => openPostEditor(post)} style={{ flex: '1', padding: '10px', fontSize: '13px', fontWeight: 800, borderRadius: 'var(--radius-sm)', background: 'var(--primary)', color: '#fff', border: 'none', cursor: 'pointer', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '6px', transition: 'all 0.2s', boxShadow: '0 4px 12px rgba(99,102,241,0.3)' }}>
                         ✏️ MODIFICA
                       </button>
                       <button onClick={() => togglePublishPost(post.id, post.published)} title={post.published == 1 ? "Nascondi dal sito" : "Pubblica sul sito"} style={{ padding: '10px', borderRadius: 'var(--radius-sm)', border: 'none', fontSize: '16px', cursor: 'pointer', background: post.published == 1 ? 'var(--teal-light)' : 'var(--surface)', color: post.published == 1 ? 'var(--teal)' : 'var(--text-muted)', border: post.published == 1 ? '1px solid rgba(16,185,129,0.3)' : '1px solid var(--border-strong)', transition: 'all 0.2s', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
@@ -2300,7 +2375,7 @@ const [importMsg, setImportMsg] = useState(null);
                         </td>
                         <td style={{ padding: '16px' }}>
                           <div style={{ display: 'flex', gap: '10px' }}>
-                            <button onClick={() => setEditingPost({id: post.id, title: post.edited_title || post.generated_title || '', body: post.edited_body || post.generated_body || '', excerpt: post.edited_excerpt || post.generated_excerpt || '', tags: (post.tags || []).join(', ')})} style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', color: 'var(--text)', padding: '6px 12px', borderRadius: '6px', cursor: 'pointer', fontSize: '13px', fontWeight: 600 }}>✏️ Modifica</button>
+                            <button onClick={() => openPostEditor(post)} style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', color: 'var(--text)', padding: '6px 12px', borderRadius: '6px', cursor: 'pointer', fontSize: '13px', fontWeight: 600 }}>✏️ Modifica</button>
                             <button onClick={() => deletePost(post.id)} style={{ background: 'rgba(255,0,50,0.1)', border: '1px solid rgba(255,0,50,0.3)', color: 'var(--red)', padding: '6px 12px', borderRadius: '6px', cursor: 'pointer', fontSize: '13px', fontWeight: 600 }}>❌ Elimina</button>
                           </div>
                         </td>
@@ -3395,7 +3470,7 @@ const [importMsg, setImportMsg] = useState(null);
                   <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                     <input type="date" title="Retroattività" 
                       defaultValue={c.since_date || ''}
-                      onBlur={e => saveConnectionSettings(c.platform, e.target.value, c.auto_publish ?? 1, c.max_posts)}
+                      onBlur={e => saveConnectionSettings(c.platform, e.target.value, c.auto_publish ?? 1, c.max_posts, c.auto_sync ?? 1)}
                       style={{ padding: '8px', fontSize: '14px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-strong)', background: '#111', color: 'var(--text)' }} />
                     <span style={{ background: c.active ? 'var(--teal-light)' : 'var(--red-light)', color: c.active ? 'var(--teal)' : 'var(--red)', padding: '4px 10px', borderRadius: '20px', fontSize: '11px', fontWeight: 800 }}>
                       {c.active ? 'ATTIVO' : 'INATTIVO'}
@@ -3406,9 +3481,9 @@ const [importMsg, setImportMsg] = useState(null);
             </div>
 
             <div className="glass-modal" style={{ marginBottom: '1.5rem', padding: '1.5rem' }}>
-              <h3 style={{ marginBottom: '0.5rem', color: 'var(--primary)' }}>Sincronizzazione automatica</h3>
+              <h3 style={{ marginBottom: '0.5rem', color: 'var(--primary)' }}>Sincronizzazione configurabile</h3>
               <p style={{ fontSize: '14px', color: 'var(--text-muted)', marginBottom: '0.75rem', fontWeight: 500 }}>
-                Il tuo Spazio Vivo si aggiorna automaticamente ogni 6 ore quando pubblichi nuovi contenuti sui social.
+                I canali abilitati si aggiornano ogni 6 ore; quelli disabilitati restano disponibili per la sincronizzazione manuale.
               </p>
               {site?.last_sync && (
                 <p style={{ fontSize: '14px', color: 'var(--primary-dark)', fontWeight: 700 }}>
@@ -3480,6 +3555,23 @@ const [importMsg, setImportMsg] = useState(null);
                   <label style={{ display: 'block', fontSize: '15px', fontWeight: 700, marginBottom: '8px', color: 'var(--text)' }}>Titolo Principale</label>
                   <input type="text" value={editingPost.title} onChange={e => setEditingPost({...editingPost, title: e.target.value})} style={{ width: '100%', fontSize: '18px', fontWeight: 600, padding: '14px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-strong)', background: 'var(--bg)', color: 'var(--text)' }} />
                 </div>
+
+                <section className="article-image-editor">
+                  <div className="article-image-editor__head"><div><strong>Foto principale</strong><span>Puoi aggiungerla, sostituirla, rimuoverla e scegliere quanto spazio occupa nell’articolo.</span></div>{editingPost.mediaUrl && <button type="button" onClick={() => setEditingPost({...editingPost, mediaUrl: '', mediaType: ''})}>Rimuovi foto</button>}</div>
+                  <div className="article-image-editor__body">
+                    <div className={`article-image-preview align-${editingPost.mediaAlignment}`}>
+                      {editingPost.mediaUrl && String(editingPost.mediaType).toUpperCase() !== 'VIDEO' ? <img src={editingPost.mediaUrl} alt="Anteprima foto articolo" style={{ width: `${editingPost.mediaWidth}%` }} /> : <div><span>▧</span><strong>{editingPost.mediaType === 'VIDEO' ? 'Questo articolo contiene un video' : 'Nessuna foto'}</strong><small>Carica un’immagine oppure incolla un indirizzo per impostare la foto principale.</small></div>}
+                    </div>
+                    <div className="article-image-controls">
+                      <label><span>Immagine dal computer</span><input type="file" accept="image/jpeg,image/png,image/webp" disabled={postImageUploading} onChange={e => { const file = e.target.files?.[0]; if (file) uploadPostImage(file); e.target.value = ''; }} /></label>
+                      <label><span>Ridimensiona il file prima del caricamento</span><select value={editingPost.imagePixelWidth} onChange={e => setEditingPost({...editingPost, imagePixelWidth: Number(e.target.value)})}><option value="600">600 px · leggera</option><option value="900">900 px</option><option value="1200">1200 px · consigliata</option><option value="1600">1600 px · grande</option><option value="0">Dimensione originale</option></select></label>
+                      <label><span>Oppure indirizzo dell’immagine</span><input type="url" value={editingPost.mediaUrl} onChange={e => setEditingPost({...editingPost, mediaUrl: e.target.value, mediaType: e.target.value ? 'IMAGE' : ''})} placeholder="https://… oppure carica un file" /></label>
+                      <label><span>Larghezza nella pagina · {editingPost.mediaWidth}%</span><input type="range" min="30" max="100" step="5" value={editingPost.mediaWidth} onChange={e => setEditingPost({...editingPost, mediaWidth: Number(e.target.value)})} /></label>
+                      <div><span>Allineamento</span><div className="article-image-align">{[['left','Sinistra'],['center','Centro'],['right','Destra']].map(([value,label]) => <button type="button" className={editingPost.mediaAlignment === value ? 'active' : ''} onClick={() => setEditingPost({...editingPost, mediaAlignment: value})} key={value}>{label}</button>)}</div></div>
+                      {postImageUploading && <div className="article-image-uploading">Ridimensionamento e caricamento…</div>}
+                    </div>
+                  </div>
+                </section>
                 
                 <div>
                   <label style={{ display: 'block', fontSize: '15px', fontWeight: 700, marginBottom: '8px', color: 'var(--text)' }}>Testo dell'Articolo</label>

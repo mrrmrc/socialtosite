@@ -7,6 +7,18 @@ require_once __DIR__ . '/../middleware/response.php';
 require_once __DIR__ . '/../middleware/crypto.php';
 
 class Sync {
+    public static function ensureAutoSyncSchema(): void {
+        static $done = false;
+        if ($done) return;
+        $done = true;
+        foreach (['social_sources', 'social_connections'] as $table) {
+            try {
+                $columns = [];
+                foreach (DB::fetchAll("SHOW COLUMNS FROM `$table`") as $column) $columns[$column['Field']] = true;
+                if (!isset($columns['auto_sync'])) DB::execute("ALTER TABLE `$table` ADD COLUMN auto_sync TINYINT NOT NULL DEFAULT 1");
+            } catch (Throwable $e) {}
+        }
+    }
     private static function buildFacebookPageTopic(array $page): string {
         $parts = array_filter([
             trim((string)($page['name'] ?? '')),
@@ -559,9 +571,10 @@ class Sync {
     }
 
     // ── Sync completo utente ───────────────────────────────────────────────
-    public static function syncUser(int $userId, int $maxPosts = 20, ?string $sinceDate = null): array {
+    public static function syncUser(int $userId, int $maxPosts = 20, ?string $sinceDate = null, bool $automatic = false): array {
+        self::ensureAutoSyncSchema();
         $connections = DB::fetchAll(
-            'SELECT * FROM social_connections WHERE user_id=? AND active=1', [$userId]
+            'SELECT * FROM social_connections WHERE user_id=? AND active=1' . ($automatic ? ' AND auto_sync=1' : ''), [$userId]
         );
         $results = [];
         foreach ($connections as $conn) {
@@ -593,7 +606,7 @@ class Sync {
 
         // Sincronizza anche social_sources (canali aggiunti tramite URL)
         require_once __DIR__ . '/ingest.php';
-        $sources = DB::fetchAll('SELECT * FROM social_sources WHERE user_id=? AND active=1', [$userId]);
+        $sources = DB::fetchAll('SELECT * FROM social_sources WHERE user_id=? AND active=1' . ($automatic ? ' AND auto_sync=1' : ''), [$userId]);
         $site = DB::fetch('SELECT profile_summary, role_mission, content_strategy FROM sites WHERE user_id=?', [$userId]);
         
         foreach ($sources as $src) {

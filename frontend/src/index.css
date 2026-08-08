@@ -333,6 +333,27 @@ h3 { font-size: 18px; font-weight: 600; }
 .article-rich-editor .ql-container { height: clamp(320px, 48vh, 620px); overflow: hidden; border: 0 !important; font-size: 16px; }
 .article-rich-editor .ql-editor { height: 100%; overflow-y: auto; overflow-wrap: anywhere; word-break: normal; line-height: 1.65; }
 .article-rich-editor .ql-editor img,.article-rich-editor .ql-editor video,.article-rich-editor .ql-editor iframe,.article-rich-editor .ql-editor table { max-width: 100%; height: auto; }
+.article-image-editor { padding: 1rem; border: 1px solid var(--border); border-radius: 16px; background: var(--surface); }
+.article-image-editor__head { display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; margin-bottom: 1rem; }
+.article-image-editor__head strong,.article-image-editor__head span { display: block; }
+.article-image-editor__head strong { color: var(--text); font-size: 15px; }
+.article-image-editor__head span { margin-top: .25rem; color: var(--text-muted); font-size: 12px; line-height: 1.45; }
+.article-image-editor__head button { padding: .45rem .7rem; border: 1px solid var(--border-strong); border-radius: 999px; background: var(--bg); color: var(--text); cursor: pointer; white-space: nowrap; }
+.article-image-editor__body { display: grid; grid-template-columns: minmax(260px, 1.05fr) minmax(280px, .95fr); gap: 1rem; }
+.article-image-preview { min-height: 250px; display: flex; align-items: center; overflow: hidden; border: 1px dashed var(--border-strong); border-radius: 14px; background: var(--bg); }
+.article-image-preview img { display: block; max-height: 340px; object-fit: cover; border-radius: 10px; }
+.article-image-preview.align-left { justify-content: flex-start; }.article-image-preview.align-center { justify-content: center; }.article-image-preview.align-right { justify-content: flex-end; }
+.article-image-preview > div { width: 100%; display: grid; place-items: center; gap: .35rem; padding: 2rem; color: var(--text-muted); text-align: center; }
+.article-image-preview > div span { font-size: 34px; }.article-image-preview > div strong { color: var(--text); }.article-image-preview > div small { font-size: 12px; }
+.article-image-controls { display: flex; flex-direction: column; gap: .8rem; }
+.article-image-controls label,.article-image-controls > div { display: flex; flex-direction: column; gap: .35rem; color: var(--text); font-size: 12px; font-weight: 700; }
+.article-image-controls input[type="file"],.article-image-controls input[type="url"],.article-image-controls select { width: 100%; padding: .65rem; border: 1px solid var(--border); border-radius: 9px; background: var(--bg); color: var(--text); font: inherit; }
+.article-image-controls input[type="range"] { width: 100%; accent-color: var(--primary); }
+.article-image-align { display: grid; grid-template-columns: repeat(3,1fr); gap: .4rem; }
+.article-image-align button { padding: .55rem; border: 1px solid var(--border); border-radius: 8px; background: var(--bg); color: var(--text-muted); cursor: pointer; }
+.article-image-align button.active { border-color: var(--primary); background: var(--primary-light); color: var(--primary); font-weight: 800; }
+.article-image-uploading { padding: .65rem; border-radius: 8px; background: var(--primary-light); color: var(--primary) !important; }
+.channel-sync-settings { display: grid; grid-template-columns: auto minmax(135px,1fr) auto auto auto; gap: 10px; align-items: center; padding-top: 8px; border-top: 1px solid var(--border); }
 
 @media (max-width: 768px) {
   .content-ideas-heading { flex-direction: column; }
@@ -345,6 +366,10 @@ h3 { font-size: 18px; font-weight: 600; }
   .article-editor-scroll { padding: 1rem; }
   .article-editor-actions { padding: .85rem 1rem calc(.85rem + env(safe-area-inset-bottom)); }
   .article-rich-editor .ql-container { height: 52vh; min-height: 300px; }
+  .article-image-editor__head,.article-image-editor__body { display: flex; flex-direction: column; }
+  .article-image-editor__head button,.article-image-preview,.article-image-controls { width: 100%; }
+  .channel-sync-settings { grid-template-columns: auto minmax(0,1fr) auto; }
+  .channel-sync-settings label { grid-column: 1 / -1; }
 }
 
 @keyframes fadeInUp { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: translateY(0); } }

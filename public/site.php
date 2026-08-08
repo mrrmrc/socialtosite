@@ -778,15 +778,18 @@ function postBody(array $p): string {
 function mediaHtml(array $p): string {
     $u = $p['media_url'] ?? '';
     if (!$u) return '';
+    $width = max(30, min(100, (int)($p['media_display_width'] ?? 100)));
+    $alignment = in_array(($p['media_alignment'] ?? 'center'), ['left', 'center', 'right'], true) ? $p['media_alignment'] : 'center';
+    $wrapper = '<div class="media media-sized media-align-' . $alignment . '" style="--media-display-width:' . $width . '%">';
     if (preg_match('~(?:youtube\.com|youtu\.be)~i', $u) &&
         preg_match('~(?:v=|youtu\.be/|shorts/|embed/)([A-Za-z0-9_-]{11})~', $u, $m)) {
-        return '<div class="media"><iframe src="https://www.youtube.com/embed/' . $m[1] . '" allowfullscreen loading="lazy"></iframe></div>';
+        return $wrapper . '<iframe src="https://www.youtube.com/embed/' . $m[1] . '" allowfullscreen loading="lazy"></iframe></div>';
     }
     $type = strtolower($p['media_type'] ?? '');
     if ($type === 'image' || preg_match('~\.(jpg|jpeg|png|webp)(\?|$)~i', $u))
-        return '<div class="media"><img src="' . h($u) . '" alt="" loading="lazy"></div>';
+        return $wrapper . '<img src="' . h($u) . '" alt="" loading="lazy"></div>';
     if ($type === 'video' || preg_match('~\.(mp4|mov|webm)(\?|$)~i', $u))
-        return '<div class="media"><video controls preload="metadata"><source src="' . h($u) . '"></video></div>';
+        return $wrapper . '<video controls preload="metadata"><source src="' . h($u) . '"></video></div>';
     return '';
 }
 
@@ -2261,6 +2264,10 @@ header('Link: <' . $siteUrl . '/feed.xml>; rel="alternate"; type="application/at
     .is-hospitality-site .single-post h1{font-size:clamp(2.5rem,5vw,4.8rem);line-height:.98;letter-spacing:-.055em}
     .is-hospitality-site .single-post>.media{margin:calc(clamp(1.3rem,4vw,3.5rem)*-1) calc(clamp(1.3rem,4vw,3.5rem)*-1) 2rem;overflow:hidden;border-radius:22px 22px 0 0}
     .is-hospitality-site .single-post>.media img,.is-hospitality-site .single-post>.media video{width:100%;max-height:620px;object-fit:cover}
+    body .single-post>.media.media-sized{width:var(--media-display-width,100%)}
+    body .single-post>.media.media-align-left{margin-left:0!important;margin-right:auto!important}
+    body .single-post>.media.media-align-center{margin-left:auto!important;margin-right:auto!important}
+    body .single-post>.media.media-align-right{margin-left:auto!important;margin-right:0!important}
     @media(max-width:760px){.is-hospitality-site .network-trust{display:none}.is-hospitality-site .container{padding:1rem}.is-hospitality-site .hospitality-hero{min-height:calc(100svh - 105px);padding:5rem 1.15rem 2.5rem}.is-hospitality-site .hospitality-hero h1{font-size:clamp(3.4rem,16vw,5.8rem)}.is-hospitality-site .foundation-header{min-height:62vh;border-radius:16px;padding:1.5rem}.is-hospitality-site .foundation-header h1{font-size:clamp(3.1rem,15vw,5rem)}.is-hospitality-site .foundation-content-grid{grid-template-columns:1fr}.is-hospitality-site .breadcrumb{padding:.5rem .25rem}.is-hospitality-site .hospitality-media-strip{grid-template-columns:1fr 1fr}}
   </style>
 </head>
