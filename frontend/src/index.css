@@ -354,6 +354,12 @@ h3 { font-size: 18px; font-weight: 600; }
 .article-image-align button.active { border-color: var(--primary); background: var(--primary-light); color: var(--primary); font-weight: 800; }
 .article-image-uploading { padding: .65rem; border-radius: 8px; background: var(--primary-light); color: var(--primary) !important; }
 .channel-sync-settings { display: grid; grid-template-columns: auto minmax(135px,1fr) auto auto auto; gap: 10px; align-items: center; padding-top: 8px; border-top: 1px solid var(--border); }
+.article-indexing-control { display: flex; align-items: flex-start; gap: .8rem; padding: 1rem; border: 1px solid var(--border); border-radius: 14px; background: var(--surface); cursor: pointer; }
+.article-indexing-control.is-noindex { border-color: var(--red); background: var(--red-light); }
+.article-indexing-control input { margin-top: .2rem; transform: scale(1.25); accent-color: var(--red); }
+.article-indexing-control span,.article-indexing-control strong,.article-indexing-control small { display: block; }
+.article-indexing-control strong { color: var(--text); font-size: 14px; }
+.article-indexing-control small { margin-top: .25rem; color: var(--text-muted); font-size: 12px; line-height: 1.5; }
 
 @media (max-width: 768px) {
   .content-ideas-heading { flex-direction: column; }

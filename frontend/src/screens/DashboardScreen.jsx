@@ -1523,6 +1523,7 @@ const [importMsg, setImportMsg] = useState(null);
       mediaType: post.media_type || '',
       mediaWidth: Number(post.media_display_width || 100),
       mediaAlignment: post.media_alignment || 'center',
+      noindex: Number(post.noindex || 0),
       imagePixelWidth: 1200,
     });
   }
@@ -1565,6 +1566,7 @@ const [importMsg, setImportMsg] = useState(null);
           media_type: editingPost.mediaType,
           media_display_width: editingPost.mediaWidth,
           media_alignment: editingPost.mediaAlignment,
+          noindex: editingPost.noindex,
         })
       }, token);
       setEditingPost(null);
@@ -2295,6 +2297,7 @@ const [importMsg, setImportMsg] = useState(null);
                             BOZZA
                           </span>
                         )}
+                        {Number(post.noindex) === 1 && <span style={{ background: 'var(--red-light)', color: 'var(--red)', padding: '4px 10px', borderRadius: '20px', fontSize: '11px', fontWeight: 800, whiteSpace: 'nowrap' }}>NOINDEX</span>}
                       </div>
                       
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -2362,6 +2365,7 @@ const [importMsg, setImportMsg] = useState(null);
                         </td>
                         <td style={{ padding: '16px', fontWeight: 600, fontSize: '15px' }}>
                           {post.generated_title || post.raw_content?.substring(0, 40) + '...'}
+                          {Number(post.noindex) === 1 && <span style={{ display: 'inline-block', marginLeft: '8px', padding: '3px 7px', borderRadius: '999px', background: 'var(--red-light)', color: 'var(--red)', fontSize: '10px', fontWeight: 800 }}>NOINDEX</span>}
                         </td>
                         <td style={{ padding: '16px' }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', fontWeight: 600 }}>
@@ -3588,6 +3592,11 @@ const [importMsg, setImportMsg] = useState(null);
                     <textarea value={editingPost.tags} onChange={e => setEditingPost({...editingPost, tags: e.target.value})} placeholder="Es: cucina, ricette, estate" style={{ width: '100%', minHeight: '100px', padding: '12px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-strong)', fontSize: '14px', background: 'var(--bg)', color: 'var(--text)', resize: 'vertical' }} />
                   </div>
                 </div>
+
+                <label className={`article-indexing-control ${editingPost.noindex ? 'is-noindex' : ''}`}>
+                  <input type="checkbox" checked={Boolean(editingPost.noindex)} onChange={e => setEditingPost({...editingPost, noindex: e.target.checked ? 1 : 0})} />
+                  <span><strong>Escludi questo articolo dai motori di ricerca</strong><small>Attiva il meta tag noindex. L’articolo resta pubblicato e raggiungibile tramite link, ma non viene inserito nella sitemap.</small></span>
+                </label>
               </div>
 
               <div className="article-editor-actions">

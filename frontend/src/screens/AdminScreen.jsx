@@ -131,6 +131,26 @@ export function AdminScreen({ token, currentUser, adminPrompts, updatePrompt }) 
     }
   }
 
+  async function togglePostNoindex(post) {
+    if (!editorialRoom?.user?.id) return;
+    setError('');
+    setNotice('');
+    const noindex = Number(post.noindex) === 1 ? 0 : 1;
+    try {
+      await apiFetch('/api/index.php?action=admin-post-noindex', {
+        method: 'POST',
+        body: JSON.stringify({ id: post.id, user_id: editorialRoom.user.id, noindex }),
+      }, token);
+      setEditorialRoom(current => current ? {
+        ...current,
+        posts: (current.posts || []).map(item => item.id === post.id ? { ...item, noindex } : item),
+      } : current);
+      setNotice(noindex ? 'Noindex attivato sull’articolo.' : 'Articolo nuovamente indicizzabile.');
+    } catch (e) {
+      setError(e.message);
+    }
+  }
+
   async function createUser(e) {
     e.preventDefault();
     setLoading(true);
@@ -886,7 +906,12 @@ export function AdminScreen({ token, currentUser, adminPrompts, updatePrompt }) 
                         <div style={{ display: 'grid', gap: '0.75rem' }}>
                           {(editorialRoom.posts || []).map(post => (
                             <div key={post.id} style={{ paddingBottom: '0.75rem', borderBottom: '1px solid var(--border)' }}>
-                              <div style={{ fontWeight: 700, marginBottom: '4px' }}>#{post.id} {post.edited_title || post.generated_title || 'Senza titolo'}</div>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', gap: '10px', alignItems: 'flex-start', marginBottom: '4px' }}>
+                                <div style={{ fontWeight: 700 }}>#{post.id} {post.edited_title || post.generated_title || 'Senza titolo'}</div>
+                                <button type="button" className={`btn ${Number(post.noindex) === 1 ? 'btn-primary' : 'btn-outline'}`} onClick={() => togglePostNoindex(post)} style={{ flex: '0 0 auto', padding: '5px 9px', fontSize: '11px' }} title="Escludi o includi l’articolo nei motori di ricerca">
+                                  {Number(post.noindex) === 1 ? 'NOINDEX attivo' : 'Indicizzabile'}
+                                </button>
+                              </div>
                               <div style={{ fontSize: '12px', color: 'var(--text-muted)', lineHeight: 1.5 }}>
                                 {post.generated_excerpt || 'Nessun excerpt disponibile'}
                                 {post.published_at ? <><br />Pubblicato: {post.published_at}</> : null}

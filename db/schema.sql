@@ -64,6 +64,7 @@ CREATE TABLE IF NOT EXISTS posts (
   media_type        VARCHAR(50),
   media_display_width TINYINT UNSIGNED NULL,
   media_alignment   VARCHAR(20) NOT NULL DEFAULT 'center',
+  noindex           TINYINT NOT NULL DEFAULT 0,
   source_url        TEXT,
   published_at      DATETIME,
   imported_at       DATETIME DEFAULT NOW(),

@@ -114,6 +114,9 @@ if ($postSlug !== '' && !$foundationPage && !$single && $action === 'site') {
     echo '<!doctype html><html lang="it"><meta charset="utf-8"><title>Pagina non trovata</title><body><main><h1>Pagina non trovata</h1><p><a href="/' . htmlspecialchars($slug, ENT_QUOTES, 'UTF-8') . '">Torna al sito</a></p></main></body></html>';
     exit;
 }
+if ($single && !empty($single['noindex'])) {
+    header('X-Robots-Tag: noindex, follow', true);
+}
 
 // ── Sitemap XML ─────────────────────────────────────────────────────────────
 if ($action === 'sitemap') {
@@ -153,6 +156,7 @@ if ($action === 'sitemap') {
     
     // Posts
     foreach ($allPosts as $p) {
+        if (!empty($p['noindex'])) continue;
         $loc = "$base/{$p['slug']}";
         $modSource = $p['updated_at'] ?? $p['published_at'] ?? $p['imported_at'] ?? '';
         $mod = preg_match('/^\d{4}-\d{2}-\d{2}/', (string)$modSource, $modMatch) ? $modMatch[0] : '';
@@ -1618,6 +1622,7 @@ header('Link: <' . $siteUrl . '/feed.xml>; rel="alternate"; type="application/at
   <?php elseif ($single): ?>
     <title><?= h(postTitle($single)) ?> - <?= $title ?></title>
     <meta name="description" content="<?= h(postExcerpt($single)) ?>">
+    <?php if (!empty($single['noindex'])): ?><meta name="robots" content="noindex, follow"><?php endif; ?>
     <meta property="og:title" content="<?= h(postTitle($single)) ?>">
     <meta property="og:description" content="<?= h(postExcerpt($single)) ?>">
     <meta property="og:type" content="article">

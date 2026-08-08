@@ -94,6 +94,7 @@ function ensurePostMediaSchema(): void {
     $definitions = [
         'media_display_width'=>'TINYINT UNSIGNED NULL',
         'media_alignment'=>"VARCHAR(20) NOT NULL DEFAULT 'center'",
+        'noindex'=>'TINYINT NOT NULL DEFAULT 0',
     ];
     $existing = [];
     try { foreach (DB::fetchAll('SHOW COLUMNS FROM posts') as $column) $existing[$column['Field']] = true; } catch (Throwable $e) { return; }
@@ -752,6 +753,7 @@ if ($action === 'admin-users' && $method === 'GET') {
 if ($action === 'admin-editorial-room' && $method === 'GET') {
     requireAdmin($isAdmin);
     ensureSiteSchemaUpgrades();
+    ensurePostMediaSchema();
     $targetId = isset($_GET['user_id']) ? (int)$_GET['user_id'] : 0;
     if ($targetId <= 0) jsonError('Utente non valido', 422);
 
@@ -777,7 +779,7 @@ if ($action === 'admin-editorial-room' && $method === 'GET') {
     );
 
     $posts = DB::fetchAll(
-        'SELECT id, generated_title, edited_title, generated_excerpt, tags, seo_score, published_at
+        'SELECT id, generated_title, edited_title, generated_excerpt, tags, seo_score, published_at, noindex
          FROM posts
          WHERE user_id = ? AND published = 1
          ORDER BY published_at DESC, id DESC
@@ -790,6 +792,20 @@ if ($action === 'admin-editorial-room' && $method === 'GET') {
         'sources' => $sources,
         'posts' => $posts,
     ]);
+}
+
+if ($action === 'admin-post-noindex' && $method === 'POST') {
+    requireAdmin($isAdmin);
+    ensurePostMediaSchema();
+    $b = body();
+    $postId = (int)($b['id'] ?? 0);
+    $targetUserId = (int)($b['user_id'] ?? 0);
+    if ($postId <= 0 || $targetUserId <= 0) jsonError('Articolo o utente non valido', 422);
+    $post = DB::fetch('SELECT id FROM posts WHERE id=? AND user_id=?', [$postId, $targetUserId]);
+    if (!$post) jsonError('Articolo non trovato', 404);
+    $noindex = !empty($b['noindex']) ? 1 : 0;
+    DB::execute('UPDATE posts SET noindex=? WHERE id=? AND user_id=?', [$noindex, $postId, $targetUserId]);
+    json(['ok' => true, 'id' => $postId, 'noindex' => $noindex]);
 }
 
 if ($action === 'admin-seo' && $method === 'GET') {
@@ -1320,7 +1336,7 @@ if ($action === 'site' && $method === 'GET') {
             $site['site_understanding'] = !empty($mergedUnderstanding) ? $mergedUnderstanding : null;
         }
         $posts = DB::fetchAll(
-            'SELECT id, user_id, platform, platform_post_id, SUBSTR(raw_content, 1, 500) as raw_content, generated_title, generated_excerpt, generated_body, edited_body, edited_title, edited_excerpt, tags, media_url, media_type, media_display_width, media_alignment, source_url, published_at, seo_score, slug, published
+            'SELECT id, user_id, platform, platform_post_id, SUBSTR(raw_content, 1, 500) as raw_content, generated_title, generated_excerpt, generated_body, edited_body, edited_title, edited_excerpt, tags, media_url, media_type, media_display_width, media_alignment, noindex, source_url, published_at, seo_score, slug, published
                FROM posts
               WHERE user_id=?
                 AND seo_score >= 0
@@ -1409,6 +1425,7 @@ if ($action === 'post-update' && $method === 'POST') {
     if (array_key_exists('edited_excerpt', $b)){ $fields[] = 'edited_excerpt=?'; $params[] = $b['edited_excerpt']; }
     if (array_key_exists('tags', $b))         { $fields[] = 'tags=?'; $params[] = is_array($b['tags']) ? json_encode($b['tags']) : $b['tags']; }
     if (array_key_exists('published', $b))    { $fields[] = 'published=?';    $params[] = (int)$b['published']; }
+    if (array_key_exists('noindex', $b))      { $fields[] = 'noindex=?';      $params[] = !empty($b['noindex']) ? 1 : 0; }
     if (array_key_exists('media_url', $b)) {
         $mediaUrl = trim((string)$b['media_url']);
         if ($mediaUrl !== '' && !filter_var($mediaUrl, FILTER_VALIDATE_URL) && !str_starts_with($mediaUrl, '/public/media/')) jsonError('Indirizzo immagine non valido', 422);
