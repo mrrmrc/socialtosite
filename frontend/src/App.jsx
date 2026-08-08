@@ -14,48 +14,46 @@ function AppContent() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const t = localStorage.getItem('sts_token');
-    const u = localStorage.getItem('sts_user');
-    if (t && u) {
-      setToken(t);
-      try {
-        setUser(JSON.parse(u));
-      } catch {
-        localStorage.removeItem('sts_user');
-      }
-    }
-    setLoading(false);
-
     fetch('/deploy-info.json', { cache: 'no-store' })
       .then(r => r.ok ? r.json() : null)
       .then(setDeployInfo)
       .catch(() => {});
-  }, []);
 
-  useEffect(() => {
-    if (!token) return;
+    const storedToken = localStorage.getItem('sts_token');
+    if (!storedToken) {
+      localStorage.removeItem('sts_user');
+      setLoading(false);
+      return;
+    }
 
+    let cancelled = false;
     fetch('/api/index.php?action=me', {
-      headers: { Authorization: `Bearer ${token}` },
+      headers: { Authorization: `Bearer ${storedToken}` },
+      cache: 'no-store',
     })
-      .then(async r => {
-        if (!r.ok) throw new Error('session-sync-failed');
-        return r.json();
+      .then(response => {
+        if (!response.ok) throw new Error('session-sync-failed');
+        return response.json();
       })
       .then(data => {
-        if (data?.user) {
-          setUser(data.user);
-          localStorage.setItem('sts_user', JSON.stringify(data.user));
-        }
+        if (cancelled || !data?.user) return;
+        setToken(storedToken);
+        setUser(data.user);
+        localStorage.setItem('sts_user', JSON.stringify(data.user));
       })
       .catch(() => {
+        if (cancelled) return;
         localStorage.removeItem('sts_token');
         localStorage.removeItem('sts_user');
         setToken(null);
         setUser(null);
-        navigate('/login');
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
       });
-  }, [token, navigate]);
+
+    return () => { cancelled = true; };
+  }, []);
 
   function handleAuth(t, u) {
     setToken(t);
@@ -71,7 +69,11 @@ function AppContent() {
     navigate('/login');
   }
 
-  if (loading) return null; // or a spinner
+  if (loading) return (
+    <main style={{ minHeight: '100vh', display: 'grid', placeItems: 'center', background: 'var(--bg)' }}>
+      <div style={{ color: 'var(--primary)', fontWeight: 800 }}>Verifica accesso…</div>
+    </main>
+  );
 
   return (
     <>
