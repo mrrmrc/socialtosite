@@ -2,10 +2,8 @@ import React, { useState } from 'react';
 import { apiFetch } from '../utils/api';
 
 export function AuthScreen({ onAuth }) {
-  const [mode, setMode] = useState('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [name, setName] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -13,9 +11,10 @@ export function AuthScreen({ onAuth }) {
     e.preventDefault();
     setLoading(true); setError('');
     try {
-      const endpoint = mode === 'login' ? '/api/index.php?action=login' : '/api/index.php?action=register';
-      const body = mode === 'login' ? { email, password } : { email, password, name };
-      const data = await apiFetch(endpoint, { method: 'POST', body: JSON.stringify(body) });
+      const data = await apiFetch('/api/index.php?action=login', {
+        method: 'POST',
+        body: JSON.stringify({ email, password }),
+      });
       localStorage.setItem('sts_token', data.token);
       localStorage.setItem('sts_user', JSON.stringify(data.user));
       onAuth(data.token, data.user);
@@ -40,12 +39,6 @@ export function AuthScreen({ onAuth }) {
 
         <div style={{ background: 'var(--surface)', borderRadius: 'var(--radius-xl)', padding: '32px', boxShadow: 'var(--shadow-lg)', border: '1px solid var(--border)' }}>
           <form onSubmit={submit}>
-            {mode === 'register' && (
-              <div className="form-group">
-                <label className="label">Nome</label>
-                <input type="text" placeholder="Il tuo nome" value={name} onChange={e => setName(e.target.value)} required />
-              </div>
-            )}
             <div className="form-group">
               <label className="label">Email</label>
               <input type="email" placeholder="tua@email.it" value={email} onChange={e => setEmail(e.target.value)} required />
@@ -56,19 +49,13 @@ export function AuthScreen({ onAuth }) {
             </div>
             {error && <div style={{ background: 'var(--red-light)', color: 'var(--red)', padding: '12px 16px', borderRadius: 'var(--radius-sm)', marginBottom: '16px', fontSize: '13px', fontWeight: 600, border: '1px solid rgba(239,68,68,0.2)' }}>{error}</div>}
             <button type="submit" className="btn btn-primary" disabled={loading} style={{ width: '100%', padding: '14px', fontSize: '15px', borderRadius: 'var(--radius-sm)', fontWeight: 800 }}>
-              {loading ? '⟳ Caricamento...' : mode === 'login' ? 'Entra nella piattaforma →' : 'Crea il mio account →'}
+              {loading ? '⟳ Caricamento...' : 'Entra nella piattaforma →'}
             </button>
           </form>
-          
-          <div style={{ textAlign: 'center', marginTop: '16px' }}>
-            <button className="btn btn-outline" onClick={() => setMode(mode === 'login' ? 'register' : 'login')} style={{ fontSize: '13px', border: 'none', background: 'transparent', color: 'var(--text-muted)' }}>
-              {mode === 'login' ? 'Non hai un account? Registrati' : 'Hai già un account? Accedi'}
-            </button>
-          </div>
 
           <div className="divider" />
           <div style={{ fontSize: '12px', color: 'var(--text-faint)', textAlign: 'center', lineHeight: 1.6 }}>
-            🔒 Piano gratuito · Fino a 3 social · Nessuna carta richiesta
+            🔒 Accesso riservato agli utenti già abilitati
           </div>
         </div>
       </div>

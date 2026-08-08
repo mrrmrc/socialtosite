@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 
-import { LandingScreen } from './screens/LandingScreen';
 import { AuthScreen } from './screens/AuthScreen';
 import { ConnectScreen } from './screens/ConnectScreen';
 import { GeneratingScreen } from './screens/GeneratingScreen';
@@ -77,12 +76,12 @@ function AppContent() {
   return (
     <>
       <Routes>
-        <Route path="/" element={token ? <Navigate to="/dashboard" /> : <LandingScreen onGetStarted={() => navigate('/login')} />} />
+        <Route path="/" element={<Navigate to={token ? "/dashboard" : "/login"} replace />} />
         <Route path="/login" element={token ? <Navigate to="/dashboard" /> : <AuthScreen onAuth={handleAuth} />} />
         <Route path="/connect" element={token ? <ConnectScreen token={token} onDone={() => navigate('/generating')} /> : <Navigate to="/login" />} />
         <Route path="/generating" element={token ? <GeneratingScreen token={token} user={user} onDone={() => navigate('/dashboard')} /> : <Navigate to="/login" />} />
         <Route path="/dashboard/*" element={token ? <DashboardScreen token={token} user={user} onLogout={logout} /> : <Navigate to="/login" />} />
-        <Route path="*" element={<Navigate to="/" />} />
+        <Route path="*" element={<Navigate to={token ? "/dashboard" : "/login"} replace />} />
       </Routes>
       
       <footer style={{
