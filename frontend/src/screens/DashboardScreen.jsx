@@ -1109,19 +1109,35 @@ const [importMsg, setImportMsg] = useState(null);
 
   async function createIdeaDraft(idea, index) {
     setPreparingIdea(index);
-    setSyncMsg({ ok: true, loading: true, text: 'L’AI sta preparando una bozza non pubblicata…' });
+    setSyncMsg({ ok: true, loading: true, text: 'Creo subito la bozza e avvio il completamento AI…' });
+    const controller = new AbortController();
+    const timeoutId = window.setTimeout(() => controller.abort(), 25000);
     try {
-      await apiFetch('/api/index.php?action=create-idea-draft', {
+      const result = await apiFetch('/api/index.php?action=create-idea-draft', {
         method: 'POST',
         body: JSON.stringify(idea),
+        signal: controller.signal,
       }, token);
       await Promise.all([loadData(), loadDrafts()]);
-      setSyncMsg({ ok: true, text: 'Bozza pronta. Puoi rivederla nella sezione Articoli prima di pubblicarla.' });
+      setDashboardFilter('published-0');
       setTab('site');
+      if (result?.draft) setEditingPost(result.draft);
+      setSyncMsg({
+        ok: true,
+        text: result?.ai_status === 'processing'
+          ? 'Bozza creata e aperta. L’AI la sta completando in background: puoi già modificarla.'
+          : 'Bozza creata e aperta. Puoi completarla nell’editor prima di pubblicarla.',
+      });
+      if (result?.ai_status === 'processing') {
+        window.setTimeout(() => loadData(), 20000);
+        window.setTimeout(() => loadData(), 60000);
+      }
     } catch (error) {
-      setSyncMsg({ ok: false, text: error.message });
+      setSyncMsg({ ok: false, text: error.name === 'AbortError' ? 'La richiesta ha impiegato troppo tempo. Riprova: il pulsante è stato sbloccato.' : error.message });
+    } finally {
+      window.clearTimeout(timeoutId);
+      setPreparingIdea(-1);
     }
-    setPreparingIdea(-1);
   }
 
   async function refreshUnderstanding() {
@@ -2118,8 +2134,13 @@ const [importMsg, setImportMsg] = useState(null);
           const allTags = [...new Set(posts.flatMap(p => p.tags || []).map(t => t.toLowerCase()))].sort();
           const filteredPosts = posts.filter(p => {
             if (dashboardFilter === 'all') return true;
+            if (dashboardFilter.startsWith('published-')) return Number(p.published) === Number(dashboardFilter.replace('published-', ''));
             if (dashboardFilter.startsWith('platform-')) return p.platform === dashboardFilter.replace('platform-', '');
             if (dashboardFilter.startsWith('tag-')) return (p.tags || []).map(t => t.toLowerCase()).includes(dashboardFilter.replace('tag-', ''));
+            if (dashboardFilter.startsWith('search-')) {
+              const term = dashboardFilter.replace('search-', '');
+              return `${p.edited_title || p.generated_title || ''} ${p.raw_content || ''} ${p.generated_excerpt || ''}`.toLowerCase().includes(term);
+            }
             return true;
           });
           return (

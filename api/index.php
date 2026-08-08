@@ -1541,6 +1541,8 @@ if ($action === 'create-idea-draft' && $method === 'POST') {
     $ideaTitle = trim((string)($b['title'] ?? ''));
     $ideaReason = trim((string)($b['reason'] ?? ''));
     $ideaType = trim((string)($b['type'] ?? 'Idea editoriale'));
+    $ideaSource = trim((string)($b['source'] ?? 'Analisi editoriale'));
+    $ideaPriority = trim((string)($b['priority'] ?? 'Consigliata'));
     if ($ideaTitle === '') jsonError('Titolo idea mancante', 422);
     $ideaTitleLength = function_exists('mb_strlen') ? mb_strlen($ideaTitle, 'UTF-8') : strlen($ideaTitle);
     if ($ideaTitleLength > 240) jsonError('Titolo idea troppo lungo', 422);
@@ -1554,19 +1556,55 @@ if ($action === 'create-idea-draft' && $method === 'POST') {
         . "Il risultato deve essere una bozza revisionabile e non va pubblicato automaticamente.";
     $platformPostId = 'idea_' . bin2hex(random_bytes(10));
     $contentHash = hash('sha256', $userId . '|' . $platformPostId . '|' . $brief);
+    $safeTitle = htmlspecialchars($ideaTitle, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+    $safeReason = htmlspecialchars($ideaReason !== '' ? $ideaReason : 'Sviluppare questo tema con informazioni utili, concrete e verificabili.', ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+    $safeType = htmlspecialchars($ideaType, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+    $safeSource = htmlspecialchars($ideaSource, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+    $safePriority = htmlspecialchars($ideaPriority, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+    $draftExcerpt = $ideaReason !== '' ? $ideaReason : 'Prima bozza editoriale da completare e personalizzare prima della pubblicazione.';
+    $draftBody = '<p><strong>Bozza iniziale pronta per la revisione.</strong></p>'
+        . '<h2>Obiettivo del contenuto</h2><p>' . $safeReason . '</p>'
+        . '<h2>Il punto di partenza</h2><p>Questo contenuto nasce da <strong>' . $safeSource . '</strong> ed è classificato come <strong>' . $safePriority . '</strong>. Deve rispondere con chiarezza al tema “' . $safeTitle . '” usando esempi e informazioni realmente disponibili.</p>'
+        . '<h2>Scaletta da sviluppare</h2><ul><li>Aprire con il bisogno o la domanda concreta del pubblico.</li><li>Spiegare il tema con un linguaggio semplice e specifico.</li><li>Aggiungere prove, esempi o dettagli riconducibili all’attività.</li><li>Concludere con un prossimo passo chiaro, senza promesse non verificabili.</li></ul>'
+        . '<h2>Nota editoriale</h2><p>Tipologia: ' . $safeType . '. La versione AI completa viene elaborata in background; puoi già modificare questa struttura.</p>';
+    $draftSlug = slugify($ideaTitle . '-' . substr($platformPostId, -6));
+    $metaDescription = function_exists('mb_substr') ? mb_substr($draftExcerpt, 0, 155, 'UTF-8') : substr($draftExcerpt, 0, 155);
     $postId = DB::insert(
-        'INSERT INTO posts (user_id, platform, platform_post_id, raw_content, published_at, imported_at, content_hash, seo_score, published)
-         VALUES (?, ?, ?, ?, NOW(), NOW(), ?, -1, 0)',
-        [$userId, 'editorial_idea', $platformPostId, $brief, $contentHash]
+        'INSERT INTO posts (user_id, platform, platform_post_id, raw_content, generated_title, generated_body, generated_excerpt, tags, meta_description, slug, published_at, imported_at, content_hash, seo_score, published)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW(), ?, 10, 0)',
+        [$userId, 'editorial_idea', $platformPostId, $brief, $ideaTitle, $draftBody, $draftExcerpt, json_encode([$ideaType], JSON_UNESCAPED_UNICODE), $metaDescription, $draftSlug, $contentHash]
     );
 
-    try {
-        Ingest::harmonize($userId, (int)$postId, 0);
-    } catch (Throwable $e) {
-        DB::execute('DELETE FROM posts WHERE id=? AND user_id=? AND platform=?', [$postId, $userId, 'editorial_idea']);
-        throw $e;
+    $response = [
+        'ok' => true,
+        'post_id' => (int)$postId,
+        'status' => 'draft',
+        'ai_status' => function_exists('fastcgi_finish_request') ? 'processing' : 'scaffold',
+        'draft' => [
+            'id' => (int)$postId,
+            'title' => $ideaTitle,
+            'body' => $draftBody,
+            'excerpt' => $draftExcerpt,
+            'tags' => $ideaType,
+        ],
+    ];
+
+    // Rispondi subito: la bozza esiste già ed è modificabile. Su PHP-FPM la
+    // riscrittura AI continua dopo che il browser ha ricevuto la risposta.
+    while (ob_get_level() > 0) ob_end_clean();
+    http_response_code(201);
+    header('Content-Type: application/json; charset=utf-8');
+    echo json_encode($response, JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE);
+    if (function_exists('fastcgi_finish_request')) {
+        fastcgi_finish_request();
+        ignore_user_abort(true);
+        try {
+            Ingest::harmonize($userId, (int)$postId, 0);
+        } catch (Throwable $e) {
+            DB::execute('UPDATE posts SET agent_notes=? WHERE id=? AND user_id=?', ['Bozza salvata; completamento AI non riuscito: ' . $e->getMessage(), $postId, $userId]);
+        }
     }
-    json(['ok' => true, 'post_id' => (int)$postId, 'status' => 'draft']);
+    exit;
 }
 
 // ── AGENTE 2: POST harmonize  { id } ──────────────────────────────────────
