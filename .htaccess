@@ -41,6 +41,11 @@ RewriteRule ^([^/]+)/llms\.txt$ public/site.php?slug=$1&action=llms [L,QSA]
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteCond %{REQUEST_URI} !^/(api|cron|db|frontend|public|node_modules|assets|login|dashboard|connect|generating|scopri) [NC]
+RewriteRule ^([^/]+)/categoria/([^/]+)/?$ public/site.php?slug=$1&tag=$2 [L,QSA]
+
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteCond %{REQUEST_URI} !^/(api|cron|db|frontend|public|node_modules|assets|login|dashboard|connect|generating|scopri) [NC]
 RewriteRule ^([^/]+)/?$ public/site.php?slug=$1 [L,QSA]
 
 RewriteCond %{REQUEST_FILENAME} !-f

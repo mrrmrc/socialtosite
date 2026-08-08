@@ -291,6 +291,40 @@ h3 { font-size: 18px; font-weight: 600; }
   .guided-actions .btn-primary { grid-column: 2; }
 }
 
+/* Idee editoriali: chiarisce che sono proposte operative specifiche per l'utente. */
+.content-ideas-heading { display: flex; justify-content: space-between; align-items: flex-start; gap: 1.25rem; margin-bottom: 1rem; }
+.content-ideas-heading > div { max-width: 760px; }
+.content-ideas-heading h3 { margin: .35rem 0 .45rem; font-size: clamp(1.55rem, 3vw, 2rem); color: var(--text); }
+.content-ideas-heading p { margin: 0; color: var(--text-muted); font-size: 14px; line-height: 1.65; }
+.content-ideas-eyebrow { color: var(--primary); font-size: 11px; font-weight: 900; letter-spacing: .1em; text-transform: uppercase; }
+.content-ideas-source { margin-bottom: 1rem; padding: .85rem 1rem; border-radius: 12px; background: var(--primary-light); color: var(--text-muted); font-size: 12px; line-height: 1.55; }
+.content-ideas-source strong { color: var(--primary); }
+.content-idea-card { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 1rem; padding: 1rem; border: 1px solid var(--border); background: var(--bg); border-radius: 14px; }
+
+/* Editor articoli: il modal resta nel viewport e scorre al suo interno. */
+.article-editor-overlay { position: fixed; inset: 0; width: 100%; height: 100dvh; z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 1rem; overflow: hidden; background: rgba(0,0,0,.8); backdrop-filter: blur(8px); }
+.article-editor-modal { width: min(1100px, 100%); max-width: 1100px; max-height: calc(100dvh - 2rem); min-height: 0; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0; overflow: hidden; border: 1px solid var(--border); }
+.article-editor-header { flex: 0 0 auto; display: flex; justify-content: space-between; align-items: center; gap: 1rem; padding: 1rem 1.25rem; border-bottom: 1px solid var(--border); background: var(--surface); }
+.article-editor-header h2 { margin: 0; color: var(--text); font-size: 22px; }
+.article-editor-eyebrow { color: var(--primary); font-size: 10px; font-weight: 900; letter-spacing: .11em; text-transform: uppercase; }
+.article-editor-scroll { min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 1.25rem; display: flex; flex-direction: column; gap: 1.25rem; }
+.article-editor-actions { flex: 0 0 auto; display: flex; flex-wrap: wrap; gap: 1rem; padding: 1rem 1.25rem; border-top: 1px solid var(--border); background: var(--surface); box-shadow: 0 -8px 24px rgba(15,23,42,.06); }
+.article-rich-editor { min-width: 0; overflow: hidden; }
+.article-rich-editor .ql-toolbar { position: sticky; top: 0; z-index: 2; background: #fff; border: 0 !important; border-bottom: 1px solid #d7dce7 !important; }
+.article-rich-editor .ql-container { height: clamp(320px, 48vh, 620px); overflow: hidden; border: 0 !important; font-size: 16px; }
+.article-rich-editor .ql-editor { height: 100%; overflow-y: auto; overflow-wrap: anywhere; word-break: normal; line-height: 1.65; }
+.article-rich-editor .ql-editor img,.article-rich-editor .ql-editor video,.article-rich-editor .ql-editor iframe,.article-rich-editor .ql-editor table { max-width: 100%; height: auto; }
+
+@media (max-width: 768px) {
+  .content-ideas-heading { flex-direction: column; }
+  .content-ideas-heading .btn { width: 100%; }
+  .article-editor-overlay { align-items: stretch !important; padding: 0 !important; }
+  .article-editor-modal { width: 100%; max-height: 100dvh; min-height: 100dvh; margin: 0; border-radius: 0; }
+  .article-editor-scroll { padding: 1rem; }
+  .article-editor-actions { padding: .85rem 1rem calc(.85rem + env(safe-area-inset-bottom)); }
+  .article-rich-editor .ql-container { height: 52vh; min-height: 300px; }
+}
+
 @keyframes fadeInUp { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: translateY(0); } }
 @keyframes blobFloat {
   0%, 100% { transform: translate(0, 0) scale(1); }

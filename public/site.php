@@ -49,6 +49,11 @@ foreach ($posts as &$p) {
 unset($p);
 
 $allPosts = $posts;
+$chronologicalPosts = $allPosts;
+usort($chronologicalPosts, static function (array $a, array $b): int {
+    return strtotime((string)($b['published_at'] ?? $b['imported_at'] ?? '1970-01-01'))
+        <=> strtotime((string)($a['published_at'] ?? $a['imported_at'] ?? '1970-01-01'));
+});
 $understandingForSeo = !empty($site['site_understanding']) ? json_decode($site['site_understanding'], true) : [];
 if (!is_array($understandingForSeo)) $understandingForSeo = [];
 $seoFoundation = SeoFoundation::cachedOrFallback((int)$user['id'], $site, $sources, $allPosts);
@@ -85,7 +90,8 @@ if ($activeTag) {
     $filtered = [];
     foreach ($allPosts as $p) {
         $pTags = array_map('strtolower', $p['tags'] ?? []);
-        if (in_array($activeTag, $pTags, true)) {
+        $pTagSlugs = array_map('networkTopicSlug', $p['tags'] ?? []);
+        if (in_array($activeTag, $pTags, true) || in_array($activeTag, $pTagSlugs, true)) {
             $filtered[] = $p;
         }
     }
@@ -110,25 +116,53 @@ if ($action === 'sitemap') {
     $base = BASE_URL . '/' . $slug;
     echo '<?xml version="1.0" encoding="UTF-8"?>' . "\n";
     echo '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">' . "\n";
-    echo "  <url><loc>$base</loc><changefreq>daily</changefreq><priority>1.0</priority></url>\n";
+    $latestSiteDate = '';
+    foreach ($chronologicalPosts as $chronologicalPost) {
+        $candidateDate = $chronologicalPost['updated_at'] ?? $chronologicalPost['published_at'] ?? $chronologicalPost['imported_at'] ?? '';
+        if (preg_match('/^\d{4}-\d{2}-\d{2}/', (string)$candidateDate, $candidateMatch)) {
+            if ($candidateMatch[0] > $latestSiteDate) $latestSiteDate = $candidateMatch[0];
+        }
+    }
+    $homeLastmod = $latestSiteDate !== '' ? "<lastmod>$latestSiteDate</lastmod>" : '';
+    echo "  <url><loc>$base</loc>$homeLastmod<changefreq>daily</changefreq><priority>1.0</priority></url>\n";
     foreach ($foundationPagesBySlug as $page) {
         $pageUrl = $base . '/' . rawurlencode($page['slug']);
         $foundationLastmod = !empty($site['seo_foundation_updated_at']) ? '<lastmod>' . substr($site['seo_foundation_updated_at'], 0, 10) . '</lastmod>' : '';
         echo "  <url><loc>" . htmlspecialchars($pageUrl, ENT_XML1, 'UTF-8') . "</loc>" . $foundationLastmod . "<changefreq>weekly</changefreq><priority>0.8</priority></url>\n";
     }
+    $sitemapTags = [];
+    foreach ($allPosts as $sitemapPost) {
+        foreach ($sitemapPost['tags'] ?? [] as $sitemapTag) {
+            $tagSlug = networkTopicSlug((string)$sitemapTag);
+            if ($tagSlug === '') continue;
+            $candidateDate = $sitemapPost['updated_at'] ?? $sitemapPost['published_at'] ?? $sitemapPost['imported_at'] ?? '';
+            $tagDate = preg_match('/^\d{4}-\d{2}-\d{2}/', (string)$candidateDate, $tagDateMatch) ? $tagDateMatch[0] : '';
+            if (!isset($sitemapTags[$tagSlug]) || $tagDate > $sitemapTags[$tagSlug]) $sitemapTags[$tagSlug] = $tagDate;
+        }
+    }
+    foreach ($sitemapTags as $tagSlug => $tagDate) {
+        $categoryUrl = $base . '/categoria/' . rawurlencode($tagSlug);
+        $tagLastmod = $tagDate !== '' ? "<lastmod>$tagDate</lastmod>" : '';
+        echo "  <url><loc>" . htmlspecialchars($categoryUrl, ENT_XML1, 'UTF-8') . "</loc>$tagLastmod<changefreq>weekly</changefreq><priority>0.6</priority></url>\n";
+    }
     
     // Posts
     foreach ($allPosts as $p) {
         $loc = "$base/{$p['slug']}";
-        $mod = substr($p['published_at'] ?? $p['imported_at'] ?? '', 0, 10);
+        $modSource = $p['updated_at'] ?? $p['published_at'] ?? $p['imported_at'] ?? '';
+        $mod = preg_match('/^\d{4}-\d{2}-\d{2}/', (string)$modSource, $modMatch) ? $modMatch[0] : '';
+        $lastmodXml = $mod !== '' ? "<lastmod>$mod</lastmod>" : '';
         $locXml = htmlspecialchars($loc, ENT_XML1, 'UTF-8');
         $imageXml = '';
         if (!empty($p['media_url']) && strtolower((string)($p['media_type'] ?? '')) !== 'video') {
-            $mediaXml = htmlspecialchars((string)$p['media_url'], ENT_XML1, 'UTF-8');
-            $captionXml = htmlspecialchars(postTitle($p), ENT_XML1, 'UTF-8');
-            $imageXml = "<image:image><image:loc>$mediaXml</image:loc><image:caption>$captionXml</image:caption></image:image>";
+            $normalizedSitemapMedia = normalizeMediaUrl((string)$p['media_url']);
+            if ($normalizedSitemapMedia !== '') {
+                $mediaXml = htmlspecialchars($normalizedSitemapMedia, ENT_XML1, 'UTF-8');
+                $captionXml = htmlspecialchars(postTitle($p), ENT_XML1, 'UTF-8');
+                $imageXml = "<image:image><image:loc>$mediaXml</image:loc><image:caption>$captionXml</image:caption></image:image>";
+            }
         }
-        echo "  <url><loc>$locXml</loc><lastmod>$mod</lastmod>$imageXml<priority>0.8</priority></url>\n";
+        echo "  <url><loc>$locXml</loc>$lastmodXml$imageXml<priority>0.8</priority></url>\n";
     }
     echo '</urlset>';
     exit;
@@ -199,7 +233,7 @@ if ($action === 'llms') {
     }
     arsort($tagCounts);
     foreach (array_slice(array_keys($tagCounts), 0, 10) as $t) {
-        echo "- [$t]($base/?tag=" . urlencode($t) . ")\n";
+        echo "- [$t]($base/categoria/" . rawurlencode(networkTopicSlug($t)) . ")\n";
     }
     echo "\n## Recent Content\n";
     $count = 0;
@@ -337,7 +371,8 @@ unset($p);
 if ($activeTag) {
     $posts = array_values(array_filter($allPosts, static function ($p) use ($activeTag) {
         $pTags = array_map('strtolower', $p['tags'] ?? []);
-        return in_array($activeTag, $pTags, true);
+        $pTagSlugs = array_map('networkTopicSlug', $p['tags'] ?? []);
+        return in_array($activeTag, $pTags, true) || in_array($activeTag, $pTagSlugs, true);
     }));
 } else {
     $posts = $allPosts;
@@ -355,6 +390,15 @@ foreach ($allPosts as $p) {
     }
 }
 $validMenuTags = array_keys($tagCounts);
+$activeTagLabel = $activeTag;
+if ($activeTag !== '') {
+    foreach (array_keys($tagCounts) as $knownTag) {
+        if (strtolower($knownTag) === $activeTag || networkTopicSlug($knownTag) === $activeTag) {
+            $activeTagLabel = $knownTag;
+            break;
+        }
+    }
+}
 
 // ── Sicurezza Menu: rimuovi link rotti che non puntano a nulla ──────────
 $safeMenuLinks = [];
@@ -418,7 +462,14 @@ if (!empty($mediaPosts)) {
 
 // Tutti i siti della rete condividono una navigazione stabile e crawlable.
 // Le vecchie scelte grafiche restano nei dati, ma non governano piu il sito pubblico.
-$menuLinks = [['label' => 'Home', 'url' => '/']];
+$menuLinks = [
+    ['label' => 'Home', 'url' => '/'],
+    ['label' => 'Ultimi contenuti', 'url' => '/#ultimi'],
+    ['label' => 'Categorie', 'url' => '/#categorie'],
+];
+if (!empty($mediaPosts)) {
+    $menuLinks[] = ['label' => 'Foto e video', 'url' => '/?view=media'];
+}
 $preferredFoundationPages = [
     'cosa-offriamo' => 'Cosa offriamo',
     'chi-siamo' => 'Chi siamo',
@@ -640,12 +691,9 @@ foreach ($topTags as $tag) {
 }
 
 // ── Gli altri post (Ultimi Arrivi) ──────────────────────────────────────────
-$recentPosts = [];
-foreach ($posts as $p) {
-    if (!in_array($p['id'], $usedPostIds)) {
-        $recentPosts[] = $p;
-    }
-}
+// La sezione "Ultimi contenuti" deve essere realmente cronologica e completa:
+// i post in evidenza non devono nascondere gli aggiornamenti piu freschi.
+$recentPosts = $chronologicalPosts;
 
 $hospitalityEventPosts = [];
 $hospitalityFoodPosts = [];
@@ -695,6 +743,8 @@ $hospitalityIdentityText = mb_strtolower(implode(' ', [
     implode(' ', (array)($understanding['declared_strategy']['priority_services'] ?? [])),
 ]));
 $useHospitalityLanding = (bool)preg_match('/\b(agritur|ristor|hospitality|hotel|resort|b&b|bed and breakfast|osteria|trattoria|locanda|vacanz|soggiorn)\w*/u', $hospitalityIdentityText);
+// Il rendering pubblico usa una sola identita editoriale per tutti i profili.
+$useHospitalityLanding = false;
 $hospitalityHeroImage = normalizeMediaUrl($mediaPosts[0]['media_url'] ?? '') ?: $coverUrl;
 $hospitalityHeroCopy = trim((string)($heroTagline ?: $bio));
 if (mb_strlen($hospitalityHeroCopy) > 280) {
@@ -837,6 +887,9 @@ foreach ($livingPathSeeds as $seedIndex => $seed) {
         'chapters' => $chapters,
     ];
 }
+// I percorsi AI restano disponibili nei dati, ma non sostituiscono piu
+// archivio, categorie e contenuti recenti nella home pubblica.
+$livingPaths = [];
 
 // ── CSS temi ─────────────────────────────────────────────────────────────────
 $accent = ltrim((string)($accentColor ?: '#7F77DD'), '#');
@@ -1465,6 +1518,69 @@ if ($coverUrl !== '') $businessSchema['image'] = $coverUrl;
 if (!empty($reachabilityProfile['primary_topic'])) $businessSchema['knowsAbout'] = $reachabilityProfile['primary_topic'];
 if (!empty($reachabilityProfile['service_areas'])) $businessSchema['areaServed'] = array_map(static fn($area) => ['@type'=>'Place','name'=>$area], $reachabilityProfile['service_areas']);
 $jsonLdFlags = JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT;
+$websiteSchema = [
+    '@context' => 'https://schema.org',
+    '@type' => 'WebSite',
+    '@id' => $siteUrl . '#website',
+    'name' => $displayTitle,
+    'url' => $siteUrl,
+    'inLanguage' => 'it-IT',
+    'publisher' => ['@id' => $siteUrl . '#identity'],
+];
+$collectionItems = [];
+$collectionSource = $activeTag ? $posts : $chronologicalPosts;
+if ($activeTag) {
+    usort($collectionSource, static function (array $a, array $b): int {
+        return strtotime((string)($b['published_at'] ?? $b['imported_at'] ?? '1970-01-01'))
+            <=> strtotime((string)($a['published_at'] ?? $a['imported_at'] ?? '1970-01-01'));
+    });
+}
+foreach (array_slice($collectionSource, 0, 50) as $itemIndex => $itemPost) {
+    $collectionItems[] = [
+        '@type' => 'ListItem',
+        'position' => $itemIndex + 1,
+        'url' => $siteUrl . '/' . ($itemPost['slug'] ?? ''),
+        'name' => postTitle($itemPost),
+    ];
+}
+$collectionUrl = $activeTag ? $siteUrl . '/categoria/' . rawurlencode(networkTopicSlug($activeTagLabel)) : $siteUrl;
+$collectionSchema = [
+    '@context' => 'https://schema.org',
+    '@type' => 'CollectionPage',
+    '@id' => $collectionUrl . '#collection',
+    'name' => $activeTag ? humanizeDisplayName($activeTagLabel) . ' - ' . $displayTitle : $displayTitle,
+    'description' => $activeTag ? 'Articoli e aggiornamenti su ' . humanizeDisplayName($activeTagLabel) . ' pubblicati da ' . $displayTitle . '.' : html_entity_decode($bio, ENT_QUOTES, 'UTF-8'),
+    'url' => $collectionUrl,
+    'isPartOf' => ['@id' => $siteUrl . '#website'],
+    'about' => ['@id' => $siteUrl . '#identity'],
+    'mainEntity' => ['@type' => 'ItemList', 'itemListElement' => $collectionItems],
+];
+$articleSchema = null;
+if ($single) {
+    $articleUrl = $siteUrl . '/' . ($single['slug'] ?? '');
+    $articleSchema = [
+        '@context' => 'https://schema.org',
+        '@type' => 'BlogPosting',
+        '@id' => $articleUrl . '#article',
+        'headline' => postTitle($single),
+        'description' => postExcerpt($single),
+        'mainEntityOfPage' => ['@type' => 'WebPage', '@id' => $articleUrl],
+        'datePublished' => date(DATE_ATOM, strtotime($single['published_at'] ?? $single['imported_at'] ?? 'now')),
+        'dateModified' => date(DATE_ATOM, strtotime($single['updated_at'] ?? $single['published_at'] ?? $single['imported_at'] ?? 'now')),
+        'author' => ['@id' => $siteUrl . '#identity'],
+        'publisher' => [
+            '@type' => 'Organization',
+            '@id' => rtrim(BASE_URL, '/') . '#organization',
+            'name' => 'AllSocialToWeb',
+            'url' => rtrim(BASE_URL, '/'),
+            'logo' => ['@type' => 'ImageObject', 'url' => rtrim(BASE_URL, '/') . '/logo-cropped.png'],
+        ],
+        'isAccessibleForFree' => true,
+        'inLanguage' => 'it-IT',
+    ];
+    if (!empty($single['media_url'])) $articleSchema['image'] = [$single['media_url']];
+    if (!empty($single['tags'])) $articleSchema['articleSection'] = array_values($single['tags']);
+}
 
 // HTTP Link headers per sitemap e feed
 header('Link: <' . $siteUrl . '/sitemap.xml>; rel="sitemap"');
@@ -1505,35 +1621,19 @@ header('Link: <' . $siteUrl . '/feed.xml>; rel="alternate"; type="application/at
     <?php endif; ?>
     <link rel="canonical" href="<?= $siteUrl . '/' . h($single['slug']) ?>">
   <?php else: ?>
-    <title><?= $title ?><?= $activeTag ? ' - ' . ucfirst($activeTag) : '' ?></title>
-    <meta name="description" content="<?= $bio ?>">
+    <title><?= $title ?><?= $activeTag ? ' - ' . h(humanizeDisplayName($activeTagLabel)) : '' ?></title>
+    <meta name="description" content="<?= $activeTag ? h('Articoli e aggiornamenti su ' . humanizeDisplayName($activeTagLabel) . ' pubblicati da ' . $displayTitle . '.') : $bio ?>">
     <meta property="og:title" content="<?= $title ?>">
     <meta property="og:description" content="<?= $bio ?>">
     <meta property="og:type" content="website">
     <?php if ($coverUrl): ?><meta property="og:image" content="<?= h($coverUrl) ?>"><?php endif; ?>
-    <link rel="canonical" href="<?= $siteUrl ?><?= $activeTag ? '?tag=' . urlencode($activeTag) : '' ?>">
-  <?php endif; ?>
-  
-  <?php if (!$single && $activeTag): ?>
-  <meta name="robots" content="noindex,follow">
+    <link rel="canonical" href="<?= $activeTag ? $siteUrl . '/categoria/' . rawurlencode(networkTopicSlug($activeTagLabel)) : $siteUrl ?>">
   <?php endif; ?>
   <meta property="og:site_name" content="<?= $title ?>">
   <link rel="sitemap" type="application/xml" href="<?= $siteUrl ?>/sitemap.xml">
   <link rel="alternate" type="application/atom+xml" title="RSS Feed" href="<?= $siteUrl ?>/feed.xml">
   
-  <script type="application/ld+json">
-  {
-    "@context": "https://schema.org",
-    "@type": "WebSite",
-    "name": "<?= addslashes($displayTitle) ?>",
-    "url": "<?= $siteUrl ?>",
-    "potentialAction": {
-      "@type": "SearchAction",
-      "target": "<?= $siteUrl ?>/?tag={search_term_string}",
-      "query-input": "required name=search_term_string"
-    }
-  }
-  </script>
+  <script type="application/ld+json"><?= json_encode($websiteSchema, $jsonLdFlags) ?></script>
   <script type="application/ld+json"><?= json_encode($businessSchema, $jsonLdFlags) ?></script>
   <?php if ($useHospitalityLanding): ?>
   <script type="application/ld+json">
@@ -1578,43 +1678,9 @@ header('Link: <' . $siteUrl . '/feed.xml>; rel="alternate"; type="application/at
     }]
   }
   </script>
-  <script type="application/ld+json">
-  {
-    "@context": "https://schema.org",
-    "@type": "Article",
-    "headline": "<?= addslashes(postTitle($single)) ?>",
-    "image": "<?= addslashes($single['media_url'] ?? $coverUrl ?? '') ?>",
-    "datePublished": "<?= date(DATE_ATOM, strtotime($single['published_at'] ?? 'now')) ?>",
-    "dateModified": "<?= date(DATE_ATOM, strtotime($single['published_at'] ?? 'now')) ?>",
-    "author": [{
-        "@type": "<?= $businessSchemaType === 'Person' ? 'Person' : 'Organization' ?>",
-        "name": "<?= addslashes($site['title'] ?? $user['name'] ?? '') ?>",
-        "url": "<?= $siteUrl ?>"
-      }]
-  }
-  </script>
+  <script type="application/ld+json"><?= json_encode($articleSchema, $jsonLdFlags) ?></script>
   <?php else: ?>
-  <script type="application/ld+json">
-  {
-    "@context": "https://schema.org",
-    "@type": "ProfilePage",
-    "name": "<?= addslashes($site['title'] ?? $user['name'] ?? '') ?>",
-    "description": "<?= addslashes($site['bio'] ?? '') ?>",
-    "url": "<?= $siteUrl ?>",
-    "mainEntity": {
-      "@type": "ItemList",
-      "itemListElement": [
-        <?php $scount = 0; foreach ($posts as $i => $p): if ($scount++ >= 50) break; ?>
-        {
-          "@type": "ListItem",
-          "position": <?= $i + 1 ?>,
-          "url": "<?= $siteUrl . '/' . h($p['slug'] ?? '') ?>"
-        }<?= ($i < count($posts) - 1 && $scount < 50) ? ',' : '' ?>
-        <?php endforeach; ?>
-      ]
-    }
-  }
-  </script>
+  <script type="application/ld+json"><?= json_encode($collectionSchema, $jsonLdFlags) ?></script>
   <?php endif; ?>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -1853,6 +1919,40 @@ header('Link: <' . $siteUrl . '/feed.xml>; rel="alternate"; type="application/at
     .theme-network-standard .nav-brand { color:#182033; }
     .nav-brand-fallback { display:none; }
     .theme-network-standard .container { width:min(100%,1160px); }
+    .content-archive { width:min(100%,1160px); margin:2rem auto 4rem; }
+    .archive-intro { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:1rem 2rem; align-items:end; margin-bottom:1.25rem; padding:clamp(1.5rem,4vw,3rem); border-radius:26px; background:linear-gradient(135deg,#182033 0%,#29255F 68%,#5B2FA8 100%); color:#fff; }
+    .archive-intro .network-kicker { grid-column:1/-1; color:#CFCBFF; }
+    .archive-intro h1 { margin:0; color:#fff; font-size:clamp(2.35rem,5vw,4.6rem); line-height:.95; letter-spacing:-.055em; }
+    .archive-intro > p { max-width:720px; margin:.75rem 0 0; color:rgba(255,255,255,.76); font-size:1.05rem; line-height:1.65; }
+    .archive-stats { grid-column:2; grid-row:2/4; display:grid; grid-template-columns:repeat(3,minmax(92px,1fr)); gap:.6rem; }
+    .archive-stats a { min-width:96px; padding:1rem; border:1px solid rgba(255,255,255,.15); border-radius:16px; background:rgba(255,255,255,.08); color:#fff; text-align:center; }
+    .archive-stats strong,.archive-stats span { display:block; }
+    .archive-stats strong { font-size:1.65rem; line-height:1; }
+    .archive-stats span { margin-top:.35rem; color:rgba(255,255,255,.64); font-size:.7rem; font-weight:800; text-transform:uppercase; }
+    .category-index,.media-preview { margin-bottom:2rem; padding:clamp(1.25rem,3vw,2rem); border:1px solid #E3E6EF; border-radius:22px; background:#fff; }
+    .category-index { display:grid; grid-template-columns:minmax(180px,.35fr) minmax(0,1fr); gap:1.5rem; align-items:start; scroll-margin-top:110px; }
+    .category-index h2,.section-heading-row h2 { margin:.25rem 0 0; font-size:clamp(1.65rem,3vw,2.35rem); line-height:1.05; }
+    .category-chips { display:flex; flex-wrap:wrap; gap:.65rem; }
+    .category-chips a { display:inline-flex; align-items:center; gap:.6rem; min-height:42px; padding:.55rem .7rem .55rem 1rem; border:1px solid #DDE2EE; border-radius:999px; background:#F8F9FD; color:#182033; font-weight:750; }
+    .category-chips a:hover { border-color:#5B5CE2; color:#4038B7; }
+    .category-chips strong { display:grid; min-width:26px; height:26px; place-items:center; padding:0 .35rem; border-radius:999px; background:#E9E8FF; color:#4038B7; font-size:.72rem; }
+    .section-heading-row { display:flex; justify-content:space-between; gap:1rem; align-items:end; margin-bottom:1.25rem; scroll-margin-top:110px; }
+    .section-heading-row > a { color:#4038B7; font-weight:800; }
+    .section-heading-row .recent-header { margin:0; text-align:left; }
+    .media-preview-grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:.8rem; }
+    .media-preview-card { min-width:0; overflow:hidden; border:1px solid #E3E6EF; border-radius:16px; background:#F8F9FD; color:#182033; }
+    .media-preview-card .media { height:170px; margin:0; border-radius:0; }
+    .media-preview-card .media img,.media-preview-card .media video,.media-preview-card .media iframe { width:100%; height:100%; object-fit:cover; }
+    .media-preview-card > span { display:-webkit-box; min-height:66px; padding:.85rem 1rem; overflow:hidden; font-weight:800; line-height:1.35; -webkit-line-clamp:2; -webkit-box-orient:vertical; }
+    @media(max-width:768px) {
+      .content-archive { margin-top:1rem; }
+      .archive-intro { grid-template-columns:1fr; padding:1.35rem; border-radius:20px; }
+      .archive-stats { grid-column:1; grid-row:auto; width:100%; grid-template-columns:repeat(3,minmax(0,1fr)); }
+      .archive-stats a { min-width:0; padding:.8rem .35rem; }
+      .category-index { grid-template-columns:1fr; }
+      .media-preview-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+      .section-heading-row { align-items:flex-start; flex-direction:column; }
+    }
     .foundation-directory { margin:0 0 4rem; padding:2rem; border-radius:24px; background:#fff; border:1px solid #E3E6EF; }
     .foundation-directory-head { max-width:720px; margin-bottom:1.4rem; }
     .foundation-directory-head h2 { font-size:clamp(1.8rem,4vw,3rem); margin:.25rem 0 .65rem; }
@@ -2171,7 +2271,7 @@ ob_start();
     <?php endif; ?>
     <?php if ($p['tags']): ?>
     <div class="tags" style="margin-top:2rem;">
-      <?php foreach ($p['tags'] as $tag): ?><a class="tag" href="<?= BASE_URL ?>/scopri/tema/<?= rawurlencode(networkTopicSlug($tag)) ?>">#<?= h($tag) ?></a><?php endforeach; ?>
+      <?php foreach ($p['tags'] as $tag): ?><a class="tag" href="<?= $siteUrl ?>/categoria/<?= rawurlencode(networkTopicSlug($tag)) ?>">#<?= h($tag) ?></a><?php endforeach; ?>
     </div>
     <?php endif; ?>
   </article>
@@ -2212,7 +2312,7 @@ ob_start();
 
   <?php elseif ($activeTag): ?>
   <div style="margin-bottom: 2rem; padding: 1.5rem; background: var(--card-bg); border-radius: var(--radius); border-left: 4px solid var(--accent);">
-    <h2 style="margin:0;">Categoria: <strong><?= h(ucfirst($activeTag)) ?></strong></h2>
+    <h1 style="margin:0;">Categoria: <strong><?= h(humanizeDisplayName($activeTagLabel)) ?></strong></h1>
     <p style="margin-top: 0.5rem; color: var(--text-muted);"><a href="<?= $siteUrl ?>">← Torna a tutti i contenuti</a></p>
   </div>
   <!-- GRIGLIA STANDARD PER CATEGORIA -->
@@ -2418,9 +2518,42 @@ ob_start();
   </section>
   <?php endif; ?>
 
-  <details class="living-archive">
-    <summary>Preferisci esplorare tutto? Apri l’archivio completo</summary>
-    <div class="living-archive-body">
+  <section class="content-archive" aria-labelledby="archive-heading">
+    <header class="archive-intro">
+      <span class="network-kicker">Archivio sempre aggiornato</span>
+      <h1 id="archive-heading"><?= h($displayTitle) ?></h1>
+      <p><?= $bio ?: 'Articoli, approfondimenti, foto e video organizzati in un unico spazio.' ?></p>
+      <div class="archive-stats" aria-label="Riepilogo contenuti">
+        <a href="#ultimi"><strong><?= count($allPosts) ?></strong><span>contenuti</span></a>
+        <a href="#categorie"><strong><?= count($tagCounts) ?></strong><span>categorie</span></a>
+        <?php if (!empty($mediaPosts)): ?><a href="<?= $siteUrl ?>?view=media"><strong><?= count($mediaPosts) ?></strong><span>foto e video</span></a><?php endif; ?>
+      </div>
+    </header>
+
+  <?php if (!empty($tagCounts)): ?>
+  <nav class="category-index" id="categorie" aria-labelledby="category-heading">
+    <div><span class="network-kicker">Esplora per argomento</span><h2 id="category-heading">Categorie</h2></div>
+    <div class="category-chips">
+      <?php arsort($tagCounts); foreach ($tagCounts as $tag => $tagCount): ?>
+      <a href="<?= $siteUrl ?>/categoria/<?= rawurlencode(networkTopicSlug($tag)) ?>"><span><?= h(humanizeDisplayName($tag)) ?></span><strong><?= (int)$tagCount ?></strong></a>
+      <?php endforeach; ?>
+    </div>
+  </nav>
+  <?php endif; ?>
+
+  <?php if (!empty($mediaPosts)): ?>
+  <section class="media-preview" aria-labelledby="media-preview-heading">
+    <div class="section-heading-row"><div><span class="network-kicker">Dai canali ufficiali</span><h2 id="media-preview-heading">Foto e video recenti</h2></div><a href="<?= $siteUrl ?>?view=media">Apri tutti i media →</a></div>
+    <div class="media-preview-grid">
+      <?php foreach (array_slice($mediaPosts, 0, 4) as $mediaPost): ?>
+      <a href="<?= $siteUrl . '/' . h($mediaPost['slug'] ?? '') ?>" class="media-preview-card">
+        <?= mediaHtml($mediaPost) ?>
+        <span><?= h(postTitle($mediaPost)) ?></span>
+      </a>
+      <?php endforeach; ?>
+    </div>
+  </section>
+  <?php endif; ?>
 
   <?php if (!empty($foundationPagesBySlug)): ?>
   <section class="foundation-directory" aria-labelledby="foundation-heading">
@@ -2438,7 +2571,7 @@ ob_start();
   <section class="topic-section">
     <div class="topic-header">
       <h2><?= h(ucfirst($topic)) ?></h2>
-      <a href="<?= $siteUrl ?>?tag=<?= urlencode($topic) ?>">Vedi tutti →</a>
+      <a href="<?= $siteUrl ?>/categoria/<?= rawurlencode(networkTopicSlug($topic)) ?>">Vedi tutti →</a>
     </div>
     <div class="horizontal-scroll">
       <?php foreach ($topicPosts as $p):
@@ -2461,7 +2594,7 @@ ob_start();
 
   <!-- ULTIMI ARRIVI (HOME) -->
   <?php if (!empty($recentPosts)): ?>
-  <h2 class="recent-header">Ultimi Arrivi</h2>
+  <div class="section-heading-row" id="ultimi"><div><span class="network-kicker">In ordine cronologico</span><h2 class="recent-header">Ultimi contenuti</h2></div><a href="<?= $siteUrl ?>/contenuti">Apri l'archivio completo →</a></div>
   <section class="post-grid" aria-label="Ultimi contenuti pubblicati">
     <?php foreach ($recentPosts as $p):
       $purl = $siteUrl . '/' . h($p['slug'] ?? '');
@@ -2488,8 +2621,7 @@ ob_start();
   </div>
   <?php endif; ?>
 
-    </div>
-  </details>
+  </section>
 
   <?php endif; ?>
 

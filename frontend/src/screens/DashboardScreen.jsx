@@ -2232,7 +2232,7 @@ const [importMsg, setImportMsg] = useState(null);
 
                     {/* Azioni Fondo Card */}
                     <div className="article-card-footer">
-                      <button onClick={() => setEditingPost({id: post.id, title: post.generated_title || '', body: post.edited_body || post.generated_body || '', excerpt: post.generated_excerpt || '', tags: (post.tags || []).join(', ')})} style={{ flex: '1', padding: '10px', fontSize: '13px', fontWeight: 800, borderRadius: 'var(--radius-sm)', background: 'var(--primary)', color: '#fff', border: 'none', cursor: 'pointer', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '6px', transition: 'all 0.2s', boxShadow: '0 4px 12px rgba(99,102,241,0.3)' }}>
+                      <button onClick={() => setEditingPost({id: post.id, title: post.edited_title || post.generated_title || '', body: post.edited_body || post.generated_body || '', excerpt: post.edited_excerpt || post.generated_excerpt || '', tags: (post.tags || []).join(', ')})} style={{ flex: '1', padding: '10px', fontSize: '13px', fontWeight: 800, borderRadius: 'var(--radius-sm)', background: 'var(--primary)', color: '#fff', border: 'none', cursor: 'pointer', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '6px', transition: 'all 0.2s', boxShadow: '0 4px 12px rgba(99,102,241,0.3)' }}>
                         ✏️ MODIFICA
                       </button>
                       <button onClick={() => togglePublishPost(post.id, post.published)} title={post.published == 1 ? "Nascondi dal sito" : "Pubblica sul sito"} style={{ padding: '10px', borderRadius: 'var(--radius-sm)', border: 'none', fontSize: '16px', cursor: 'pointer', background: post.published == 1 ? 'var(--teal-light)' : 'var(--surface)', color: post.published == 1 ? 'var(--teal)' : 'var(--text-muted)', border: post.published == 1 ? '1px solid rgba(16,185,129,0.3)' : '1px solid var(--border-strong)', transition: 'all 0.2s', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
@@ -2284,7 +2284,7 @@ const [importMsg, setImportMsg] = useState(null);
                         </td>
                         <td style={{ padding: '16px' }}>
                           <div style={{ display: 'flex', gap: '10px' }}>
-                            <button onClick={() => setEditingPost({id: post.id, title: post.generated_title || '', body: post.edited_body || post.generated_body || '', excerpt: post.generated_excerpt || '', tags: (post.tags || []).join(', ')})} style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', color: 'var(--text)', padding: '6px 12px', borderRadius: '6px', cursor: 'pointer', fontSize: '13px', fontWeight: 600 }}>✏️ Modifica</button>
+                            <button onClick={() => setEditingPost({id: post.id, title: post.edited_title || post.generated_title || '', body: post.edited_body || post.generated_body || '', excerpt: post.edited_excerpt || post.generated_excerpt || '', tags: (post.tags || []).join(', ')})} style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', color: 'var(--text)', padding: '6px 12px', borderRadius: '6px', cursor: 'pointer', fontSize: '13px', fontWeight: 600 }}>✏️ Modifica</button>
                             <button onClick={() => deletePost(post.id)} style={{ background: 'rgba(255,0,50,0.1)', border: '1px solid rgba(255,0,50,0.3)', color: 'var(--red)', padding: '6px 12px', borderRadius: '6px', cursor: 'pointer', fontSize: '13px', fontWeight: 600 }}>❌ Elimina</button>
                           </div>
                         </td>
@@ -2425,19 +2425,26 @@ const [importMsg, setImportMsg] = useState(null);
               </div>
             </div>}
 
-            {visibilitySection === 'ideas' && <div id="ideas" className="glass-modal" style={{ marginBottom: '1.5rem', padding: '1.5rem' }}>
-              <h3 style={{ margin: '0 0 0.4rem', color: 'var(--text)' }}>💡 Contenuti costruiti sui tuoi obiettivi</h3>
-              <p style={{ margin: '0 0 1.2rem', color: 'var(--text-muted)', fontSize: '14px' }}>Queste idee combinano ciò che emerge dai social con pubblico, territorio, servizi prioritari e obiettivi indicati da te.</p>
+            {visibilitySection === 'ideas' && <div id="ideas" className="glass-modal content-ideas-panel" style={{ marginBottom: '1.5rem', padding: '1.5rem' }}>
+              <div className="content-ideas-heading">
+                <div>
+                  <div className="content-ideas-eyebrow">Suggerimenti personalizzati · {contentIdeas.length} proposte</div>
+                  <h3>Ultime idee per i tuoi contenuti</h3>
+                  <p>Qui trovi cosa pubblicare adesso e perché può essere utile proprio alla tua attività. Le proposte usano i tuoi social, il pubblico indicato, il territorio, i servizi prioritari e i temi ancora poco coperti.</p>
+                </div>
+                <button className="btn btn-outline" onClick={refreshUnderstanding} disabled={savingProfile}>{savingProfile ? 'Aggiornamento…' : 'Aggiorna le idee'}</button>
+              </div>
+              <div className="content-ideas-source"><strong>Come usarle:</strong> scegli un’idea, crea la bozza e poi personalizzala nell’editor prima di pubblicarla.</div>
               <div style={{ display: 'grid', gap: '0.8rem' }}>
                 {contentIdeas.map((idea, index) => (
-                  <div key={`${idea.title}-${index}`} style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '1rem', padding: '1rem', border: '1px solid var(--border)', background: 'var(--bg)', borderRadius: '14px' }}>
+                  <div key={`${idea.title}-${index}`} className="content-idea-card">
                     <div style={{ width: '34px', height: '34px', borderRadius: '11px', display: 'grid', placeItems: 'center', background: 'var(--primary-light)', color: 'var(--primary)', fontWeight: 850 }}>{index + 1}</div>
                     <div>
                       <div style={{ fontSize: '11px', fontWeight: 800, color: 'var(--primary)', textTransform: 'uppercase', letterSpacing: '.5px' }}>{idea.type}</div>
                       <div style={{ fontWeight: 800, color: 'var(--text)', marginTop: '3px' }}>{idea.title}</div>
                       <div style={{ color: 'var(--text-muted)', fontSize: '13px', lineHeight: 1.5, marginTop: '4px' }}>{idea.reason}</div>
                       <button className="btn btn-outline" onClick={() => createIdeaDraft(idea, index)} disabled={preparingIdea !== -1} style={{ marginTop: '0.8rem', padding: '8px 12px', fontSize: '12px' }}>
-                        {preparingIdea === index ? 'Preparazione bozza…' : 'Prepara una bozza'}
+                        {preparingIdea === index ? 'Preparazione bozza…' : 'Crea una bozza da questa idea'}
                       </button>
                     </div>
                   </div>
@@ -3454,14 +3461,14 @@ const [importMsg, setImportMsg] = useState(null);
 
         {/* Modal Modifica Post */}
         {editingPost && (
-          <div className="mobile-bottom-sheet" style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '2rem 1rem', overflowY: 'auto' }}>
-            <div className="glass-modal" style={{ width: '100%', maxWidth: '800px', display: 'flex', flexDirection: 'column', gap: '1.5rem', border: '1px solid var(--border)' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border)', paddingBottom: '1rem' }}>
-                <h2 style={{ fontSize: '24px', fontWeight: 800, margin: 0, color: 'var(--primary)' }}>✏️ Modifica</h2>
+          <div className="mobile-bottom-sheet article-editor-overlay">
+            <div className="glass-modal article-editor-modal">
+              <div className="article-editor-header">
+                <div><div className="article-editor-eyebrow">Editor articolo</div><h2>Modifica il contenuto</h2></div>
                 <button onClick={() => setEditingPost(null)} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', width: '36px', height: '36px', borderRadius: '50%', fontSize: '16px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text)', transition: 'background 0.2s' }}>✕</button>
               </div>
               
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+              <div className="article-editor-scroll">
                 <div>
                   <label style={{ display: 'block', fontSize: '15px', fontWeight: 700, marginBottom: '8px', color: 'var(--text)' }}>Titolo Principale</label>
                   <input type="text" value={editingPost.title} onChange={e => setEditingPost({...editingPost, title: e.target.value})} style={{ width: '100%', fontSize: '18px', fontWeight: 600, padding: '14px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-strong)', background: 'var(--bg)', color: 'var(--text)' }} />
@@ -3469,7 +3476,7 @@ const [importMsg, setImportMsg] = useState(null);
                 
                 <div>
                   <label style={{ display: 'block', fontSize: '15px', fontWeight: 700, marginBottom: '8px', color: 'var(--text)' }}>Testo dell'Articolo</label>
-                  <QuillEditor value={editingPost.body} onChange={val => setEditingPost({...editingPost, body: val})} style={{ background: '#fff', color: '#000', border: '2px solid var(--border-strong)', borderRadius: 'var(--radius-sm)', marginBottom: '8px' }} />
+                  <QuillEditor value={editingPost.body} onChange={val => setEditingPost({...editingPost, body: val})} className="article-rich-editor" style={{ background: '#fff', color: '#000', border: '2px solid var(--border-strong)', borderRadius: 'var(--radius-sm)', marginBottom: '8px' }} />
                 </div>
 
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1.5rem' }}>
@@ -3484,7 +3491,7 @@ const [importMsg, setImportMsg] = useState(null);
                 </div>
               </div>
 
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem', marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid var(--border)' }}>
+              <div className="article-editor-actions">
                 <button onClick={savePostEdit} disabled={cmsSaving} style={{ flex: '2 1 200px', background: 'var(--primary)', color: '#000', border: 'none', padding: '16px', fontSize: '16px', fontWeight: 800, borderRadius: 'var(--radius-sm)', cursor: 'pointer', transition: 'background 0.2s', boxShadow: '0 4px 12px rgba(0,240,255,0.2)' }}>
                   {cmsSaving ? '⏳ Salvataggio in corso...' : '✅ SALVA MODIFICHE'}
                 </button>

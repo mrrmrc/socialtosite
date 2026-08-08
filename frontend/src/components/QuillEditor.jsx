@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 
-export function QuillEditor({ value, onChange, style }) {
+export function QuillEditor({ value, onChange, style, className = '' }) {
   const containerRef = useRef(null);
   const editorRef = useRef(null);
   const quillRef = useRef(null);
@@ -40,8 +40,8 @@ export function QuillEditor({ value, onChange, style }) {
   }, [value]);
 
   return (
-    <div ref={containerRef} style={style}>
-      <div ref={editorRef} style={{ minHeight: '300px' }} />
+    <div ref={containerRef} className={className} style={style}>
+      <div ref={editorRef} />
     </div>
   );
 }
