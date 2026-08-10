@@ -753,6 +753,68 @@ if ($action === 'logs-clear' && $method === 'POST') {
     json(['ok' => true, 'files_cleared' => $cleared]);
 }
 
+// ── GET admin-content-mix ────────────────────────────────────────────────
+// Di cosa e fatto davvero l'archivio dei clienti: quanti video, quante
+// immagini, quanto testo. Serve a capire su quale tipo di contenuto conviene
+// investire, invece di deciderlo a intuito.
+if ($action === 'admin-content-mix' && $method === 'GET') {
+    requireAdmin($isAdmin);
+
+    $normalizza = static function (?string $tipo): string {
+        $tipo = strtoupper(trim((string)$tipo));
+        if ($tipo === '') return 'SENZA MEDIA';
+        if (str_contains($tipo, 'VIDEO')) return 'VIDEO';
+        if (str_contains($tipo, 'IMAGE') || str_contains($tipo, 'PHOTO') || str_contains($tipo, 'CAROUSEL')) return 'IMMAGINE';
+        if (str_contains($tipo, 'TEXT')) return 'SOLO TESTO';
+        return $tipo;
+    };
+
+    $righe = DB::fetchAll(
+        "SELECT media_type, platform,
+                COUNT(*) totale,
+                SUM(CASE WHEN transcript IS NOT NULL AND transcript <> '' THEN 1 ELSE 0 END) con_testo_estratto,
+                SUM(CASE WHEN published = 1 THEN 1 ELSE 0 END) pubblicati
+         FROM posts
+         GROUP BY media_type, platform"
+    );
+
+    $perTipo = [];
+    $perPiattaforma = [];
+    $totale = 0;
+    foreach ($righe as $r) {
+        $tipo = $normalizza($r['media_type'] ?? null);
+        $piattaforma = (string)($r['platform'] ?? '?');
+        $n = (int)$r['totale'];
+        $totale += $n;
+
+        if (!isset($perTipo[$tipo])) $perTipo[$tipo] = ['tipo' => $tipo, 'totale' => 0, 'con_testo_estratto' => 0, 'pubblicati' => 0];
+        $perTipo[$tipo]['totale'] += $n;
+        $perTipo[$tipo]['con_testo_estratto'] += (int)$r['con_testo_estratto'];
+        $perTipo[$tipo]['pubblicati'] += (int)$r['pubblicati'];
+
+        if (!isset($perPiattaforma[$piattaforma])) $perPiattaforma[$piattaforma] = ['piattaforma' => $piattaforma, 'totale' => 0];
+        $perPiattaforma[$piattaforma]['totale'] += $n;
+    }
+
+    foreach ($perTipo as &$voce) {
+        $voce['percentuale'] = $totale > 0 ? round(($voce['totale'] / $totale) * 100, 1) : 0;
+    }
+    unset($voce);
+    usort($perTipo, static fn($a, $b) => $b['totale'] <=> $a['totale']);
+    usort($perPiattaforma, static fn($a, $b) => $b['totale'] <=> $a['totale']);
+
+    // Quanti clienti hanno davvero contenuti: la media su chi ha zero post
+    // racconterebbe una cosa falsa.
+    $utentiConPost = (int)(DB::fetch('SELECT COUNT(DISTINCT user_id) c FROM posts')['c'] ?? 0);
+
+    json([
+        'totale_contenuti' => $totale,
+        'utenti_con_contenuti' => $utentiConPost,
+        'per_tipo' => array_values($perTipo),
+        'per_piattaforma' => array_values($perPiattaforma),
+    ]);
+}
+
 if ($action === 'admin-users' && $method === 'GET') {
     requireAdmin($isAdmin);
     $users = DB::fetchAll(

@@ -54,11 +54,13 @@ export function AdminScreen({ token, currentUser, adminPrompts, updatePrompt }) 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
+  const [contentMix, setContentMix] = useState(null);
 
   useEffect(() => {
     if (adminTab === 'users' || adminTab === 'control-room') loadUsers();
     if (adminTab === 'logs') loadLogs();
     if (adminTab === 'processes') loadProcesses();
+    if (adminTab === 'content-mix') loadContentMix();
   }, [adminTab]);
 
   useEffect(() => {
@@ -107,6 +109,14 @@ export function AdminScreen({ token, currentUser, adminPrompts, updatePrompt }) 
         body: JSON.stringify({ id }),
       }, token);
       await loadProcesses();
+    } catch (e) {
+      setError(e.message);
+    }
+  }
+
+  async function loadContentMix() {
+    try {
+      setContentMix(await apiFetch('/api/index.php?action=admin-content-mix', {}, token));
     } catch (e) {
       setError(e.message);
     }
@@ -407,11 +417,63 @@ export function AdminScreen({ token, currentUser, adminPrompts, updatePrompt }) 
         <button className={`btn ${adminTab === 'users' ? 'btn-primary' : 'btn-outline'}`} onClick={() => setAdminTab('users')}>Gestione Utenti</button>
         <button className={`btn ${adminTab === 'prompts' ? 'btn-primary' : 'btn-outline'}`} onClick={() => setAdminTab('prompts')}>Istruzioni AI</button>
         <button className={`btn ${adminTab === 'processes' ? 'btn-primary' : 'btn-outline'}`} onClick={() => setAdminTab('processes')}>Processi Attivi</button>
+        <button className={`btn ${adminTab === 'content-mix' ? 'btn-primary' : 'btn-outline'}`} onClick={() => setAdminTab('content-mix')}>Di cosa sono fatti i contenuti</button>
         <button className={`btn ${adminTab === 'logs' ? 'btn-primary' : 'btn-outline'}`} onClick={() => setAdminTab('logs')}>Log di Sistema</button>
       </div>
 
       {error && <div style={{ background: 'var(--red-light)', color: 'var(--red)', padding: '10px 14px', borderRadius: 'var(--radius-sm)', marginBottom: '1rem', fontSize: '13px' }}>{error}</div>}
       {notice && <div style={{ background: 'var(--teal-light)', color: '#0F6E56', padding: '10px 14px', borderRadius: 'var(--radius-sm)', marginBottom: '1rem', fontSize: '13px', fontWeight: 700 }}>{notice}</div>}
+
+      {adminTab === 'content-mix' && (
+        <div className="card">
+          <h3 style={{ marginBottom: '.4rem' }}>Di cosa sono fatti i contenuti dei clienti</h3>
+          <p style={{ margin: '0 0 1.25rem', color: 'var(--text-muted)', fontSize: '14px', lineHeight: 1.6, maxWidth: '68ch' }}>
+            Il sistema tratta i video (trascrizione dell’audio), le immagini (descrizione e OCR del testo
+            scritto sopra) e il solo testo in tre modi diversi. Sapere quale prevale dice su quale strada
+            conviene investire.
+          </p>
+
+          {!contentMix && <div style={{ color: 'var(--text-muted)', fontSize: '14px' }}>Caricamento…</div>}
+
+          {contentMix && contentMix.totale_contenuti === 0 && (
+            <div style={{ padding: '1.25rem', border: '1px dashed var(--border-strong)', borderRadius: '12px', color: 'var(--text-muted)' }}>
+              Nessun contenuto importato finora: il dato comparirà dopo la prima sincronizzazione.
+            </div>
+          )}
+
+          {contentMix && contentMix.totale_contenuti > 0 && (<>
+            <div style={{ display: 'flex', gap: '2rem', flexWrap: 'wrap', marginBottom: '1.5rem' }}>
+              <div><div style={{ fontSize: '30px', fontWeight: 800, color: 'var(--primary)' }}>{contentMix.totale_contenuti}</div><div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>contenuti totali</div></div>
+              <div><div style={{ fontSize: '30px', fontWeight: 800 }}>{contentMix.utenti_con_contenuti}</div><div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>clienti con contenuti</div></div>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '.85rem', marginBottom: '1.75rem' }}>
+              {contentMix.per_tipo.map(riga => (
+                <div key={riga.tipo}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '.35rem', gap: '1rem', flexWrap: 'wrap' }}>
+                    <strong style={{ fontSize: '14px' }}>{riga.tipo}</strong>
+                    <span style={{ fontSize: '13px', color: 'var(--text-muted)', fontVariantNumeric: 'tabular-nums' }}>
+                      {riga.totale} · {riga.percentuale}% · {riga.con_testo_estratto} con testo estratto
+                    </span>
+                  </div>
+                  <div style={{ height: '10px', borderRadius: '999px', background: 'var(--border)', overflow: 'hidden' }}>
+                    <div style={{ width: `${riga.percentuale}%`, height: '100%', background: 'var(--primary)' }} />
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <h4 style={{ margin: '0 0 .75rem', fontSize: '14px' }}>Per piattaforma</h4>
+            <div style={{ display: 'flex', gap: '.5rem', flexWrap: 'wrap' }}>
+              {contentMix.per_piattaforma.map(riga => (
+                <span key={riga.piattaforma} style={{ padding: '6px 12px', borderRadius: '999px', background: 'var(--primary-light)', color: 'var(--primary)', fontSize: '12.5px', fontWeight: 700 }}>
+                  {riga.piattaforma}: {riga.totale}
+                </span>
+              ))}
+            </div>
+          </>)}
+        </div>
+      )}
 
       {adminTab === 'users' && (
         <div>
