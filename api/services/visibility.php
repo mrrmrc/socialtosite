@@ -209,4 +209,218 @@ class VisibilityAnalytics {
             [$userId]
         );
     }
+
+    // ══════════════════════════════════════════════════════════════════════
+    //  CICLO DI RITORNO SEO
+    //  Search Console non serve solo a mostrare numeri in dashboard: le query
+    //  reali tornano dentro ai prompt, così l'AI scrive a partire da quello che
+    //  le persone cercano davvero e non solo da quello che l'utente ha postato.
+    // ══════════════════════════════════════════════════════════════════════
+
+    /** Finestra di analisi predefinita: 90 giorni danno abbastanza segnale
+     *  sulla coda lunga senza pescare query ormai superate. */
+    private const DEMAND_WINDOW_DAYS = 90;
+
+    /** Sotto questa soglia di impression una query è rumore statistico. */
+    private const MIN_IMPRESSIONS = 3;
+
+    /** Fascia "a un passo dalla prima pagina": il sito compare ma non viene
+     *  cliccato. È dove un titolo migliore rende di più e più in fretta. */
+    private const STRIKING_MIN_POSITION = 4.0;
+    private const STRIKING_MAX_POSITION = 20.0;
+
+    /**
+     * Query aggregate per l'intero sito, divise per tipo di occasione.
+     * Restituisce sempre le tre chiavi, anche vuote.
+     */
+    public static function searchDemand(int $userId, int $days = self::DEMAND_WINDOW_DAYS): array {
+        self::ensureSchema();
+        $days = max(7, min(365, $days));
+
+        $rows = DB::fetchAll(
+            "SELECT query_text,
+                    SUM(impressions) impressions,
+                    SUM(clicks) clicks,
+                    CASE WHEN SUM(impressions)>0 THEN SUM(position*impressions)/SUM(impressions) ELSE 0 END position
+             FROM seo_search_details
+             WHERE user_id=? AND query_text<>'' AND record_date >= DATE_SUB(CURDATE(), INTERVAL $days DAY)
+             GROUP BY query_text
+             HAVING impressions >= " . self::MIN_IMPRESSIONS . "
+             ORDER BY impressions DESC
+             LIMIT 60",
+            [$userId]
+        );
+
+        $top = [];
+        $striking = [];
+        $unclicked = [];
+
+        foreach ($rows as $row) {
+            $entry = [
+                'query'       => (string)$row['query_text'],
+                'impressions' => (int)$row['impressions'],
+                'clicks'      => (int)$row['clicks'],
+                'position'    => round((float)$row['position'], 1),
+            ];
+            // La soglia è già nella HAVING, ma la regola appartiene a questo
+            // metodo: ribadirla qui evita che una modifica alla query faccia
+            // entrare rumore nei prompt senza che nessuno se ne accorga.
+            if ($entry['impressions'] < self::MIN_IMPRESSIONS) continue;
+            if (count($top) < 15) $top[] = $entry;
+
+            $inStrikingRange = $entry['position'] >= self::STRIKING_MIN_POSITION
+                            && $entry['position'] <= self::STRIKING_MAX_POSITION;
+
+            if ($inStrikingRange && count($striking) < 10) {
+                $striking[] = $entry;
+            } elseif ($entry['clicks'] === 0 && $entry['position'] > self::STRIKING_MAX_POSITION && count($unclicked) < 10) {
+                $unclicked[] = $entry;
+            }
+        }
+
+        return ['top' => $top, 'striking' => $striking, 'unclicked' => $unclicked];
+    }
+
+    /**
+     * Query con cui le persone arrivano su UNA pagina specifica.
+     * Il match è sull'ultimo segmento di path: GSC salva l'URL completo,
+     * noi conosciamo solo lo slug del post.
+     */
+    public static function postQueries(int $userId, string $postSlug, int $days = self::DEMAND_WINDOW_DAYS): array {
+        self::ensureSchema();
+        $postSlug = trim($postSlug, '/ ');
+        if ($postSlug === '') return [];
+        $days = max(7, min(365, $days));
+
+        return DB::fetchAll(
+            "SELECT query_text,
+                    SUM(impressions) impressions,
+                    SUM(clicks) clicks,
+                    CASE WHEN SUM(impressions)>0 THEN SUM(position*impressions)/SUM(impressions) ELSE 0 END position
+             FROM seo_search_details
+             WHERE user_id=?
+               AND query_text<>''
+               AND record_date >= DATE_SUB(CURDATE(), INTERVAL $days DAY)
+               AND (page_url LIKE ? OR page_url LIKE ? OR page_url LIKE ?)
+             GROUP BY query_text
+             ORDER BY impressions DESC
+             LIMIT 20",
+            [$userId, '%/' . $postSlug, '%/' . $postSlug . '/', '%/' . $postSlug . '?%']
+        );
+    }
+
+    /**
+     * Articoli già pubblicati che compaiono su Google in posizione 4-20:
+     * sono quelli dove riscrivere titolo e meta description rende di più.
+     * Ordinati per impression perse, cioè per occasione mancata.
+     */
+    public static function opportunities(int $userId, int $limit = 10, int $days = self::DEMAND_WINDOW_DAYS): array {
+        self::ensureSchema();
+        $limit = max(1, min(50, $limit));
+        $days = max(7, min(365, $days));
+
+        $pages = DB::fetchAll(
+            "SELECT page_url,
+                    SUM(impressions) impressions,
+                    SUM(clicks) clicks,
+                    CASE WHEN SUM(impressions)>0 THEN SUM(position*impressions)/SUM(impressions) ELSE 0 END position
+             FROM seo_search_details
+             WHERE user_id=? AND record_date >= DATE_SUB(CURDATE(), INTERVAL $days DAY)
+             GROUP BY page_url
+             HAVING impressions >= " . self::MIN_IMPRESSIONS . "
+                AND position >= " . self::STRIKING_MIN_POSITION . "
+                AND position <= " . self::STRIKING_MAX_POSITION . "
+             ORDER BY impressions DESC
+             LIMIT $limit",
+            [$userId]
+        );
+        if (!$pages) return [];
+
+        // Risolvi ogni URL nel post corrispondente, così la dashboard può
+        // offrire l'azione di riottimizzazione direttamente sull'articolo.
+        $out = [];
+        foreach ($pages as $page) {
+            $path = (string)parse_url((string)$page['page_url'], PHP_URL_PATH);
+            $slug = trim((string)$path, '/');
+            if ($slug !== '' && str_contains($slug, '/')) {
+                $parts = explode('/', $slug);
+                $slug = (string)end($parts);
+            }
+
+            $post = $slug !== ''
+                ? DB::fetch('SELECT id, slug, generated_title, edited_title, meta_description FROM posts WHERE user_id=? AND slug=? LIMIT 1', [$userId, $slug])
+                : null;
+
+            $out[] = [
+                'page_url'    => (string)$page['page_url'],
+                'impressions' => (int)$page['impressions'],
+                'clicks'      => (int)$page['clicks'],
+                'position'    => round((float)$page['position'], 1),
+                'post_id'     => $post ? (int)$post['id'] : null,
+                'title'       => $post ? ($post['edited_title'] ?: $post['generated_title']) : null,
+                'queries'     => $slug !== '' ? array_slice(self::postQueries($userId, $slug, $days), 0, 5) : [],
+            ];
+        }
+        return $out;
+    }
+
+    /**
+     * Traduce i dati di Search Console in un blocco di testo da inserire nei
+     * prompt. Restituisce stringa vuota se non c'è ancora segnale: un sito
+     * appena nato deve comportarsi esattamente come prima di questa funzione.
+     */
+    public static function demandBriefing(int $userId, ?string $postSlug = null, int $days = self::DEMAND_WINDOW_DAYS): string {
+        try {
+            $demand = self::searchDemand($userId, $days);
+            $pageRows = $postSlug !== null ? self::postQueries($userId, $postSlug, $days) : [];
+        } catch (Throwable $e) {
+            // Il ciclo di ritorno è un miglioramento, non una dipendenza:
+            // se Search Console non è configurata si prosegue senza.
+            if (class_exists('Logger')) Logger::warn('seo', 'Briefing domanda non disponibile', ['user_id' => $userId, 'error' => $e->getMessage()]);
+            return '';
+        }
+
+        if (!$demand['top'] && !$pageRows) return '';
+
+        $fmt = static function (array $row): string {
+            $query = (string)($row['query'] ?? $row['query_text'] ?? '');
+            $impressions = (int)($row['impressions'] ?? 0);
+            $clicks = (int)($row['clicks'] ?? 0);
+            $position = round((float)($row['position'] ?? 0), 1);
+            return sprintf('- "%s" — %d impression, %d click, posizione media %.1f', $query, $impressions, $clicks, $position);
+        };
+
+        $out = "DOMANDA DI RICERCA REALE (Google Search Console, ultimi $days giorni)\n"
+             . "Queste sono le parole che le persone digitano davvero su Google per arrivare su questo sito.\n"
+             . "Usale per scegliere il taglio, il titolo e le domande a cui rispondere.\n"
+             . "NON infilarle a forza nel testo: servono a capire l'intenzione di chi cerca, non a essere ripetute.\n\n";
+
+        if ($pageRows) {
+            $out .= "Ricerche che portano già su QUESTA pagina:\n";
+            foreach (array_slice($pageRows, 0, 8) as $row) $out .= $fmt($row) . "\n";
+            $out .= "\n";
+        }
+
+        if ($demand['top']) {
+            $out .= "Ricerche principali di tutto il sito:\n";
+            foreach ($demand['top'] as $row) $out .= $fmt($row) . "\n";
+            $out .= "\n";
+        }
+
+        if ($demand['striking']) {
+            $out .= "Occasioni ravvicinate (il sito compare ma raramente viene cliccato:\n"
+                 .  "un titolo che risponde meglio a questa intenzione guadagna click subito):\n";
+            foreach ($demand['striking'] as $row) $out .= $fmt($row) . "\n";
+            $out .= "\n";
+        }
+
+        if ($demand['unclicked']) {
+            $out .= "Domande ancora senza una risposta adeguata sul sito\n"
+                 .  "(molte impression, nessun click, posizione lontana):\n";
+            foreach ($demand['unclicked'] as $row) $out .= $fmt($row) . "\n";
+            $out .= "\n";
+        }
+
+        return $out;
+    }
 }

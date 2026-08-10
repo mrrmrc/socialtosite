@@ -534,11 +534,14 @@ Restituisci SOLO la nuova memoria aggiornata (testo semplice), nient'altro.";
     }
 
     // ── AGENTE 2 (Armonizzatore): testo grezzo → articolo SEO (Gemini) ─────
-    public static function harmonize(string $rawText, string $platform = '', string $caption = '', string $sourceContext = '', string $agentName = 'content_editor', string $accountType = 'business'): array {
+    public static function harmonize(string $rawText, string $platform = '', string $caption = '', string $sourceContext = '', string $agentName = 'content_editor', string $accountType = 'business', string $searchDemand = ''): array {
         $source = $caption
             ? "Didascalia social: \"$caption\"\n\nTrascrizione: \"$rawText\""
             : "Contenuto: \"$rawText\"";
         $context = $sourceContext ? "\n\nContesto dei canali/profili dell'utente:\n$sourceContext\n" : '';
+
+        $searchDemand = trim($searchDemand);
+        $demandBlock = $searchDemand !== '' ? "\n\n" . $searchDemand . "\n" : '';
 
         $typePrompt = $accountType === 'business'
             ? "TIPOLOGIA ACCOUNT: BUSINESS. Il tuo obiettivo è convertire i lettori in clienti, fare lead generation o brand awareness aziendale. Usa Call to Action chiare e un tono professionale ma coinvolgente."
@@ -550,18 +553,32 @@ Restituisci SOLO la nuova memoria aggiornata (testo semplice), nient'altro.";
             . "1. ADERENZA AL FATTO: Basati ESCLUSIVAMENTE sulle informazioni fornite nel Contenuto. NON inventare dettagli, NON aggiungere tendenze, challenge, fenomeni virali o notizie esterne se non esplicitamente menzionate nella Trascrizione/Didascalia.\n"
             . "2. RISPETTO DELLA PROFILAZIONE: Adatta il tono di voce e lo stile esattamente come indicato nel 'Contesto dei canali/profili dell'utente' (Target, Strategia, Tono). Se il contesto richiede un tono specifico, usalo.\n"
             . "3. PRESERVAZIONE: Se il contenuto originale contiene umorismo, sarcasmo, barzellette o sketch comici, PRESERVA ASSOLUTAMENTE LA COMICITA'. Non trasformare una barzelletta in un testo accademico.\n"
-            . "4. " . $typePrompt . "\n\n"
+            . "4. " . $typePrompt . "\n"
+            . "5. INTENZIONE DI RICERCA: se ti vengono fornite le ricerche reali (sezione 'DOMANDA DI RICERCA REALE'), "
+            . "il titolo deve rispondere alla domanda che una persona digiterebbe davvero, non riproporre il titolo "
+            . "ad effetto del social. Il taglio del social può restare come sottotitolo o come apertura del testo. "
+            . "Se le ricerche reali non c'entrano nulla con questo contenuto, IGNORALE: non forzare mai un aggancio "
+            . "che tradisce il contenuto originale.\n\n"
             . "PRIMA analizza il Contesto dell'Utente per capire chi sta parlando e a chi si rivolge. POI leggi il Contenuto e scrivi l'articolo.\n"
-            . "{sourceContext}\n{source}\n\n"
+            . "{sourceContext}\n{searchDemand}\n{source}\n\n"
             . "Rispondi SOLO con JSON valido con questa forma:\n"
             . '{"title":"Titolo SEO max 60 caratteri","body":"Articolo 200-400 parole, italiano naturale, paragrafi",'
             . '"excerpt":"Riassunto max 155 caratteri","tags":["tag1","tag2","tag3","tag4","tag5"],'
             . '"meta_description":"Meta description max 155 caratteri","seo_score":75}';
 
         $promptTemplate = self::getAgentPrompt($agentName, $fallback);
+
+        // I template personalizzati salvati in agent_prompts non conoscono
+        // {searchDemand}: in quel caso la domanda di ricerca viaggia dentro
+        // {sourceContext}, così il ciclo di ritorno funziona anche per gli
+        // agenti già configurati dall'utente senza doverli riscrivere.
+        $hasDemandPlaceholder = str_contains($promptTemplate, '{searchDemand}');
+        $contextValue = $hasDemandPlaceholder ? $context : $context . $demandBlock;
+        $sourceContextValue = $hasDemandPlaceholder ? $sourceContext : $sourceContext . $demandBlock;
+
         $prompt = str_replace(
-            ['{sourceContext}', '{profileSummary}', '{source}', '{content}', '{platform}'],
-            [$context, $sourceContext, $source, $rawText, $platform],
+            ['{sourceContext}', '{searchDemand}', '{profileSummary}', '{source}', '{content}', '{platform}'],
+            [$contextValue, $demandBlock, $sourceContextValue, $source, $rawText, $platform],
             $promptTemplate
         );
 
@@ -590,6 +607,68 @@ Restituisci SOLO la nuova memoria aggiornata (testo semplice), nient'altro.";
         return $result;
     }
 
+    /**
+     * Riscrive titolo, meta description ed estratto di un articolo GIÀ pubblicato
+     * partendo dalle ricerche reali con cui Google lo sta già mostrando.
+     *
+     * Il corpo dell'articolo non viene toccato: si interviene solo su ciò che
+     * l'utente legge nei risultati di ricerca, che è quello che decide il click.
+     * È l'intervento con il ritorno più rapido su un articolo in posizione 4-20.
+     */
+    public static function reoptimizeMeta(array $post, array $queries, string $profileSummary = ''): array {
+        if (!$queries) return ['ok' => false, 'message' => 'Nessuna query reale disponibile per questo articolo.'];
+
+        $currentTitle = trim((string)($post['edited_title'] ?: ($post['generated_title'] ?? '')));
+        $currentMeta  = trim((string)($post['meta_description'] ?? ''));
+        $currentExcerpt = trim((string)($post['generated_excerpt'] ?? ''));
+        $bodyExcerpt = mb_substr(trim(strip_tags((string)($post['edited_body'] ?: ($post['generated_body'] ?? '')))), 0, 1500);
+
+        $queryLines = '';
+        foreach (array_slice($queries, 0, 12) as $row) {
+            $queryLines .= sprintf(
+                "- \"%s\" — %d impression, %d click, posizione media %.1f\n",
+                (string)($row['query_text'] ?? $row['query'] ?? ''),
+                (int)($row['impressions'] ?? 0),
+                (int)($row['clicks'] ?? 0),
+                (float)($row['position'] ?? 0)
+            );
+        }
+
+        $prompt = "Sei un SEO editor. Questo articolo è GIÀ pubblicato e Google lo sta già mostrando, "
+            . "ma in una posizione che riceve pochi click.\n\n"
+            . ($profileSummary !== '' ? "Chi pubblica:\n$profileSummary\n\n" : '')
+            . "Titolo attuale: \"$currentTitle\"\n"
+            . "Meta description attuale: \"$currentMeta\"\n\n"
+            . "Contenuto dell'articolo (estratto):\n\"$bodyExcerpt\"\n\n"
+            . "RICERCHE REALI con cui Google mostra già questa pagina:\n$queryLines\n"
+            . "COMPITO: riscrivi titolo, meta description ed estratto perché rispondano all'intenzione "
+            . "di chi fa queste ricerche.\n\n"
+            . "REGOLE:\n"
+            . "1. Il nuovo titolo deve essere riconoscibile come risposta alla ricerca più rilevante fra quelle elencate.\n"
+            . "2. NON promettere contenuti che l'articolo non contiene: sarebbe un titolo ingannevole e peggiorerebbe il risultato.\n"
+            . "3. Niente accumulo di parole chiave. Devono essere frasi che una persona leggerebbe volentieri.\n"
+            . "4. Se nessuna ricerca è davvero pertinente al contenuto, rispondi con \"skip\": true e non inventare nulla.\n"
+            . "5. Spiega in 'reason', in una frase e in italiano, su quale ricerca ti sei basato.\n\n"
+            . "Rispondi SOLO con JSON valido:\n"
+            . '{"skip":false,"title":"max 60 caratteri","meta_description":"max 155 caratteri",'
+            . '"excerpt":"max 155 caratteri","target_query":"la ricerca su cui ti sei basato","reason":"una frase"}';
+
+        $text = self::gemini([['text' => $prompt]], [
+            'responseMimeType' => 'application/json',
+            'maxOutputTokens'  => 1024,
+        ]);
+        $text = preg_replace('/```json|```/', '', trim($text));
+        $result = json_decode($text, true);
+        if (!is_array($result)) return ['ok' => false, 'message' => 'Risposta AI non interpretabile.'];
+        if (!empty($result['skip'])) {
+            return ['ok' => false, 'skipped' => true, 'message' => $result['reason'] ?? 'Nessuna ricerca pertinente a questo articolo.'];
+        }
+        if (empty($result['title'])) return ['ok' => false, 'message' => 'Titolo non generato.'];
+
+        $result['ok'] = true;
+        $result['previous'] = ['title' => $currentTitle, 'meta_description' => $currentMeta, 'excerpt' => $currentExcerpt];
+        return $result;
+    }
 
 
     // ── Scraper locale Node.js ──────────────────────────────────────────────
@@ -1997,10 +2076,12 @@ Testi da analizzare:
     }
 
     // ── AGENTE CAPOREDATTORE (Orchestrazione Contenuti) ─────────────────────
-    public static function chiefEditor(array $site, array $posts): array {
+    public static function chiefEditor(array $site, array $posts, string $searchDemand = ''): array {
         if (empty($posts)) {
             return ['ok' => false, 'message' => 'Nessun post da analizzare.'];
         }
+        $searchDemand = trim($searchDemand);
+        $demandBlock = $searchDemand !== '' ? "\n\n" . $searchDemand . "\n" : '';
 
         $summary  = trim($site['profile_summary'] ?? $site['bio'] ?? '');
         $role     = trim($site['role_mission'] ?? '');
@@ -2019,20 +2100,32 @@ Testi da analizzare:
         $fallback = "Sei il CAPOREDATTORE di un sito web personale/brand. Analizza tutti i post pubblicati e orchestra i contenuti per creare un'esperienza editoriale coerente.\n\n"
             . "Profilo:\n{profileSummary}\n\n"
             . "Ruolo:\n{roleMission}\n\n"
-            . "Post attuali (JSON id, title, tags):\n{postsContext}\n\n"
+            . "Post attuali (JSON id, title, tags):\n{postsContext}\n"
+            . "{searchDemand}\n"
             . "Istruzioni:\n"
+            . "0. Se è presente la sezione 'DOMANDA DI RICERCA REALE', usala come criterio prioritario: le categorie "
+            . "e il menu devono rispecchiare i temi con cui le persone cercano davvero questo sito, non solo "
+            . "l'ordine mentale di chi ha pubblicato. In 'content_gaps' elenca fino a 5 argomenti molto cercati "
+            . "a cui il sito non risponde ancora con un articolo dedicato, in ordine di priorità.\n"
             . "1. Individua 3-4 macro-categorie tematiche reali e armoniche analizzando il significato semantico dei titoli e dei tag presenti.\n"
             . "2. Per ciascuno dei post forniti nel JSON, assegna a quale di queste 3-4 macro-categorie appartiene (in base al contenuto).\n"
             . "3. Genera un menu_links usando queste categorie (es. label 'Design', url '/?tag=design'). Includi sempre anche la Home (url: '/').\n"
             . "4. Scegli l'ID del post migliore, più rappresentativo e di alta qualità da mettere in evidenza (featured_post_id).\n"
             . "5. Genera una hero_tagline (max 80 char) che riassuma l'identità editoriale attuale.\n\n"
             . "Rispondi SOLO con JSON valido con questa esatta struttura:\n"
-            . '{"categories":["Categoria1","Categoria2"],"post_categories":{"POST_ID_1":"Categoria1","POST_ID_2":"Categoria2"},"menu_links":[{"label":"Home","url":"/"},{"label":"Categoria1","url":"/?tag=categoria1"}],"featured_post_id":123,"hero_tagline":"Tagline d\'impatto"}';
+            . '{"categories":["Categoria1","Categoria2"],"post_categories":{"POST_ID_1":"Categoria1","POST_ID_2":"Categoria2"},"menu_links":[{"label":"Home","url":"/"},{"label":"Categoria1","url":"/?tag=categoria1"}],"featured_post_id":123,"hero_tagline":"Tagline d\'impatto","content_gaps":[{"topic":"Argomento cercato","query":"ricerca reale","why":"motivo in una frase"}]}';
 
         $prompt = self::getAgentPrompt('chief_editor', $fallback);
+
+        // Come per harmonize: i template già salvati non conoscono
+        // {searchDemand}, quindi la domanda di ricerca viaggia in coda al
+        // contesto del profilo per non lasciare indietro chi ha personalizzato.
+        $hasDemandPlaceholder = str_contains($prompt, '{searchDemand}');
+        $summaryValue = $hasDemandPlaceholder ? $summary : $summary . $demandBlock;
+
         $prompt = str_replace(
-            ['{profileSummary}', '{roleMission}', '{postsContext}'],
-            [$summary, $role, $postsContext],
+            ['{profileSummary}', '{roleMission}', '{postsContext}', '{searchDemand}'],
+            [$summaryValue, $role, $postsContext, $demandBlock],
             $prompt
         );
 

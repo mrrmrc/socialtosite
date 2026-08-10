@@ -4,6 +4,7 @@
 // il contenuto come BOZZA (published=0). L'armonizzazione è il passo 2.
 require_once __DIR__ . '/../../config/db.php';
 require_once __DIR__ . '/ai.php';
+require_once __DIR__ . '/visibility.php';
 require_once __DIR__ . '/../middleware/response.php';
 if (file_exists(__DIR__ . '/../middleware/logger.php')) require_once __DIR__ . '/../middleware/logger.php';
 
@@ -342,7 +343,13 @@ class Ingest {
 
         $agentName = !empty($site['harmonize_agent']) ? $site['harmonize_agent'] : 'content_editor';
         $accountType = !empty($site['account_type']) ? $site['account_type'] : 'business';
-        $seo = AI::harmonize($raw, $post['platform'], $post['raw_content'] ?? '', $sourceContext, $agentName, $accountType);
+
+        // Ciclo di ritorno: le ricerche reali da Search Console entrano nel
+        // prompt. Se il sito è nuovo o Search Console non è collegata il
+        // briefing è vuoto e il comportamento resta identico a prima.
+        $searchDemand = VisibilityAnalytics::demandBriefing($userId, $post['slug'] ?? null);
+
+        $seo = AI::harmonize($raw, $post['platform'], $post['raw_content'] ?? '', $sourceContext, $agentName, $accountType, $searchDemand);
 
         DB::execute('
             UPDATE posts SET
@@ -357,6 +364,61 @@ class Ingest {
         ]);
 
         return ['id' => $postId, 'seo' => $seo];
+    }
+
+    // ── AGENTE 2b (Riottimizzatore): articolo pubblicato → titolo che risponde
+    //    alla ricerca reale. Tocca solo titolo, meta ed estratto: il corpo
+    //    dell'articolo e lo slug restano invariati, così non si perdono i
+    //    segnali già accumulati su quell'URL.
+    public static function reoptimize(int $userId, int $postId, bool $apply = true): array {
+        $post = DB::fetch('SELECT * FROM posts WHERE id=? AND user_id=?', [$postId, $userId]);
+        if (!$post) throw new Exception('Contenuto non trovato');
+        if ((int)($post['published'] ?? 0) !== 1) throw new Exception('Riottimizza solo gli articoli già pubblicati');
+
+        $slug = trim((string)($post['slug'] ?? ''));
+        if ($slug === '') throw new Exception('Articolo senza slug: impossibile associarlo alle ricerche di Google');
+
+        $queries = VisibilityAnalytics::postQueries($userId, $slug);
+        if (!$queries) {
+            return [
+                'ok' => false,
+                'id' => $postId,
+                'message' => 'Google non ha ancora dati di ricerca per questo articolo. Riprova fra qualche settimana.',
+            ];
+        }
+
+        $site = DB::fetch('SELECT profile_summary, bio FROM sites WHERE user_id=?', [$userId]);
+        $profileSummary = trim((string)($site['profile_summary'] ?? ($site['bio'] ?? '')));
+
+        $result = AI::reoptimizeMeta($post, $queries, $profileSummary);
+        if (empty($result['ok'])) {
+            return ['ok' => false, 'id' => $postId, 'message' => $result['message'] ?? 'Riottimizzazione non riuscita'];
+        }
+
+        // Anteprima: l'utente vede la proposta e decide. Serve perché il titolo
+        // è la cosa più personale del contenuto e un'AI non deve cambiarlo di
+        // nascosto a un articolo che sta già andando bene.
+        if ($apply) {
+            DB::execute(
+                'UPDATE posts SET generated_title=?, meta_description=?, generated_excerpt=? WHERE id=? AND user_id=?',
+                [
+                    mb_substr((string)$result['title'], 0, 255),
+                    mb_substr((string)($result['meta_description'] ?? ''), 0, 255),
+                    (string)($result['excerpt'] ?? ''),
+                    $postId,
+                    $userId,
+                ]
+            );
+            if (class_exists('Logger')) {
+                Logger::info('seo', 'Articolo riottimizzato sulla ricerca reale', [
+                    'user_id' => $userId,
+                    'post_id' => $postId,
+                    'target_query' => $result['target_query'] ?? '',
+                ]);
+            }
+        }
+
+        return ['ok' => true, 'id' => $postId, 'applied' => $apply, 'proposal' => $result, 'queries' => $queries];
     }
 
     public static function scanSources(int $userId, int $limitPerSource = 5, string $profileOverride = '', string $roleMission = '', string $contentStrategy = '', ?int $sourceId = null): array {

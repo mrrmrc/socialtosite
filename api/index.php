@@ -1677,7 +1677,12 @@ if ($action === 'chief-editor' && $method === 'POST') {
         $site  = DB::fetch('SELECT * FROM sites WHERE user_id=?', [$userId]);
         $posts = DB::fetchAll('SELECT id, edited_title, generated_title, tags FROM posts WHERE user_id=? AND published=1', [$userId]);
         
-        $result = AI::chiefEditor($site, $posts);
+        // Il piano editoriale nasce dalle ricerche reali, non solo dai titoli
+        // già pubblicati: le categorie devono rispecchiare come le persone
+        // cercano, non come l'autore ha archiviato.
+        $searchDemand = VisibilityAnalytics::demandBriefing($userId);
+
+        $result = AI::chiefEditor($site, $posts, $searchDemand);
         
         if (!empty($result['ok'])) {
             // 1. Aggiorna la categoria semantica di ciascun post nel DB in base alle risposte dell'AI
@@ -1805,6 +1810,29 @@ if ($action === 'harmonize' && $method === 'POST') {
     $b   = body();
     $res = Ingest::harmonize($userId, (int) ($b['id'] ?? 0));
     json($res);
+}
+
+// ── GET seo-opportunities: articoli in posizione 4-20 su Google ───────────
+// Sono quelli dove riscrivere il titolo rende di più: il sito compare già,
+// manca solo che la gente ci clicchi sopra.
+if ($action === 'seo-opportunities' && $method === 'GET') {
+    $limit = isset($_GET['limit']) ? (int)$_GET['limit'] : 10;
+    json([
+        'opportunities' => VisibilityAnalytics::opportunities($userId, $limit),
+        'demand'        => VisibilityAnalytics::searchDemand($userId),
+    ]);
+}
+
+// ── POST reoptimize-post { id, apply } ────────────────────────────────────
+// Riscrive titolo/meta/estratto di un articolo pubblicato partendo dalle
+// ricerche reali con cui Google lo mostra già. Con apply=false restituisce
+// solo la proposta, senza salvare.
+if ($action === 'reoptimize-post' && $method === 'POST') {
+    $b = body();
+    $postId = (int)($b['id'] ?? 0);
+    if ($postId <= 0) jsonError('ID articolo mancante', 422);
+    $apply = !isset($b['apply']) || (bool)$b['apply'];
+    json(Ingest::reoptimize($userId, $postId, $apply));
 }
 
 // ── GET drafts: bozze importate non ancora armonizzate ────────────────────

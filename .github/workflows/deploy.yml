@@ -78,6 +78,7 @@ jobs:
             --exclude config/deploy.env \
             --exclude db/ \
             --exclude frontend/ \
+            --exclude tools/ \
             --exclude README.md \
             --exclude CLAUDE.md \
             ./ httpdocs/;
