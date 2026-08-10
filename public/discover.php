@@ -80,6 +80,17 @@ function discoverBalanced(array $items, int $limit, int $perProfile = 2): array 
     return $result;
 }
 
+function discoverIsIdentityTopic(string $topicSlug, array $identitySlugs): bool {
+    $topicKey = str_replace('-', '', $topicSlug);
+    foreach ($identitySlugs as $identitySlug => $_) {
+        $identityKey = str_replace('-', '', (string)$identitySlug);
+        if ($topicKey === $identityKey) return true;
+        if (strlen($topicKey) >= 4 && strlen($identityKey) >= 4
+            && (str_contains($identityKey, $topicKey) || str_contains($topicKey, $identityKey))) return true;
+    }
+    return false;
+}
+
 // I nomi di attività/account non devono finire tra gli argomenti.
 $identitySlugs = [];
 foreach ($profiles as $profile) {
@@ -110,7 +121,7 @@ foreach ($articles as &$article) {
     $article['_topics'] = [];
     foreach (array_unique(array_filter(array_map('trim', $decodedTags))) as $tag) {
         $topicSlug = discoverSlug($tag);
-        if ($topicSlug === '' || strlen($topicSlug) < 3 || isset($identitySlugs[$topicSlug]) || isset($genericTopics[$topicSlug])) continue;
+        if ($topicSlug === '' || strlen($topicSlug) < 3 || discoverIsIdentityTopic($topicSlug, $identitySlugs) || isset($genericTopics[$topicSlug])) continue;
         $article['_topics'][] = $topicSlug;
         if (!isset($topics[$topicSlug])) $topics[$topicSlug] = ['slug'=>$topicSlug, 'label'=>$tag, 'count'=>0, 'articles'=>[]];
         $topics[$topicSlug]['count']++;
