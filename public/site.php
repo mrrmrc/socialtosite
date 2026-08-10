@@ -953,6 +953,36 @@ function bodySanitizeHtml(string $html): string {
     return $out;
 }
 
+/**
+ * Articoli da proporre in fondo a una pagina-risposta.
+ * Prima quelli che condividono più tag con l'articolo letto: chi ha appena
+ * trovato una risposta utile è disposto a leggerne un'altra sullo stesso tema.
+ * Se non c'è nessuna affinità si ripiega sui più recenti, così il fondo pagina
+ * non resta mai un vicolo cieco.
+ */
+function relatedPosts(array $current, array $all, int $limit = 3): array {
+    $currentSlug = (string)($current['slug'] ?? '');
+    $currentTags = array_map('mb_strtolower', array_filter((array)($current['tags'] ?? [])));
+
+    $scored = [];
+    foreach ($all as $post) {
+        if ((string)($post['slug'] ?? '') === $currentSlug) continue;
+        if (!empty($post['noindex'])) continue;
+        $tags = array_map('mb_strtolower', array_filter((array)($post['tags'] ?? [])));
+        $scored[] = ['post' => $post, 'score' => count(array_intersect($currentTags, $tags))];
+    }
+    if (!$scored) return [];
+
+    usort($scored, static function (array $a, array $b): int {
+        if ($a['score'] !== $b['score']) return $b['score'] <=> $a['score'];
+        $da = strtotime((string)($a['post']['published_at'] ?? $a['post']['imported_at'] ?? '1970-01-01'));
+        $db = strtotime((string)($b['post']['published_at'] ?? $b['post']['imported_at'] ?? '1970-01-01'));
+        return $db <=> $da;
+    });
+
+    return array_column(array_slice($scored, 0, $limit), 'post');
+}
+
 function bodyHtml(?string $b): string {
     $b = trim((string)$b);
     if ($b === '') return '';
@@ -1950,6 +1980,59 @@ header('Link: <' . $siteUrl . '/feed.xml>; rel="alternate"; type="application/at
     /* Single post */
     .single-post { max-width: 820px; margin: 0 auto; background: var(--card-bg, #fff); border-radius: 20px; padding: 3rem; box-shadow: 0 4px 30px rgba(0,0,0,0.06); }
     .single-post h1 { font-size: 2.2rem; margin-bottom: 1.5rem; line-height: 1.25; }
+
+    /* ── Dopo la risposta: azione, autore, contenuti collegati ───────────── */
+    .answer-cta, .answer-author, .answer-related {
+      max-width: 820px; margin: 1.25rem auto 0;
+      padding: 1.75rem; border-radius: var(--radius);
+      background: var(--card-bg); border: 1px solid var(--border);
+    }
+    .answer-cta { border-left: 4px solid var(--accent); }
+    .answer-cta h2 { margin: 0 0 .5rem; font-size: 1.3rem; line-height: 1.3; }
+    .answer-cta p { margin: 0 0 1.25rem; opacity: .8; line-height: 1.6; }
+    .answer-cta-actions { display: flex; flex-wrap: wrap; gap: .65rem; }
+    .answer-btn {
+      display: inline-flex; align-items: center; justify-content: center;
+      padding: .8rem 1.35rem; border-radius: 999px; text-decoration: none;
+      font-weight: 700; font-size: .95rem;
+      border: 1px solid var(--accent); color: var(--accent); background: transparent;
+      transition: background .15s ease, color .15s ease;
+    }
+    .answer-btn:hover { background: var(--accent); color: var(--card-bg); }
+    .answer-btn--primary { background: var(--accent); color: var(--card-bg); }
+    .answer-btn--primary:hover { filter: brightness(1.1); }
+
+    .answer-author { display: flex; gap: 1.15rem; align-items: flex-start; }
+    .answer-author img { width: 64px; height: 64px; border-radius: 50%; object-fit: cover; flex-shrink: 0; }
+    .answer-author-label { font-size: .7rem; text-transform: uppercase; letter-spacing: .1em; opacity: .6; margin-bottom: .2rem; }
+    .answer-author strong { display: block; font-size: 1.1rem; margin-bottom: .4rem; }
+    .answer-author p { margin: 0 0 .6rem; opacity: .8; line-height: 1.6; font-size: .95rem; }
+    .answer-author a { color: var(--accent); font-weight: 600; }
+
+    .answer-related h2 { margin: 0 0 1.15rem; font-size: 1.15rem; }
+    .answer-related-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; }
+    .answer-related-grid a {
+      display: flex; flex-direction: column; gap: .6rem; text-decoration: none;
+      color: inherit; padding: .85rem; border-radius: calc(var(--radius) / 1.5);
+      border: 1px solid var(--border); transition: border-color .15s ease;
+    }
+    .answer-related-grid a:hover { border-color: var(--accent); }
+    .answer-related-grid img { width: 100%; aspect-ratio: 16/10; object-fit: cover; border-radius: calc(var(--radius) / 2); }
+    .answer-related-grid span { font-weight: 650; line-height: 1.4; font-size: .95rem; }
+
+    .answer-source {
+      max-width: 820px; margin: 1.25rem auto 0; padding: 0 1.75rem;
+      font-size: .82rem; line-height: 1.6; opacity: .62;
+    }
+    .answer-source a { color: inherit; text-decoration: underline; }
+
+    @media (max-width: 560px) {
+      .answer-cta, .answer-author, .answer-related { padding: 1.25rem; }
+      .answer-cta-actions .answer-btn { flex: 1 1 100%; }
+      .answer-author { flex-direction: column; }
+    }
+    @media (prefers-reduced-motion: reduce) { .answer-btn, .answer-related-grid a { transition: none; } }
+
     .body-content { font-size: 1.05rem; line-height: 1.85; opacity: 0.85; }
     .body-content p { margin-bottom: 1.5rem; }
     .pro-tip {
@@ -2555,15 +2638,78 @@ ob_start();
     </div>
     <h1 itemprop="headline"><?= h(postTitle($p)) ?></h1>
     <div class="body-content" itemprop="articleBody"><?= bodyHtml(postBody($p)) ?></div>
-    <?php if (!empty($p['source_url'])): ?>
-    <a class="source-link" href="<?= h($p['source_url']) ?>" target="_blank" rel="noopener">Originale su <?= h($p['platform']) ?></a>
-    <?php endif; ?>
     <?php if ($p['tags']): ?>
     <div class="tags" style="margin-top:2rem;">
       <?php foreach ($p['tags'] as $tag): ?><a class="tag" href="<?= $siteUrl ?>/categoria/<?= rawurlencode(networkTopicSlug($tag)) ?>">#<?= h($tag) ?></a><?php endforeach; ?>
     </div>
     <?php endif; ?>
   </article>
+
+  <?php
+  // ── Dopo la risposta ────────────────────────────────────────────────────
+  // Chi arriva da una ricerca atterra quasi sempre qui, non in home: questo e
+  // il momento di massimo interesse, e prima finiva in un vicolo cieco.
+  // Si mostrano solo gli elementi realmente disponibili: nessun pulsante finto.
+  $phone = trim((string)($reachabilityProfile['phone'] ?? ''));
+  $whatsapp = trim((string)($reachabilityProfile['whatsapp'] ?? ''));
+  $email = trim((string)($reachabilityProfile['email'] ?? ''));
+  $contactPage = isset($foundationPagesBySlug['contatti']) ? $siteUrl . '/contatti' : '';
+  $aboutPage = isset($foundationPagesBySlug['chi-siamo']) ? $siteUrl . '/chi-siamo' : '';
+  $hasActions = $phone !== '' || $whatsapp !== '' || $email !== '' || $contactPage !== '';
+  $related = relatedPosts($p, $allPosts, 3);
+  $authorBio = trim((string)($site['profile_summary'] ?? ($site['bio'] ?? '')));
+  ?>
+
+  <?php if ($hasActions): ?>
+  <section class="answer-cta" aria-labelledby="answer-cta-title">
+    <h2 id="answer-cta-title"><?= $livingDesiredAction !== '' ? h($livingDesiredAction) : 'Parliamone' ?></h2>
+    <p>Se questa risposta ti e stata utile e vuoi un parere sul tuo caso, <?= h($displayTitle) ?> e raggiungibile qui.</p>
+    <div class="answer-cta-actions">
+      <?php if ($phone !== ''): ?><a class="answer-btn answer-btn--primary" href="tel:<?= h($phone) ?>">Chiama <?= h($phone) ?></a><?php endif; ?>
+      <?php if ($whatsapp !== ''): ?><a class="answer-btn" href="https://wa.me/<?= h($whatsapp) ?>" target="_blank" rel="noopener">Scrivi su WhatsApp</a><?php endif; ?>
+      <?php if ($email !== ''): ?><a class="answer-btn" href="mailto:<?= h($email) ?>">Manda una email</a><?php endif; ?>
+      <?php if ($contactPage !== ''): ?><a class="answer-btn" href="<?= h($contactPage) ?>">Vai ai contatti</a><?php endif; ?>
+    </div>
+  </section>
+  <?php endif; ?>
+
+  <?php if ($authorBio !== '' || $logoUrl): ?>
+  <section class="answer-author" itemscope itemtype="https://schema.org/Person">
+    <?php if ($logoUrl): ?><img src="<?= h($logoUrl) ?>" alt="" loading="lazy" width="64" height="64"><?php endif; ?>
+    <div>
+      <div class="answer-author-label">Scritto da</div>
+      <strong itemprop="name"><?= h($displayTitle) ?></strong>
+      <?php if ($authorBio !== ''): ?><p itemprop="description"><?= h(mb_substr($authorBio, 0, 260)) ?></p><?php endif; ?>
+      <?php if ($aboutPage !== ''): ?><a href="<?= h($aboutPage) ?>">Chi siamo</a><?php endif; ?>
+    </div>
+  </section>
+  <?php endif; ?>
+
+  <?php if ($related): ?>
+  <section class="answer-related" aria-labelledby="answer-related-title">
+    <h2 id="answer-related-title">Continua a leggere</h2>
+    <div class="answer-related-grid">
+      <?php foreach ($related as $rel): ?>
+      <a href="<?= $siteUrl . '/' . h($rel['slug'] ?? '') ?>">
+        <?php if (!empty($rel['media_url']) && strtolower((string)($rel['media_type'] ?? '')) !== 'video'): ?>
+          <img src="<?= h($rel['media_url']) ?>" alt="" loading="lazy">
+        <?php endif; ?>
+        <span><?= h(postTitle($rel)) ?></span>
+      </a>
+      <?php endforeach; ?>
+    </div>
+  </section>
+  <?php endif; ?>
+
+  <?php if (!empty($p['source_url'])): ?>
+  <?php // Attribuzione della fonte: resta, ma come nota di provenienza in
+        // fondo, non come unico invito ad agire della pagina. ?>
+  <p class="answer-source">
+    Questo testo nasce da un contenuto pubblicato da <?= h($displayTitle) ?>
+    su <?= h($p['platform']) ?><?= $p['published_at'] ? ' il ' . date('d/m/Y', strtotime($p['published_at'])) : '' ?>.
+    <a href="<?= h($p['source_url']) ?>" target="_blank" rel="noopener nofollow">Vedi l'originale</a>
+  </p>
+  <?php endif; ?>
 
 <?php else: ?>
 

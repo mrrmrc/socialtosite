@@ -31,6 +31,31 @@ class ReachabilityNetwork {
         return is_array($decoded) ? $decoded : [];
     }
 
+    /** Numero pronto per un link tel: — tiene cifre e prefisso internazionale. */
+    private static function phone(string $value): string {
+        $value = trim($value);
+        if ($value === '') return '';
+        $plus = str_starts_with($value, '+');
+        $digits = preg_replace('/\D+/', '', $value) ?? '';
+        if (strlen($digits) < 6 || strlen($digits) > 15) return '';
+        return ($plus ? '+' : '') . $digits;
+    }
+
+    /** wa.me vuole solo cifre con prefisso paese, senza + e senza spazi. */
+    private static function whatsapp(string $value): string {
+        $digits = preg_replace('/\D+/', '', trim($value)) ?? '';
+        if (strlen($digits) < 8 || strlen($digits) > 15) return '';
+        // Numero italiano scritto senza prefisso: lo completiamo, altrimenti
+        // wa.me apre una chat verso un numero inesistente.
+        if (strlen($digits) === 10 && str_starts_with($digits, '3')) $digits = '39' . $digits;
+        return $digits;
+    }
+
+    private static function email(string $value): string {
+        $value = trim($value);
+        return filter_var($value, FILTER_VALIDATE_EMAIL) ? mb_substr($value, 0, 190) : '';
+    }
+
     public static function normalize(array $input): array {
         $areas = $input['service_areas'] ?? [];
         if (is_string($areas)) $areas = preg_split('/[\r\n,]+/', $areas);
@@ -44,6 +69,11 @@ class ReachabilityNetwork {
             'primary_topic' => mb_substr(trim((string)($input['primary_topic'] ?? '')), 0, 180),
             'service_areas' => array_slice($areas, 0, 12),
             'reciprocal_link_confirmed' => !empty($input['reciprocal_link_confirmed']),
+            // Contatti diretti: alimentano i pulsanti in fondo agli articoli,
+            // che è il punto in cui atterra chi arriva da una ricerca.
+            'phone' => self::phone((string)($input['phone'] ?? '')),
+            'whatsapp' => self::whatsapp((string)($input['whatsapp'] ?? '')),
+            'email' => self::email((string)($input['email'] ?? '')),
         ];
     }
 
