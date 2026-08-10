@@ -3,14 +3,24 @@
 require_once __DIR__ . '/../config/db.php';
 require_once __DIR__ . '/../config/config.php';
 
-$profiles = DB::fetchAll(
+$profiles = // La colonna search_visible può non esistere se la migrazione non è ancora
+// stata applicata: in quel caso si considerano tutti i siti visibili.
+$hasVisibilityColumn = false;
+try {
+    foreach (DB::fetchAll('SHOW COLUMNS FROM sites') as $column) {
+        if (($column['Field'] ?? '') === 'search_visible') { $hasVisibilityColumn = true; break; }
+    }
+} catch (Throwable $e) { $hasVisibilityColumn = false; }
+$visibilityFilter = $hasVisibilityColumn ? ' AND s.search_visible = 1' : '';
+
+DB::fetchAll(
     'SELECT u.slug, COALESCE(NULLIF(s.title, ""), u.name, u.slug) AS title,
             COALESCE(NULLIF(s.bio, ""), NULLIF(s.profile_summary, ""), "") AS description,
             s.logo_url, s.last_sync,
             (SELECT COUNT(*) FROM posts p WHERE p.user_id=u.id AND p.published=1 AND p.seo_score>0) AS post_count
        FROM users u
        JOIN sites s ON s.user_id=u.id
-      WHERE u.slug IS NOT NULL AND u.slug != ""
+      WHERE u.slug IS NOT NULL AND u.slug != ""' . $visibilityFilter . '
       ORDER BY COALESCE(s.last_sync, s.created_at) DESC'
 );
 
@@ -21,7 +31,7 @@ $articles = DB::fetchAll(
        FROM posts p
        JOIN users u ON u.id=p.user_id
        JOIN sites s ON s.user_id=u.id
-      WHERE p.published=1 AND p.seo_score>0 AND p.slug IS NOT NULL AND p.slug != ""
+      WHERE p.published=1 AND p.seo_score>0 AND p.slug IS NOT NULL AND p.slug != ""' . $visibilityFilter . '
       ORDER BY p.published_at DESC, p.id DESC
       LIMIT 500'
 );

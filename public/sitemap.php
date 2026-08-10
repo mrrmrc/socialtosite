@@ -3,13 +3,22 @@
 require_once __DIR__ . '/../config/db.php';
 require_once __DIR__ . '/../config/config.php';
 
-// Seleziona tutti gli utenti che hanno un sito configurato
+// La colonna search_visible può non esistere se la migrazione non è ancora
+// stata applicata: in quel caso si considerano tutti i siti visibili.
+$hasVisibilityColumn = false;
+try {
+    foreach (DB::fetchAll('SHOW COLUMNS FROM sites') as $column) {
+        if (($column['Field'] ?? '') === 'search_visible') { $hasVisibilityColumn = true; break; }
+    }
+} catch (Throwable $e) { $hasVisibilityColumn = false; }
+$visibilityFilter = $hasVisibilityColumn ? ' AND s.search_visible = 1' : '';
+
+// Solo i siti che hanno acceso "Fatti trovare da Google".
 $users = DB::fetchAll('
-    SELECT u.slug, s.last_sync 
+    SELECT u.slug, s.last_sync
     FROM users u
     JOIN sites s ON u.id = s.user_id
-    WHERE u.slug IS NOT NULL AND u.slug != ""
-');
+    WHERE u.slug IS NOT NULL AND u.slug != ""' . $visibilityFilter);
 
 header('Content-Type: application/xml; charset=utf-8');
 echo '<?xml version="1.0" encoding="UTF-8"?>' . "\n";

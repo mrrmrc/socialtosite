@@ -17,3 +17,8 @@ CREATE TABLE IF NOT EXISTS login_attempts (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 ALTER TABLE users ADD COLUMN token_version INT NOT NULL DEFAULT 0;
+
+-- Interruttore "Fatti trovare da Google", per sito.
+-- Default 1: i siti già online restano visibili, nessuno viene deindicizzato
+-- di soppiatto dall'applicazione della migrazione.
+ALTER TABLE sites ADD COLUMN search_visible TINYINT NOT NULL DEFAULT 1;

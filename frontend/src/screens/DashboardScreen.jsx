@@ -453,6 +453,7 @@ const [importMsg, setImportMsg] = useState(null);
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [reachabilityDraft, setReachabilityDraft] = useState({ official_site_url: '', business_profile_url: '', primary_topic: '', service_areas: [], reciprocal_link_confirmed: false });
   const [savingReachability, setSavingReachability] = useState(false);
+  const [savingSearchVisible, setSavingSearchVisible] = useState(false);
   const [preparingIdea, setPreparingIdea] = useState(-1);
   const [promptDrafts, setPromptDrafts] = useState({});
   const [savingPromptName, setSavingPromptName] = useState('');
@@ -1186,6 +1187,30 @@ const [importMsg, setImportMsg] = useState(null);
       setSyncMsg({ ok: false, text: err.message });
     }
     setSavingProfile(false);
+  }
+
+  // Interruttore "Fatti trovare da Google" per l'intero sito.
+  async function toggleSearchVisible(nextValue) {
+    setSavingSearchVisible(true);
+    // Aggiornamento ottimistico: l'interruttore deve rispondere subito.
+    setData(prev => prev ? { ...prev, site: { ...prev.site, search_visible: nextValue ? 1 : 0 } } : prev);
+    try {
+      await apiFetch('/api/index.php?action=site-update', {
+        method: 'POST',
+        body: JSON.stringify({ search_visible: nextValue ? 1 : 0 })
+      }, token);
+      setSyncMsg({
+        ok: true,
+        text: nextValue
+          ? 'Il sito è ora aperto ai motori di ricerca. Google può impiegare qualche giorno a rilevarlo.'
+          : 'Il sito è nascosto ai motori di ricerca. Resta raggiungibile da chi ha il link.'
+      });
+    } catch (err) {
+      // Ripristina lo stato precedente: l'interruttore non deve mentire.
+      setData(prev => prev ? { ...prev, site: { ...prev.site, search_visible: nextValue ? 0 : 1 } } : prev);
+      setSyncMsg({ ok: false, text: err.message || 'Non è stato possibile aggiornare la visibilità.' });
+    }
+    setSavingSearchVisible(false);
   }
 
   async function chooseTheme(theme) {
@@ -2396,6 +2421,32 @@ const [importMsg, setImportMsg] = useState(null);
         {/* Tab: SEO */}
         {tab === 'seo' && (
           <div>
+            {/* Interruttore principale: se è spento, tutto il resto di questa
+                scheda non produce risultati su Google. Va quindi in cima. */}
+            <div className={`search-visibility-card ${Number(site?.search_visible) === 0 ? 'is-off' : 'is-on'}`}>
+              <div className="search-visibility-copy">
+                <h3>Fatti trovare da Google</h3>
+                <p>
+                  {Number(site?.search_visible) === 0
+                    ? 'Il sito è online e raggiungibile da chi ha il link, ma chiede ai motori di ricerca di non indicizzarlo. Attivalo quando i contenuti sono pronti.'
+                    : 'Il sito è aperto ai motori di ricerca: pagine e articoli possono comparire nei risultati e sono elencati nella sitemap.'}
+                </p>
+              </div>
+              <label className="search-visibility-switch">
+                <input
+                  type="checkbox"
+                  role="switch"
+                  checked={Number(site?.search_visible) !== 0}
+                  disabled={savingSearchVisible}
+                  onChange={e => toggleSearchVisible(e.target.checked)}
+                />
+                <span className="search-visibility-track" aria-hidden="true"><span className="search-visibility-thumb" /></span>
+                <span className="search-visibility-state">
+                  {savingSearchVisible ? 'Salvataggio…' : (Number(site?.search_visible) === 0 ? 'Nascosto' : 'Visibile')}
+                </span>
+              </label>
+            </div>
+
             <div className="glass-modal" style={{ marginBottom: '1.25rem', padding: '0.65rem', display: 'flex', gap: '8px', flexWrap: 'wrap', position: 'sticky', top: '12px', zIndex: 20 }}>
               {[
                 ['network', '◎ Network'],

@@ -101,6 +101,7 @@ CREATE TABLE IF NOT EXISTS sites (
   rag_knowledge LONGTEXT,
   custom_domain VARCHAR(255),
   theme         VARCHAR(50) DEFAULT 'classic',
+  search_visible TINYINT NOT NULL DEFAULT 1,
   seo_score     INT DEFAULT 0,
   generated_layouts LONGTEXT,
   site_ai_data  LONGTEXT,

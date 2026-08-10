@@ -429,3 +429,40 @@ h3 { font-size: 18px; font-weight: 600; }
   33% { transform: translate(30px, -30px) scale(1.05); }
   66% { transform: translate(-20px, 20px) scale(0.97); }
 }
+
+/* ── Interruttore "Fatti trovare da Google" ───────────────────────────────
+   Vive in cima alla scheda SEO: se è spento, nessuna delle azioni sottostanti
+   produce risultati sui motori di ricerca, quindi lo stato dev'essere
+   leggibile a colpo d'occhio senza aprire nulla. */
+.search-visibility-card {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 1.25rem; flex-wrap: wrap;
+  padding: 1.15rem 1.35rem; margin-bottom: 1.25rem;
+  border: 1px solid var(--border); border-left: 4px solid var(--teal);
+  border-radius: 16px; background: var(--surface);
+}
+.search-visibility-card.is-off { border-left-color: var(--amber); background: var(--amber-light); }
+.search-visibility-copy { flex: 1 1 320px; min-width: 0; }
+.search-visibility-copy h3 { margin: 0 0 .3rem; font-size: 17px; color: var(--text); }
+.search-visibility-copy p { margin: 0; font-size: 14px; line-height: 1.6; color: var(--text-muted); max-width: 62ch; }
+
+.search-visibility-switch { display: inline-flex; align-items: center; gap: .7rem; cursor: pointer; flex-shrink: 0; }
+.search-visibility-switch input { position: absolute; opacity: 0; width: 0; height: 0; }
+.search-visibility-track {
+  position: relative; width: 52px; height: 30px; border-radius: 999px;
+  background: var(--amber); transition: background .18s ease; flex-shrink: 0;
+}
+.search-visibility-thumb {
+  position: absolute; top: 3px; left: 3px; width: 24px; height: 24px;
+  border-radius: 50%; background: #fff; transition: transform .18s ease;
+  box-shadow: 0 1px 3px rgba(0,0,0,.28);
+}
+.search-visibility-switch input:checked + .search-visibility-track { background: var(--teal); }
+.search-visibility-switch input:checked + .search-visibility-track .search-visibility-thumb { transform: translateX(22px); }
+.search-visibility-switch input:disabled + .search-visibility-track { opacity: .55; }
+.search-visibility-switch input:focus-visible + .search-visibility-track { outline: 2px solid var(--primary); outline-offset: 3px; }
+.search-visibility-state { font-size: 13px; font-weight: 800; color: var(--text); min-width: 5.5rem; }
+
+@media (prefers-reduced-motion: reduce) {
+  .search-visibility-track, .search-visibility-thumb { transition: none; }
+}

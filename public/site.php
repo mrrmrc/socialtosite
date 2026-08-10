@@ -140,7 +140,20 @@ if ($postSlug !== '' && !$foundationPage && !$single && $action === 'site') {
     echo '<!doctype html><html lang="it"><meta charset="utf-8"><title>Pagina non trovata</title><body><main><h1>Pagina non trovata</h1><p><a href="/' . htmlspecialchars($slug, ENT_QUOTES, 'UTF-8') . '">Torna al sito</a></p></main></body></html>';
     exit;
 }
-if ($single && !empty($single['noindex'])) {
+// ── Interruttore di sito: "Fatti trovare da Google" ────────────────────────
+// Quando è spento il sito resta perfettamente raggiungibile da chi ha il link,
+// ma chiede ai motori di non indicizzarlo. Serve a chi sta ancora preparando i
+// contenuti: un sito vuoto finito nell'indice è un danno che poi va rimediato.
+// Il valore predefinito è "acceso": nessun sito già online si spegne da solo.
+$searchVisible = !array_key_exists('search_visible', $site) || !empty($site['search_visible']);
+
+if (!$searchVisible) {
+    // nofollow oltre a noindex: se il sito non deve essere trovato, non ha
+    // senso far consumare a Google il budget di scansione sui link interni.
+    header('X-Robots-Tag: noindex, nofollow', true);
+} elseif ($single && !empty($single['noindex'])) {
+    // Esclusione del singolo articolo: la pagina esce dall'indice ma i link
+    // continuano a trasmettere valore al resto del sito.
     header('X-Robots-Tag: noindex, follow', true);
 }
 
@@ -150,6 +163,9 @@ if ($action === 'sitemap') {
     $base = BASE_URL . '/' . $slug;
     echo '<?xml version="1.0" encoding="UTF-8"?>' . "\n";
     echo '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">' . "\n";
+    // Sito non visibile: sitemap valida ma vuota. Proporre a Google gli URL di
+    // pagine marcate noindex sarebbe un segnale contraddittorio.
+    if (!$searchVisible) { echo '</urlset>'; exit; }
     $latestSiteDate = '';
     foreach ($chronologicalPosts as $chronologicalPost) {
         $candidateDate = $chronologicalPost['updated_at'] ?? $chronologicalPost['published_at'] ?? $chronologicalPost['imported_at'] ?? '';
@@ -1744,8 +1760,13 @@ header('Link: <' . $siteUrl . '/feed.xml>; rel="alternate"; type="application/at
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <?php 
-    if (!empty($site['gsc_verification'])): 
+  <?php if (!$searchVisible): ?>
+    <?php /* Interruttore "Fatti trovare da Google" spento: vale per ogni tipo
+             di pagina del sito, non solo per gli articoli. */ ?>
+    <meta name="robots" content="noindex, nofollow">
+  <?php endif; ?>
+  <?php
+    if (!empty($site['gsc_verification'])):
       $gsc = trim($site['gsc_verification']);
       if (preg_match('/content="([^"]+)"/i', $gsc, $m)) $gsc = $m[1];
       else if (stripos($gsc, 'google-site-verification=') === 0) $gsc = substr($gsc, 25);
@@ -1762,7 +1783,7 @@ header('Link: <' . $siteUrl . '/feed.xml>; rel="alternate"; type="application/at
   <?php elseif ($single): ?>
     <title><?= h(postTitle($single)) ?> - <?= $title ?></title>
     <meta name="description" content="<?= h(postExcerpt($single)) ?>">
-    <?php if (!empty($single['noindex'])): ?><meta name="robots" content="noindex, follow"><?php endif; ?>
+    <?php if ($searchVisible && !empty($single['noindex'])): ?><meta name="robots" content="noindex, follow"><?php endif; ?>
     <meta property="og:title" content="<?= h(postTitle($single)) ?>">
     <meta property="og:description" content="<?= h(postExcerpt($single)) ?>">
     <meta property="og:type" content="article">
