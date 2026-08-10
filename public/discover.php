@@ -17,6 +17,8 @@ $profiles = DB::fetchAll(
             s.logo_url, s.last_sync,
             (SELECT GROUP_CONCAT(DISTINCT sc.handle SEPARATOR "||")
                FROM social_connections sc WHERE sc.user_id=u.id AND sc.handle IS NOT NULL AND sc.handle != "") AS social_handles,
+            (SELECT GROUP_CONCAT(DISTINCT CONCAT(COALESCE(ss.label, ""), "@@", ss.url) SEPARATOR "||")
+               FROM social_sources ss WHERE ss.user_id=u.id) AS social_sources,
             (SELECT COUNT(*) FROM posts p WHERE p.user_id=u.id AND p.published=1 AND p.seo_score>0) AS post_count
        FROM users u
        JOIN sites s ON s.user_id=u.id
@@ -85,6 +87,15 @@ foreach ($profiles as $profile) {
     $identitySlugs[discoverSlug((string)$profile['title'])] = true;
     foreach (explode('||', (string)($profile['social_handles'] ?? '')) as $handle) {
         $handleSlug = discoverSlug(ltrim(trim($handle), '@'));
+        if ($handleSlug !== '') $identitySlugs[$handleSlug] = true;
+    }
+    foreach (explode('||', (string)($profile['social_sources'] ?? '')) as $source) {
+        [$label, $url] = array_pad(explode('@@', $source, 2), 2, '');
+        $labelSlug = discoverSlug($label);
+        if ($labelSlug !== '') $identitySlugs[$labelSlug] = true;
+        $path = trim((string)parse_url($url, PHP_URL_PATH), '/');
+        $handle = $path !== '' ? basename($path) : '';
+        $handleSlug = discoverSlug(ltrim($handle, '@'));
         if ($handleSlug !== '') $identitySlugs[$handleSlug] = true;
     }
 }
