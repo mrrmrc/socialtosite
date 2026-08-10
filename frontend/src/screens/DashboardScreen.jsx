@@ -461,12 +461,20 @@ const [importMsg, setImportMsg] = useState(null);
   const [reachabilityDraft, setReachabilityDraft] = useState({ presence_mode: 'undecided', official_site_url: '', business_profile_url: '', primary_topic: '', service_areas: [], reciprocal_link_confirmed: false, phone: '', whatsapp: '', email: '', search_console_choice: 'unknown' });
   const [savingReachability, setSavingReachability] = useState(false);
   const [savingSearchVisible, setSavingSearchVisible] = useState(false);
+  const [aiContentIdeas, setAiContentIdeas] = useState([]);
+  const [ideasGeneratedAt, setIdeasGeneratedAt] = useState('');
+  const [ideasNewsSignals, setIdeasNewsSignals] = useState(0);
+  const [generatingIdeas, setGeneratingIdeas] = useState(false);
+  const [articleLength, setArticleLength] = useState('compact');
   const [preparingIdea, setPreparingIdea] = useState(-1);
   const [editingIdea, setEditingIdea] = useState(null);      // {index, title, reason}
   const [customIdeaOpen, setCustomIdeaOpen] = useState(false);
   const [customIdea, setCustomIdea] = useState({ title: '', reason: '' });
   const [dismissedIdeaKeys, setDismissedIdeaKeys] = useState([]);
   const [dismissingIdeaKey, setDismissingIdeaKey] = useState('');
+  const [socialComposer, setSocialComposer] = useState(null);
+  const [socialPlatform, setSocialPlatform] = useState('instagram');
+  const [generatingSocial, setGeneratingSocial] = useState(false);
   const [promptDrafts, setPromptDrafts] = useState({});
   const [savingPromptName, setSavingPromptName] = useState('');
   const [passwordForm, setPasswordForm] = useState({ current: '', next: '', confirm: '' });
@@ -1150,6 +1158,67 @@ const [importMsg, setImportMsg] = useState(null);
     setSavingReachability(false);
   }
 
+  async function generateAiContentIdeas() {
+    setGeneratingIdeas(true);
+    setSyncMsg({ ok: true, loading: true, text: 'L\'AI sta leggendo profilo, contenuti, ricerche e temi attuali…' });
+    try {
+      const result = await apiFetch('/api/index.php?action=generate-content-ideas', {
+        method: 'POST',
+        body: JSON.stringify({ count: 5 }),
+      }, token);
+      setAiContentIdeas(Array.isArray(result.ideas) ? result.ideas : []);
+      setIdeasGeneratedAt(result.generated_at || new Date().toISOString());
+      setIdeasNewsSignals(Number(result.news_signals || 0));
+      setSyncMsg({ ok: true, text: '5 nuove proposte create dall\'AI. Scegline una per l\'articolo o per un social.' });
+    } catch (error) {
+      setSyncMsg({ ok: false, text: error.message });
+    } finally {
+      setGeneratingIdeas(false);
+    }
+  }
+
+  async function generateSocialContent(idea, platform = socialPlatform) {
+    setGeneratingSocial(true);
+    setSocialPlatform(platform);
+    setSyncMsg({ ok: true, loading: true, text: `Preparo una versione specifica per ${SOCIAL[platform]?.label || platform}…` });
+    try {
+      const result = await apiFetch('/api/index.php?action=generate-social-content', {
+        method: 'POST',
+        body: JSON.stringify({ idea, platform }),
+      }, token);
+      setSocialComposer({ idea, ...(result.content || {}), publishNote: result.publish_note || '' });
+      setSyncMsg({ ok: true, text: 'Post social generato. Controllalo e poi scegli Condividi.' });
+    } catch (error) {
+      setSyncMsg({ ok: false, text: error.message });
+    } finally {
+      setGeneratingSocial(false);
+    }
+  }
+
+  function socialShareText() {
+    if (!socialComposer) return '';
+    const hashtags = (socialComposer.hashtags || []).map(tag => `#${String(tag).replace(/^#/, '').replace(/\s+/g, '')}`).join(' ');
+    return [socialComposer.caption || '', hashtags].filter(Boolean).join('\n\n');
+  }
+
+  async function shareSocialContent() {
+    const text = socialShareText();
+    if (!text) return;
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: socialComposer.headline || socialComposer.idea?.title || 'Nuovo contenuto', text });
+        setSyncMsg({ ok: true, text: 'Contenuto inviato al menu di condivisione. Conferma nell\'app social.' });
+        return;
+      } catch (error) {
+        if (error?.name === 'AbortError') return;
+      }
+    }
+    await navigator.clipboard.writeText(text);
+    const destinations = { instagram: 'https://www.instagram.com/', facebook: 'https://www.facebook.com/', tiktok: 'https://www.tiktok.com/upload', linkedin: 'https://www.linkedin.com/feed/' };
+    window.open(destinations[socialPlatform] || destinations.instagram, '_blank', 'noopener');
+    setSyncMsg({ ok: true, text: 'Testo copiato. Incollalo nel social appena aperto e conferma la pubblicazione.' });
+  }
+
   async function createIdeaDraft(idea, index, mode = 'ai') {
     if (!String(idea?.title || '').trim()) {
       setSyncMsg({ ok: false, text: 'Serve un titolo per creare la bozza.' });
@@ -1167,7 +1236,7 @@ const [importMsg, setImportMsg] = useState(null);
     try {
       const result = await apiFetch('/api/index.php?action=create-idea-draft', {
         method: 'POST',
-        body: JSON.stringify({ ...idea, mode }),
+        body: JSON.stringify({ ...idea, mode, length: articleLength }),
         signal: controller.signal,
       }, token);
       const [freshData] = await Promise.all([loadData(), loadDrafts()]);
@@ -1739,7 +1808,7 @@ const [importMsg, setImportMsg] = useState(null);
   let seoFoundation = {};
   try { seoFoundation = typeof site?.seo_foundation === 'string' ? JSON.parse(site.seo_foundation) : (site?.seo_foundation || {}); } catch (_) { seoFoundation = {}; }
   const dismissedIdeaKeySet = new Set(dismissedIdeaKeys);
-  const contentIdeas = buildEditorialIdeas(posts, understandingDraft || understandingReport, visibility)
+  const contentIdeas = (aiContentIdeas.length ? aiContentIdeas : buildEditorialIdeas(posts, understandingDraft || understandingReport, visibility))
     .filter(idea => !dismissedIdeaKeySet.has(editorialIdeaKey(idea)));
   const activeUnderstanding = understandingDraft || understandingReport || {};
   const declaredStrategy = activeUnderstanding.declared_strategy || {};
@@ -1750,26 +1819,14 @@ const [importMsg, setImportMsg] = useState(null);
   const connByPlatform = connections.reduce((acc, c) => ({ ...acc, [c.platform]: c }), {});
   const navigationGroups = [
     {
-      label: 'Lavora sui contenuti',
+      label: 'Menu',
       items: [
-        { id: 'overview', icon: '⌂', label: 'Panoramica', hint: 'Stato e risultati' },
-        { id: 'seo', section: 'ideas', icon: '✦', label: 'Idee contenuti', hint: 'Scegli cosa pubblicare' },
+        { id: 'overview', icon: '⌂', label: 'Panoramica', hint: 'Cosa succede oggi' },
+        { id: 'seo', section: 'ideas', icon: '✦', label: 'Crea', hint: 'Idee, AI e social' },
         { id: 'site', icon: '▤', label: 'Articoli', hint: 'Bozze e pubblicati' },
-      ],
-    },
-    {
-      label: 'Presenza online',
-      items: [
-        { id: 'sources', icon: '◉', label: 'Canali collegati', hint: 'Social e fonti' },
-        { id: 'seo', section: 'network', icon: '◎', label: 'Visibilità', hint: 'Google e rete' },
-        { id: 'experience', icon: '◇', label: 'Aspetto del sito', hint: 'Layout e identità' },
-        { id: 'strategy', icon: '✓', label: 'Profilo attività', hint: 'Obiettivi e pubblico' },
-      ],
-    },
-    {
-      label: 'Supporto',
-      items: [
-        { id: 'services', icon: '↗', label: 'Servizi opzionali', hint: 'Interventi su richiesta' },
+        { id: 'sources', icon: '◉', label: 'Canali', hint: 'Contenuti acquisiti' },
+        { id: 'seo', section: 'network', icon: '◎', label: 'Visibilità', hint: 'Presenza e Google' },
+        { id: 'account', icon: '⚙', label: 'Impostazioni', hint: 'Profilo, aspetto e account' },
       ],
     },
     ...(user?.role === 'admin' ? [{
@@ -1793,6 +1850,7 @@ const [importMsg, setImportMsg] = useState(null);
     settings: ['Design avanzato', 'Controlli di compatibilità e personalizzazione avanzata.'],
     general: ['Impostazioni di sistema', 'Configura agenti, automazioni e comportamento della piattaforma.'],
     security: ['Password e sicurezza', 'Proteggi il tuo account e gestisci le sessioni attive.'],
+    account: ['Impostazioni', 'Tutto ciò che configuri meno spesso, raccolto in un unico posto.'],
     services: ['Servizi opzionali', 'Richiedi attività aggiuntive senza confonderle con il lavoro quotidiano.'],
     admin: ['Utenti', 'Gestisci account, accessi e configurazioni dei clienti.'],
   };
@@ -1822,6 +1880,19 @@ const [importMsg, setImportMsg] = useState(null);
         ))}
       </div>
       <p className="services-note">I prezzi non includono eventuali budget pubblicitari. Non vengono garantiti posizionamenti o risultati commerciali.</p>
+    </div>
+  );
+  const renderAccountHub = () => (
+    <div className="settings-hub">
+      <section className="settings-hub-intro"><span>Configurazione</span><h2>Le impostazioni, senza riempire il menu</h2><p>Qui trovi le attività che si fanno ogni tanto. Il lavoro quotidiano resta nelle sei voci principali.</p></section>
+      <div className="settings-hub-grid">
+        {[
+          ['Profilo attività','Obiettivi, pubblico, servizi e territorio','strategy','✓'],
+          ['Aspetto dello spazio','Layout, colori, logo e identità','experience','◇'],
+          ['Sicurezza','Password e sessioni del tuo account','security','⌾'],
+          ['Servizi opzionali','Interventi professionali su richiesta','services','↗'],
+        ].map(([title,description,target,icon]) => <button key={target} onClick={() => setTab(target)}><span>{icon}</span><div><strong>{title}</strong><small>{description}</small></div><i>→</i></button>)}
+      </div>
     </div>
   );
   return (
@@ -2051,6 +2122,10 @@ const [importMsg, setImportMsg] = useState(null);
               auto_publish: c.auto_publish,
               auto_sync: c.auto_sync,
               max_posts: c.max_posts,
+              content_count: Number(c.content_count || 0),
+              published_count: Number(c.published_count || 0),
+              draft_count: Number(c.draft_count || 0),
+              last_content_at: c.last_content_at || null,
               label: c.handle ? `@${c.handle}` : '',
             });
           });
@@ -2071,6 +2146,10 @@ const [importMsg, setImportMsg] = useState(null);
               auto_publish: s.auto_publish,
               auto_sync: s.auto_sync,
               max_posts: s.max_posts,
+              content_count: Number(s.content_count || 0),
+              published_count: Number(s.published_count || 0),
+              draft_count: Number(s.draft_count || 0),
+              last_content_at: s.last_content_at || null,
               topic_summary: s.topic_summary,
               hasDuplicateOAuth: hasOAuth,
             });
@@ -2078,12 +2157,22 @@ const [importMsg, setImportMsg] = useState(null);
 
 
           const detectedPlatform = detectPlatformFromUrl(addUrl);
+          const trackedPlatforms = new Set(allChannels.map(channel => channel.platform));
+          const acquiredPosts = posts.filter(post => trackedPlatforms.has(post.platform === 'instagram_login' ? 'instagram' : post.platform));
+          const newestChannelDate = allChannels.map(channel => channel.last_content_at).filter(Boolean).sort().reverse()[0] || null;
 
           return (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+            <div className="channels-workspace">
+
+              <section className="channels-hero">
+                <div><span>Acquisizione contenuti</span><h2>{allChannels.length ? `${allChannels.length} canali sotto controllo` : 'Collega il primo canale'}</h2><p>Qui vedi subito quanto materiale è stato acquisito e quando è arrivato l'ultimo contenuto.</p></div>
+                <div className="channels-hero-metrics"><div><strong>{acquiredPosts.length}</strong><span>contenuti acquisiti</span></div><div><strong>{newestChannelDate ? new Date(newestChannelDate).toLocaleDateString('it-IT') : '—'}</strong><span>ultimo contenuto</span></div></div>
+              </section>
 
               {/* Form Aggiungi Canale */}
-              <div className="card">
+              <details className="card channel-add-panel" open={allChannels.length === 0}>
+                <summary>+ Aggiungi un nuovo canale</summary>
+                <div className="channel-add-body">
                 <h2 style={{ marginBottom: '0.5rem', fontSize: '18px' }}>➕ Aggiungi un canale</h2>
                 <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '1.25rem' }}>
                   Incolla il link del tuo profilo social o del tuo sito web. Il sistema riconosce automaticamente la piattaforma e importa i tuoi contenuti.
@@ -2155,6 +2244,7 @@ const [importMsg, setImportMsg] = useState(null);
                   </div>
                 </div>
               </div>
+              </details>
 
               {/* Lista canali attivi */}
               <div className="card">
@@ -2223,8 +2313,16 @@ const [importMsg, setImportMsg] = useState(null);
                             title="Rimuovi canale">✕</button>
                         </div>
 
-                        {/* Impostazioni sync inline */}
-                        <div className="channel-sync-settings">
+                        <div className="channel-content-stats">
+                          <div><strong>{channel.content_count}</strong><span>acquisiti</span></div>
+                          <div><strong>{channel.published_count}</strong><span>pubblicati</span></div>
+                          <div><strong>{channel.draft_count}</strong><span>in bozza</span></div>
+                          <div className="last"><strong>{channel.last_content_at ? new Date(channel.last_content_at).toLocaleDateString('it-IT') : 'Mai'}</strong><span>ultimo contenuto</span></div>
+                        </div>
+
+                        <details className="channel-settings-details">
+                          <summary>Impostazioni di acquisizione</summary>
+                          <div className="channel-sync-settings">
                           <span style={{ fontSize: '12px', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>Dal:</span>
                           <input type="date" defaultValue={channel.since_date || ''}
                             title="Importa contenuti da questa data in poi"
@@ -2259,7 +2357,8 @@ const [importMsg, setImportMsg] = useState(null);
                               }} />
                             Sincronizza automaticamente
                           </label>
-                        </div>
+                          </div>
+                        </details>
                       </div>
                     ))}
                   </div>
@@ -2290,7 +2389,7 @@ const [importMsg, setImportMsg] = useState(null);
               </div>
 
               {/* Profilazione AI */}
-              <div className="card">
+              {false && <div className="card">
                 <h2 style={{ marginBottom: '0.5rem', fontSize: '18px' }}>🧠 Profilo editoriale</h2>
                 <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '1rem' }}>
                   Spiega all'AI chi sei e come deve comportarsi. Più dettagli dai, migliori saranno gli articoli generati.
@@ -2318,10 +2417,12 @@ const [importMsg, setImportMsg] = useState(null);
                     {savingProfile ? 'Salvataggio...' : '💾 Salva profilo editoriale'}
                   </button>
                 </div>
-              </div>
+              </div>}
 
               {/* Importa da link diretto */}
-              <div className="card">
+              <details className="card channel-add-panel">
+                <summary>Importa un singolo contenuto da un link</summary>
+                <div className="channel-add-body">
                 <h2 style={{ marginBottom: '0.5rem', fontSize: '18px' }}>🔗 Importa un contenuto specifico</h2>
                 <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '12px' }}>
                   Incolla il link di un singolo video o post per importarlo e convertirlo subito in articolo.
@@ -2340,7 +2441,8 @@ const [importMsg, setImportMsg] = useState(null);
                     {importMsg.text}
                   </div>
                 )}
-              </div>
+                </div>
+              </details>
 
             </div>
           );
@@ -2729,7 +2831,7 @@ const [importMsg, setImportMsg] = useState(null);
                     {!(seoFoundation.pages || []).length && <div className="data-empty">Completa il Profilo attività: da lì nasceranno le prime pagine.</div>}
                   </div>
                 </section>
-              </div>
+                </div>
 
               <section className="data-panel map-panel">
                 <header className="map-heading">
@@ -2796,23 +2898,34 @@ const [importMsg, setImportMsg] = useState(null);
               <section className="ideas-quick-start">
                 <div>
                   <span className="section-eyebrow">Parti da qui</span>
-                  <h2>Scegli un'idea. L'AI scrive. La bozza compare negli Articoli.</h2>
-                  <p>Nulla viene pubblicato automaticamente: troverai sempre titolo e testo completi nell'editor, pronti da correggere.</p>
+                  <h2>Chiedi 5 idee all'AI, poi scegli articolo o social.</h2>
+                  <p>L'AI incrocia attività, pubblico, contenuti esistenti, ricerche Google e segnali di attualità pertinenti. Nulla viene pubblicato senza conferma.</p>
                 </div>
                 <div className="ideas-quick-actions">
+                  <button className="btn btn-primary" onClick={generateAiContentIdeas} disabled={generatingIdeas}>{generatingIdeas ? 'Cerco e genero…' : '✦ Suggeriscimi 5 contenuti'}</button>
                   <button className="btn btn-primary" onClick={() => setCustomIdeaOpen(true)}>+ Crea da una mia idea</button>
                   <button className="btn btn-outline" onClick={() => { setDashboardFilter('published-0'); setTab('site'); }}>Vedi {posts.filter(post => Number(post.published) === 0).length} bozze</button>
                 </div>
               </section>
+              <div className="article-length-picker">
+                <div><strong>Lunghezza degli articoli AI</strong><span>Compatto è il formato consigliato: più diretto e più facile da leggere.</span></div>
+                <div>{[
+                  ['compact','Compatto','180–280 parole'],
+                  ['standard','Standard','320–450 parole'],
+                  ['deep','Approfondito','550–750 parole'],
+                ].map(([value,label,detail]) => <button key={value} className={articleLength === value ? 'is-active' : ''} onClick={() => setArticleLength(value)}><strong>{label}</strong><small>{detail}</small></button>)}</div>
+              </div>
               <header className="ideas-head">
                 <div>
                   <h3>Idee per il prossimo contenuto</h3>
                   <p>Proposte costruite dai tuoi canali, dalle ricerche reali su Google e dalle priorità che hai dichiarato. Per ognuna puoi far scrivere l’AI, scrivere tu, o adattare l’idea prima di partire. Niente viene pubblicato da solo.</p>
                 </div>
-                <button className="btn btn-outline" onClick={refreshUnderstanding} disabled={savingProfile}>
-                  {savingProfile ? 'Aggiornamento…' : 'Ricalcola le idee'}
+                <button className="btn btn-outline" onClick={generateAiContentIdeas} disabled={generatingIdeas}>
+                  {generatingIdeas ? 'Generazione…' : 'Genera altre 5 idee'}
                 </button>
               </header>
+
+              {ideasGeneratedAt && <div className="ideas-research-status"><strong>AI aggiornata {new Date(ideasGeneratedAt).toLocaleString('it-IT')}</strong><span>{ideasNewsSignals > 0 ? `${ideasNewsSignals} segnali recenti analizzati` : 'Profilo e dati interni analizzati · nessuna notizia pertinente forzata'}</span></div>}
 
               <ol className="ideas-list">
                 {contentIdeas.map((idea, index) => {
@@ -2850,6 +2963,8 @@ const [importMsg, setImportMsg] = useState(null);
                                 onClick={() => createIdeaDraft({ ...idea, title: editingIdea.title, reason: editingIdea.reason }, index, 'manual')}>
                                 ✎ Scrivo io
                               </button>
+                              <button className="btn btn-outline" disabled={occupato || generatingSocial}
+                                onClick={() => generateSocialContent({ ...idea, title: editingIdea.title, reason: editingIdea.reason })}>Genera post social</button>
                               <button className="btn btn-ghost" onClick={() => setEditingIdea(null)}>Annulla</button>
                               <button className="btn btn-ghost idea-delete" disabled={occupato || dismissingIdeaKey === ideaKey}
                                 onClick={() => dismissContentIdea(idea)}>
@@ -2864,7 +2979,7 @@ const [importMsg, setImportMsg] = useState(null);
                               <span className="idea-tag">{idea.type}</span>
                             </div>
                             <p className="idea-reason">{idea.reason}</p>
-                            <div className="idea-origin">Da: {idea.source}</div>
+                            <div className="idea-origin">Da: {idea.source}{idea.freshness ? ` · ${idea.freshness}` : ''}{idea.source_url ? <> · <a href={idea.source_url} target="_blank" rel="noopener">vedi fonte</a></> : null}</div>
                             <div className="idea-actions">
                               <button className="btn btn-primary" disabled={occupato}
                                 onClick={() => createIdeaDraft(idea, index, 'ai')}>
@@ -2874,6 +2989,8 @@ const [importMsg, setImportMsg] = useState(null);
                                 onClick={() => createIdeaDraft(idea, index, 'manual')}>
                                 ✎ Scrivo io
                               </button>
+                              <button className="btn btn-outline" disabled={occupato || generatingSocial}
+                                onClick={() => generateSocialContent(idea)}>{generatingSocial ? 'Preparo il social…' : 'Genera post social'}</button>
                               <button className="btn btn-ghost" disabled={occupato}
                                 onClick={() => setEditingIdea({ index, title: idea.title, reason: idea.reason })}>
                                 Adatta l’idea
@@ -2931,6 +3048,8 @@ const [importMsg, setImportMsg] = useState(null);
                         onClick={() => createIdeaDraft({ ...customIdea, type: 'Idea tua', source: 'Proposta manuale', priority: 'Scelta da te' }, -2, 'manual')}>
                         ✎ Scrivo io
                       </button>
+                      <button className="btn btn-outline" disabled={generatingSocial || !customIdea.title.trim()}
+                        onClick={() => generateSocialContent({ ...customIdea, type: 'Idea tua', source: 'Proposta manuale' })}>Genera post social</button>
                       <button className="btn btn-ghost" onClick={() => { setCustomIdeaOpen(false); setCustomIdea({ title: '', reason: '' }); }}>Annulla</button>
                     </div>
                   </div>
@@ -3053,6 +3172,7 @@ const [importMsg, setImportMsg] = useState(null);
         )}
 
         {tab === 'services' && renderVisibilityServices()}
+        {tab === 'account' && renderAccountHub()}
 
         {/* Tab: Impostazioni */}
         {tab === 'settings' && (
@@ -4019,6 +4139,21 @@ const [importMsg, setImportMsg] = useState(null);
         )}
       </div>
       </div>
+
+      {socialComposer && (
+        <div className="social-composer-overlay" role="dialog" aria-modal="true" aria-label="Contenuto social">
+          <section className="social-composer">
+            <header><div><span className="section-eyebrow">Creato dall'AI · da rivedere</span><h2>Post per {SOCIAL[socialPlatform]?.label || socialPlatform}</h2><p>L'AI adatta il messaggio alla piattaforma. La pubblicazione parte solo quando premi Condividi e la confermi nell'app scelta.</p></div><button className="social-composer-close" onClick={() => setSocialComposer(null)} aria-label="Chiudi">×</button></header>
+            <div className="social-platforms">
+              {['instagram','facebook','tiktok','linkedin'].map(platform => <button key={platform} className={socialPlatform === platform ? 'is-active' : ''} disabled={generatingSocial} onClick={() => generateSocialContent(socialComposer.idea, platform)}>{SOCIAL[platform]?.label || platform[0].toUpperCase() + platform.slice(1)}</button>)}
+            </div>
+            <label className="social-caption"><span>Testo del post</span><textarea rows={10} value={socialComposer.caption || ''} onChange={event => setSocialComposer(previous => ({ ...previous, caption: event.target.value }))} /></label>
+            <div className="social-hashtags">{(socialComposer.hashtags || []).map(tag => <span key={tag}>#{String(tag).replace(/^#/, '')}</span>)}</div>
+            <div className="social-visual-brief"><strong>Visuale consigliato</strong><p>{socialComposer.visual_brief || 'Usa una foto o un video autentico e coerente con il contenuto.'}</p></div>
+            <footer><button className="btn btn-outline" onClick={async () => { await navigator.clipboard.writeText(socialShareText()); setSyncMsg({ ok: true, text: 'Testo social copiato.' }); }}>Copia testo</button><button className="btn btn-primary" onClick={shareSocialContent}>Condividi e conferma nel social</button></footer>
+          </section>
+        </div>
+      )}
 
       {mobileMenuOpen && (
         <div className="mobile-menu-overlay" onClick={() => setMobileMenuOpen(false)}>

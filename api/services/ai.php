@@ -534,7 +534,7 @@ Restituisci SOLO la nuova memoria aggiornata (testo semplice), nient'altro.";
     }
 
     // ── AGENTE 2 (Armonizzatore): testo grezzo → articolo SEO (Gemini) ─────
-    public static function harmonize(string $rawText, string $platform = '', string $caption = '', string $sourceContext = '', string $agentName = 'content_editor', string $accountType = 'business', string $searchDemand = ''): array {
+    public static function harmonize(string $rawText, string $platform = '', string $caption = '', string $sourceContext = '', string $agentName = 'content_editor', string $accountType = 'business', string $searchDemand = '', string $length = 'compact'): array {
         $source = $caption
             ? "Didascalia social: \"$caption\"\n\nTrascrizione: \"$rawText\""
             : "Contenuto: \"$rawText\"";
@@ -581,10 +581,19 @@ Restituisci SOLO la nuova memoria aggiornata (testo semplice), nient'altro.";
             [$contextValue, $demandBlock, $sourceContextValue, $source, $rawText, $platform],
             $promptTemplate
         );
+        $lengthRules = [
+            'compact' => 'Scrivi fra 180 e 280 parole. Massimo 3 sezioni brevi, paragrafi di 2-4 frasi. Vai subito al punto.',
+            'standard' => 'Scrivi fra 320 e 450 parole. Massimo 4 sezioni, senza ripetizioni o introduzioni generiche.',
+            'deep' => 'Scrivi fra 550 e 750 parole, solo se le informazioni fornite bastano. Non allungare inventando o ripetendo.',
+        ];
+        if (!isset($lengthRules[$length])) $length = 'compact';
+        // Questa istruzione viene aggiunta anche ai prompt personalizzati già
+        // salvati, così il limite scelto dall'utente non può essere ignorato.
+        $prompt .= "\n\nLUNGHEZZA OBBLIGATORIA: {$lengthRules[$length]} Il limite prevale su qualunque indicazione precedente.";
 
         $text = self::gemini([['text' => $prompt]], [
             'responseMimeType' => 'application/json',
-            'maxOutputTokens'  => 8192,
+            'maxOutputTokens'  => $length === 'deep' ? 4096 : 3072,
         ]);
         $text = preg_replace('/```json|```/', '', trim($text));
         $result = json_decode($text, true);
@@ -2141,6 +2150,111 @@ Testi da analizzare:
         }
 
         $result['ok'] = true;
+        return $result;
+    }
+
+    /**
+     * Recupera titoli recenti da una fonte pubblica e li usa soltanto come
+     * segnali di attualita. Gemini deve citare il link da cui deriva l'idea e
+     * non puo trasformare un titolo in un fatto non verificato.
+     */
+    private static function currentNewsSignals(string $query, int $limit = 8): array {
+        $query = trim(preg_replace('/\s+/', ' ', $query));
+        if ($query === '') return [];
+        $url = 'https://news.google.com/rss/search?' . http_build_query([
+            'q' => $query,
+            'hl' => 'it',
+            'gl' => 'IT',
+            'ceid' => 'IT:it',
+        ]);
+        $ch = curl_init($url);
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_TIMEOUT => 12,
+            CURLOPT_USERAGENT => 'AllSocialToWeb/1.0 content-research',
+        ]);
+        $xml = curl_exec($ch);
+        $status = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+        if (!is_string($xml) || $xml === '' || $status >= 400 || !function_exists('simplexml_load_string')) return [];
+        $feed = @simplexml_load_string($xml, 'SimpleXMLElement', LIBXML_NOCDATA);
+        if (!$feed || empty($feed->channel->item)) return [];
+        $signals = [];
+        foreach ($feed->channel->item as $item) {
+            $title = trim(html_entity_decode((string)$item->title, ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+            $link = trim((string)$item->link);
+            $publishedAt = trim((string)$item->pubDate);
+            if ($title === '' || $link === '') continue;
+            $signals[] = ['title'=>$title, 'url'=>$link, 'published_at'=>$publishedAt];
+            if (count($signals) >= $limit) break;
+        }
+        return $signals;
+    }
+
+    public static function contentIdeas(array $site, array $posts, string $searchDemand = ''): array {
+        $understanding = is_array($site['site_understanding'] ?? null)
+            ? $site['site_understanding']
+            : (json_decode((string)($site['site_understanding'] ?? ''), true) ?: []);
+        $reachability = json_decode((string)($site['reachability_profile'] ?? ''), true) ?: [];
+        $declared = $understanding['declared_strategy'] ?? [];
+        $activity = trim((string)($declared['activity_type'] ?? $site['title'] ?? ''));
+        $offer = trim((string)($declared['offer_summary'] ?? $site['profile_summary'] ?? $site['bio'] ?? ''));
+        $topic = trim((string)($reachability['primary_topic'] ?? ''));
+        $area = trim((string)($declared['geographic_area'] ?? implode(' ', $reachability['service_areas'] ?? [])));
+        $newsQuery = implode(' ', array_filter([$topic ?: $activity, $area]));
+        $signals = self::currentNewsSignals($newsQuery, 8);
+
+        $recent = [];
+        foreach (array_slice($posts, 0, 15) as $post) {
+            $recent[] = [
+                'title' => trim((string)($post['edited_title'] ?? $post['generated_title'] ?? '')),
+                'excerpt' => trim((string)($post['edited_excerpt'] ?? $post['generated_excerpt'] ?? '')),
+                'published_at' => $post['published_at'] ?? null,
+            ];
+        }
+        $today = date('Y-m-d');
+        $prompt = "Sei un caporedattore italiano. Genera ESATTAMENTE 5 idee editoriali concrete per questa attivita.\n"
+            . "Data di oggi: {$today}.\n"
+            . "ATTIVITA: " . json_encode(['tipo'=>$activity,'offerta'=>$offer,'territorio'=>$area,'profilo'=>$site['profile_summary'] ?? ''], JSON_UNESCAPED_UNICODE) . "\n"
+            . "STRATEGIA CONFERMATA: " . json_encode($declared, JSON_UNESCAPED_UNICODE) . "\n"
+            . "CONTENUTI GIA PUBBLICATI: " . json_encode($recent, JSON_UNESCAPED_UNICODE) . "\n"
+            . "DOMANDE GOOGLE REALI: " . ($searchDemand ?: 'nessun dato disponibile') . "\n"
+            . "SEGNALI DI ATTUALITA (titoli da verificare, non fatti acquisiti): " . json_encode($signals, JSON_UNESCAPED_UNICODE) . "\n\n"
+            . "Regole: evita doppioni; almeno 2 idee devono essere legate all'attualita SOLO se i segnali sono pertinenti; le altre devono derivare da attivita, pubblico, territorio e domanda reale. "
+            . "Non inventare eventi, date, prezzi o notizie. Se usi un segnale recente, conserva source_url e spiega il collegamento. Ogni idea deve poter diventare sia articolo sia post social. "
+            . "Rispondi SOLO con JSON valido: {\"ideas\":[{\"title\":\"titolo\",\"reason\":\"perche e utile ora\",\"type\":\"Attualita|Guida|Domanda cliente|Storia|Offerta\",\"priority\":\"Alta|Media\",\"source\":\"origine comprensibile\",\"source_url\":\"https://... oppure stringa vuota\",\"freshness\":\"Attuale|Evergreen\",\"social_angle\":\"taglio breve per il social\"}]}";
+
+        $text = self::gemini([['text'=>$prompt]], [
+            'responseMimeType'=>'application/json',
+            'maxOutputTokens'=>4096,
+            'temperature'=>0.65,
+        ]);
+        $result = json_decode(preg_replace('/```json|```/', '', trim($text)), true);
+        $ideas = is_array($result['ideas'] ?? null) ? array_slice($result['ideas'], 0, 5) : [];
+        if (count($ideas) !== 5) throw new RuntimeException('L\'AI non ha restituito cinque proposte valide');
+        return ['ideas'=>$ideas, 'generated_at'=>date(DATE_ATOM), 'news_signals'=>count($signals), 'query'=>$newsQuery];
+    }
+
+    public static function socialContent(array $site, array $idea, string $platform): array {
+        $allowed = ['instagram','facebook','tiktok','linkedin'];
+        if (!in_array($platform, $allowed, true)) $platform = 'instagram';
+        $understanding = json_decode((string)($site['site_understanding'] ?? ''), true) ?: [];
+        $prompt = "Sei un social media editor. Scrivi un contenuto originale in italiano per {$platform}.\n"
+            . "PROFILO ATTIVITA: " . json_encode(['title'=>$site['title'] ?? '', 'profile'=>$site['profile_summary'] ?? $site['bio'] ?? '', 'strategy'=>$understanding['declared_strategy'] ?? []], JSON_UNESCAPED_UNICODE) . "\n"
+            . "IDEA: " . json_encode($idea, JSON_UNESCAPED_UNICODE) . "\n"
+            . "Adatta lunghezza, ritmo e call to action alla piattaforma. Non inventare fatti, offerte o risultati. "
+            . "Per TikTok prepara testo parlato e caption; per Instagram caption con apertura forte; per Facebook testo conversazionale; per LinkedIn taglio professionale. "
+            . "Rispondi SOLO JSON: {\"headline\":\"apertura\",\"caption\":\"testo completo\",\"hashtags\":[\"tag\"],\"visual_brief\":\"immagine o video consigliato\",\"platform\":\"{$platform}\"}";
+        $text = self::gemini([['text'=>$prompt]], [
+            'responseMimeType'=>'application/json',
+            'maxOutputTokens'=>3072,
+            'temperature'=>0.7,
+        ]);
+        $result = json_decode(preg_replace('/```json|```/', '', trim($text)), true);
+        if (!is_array($result) || trim((string)($result['caption'] ?? '')) === '') throw new RuntimeException('Contenuto social AI non valido');
+        $result['platform'] = $platform;
+        $result['hashtags'] = array_slice(array_values(array_filter((array)($result['hashtags'] ?? []))), 0, 12);
         return $result;
     }
 

@@ -300,7 +300,7 @@ class Ingest {
     }
 
     // ── AGENTE 2 (Armonizzatore): bozza → articolo SEO pubblicato ──────────
-    public static function harmonize(int $userId, int $postId, int $autoPublish = 1): array {
+    public static function harmonize(int $userId, int $postId, int $autoPublish = 1, string $length = 'compact'): array {
         $post = DB::fetch('SELECT * FROM posts WHERE id=? AND user_id=?', [$postId, $userId]);
         if (!$post) throw new Exception('Contenuto non trovato');
 
@@ -349,7 +349,7 @@ class Ingest {
         // briefing è vuoto e il comportamento resta identico a prima.
         $searchDemand = VisibilityAnalytics::demandBriefing($userId, $post['slug'] ?? null);
 
-        $seo = AI::harmonize($raw, $post['platform'], $post['raw_content'] ?? '', $sourceContext, $agentName, $accountType, $searchDemand);
+        $seo = AI::harmonize($raw, $post['platform'], $post['raw_content'] ?? '', $sourceContext, $agentName, $accountType, $searchDemand, $length);
 
         DB::execute('
             UPDATE posts SET

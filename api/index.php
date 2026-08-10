@@ -383,7 +383,7 @@ if ($action === 'migrate') {
                 (?, ?, ?, ?)',
             [
                 'content_editor', 'Content Editor', 'Filtra e riscrive i post social in articoli SEO-friendly.',
-                "Sei un editor editoriale esperto. Riscrivi questo contenuto in un articolo web.\n\nContenuto:\n{content}\n\nProfilo:\n{profileSummary}\n\nGenera JSON: {\"generated_title\":\"Titolo H1 max 70 caratteri\",\"generated_body\":\"Corpo articolo in paragrafi, min 300 parole\",\"generated_excerpt\":\"Sommario max 155 caratteri\",\"tags\":[\"tag1\"],\"meta_description\":\"Meta max 155 caratteri\",\"relevance_score\":80,\"seo_score\":85}",
+                "Sei un editor editoriale esperto. Riscrivi questo contenuto in un articolo web compatto.\n\nContenuto:\n{content}\n\nProfilo:\n{profileSummary}\n\nGenera JSON: {\"generated_title\":\"Titolo H1 max 70 caratteri\",\"generated_body\":\"Corpo articolo in paragrafi brevi, 180-280 parole\",\"generated_excerpt\":\"Sommario max 155 caratteri\",\"tags\":[\"tag1\"],\"meta_description\":\"Meta max 155 caratteri\",\"relevance_score\":80,\"seo_score\":85}",
                 'seo_specialist', 'SEO Specialist', 'Ottimizza titolo, bio e navigazione del sito in chiave Google.',
                 "Sei un SEO/GEO Specialist. Ottimizza i metadati del sito.\n\nProfilo:\n{profileSummary}\n\nRuolo:\n{roleMission}\n\nStrategia:\n{contentStrategy}\n\nTag reali disponibili nel DB:\n[{tagsContext}]\n\nGenera JSON: {\"title\":\"Titolo SEO max 60 caratteri\",\"bio\":\"Bio max 160 caratteri\",\"menu_links\":[{\"label\":\"Home\",\"url\":\"/\"},{\"label\":\"Nome Categoria\",\"url\":\"/?tag=tag_reale_dalla_lista\"}],\"footer_text\":\"Footer max 100 caratteri\"}. ATTENZIONE: per menu_links usa SOLO url '/' per Home oppure '/?tag=nome_tag' dove nome_tag DEVE essere uno dei tag reali elencati sopra. NON inventare ancore (#) o pagine inesistenti.",
                 'graphic_designer', 'Graphic Designer', 'Genera 3 proposte di design visivo con CSS per ogni profilo.',
@@ -1438,6 +1438,32 @@ if ($action === 'site' && $method === 'GET') {
             'SELECT id, platform, label, url, topic_summary, active, since_date, auto_publish, auto_sync, max_posts FROM social_sources WHERE user_id=? AND active=1 ORDER BY platform, id DESC',
             [$userId]
         );
+        $channelStatRows = DB::fetchAll(
+            'SELECT platform, COUNT(*) AS content_count, MAX(published_at) AS last_content_at,
+                    SUM(CASE WHEN published=1 THEN 1 ELSE 0 END) AS published_count,
+                    SUM(CASE WHEN published=0 THEN 1 ELSE 0 END) AS draft_count
+               FROM posts WHERE user_id=? GROUP BY platform',
+            [$userId]
+        );
+        $channelStats = [];
+        foreach ($channelStatRows as $row) {
+            $key = ($row['platform'] ?? '') === 'instagram_login' ? 'instagram' : ($row['platform'] ?? '');
+            if ($key === '') continue;
+            if (!isset($channelStats[$key])) $channelStats[$key] = ['content_count'=>0, 'published_count'=>0, 'draft_count'=>0, 'last_content_at'=>null];
+            $channelStats[$key]['content_count'] += (int)($row['content_count'] ?? 0);
+            $channelStats[$key]['published_count'] += (int)($row['published_count'] ?? 0);
+            $channelStats[$key]['draft_count'] += (int)($row['draft_count'] ?? 0);
+            if (($row['last_content_at'] ?? '') > ($channelStats[$key]['last_content_at'] ?? '')) $channelStats[$key]['last_content_at'] = $row['last_content_at'];
+        }
+        foreach ($connections as &$connection) {
+            $key = ($connection['platform'] ?? '') === 'instagram_login' ? 'instagram' : ($connection['platform'] ?? '');
+            $connection = array_merge($connection, $channelStats[$key] ?? ['content_count'=>0, 'published_count'=>0, 'draft_count'=>0, 'last_content_at'=>null]);
+        }
+        unset($connection);
+        foreach ($sources as &$source) {
+            $source = array_merge($source, $channelStats[$source['platform'] ?? ''] ?? ['content_count'=>0, 'published_count'=>0, 'draft_count'=>0, 'last_content_at'=>null]);
+        }
+        unset($source);
         foreach ($posts as &$p) {
             $decoded = json_decode($p['tags'] ?? '[]', true);
             if (!is_array($decoded)) {
@@ -1843,6 +1869,48 @@ if ($action === 'dismiss-content-idea' && $method === 'POST') {
     json(['ok' => true, 'dismissed_content_ideas' => $dismissed]);
 }
 
+// Genera cinque proposte nuove usando profilo, archivio, domanda Google e
+// segnali di attualita. Le proposte restano suggerimenti: nessuna pubblicazione.
+if ($action === 'generate-content-ideas' && $method === 'POST') {
+    try {
+        require_once __DIR__ . '/services/ai.php';
+        $site = DB::fetch('SELECT * FROM sites WHERE user_id=? LIMIT 1', [$userId]) ?: [];
+        $posts = DB::fetchAll(
+            'SELECT generated_title, edited_title, generated_excerpt, edited_excerpt, published_at
+               FROM posts WHERE user_id=? AND published=1 ORDER BY published_at DESC, id DESC LIMIT 20',
+            [$userId]
+        );
+        $result = AI::contentIdeas($site, $posts, VisibilityAnalytics::demandBriefing($userId));
+        json(['ok'=>true] + $result);
+    } catch (Throwable $e) {
+        jsonError('Non riesco a generare le idee AI: ' . $e->getMessage(), 502);
+    }
+}
+
+// Produce una versione pronta per un social. La condivisione finale resta
+// esplicita e passa dal dispositivo dell'utente, evitando autopubblicazioni.
+if ($action === 'generate-social-content' && $method === 'POST') {
+    try {
+        require_once __DIR__ . '/services/ai.php';
+        $b = body();
+        $idea = is_array($b['idea'] ?? null) ? $b['idea'] : [];
+        if (trim((string)($idea['title'] ?? '')) === '') jsonError('Titolo del contenuto mancante', 422);
+        $platform = strtolower(trim((string)($b['platform'] ?? 'instagram')));
+        $site = DB::fetch('SELECT * FROM sites WHERE user_id=? LIMIT 1', [$userId]) ?: [];
+        $content = AI::socialContent($site, $idea, $platform);
+        $connected = DB::fetch('SELECT id FROM social_connections WHERE user_id=? AND platform=? AND active=1 LIMIT 1', [$userId, $platform]);
+        json([
+            'ok'=>true,
+            'content'=>$content,
+            'connected'=>(bool)$connected,
+            'publish_mode'=>'device_share',
+            'publish_note'=>'Controlla il testo e conferma la pubblicazione nell\'app social scelta.',
+        ]);
+    } catch (Throwable $e) {
+        jsonError('Non riesco a generare il contenuto social: ' . $e->getMessage(), 502);
+    }
+}
+
 // Trasforma un suggerimento editoriale in una bozza, senza pubblicarla.
 if ($action === 'create-idea-draft' && $method === 'POST') {
     $b = body();
@@ -1854,6 +1922,7 @@ if ($action === 'create-idea-draft' && $method === 'POST') {
     // mode=ai: l'AI scrive il testo. mode=manual: si crea solo la traccia e
     // scrive l'utente — nessuna chiamata all'AI, quindi nessun costo.
     $ideaMode = ($b['mode'] ?? 'ai') === 'manual' ? 'manual' : 'ai';
+    $articleLength = in_array(($b['length'] ?? ''), ['compact', 'standard', 'deep'], true) ? $b['length'] : 'compact';
     if ($ideaTitle === '') jsonError('Titolo idea mancante', 422);
     $ideaTitleLength = function_exists('mb_strlen') ? mb_strlen($ideaTitle, 'UTF-8') : strlen($ideaTitle);
     if ($ideaTitleLength > 240) jsonError('Titolo idea troppo lungo', 422);
@@ -1906,7 +1975,7 @@ if ($action === 'create-idea-draft' && $method === 'POST') {
     // che non la espongono rimaneva per sempre soltanto la scaletta iniziale.
     if ($ideaMode === 'ai') {
         try {
-            $generated = Ingest::harmonize($userId, (int)$postId, 0);
+            $generated = Ingest::harmonize($userId, (int)$postId, 0, $articleLength);
             $seo = is_array($generated['seo'] ?? null) ? $generated['seo'] : [];
             $generatedBody = trim((string)($seo['body'] ?? ''));
             $generatedBodyLength = function_exists('mb_strlen') ? mb_strlen(strip_tags($generatedBody), 'UTF-8') : strlen(strip_tags($generatedBody));
