@@ -64,6 +64,9 @@ class ReachabilityNetwork {
             is_array($areas) ? $areas : []
         ))));
         return [
+            'presence_mode' => in_array(($input['presence_mode'] ?? ''), ['space_only', 'existing_site'], true)
+                ? $input['presence_mode']
+                : 'undecided',
             'official_site_url' => self::url((string)($input['official_site_url'] ?? '')),
             'business_profile_url' => self::url((string)($input['business_profile_url'] ?? '')),
             'primary_topic' => mb_substr(trim((string)($input['primary_topic'] ?? '')), 0, 180),
@@ -74,6 +77,9 @@ class ReachabilityNetwork {
             'phone' => self::phone((string)($input['phone'] ?? '')),
             'whatsapp' => self::whatsapp((string)($input['whatsapp'] ?? '')),
             'email' => self::email((string)($input['email'] ?? '')),
+            'search_console_choice' => in_array(($input['search_console_choice'] ?? ''), ['connected', 'not_connected', 'need_help'], true)
+                ? $input['search_console_choice']
+                : 'unknown',
         ];
     }
 
@@ -102,19 +108,32 @@ class ReachabilityNetwork {
         $hasSearchEvidence = (int)($visibility['google_visible_pages'] ?? 0) > 0 || (int)($visibility['impressions'] ?? 0) > 0;
         $hasOfficialSite = $profile['official_site_url'] !== '';
         $hasGsc = trim((string)($site['gsc_verification'] ?? '')) !== '' || !empty($visibility['latest_search_date']);
+        $hasContacts = $profile['phone'] !== '' || $profile['whatsapp'] !== '' || $profile['email'] !== '';
+        $usesSpaceOnly = $profile['presence_mode'] === 'space_only';
+        $presenceChosen = $profile['presence_mode'] !== 'undecided';
+        $publishedPages = max(0, (int)($visibility['published_pages'] ?? count($published) + 1));
+        $googleVisiblePages = max(0, (int)($visibility['google_visible_pages'] ?? 0));
+        $searchPresencePercent = $publishedPages > 0
+            ? min(100, (int)round(($googleVisiblePages / $publishedPages) * 100))
+            : 0;
+        $googleConnectionPercent = $hasGsc
+            ? 100
+            : ($profile['search_console_choice'] === 'connected' ? 50
+                : ($profile['search_console_choice'] === 'need_help' ? 15 : 0));
+        $googleProgress = (int)round(($googleConnectionPercent * 0.4) + ($searchPresencePercent * 0.6));
 
         $checks = [
             ['id'=>'space', 'label'=>'Spazio Vivo pubblicato', 'done'=>count($published) > 0, 'weight'=>15, 'detail'=>count($published) . ' contenuti pubblicati'],
             ['id'=>'sources', 'label'=>'Canali ufficiali collegati', 'done'=>count($sources) > 0, 'weight'=>10, 'detail'=>count($sources) . ' fonti attive'],
-            ['id'=>'official_site', 'label'=>'Sito ufficiale identificato', 'done'=>$hasOfficialSite, 'weight'=>15, 'detail'=>$hasOfficialSite ? $profile['official_site_url'] : 'Da collegare'],
-            ['id'=>'reciprocal', 'label'=>'Collegamento reciproco', 'done'=>$hasOfficialSite && $profile['reciprocal_link_confirmed'], 'weight'=>10, 'detail'=>$profile['reciprocal_link_confirmed'] ? 'Confermato' : 'Inserisci dal sito un link allo Spazio Vivo'],
+            ['id'=>'official_site', 'label'=>$usesSpaceOnly ? 'Spazio Vivo scelto come presenza ufficiale' : ($presenceChosen ? 'Sito ufficiale identificato' : 'Tipo di presenza scelto'), 'done'=>$usesSpaceOnly || ($presenceChosen && $hasOfficialSite), 'weight'=>15, 'detail'=>$usesSpaceOnly ? 'Non serve un sito tradizionale' : ($hasOfficialSite ? $profile['official_site_url'] : 'Scegli se hai già un sito oppure no')],
+            ['id'=>'reciprocal', 'label'=>$usesSpaceOnly ? 'Contatti diretti configurati' : 'Collegamento reciproco', 'done'=>$usesSpaceOnly ? $hasContacts : ($hasOfficialSite && $profile['reciprocal_link_confirmed']), 'weight'=>10, 'detail'=>$usesSpaceOnly ? ($hasContacts ? 'Le persone possono contattarti dagli articoli' : 'Inserisci almeno un contatto') : ($profile['reciprocal_link_confirmed'] ? 'Confermato' : 'Inserisci dal sito un link allo Spazio Vivo')],
             ['id'=>'structured', 'label'=>'Identità e dati strutturati', 'done'=>true, 'weight'=>10, 'detail'=>'Organization/LocalBusiness e fonti ufficiali'],
             ['id'=>'sitemap', 'label'=>'Sitemap e archivio crawlable', 'done'=>count($published) > 0, 'weight'=>10, 'detail'=>'Pagine e immagini segnalate ai crawler'],
-            ['id'=>'gsc', 'label'=>'Controllo Google attivo', 'done'=>$hasGsc, 'weight'=>10, 'detail'=>$hasGsc ? 'Search Console collegata o rilevata' : 'Verifica Search Console da completare'],
-            ['id'=>'discovered', 'label'=>'Presenza rilevata nelle ricerche', 'done'=>$hasSearchEvidence, 'weight'=>15, 'detail'=>$hasSearchEvidence ? ((int)($visibility['google_visible_pages'] ?? 0) . ' pagine con impression') : 'In attesa dei primi dati Google'],
             ['id'=>'media', 'label'=>'Patrimonio visuale reperibile', 'done'=>$mediaCount > 0, 'weight'=>5, 'detail'=>$mediaCount . ' immagini o video collegati'],
         ];
-        $score = array_sum(array_map(static fn($check) => $check['done'] ? $check['weight'] : 0, $checks));
+        $completedWeight = array_sum(array_map(static fn($check) => $check['done'] ? $check['weight'] : 0, $checks));
+        $totalWeight = array_sum(array_column($checks, 'weight')) ?: 1;
+        $score = (int)round(($completedWeight / $totalWeight) * 100);
         $stage = $hasSearchEvidence ? 'rilevato' : ($hasGsc ? 'monitorato' : (count($published) > 0 ? 'pubblicato' : 'configurazione'));
 
         return [
@@ -122,8 +141,25 @@ class ReachabilityNetwork {
             'score' => $score,
             'stage' => $stage,
             'checks' => $checks,
-            'published_pages' => (int)($visibility['published_pages'] ?? count($published) + 1),
-            'google_visible_pages' => (int)($visibility['google_visible_pages'] ?? 0),
+            'published_pages' => $publishedPages,
+            'google_visible_pages' => $googleVisiblePages,
+            'google' => [
+                'connection_percent' => $googleConnectionPercent,
+                'presence_percent' => $searchPresencePercent,
+                'overall_percent' => $googleProgress,
+                'visible_pages' => $googleVisiblePages,
+                'published_pages' => $publishedPages,
+                'connected' => $hasGsc,
+                'has_evidence' => $hasSearchEvidence,
+                'status' => $hasGsc ? 'connected' : ($profile['search_console_choice'] === 'connected' ? 'verifying' : $profile['search_console_choice']),
+                'source' => $hasGsc ? 'Google Search Console' : 'In attesa di collegamento Search Console',
+                'last_data_at' => $visibility['latest_search_date'] ?? null,
+            ],
+            'data_sources' => [
+                ['key'=>'platform', 'label'=>'Contenuti e pagine', 'source'=>'Database AllSocialToWeb', 'connected'=>true, 'updated_at'=>$site['last_sync'] ?? null],
+                ['key'=>'google', 'label'=>'Impression e clic', 'source'=>'Google Search Console', 'connected'=>$hasGsc, 'updated_at'=>$visibility['latest_search_date'] ?? null],
+                ['key'=>'analytics', 'label'=>'Visite e azioni', 'source'=>'Analytics interno AllSocialToWeb', 'connected'=>true, 'updated_at'=>date('Y-m-d')],
+            ],
             'impressions' => (int)($visibility['impressions'] ?? 0),
             'clicks' => (int)($visibility['clicks'] ?? 0),
             'visits' => (int)($visibility['unique_visitors'] ?? 0),

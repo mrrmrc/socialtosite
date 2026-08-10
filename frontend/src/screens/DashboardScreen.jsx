@@ -458,7 +458,7 @@ const [importMsg, setImportMsg] = useState(null);
   const [savingUnderstanding, setSavingUnderstanding] = useState(false);
   const [strategyStep, setStrategyStep] = useState(0);
   const [uploadingLogo, setUploadingLogo] = useState(false);
-  const [reachabilityDraft, setReachabilityDraft] = useState({ official_site_url: '', business_profile_url: '', primary_topic: '', service_areas: [], reciprocal_link_confirmed: false, phone: '', whatsapp: '', email: '' });
+  const [reachabilityDraft, setReachabilityDraft] = useState({ presence_mode: 'undecided', official_site_url: '', business_profile_url: '', primary_topic: '', service_areas: [], reciprocal_link_confirmed: false, phone: '', whatsapp: '', email: '', search_console_choice: 'unknown' });
   const [savingReachability, setSavingReachability] = useState(false);
   const [savingSearchVisible, setSavingSearchVisible] = useState(false);
   const [preparingIdea, setPreparingIdea] = useState(-1);
@@ -544,7 +544,7 @@ const [importMsg, setImportMsg] = useState(null);
       } catch (_) {
         setDismissedIdeaKeys([]);
       }
-      setReachabilityDraft(d.reachability?.profile || { official_site_url: '', business_profile_url: '', primary_topic: '', service_areas: [], reciprocal_link_confirmed: false, phone: '', whatsapp: '', email: '' });
+      setReachabilityDraft(d.reachability?.profile || { presence_mode: 'undecided', official_site_url: '', business_profile_url: '', primary_topic: '', service_areas: [], reciprocal_link_confirmed: false, phone: '', whatsapp: '', email: '', search_console_choice: 'unknown' });
       let parsedEditorialSettings = { enabled: true, auto_run: true, min_posts: 8, strict_indexing_mode: true };
       let parsedEditorialDna = {};
       let parsedEditorialMemory = {};
@@ -618,8 +618,10 @@ const [importMsg, setImportMsg] = useState(null);
           .then(res => setAdminSeoStats(res.stats || []))
           .catch(e => console.error(e));
       }
+      return d;
     } catch (err) {
       alert("ERRORE CARICAMENTO DASHBOARD: " + err.message);
+      return null;
     }
   }
 
@@ -1072,9 +1074,10 @@ const [importMsg, setImportMsg] = useState(null);
 
   function openDashboardSection(target) {
     if (target === 'strategy') setTab('strategy');
+    else if (target === 'modules') setTab('services');
     else {
       setTab('seo');
-      setVisibilitySection(target === 'modules' ? 'solutions' : target === 'overview' ? 'overview' : 'ideas');
+      setVisibilitySection(target === 'overview' ? 'overview' : 'ideas');
     }
     window.setTimeout(() => document.getElementById(target)?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 80);
   }
@@ -1167,7 +1170,21 @@ const [importMsg, setImportMsg] = useState(null);
         body: JSON.stringify({ ...idea, mode }),
         signal: controller.signal,
       }, token);
-      await Promise.all([loadData(), loadDrafts()]);
+      const [freshData] = await Promise.all([loadData(), loadDrafts()]);
+      if (result?.draft && !(freshData?.posts || []).some(post => Number(post.id) === Number(result.draft.id))) {
+        setData(previous => ({
+          ...(previous || {}),
+          posts: [
+            {
+              ...result.draft,
+              platform: result.draft.platform || 'editorial_idea',
+              published: 0,
+              tags: Array.isArray(result.draft.tags) ? result.draft.tags : [],
+            },
+            ...((previous?.posts || []).filter(post => Number(post.id) !== Number(result.draft.id))),
+          ],
+        }));
+      }
       setDashboardFilter('published-0');
       setTab('site');
       if (result?.draft) {
@@ -1749,6 +1766,12 @@ const [importMsg, setImportMsg] = useState(null);
         { id: 'strategy', icon: '✓', label: 'Profilo attività', hint: 'Obiettivi e pubblico' },
       ],
     },
+    {
+      label: 'Supporto',
+      items: [
+        { id: 'services', icon: '↗', label: 'Servizi opzionali', hint: 'Interventi su richiesta' },
+      ],
+    },
     ...(user?.role === 'admin' ? [{
       label: 'Amministrazione',
       items: [
@@ -1770,6 +1793,7 @@ const [importMsg, setImportMsg] = useState(null);
     settings: ['Design avanzato', 'Controlli di compatibilità e personalizzazione avanzata.'],
     general: ['Impostazioni di sistema', 'Configura agenti, automazioni e comportamento della piattaforma.'],
     security: ['Password e sicurezza', 'Proteggi il tuo account e gestisci le sessioni attive.'],
+    services: ['Servizi opzionali', 'Richiedi attività aggiuntive senza confonderle con il lavoro quotidiano.'],
     admin: ['Utenti', 'Gestisci account, accessi e configurazioni dei clienti.'],
   };
   const seoMeta = visibilitySection === 'ideas'
@@ -1781,6 +1805,25 @@ const [importMsg, setImportMsg] = useState(null);
     if (item.section) setVisibilitySection(item.section);
     setMobileMenuOpen(false);
   };
+  const renderVisibilityServices = () => (
+    <div className="services-page">
+      <section className="services-intro">
+        <div><span>Supporto su richiesta</span><h2>Interventi aggiuntivi, separati dalla dashboard</h2><p>La piattaforma continua a funzionare senza acquisti. Qui trovi soltanto attività professionali opzionali, con contenuto e costo dichiarati.</p></div>
+        <div className="services-badge">Nessun vincolo</div>
+      </section>
+      <div className="services-grid">
+        {VISIBILITY_MODULES.map(module => (
+          <article key={module.name} className={`service-card ${module.featured ? 'is-featured' : ''}`}>
+            {module.featured && <span className="service-featured">Consigliato</span>}
+            <h3>{module.name}</h3><strong>{module.price}</strong><p>{module.description}</p>
+            <div>{module.deliverables.map(item => <span key={item}>✓ {item}</span>)}</div>
+            <a href={`mailto:support@ideesitiweb.it?subject=${encodeURIComponent(`Richiesta modulo ${module.name} - ${user?.slug || ''}`)}`} className={`btn ${module.featured ? 'btn-primary' : 'btn-outline'}`}>Richiedi informazioni</a>
+          </article>
+        ))}
+      </div>
+      <p className="services-note">I prezzi non includono eventuali budget pubblicitari. Non vengono garantiti posizionamenti o risultati commerciali.</p>
+    </div>
+  );
   return (
     <div className="dashboard-shell" style={{ overflow: studioWorkspaceOpen ? 'hidden' : 'visible' }}>
       <aside className="desktop-sidebar" style={{ visibility: studioWorkspaceOpen ? 'hidden' : 'visible', pointerEvents: studioWorkspaceOpen ? 'none' : 'auto' }}>
@@ -2517,19 +2560,67 @@ const [importMsg, setImportMsg] = useState(null);
               </label>
             </div>
 
-            <div className="visibility-subnav">
+            {visibilitySection !== 'ideas' && <div className="visibility-subnav">
               {[
-                ['network', 'Stato visibilità'],
-                ['overview', 'Pagine e dati'],
-                ['ideas', 'Idee contenuti'],
-                ['solutions', 'Interventi'],
+                ['network', 'Configura la presenza'],
+                ['overview', 'Pagine, dati e fonti'],
                 ...(isAdmin ? [['lab', 'Laboratorio']] : []),
               ].map(([section, label]) => <button key={section} className={visibilitySection === section ? 'is-active' : ''} onClick={() => setVisibilitySection(section)}>{label}</button>)}
-            </div>
+            </div>}
 
             {isAdmin && visibilitySection === 'lab' && <SpazioVivoLab token={token} adminPreview />}
 
-            {visibilitySection === 'network' && <>
+            {visibilitySection === 'network' && <div className="presence-workspace">
+              <section className="presence-hero">
+                <div className="presence-hero-copy"><span>La tua presenza digitale</span><h2>{reachability.score || 0}% configurata</h2><p>Questa percentuale misura ciò che hai realmente predisposto. I dati Google sono separati perché dipendono dalla scansione e non possono essere promessi.</p></div>
+                <div className="presence-score" style={{ '--score': `${reachability.score || 0}%` }}><strong>{reachability.score || 0}%</strong><span>configurazione</span></div>
+              </section>
+
+              <section className="google-progress-panel">
+                <div className="google-progress-heading"><div><span>Dati reali, non punteggi inventati</span><h3>Google: collegamento e copertura</h3></div><small>Fonte: {reachability.google?.source || 'Google Search Console'}</small></div>
+                <div className="google-progress-grid">
+                  {[
+                    ['Collegamento dati', reachability.google?.connection_percent || 0, reachability.google?.connected ? 'Search Console sta inviando dati' : 'Completa la risposta nel percorso qui sotto'],
+                    ['Pagine rilevate', reachability.google?.presence_percent || 0, `${reachability.google?.visible_pages || 0} su ${reachability.google?.published_pages || 0} pagine con segnali Google`],
+                  ].map(([label, value, detail]) => <div className="google-progress-card" key={label}><div><strong>{value}%</strong><span>{label}</span></div><div className="progress-track"><span style={{ width: `${value}%` }} /></div><p>{detail}</p></div>)}
+                </div>
+                <div className="google-progress-note">La percentuale “Pagine rilevate” misura la copertura osservata, non la posizione su Google. Può crescere solo quando Search Console registra impressioni reali.</div>
+              </section>
+
+              <section className="presence-setup">
+                <header><div><span>Rispondi una volta, il sistema usa tutto</span><h3>Completa la tua presenza</h3><p>Ogni blocco corrisponde a una decisione comprensibile. Non devi interpretare indicatori tecnici.</p></div><strong>{(reachability.checks || []).filter(check => check.done).length}/{(reachability.checks || []).length} pronti</strong></header>
+
+                <div className="presence-step">
+                  <div className="presence-step-number">1</div><div className="presence-step-body"><h4>Qual è la tua presenza ufficiale?</h4><p>Puoi usare soltanto lo Spazio Vivo oppure collegarlo a un sito che possiedi già.</p>
+                    <div className="presence-choice-grid">
+                      <button className={reachabilityDraft.presence_mode === 'space_only' ? 'is-selected' : ''} onClick={() => setReachabilityDraft(prev => ({ ...prev, presence_mode: 'space_only', official_site_url: '', reciprocal_link_confirmed: false }))}><strong>Non ho un sito</strong><span>Spazio Vivo è la mia presenza ufficiale</span></button>
+                      <button className={reachabilityDraft.presence_mode === 'existing_site' ? 'is-selected' : ''} onClick={() => setReachabilityDraft(prev => ({ ...prev, presence_mode: 'existing_site' }))}><strong>Ho già un sito</strong><span>Voglio collegarlo allo Spazio Vivo</span></button>
+                    </div>
+                    {reachabilityDraft.presence_mode === 'existing_site' && <div className="presence-conditional"><label><span>Indirizzo del sito</span><input value={reachabilityDraft.official_site_url || ''} onChange={e => setReachabilityDraft(prev => ({ ...prev, official_site_url: e.target.value }))} placeholder="https://www.tuodominio.it" /></label><label className="presence-checkbox"><input type="checkbox" checked={!!reachabilityDraft.reciprocal_link_confirmed} onChange={e => setReachabilityDraft(prev => ({ ...prev, reciprocal_link_confirmed: e.target.checked }))} /><span>Ho inserito nel mio sito un link verso lo Spazio Vivo</span></label></div>}
+                  </div>
+                </div>
+
+                <div className="presence-step">
+                  <div className="presence-step-number">2</div><div className="presence-step-body"><h4>Per cosa e dove vuoi essere trovato?</h4><p>Queste informazioni guidano pagine, titoli, collegamenti e contenuti futuri.</p><div className="presence-fields two"><label><span>Attività o ricerca principale</span><input value={reachabilityDraft.primary_topic || ''} onChange={e => setReachabilityDraft(prev => ({ ...prev, primary_topic: e.target.value }))} placeholder="Es. agriturismo con ristorante vicino Roma" /></label><label><span>Profilo Google dell’attività</span><input value={reachabilityDraft.business_profile_url || ''} onChange={e => setReachabilityDraft(prev => ({ ...prev, business_profile_url: e.target.value }))} placeholder="Link Google Maps o Business Profile" /></label><label className="full"><span>Territori serviti · uno per riga</span><textarea rows={3} value={(reachabilityDraft.service_areas || []).join('\n')} onChange={e => setReachabilityDraft(prev => ({ ...prev, service_areas: e.target.value.split('\n') }))} placeholder={'Roma\nCastelli Romani\nLazio'} /></label></div></div>
+                </div>
+
+                <div className="presence-step">
+                  <div className="presence-step-number">3</div><div className="presence-step-body"><h4>Come possono contattarti?</h4><p>I pulsanti vengono mostrati automaticamente negli articoli. I campi vuoti non compaiono.</p><div className="presence-fields three"><label><span>Telefono</span><input value={reachabilityDraft.phone || ''} onChange={e => setReachabilityDraft(prev => ({ ...prev, phone: e.target.value }))} placeholder="+39 06 1234567" /></label><label><span>WhatsApp</span><input value={reachabilityDraft.whatsapp || ''} onChange={e => setReachabilityDraft(prev => ({ ...prev, whatsapp: e.target.value }))} placeholder="340 1234567" /></label><label><span>Email</span><input type="email" value={reachabilityDraft.email || ''} onChange={e => setReachabilityDraft(prev => ({ ...prev, email: e.target.value }))} placeholder="info@attivita.it" /></label></div></div>
+                </div>
+
+                <div className="presence-step">
+                  <div className="presence-step-number">4</div><div className="presence-step-body"><h4>Hai già Google Search Console?</h4><p>La risposta ci dice qual è il prossimo passo. Non trasforma artificialmente in verde una verifica che Google non ha ancora fornito.</p><div className="presence-choice-grid three">
+                    {[['connected','Sì, è collegata','Il sistema controllerà che arrivino dati'],['not_connected','No','Ti mostreremo come attivarla'],['need_help','Non lo so','Puoi richiedere assistenza']].map(([value,label,detail]) => <button key={value} className={reachabilityDraft.search_console_choice === value ? 'is-selected' : ''} onClick={() => setReachabilityDraft(prev => ({ ...prev, search_console_choice: value }))}><strong>{label}</strong><span>{detail}</span></button>)}
+                  </div>{reachabilityDraft.search_console_choice === 'need_help' && <a className="btn btn-outline presence-help" href={`mailto:support@ideesitiweb.it?subject=${encodeURIComponent(`Aiuto Search Console - ${user?.slug || ''}`)}`}>Richiedi aiuto per Search Console</a>}</div>
+                </div>
+
+                <div className="presence-save"><div><strong>Le tue risposte alimentano tutto il sistema</strong><span>Pagine, dati strutturati, contatti e analisi useranno queste informazioni.</span></div><button className="btn btn-primary" onClick={saveReachabilityNetwork} disabled={savingReachability}>{savingReachability ? 'Salvataggio…' : 'Salva e aggiorna la presenza'}</button></div>
+              </section>
+
+              <section className="presence-status-summary"><header><div><span>Verifiche tecniche</span><h3>Cosa è già pronto</h3></div><p>Questi controlli si aggiornano dalle risposte e dal lavoro reale della piattaforma.</p></header><div>{(reachability.checks || []).map(check => <article key={check.id} className={check.done ? 'is-done' : ''}><span>{check.done ? '✓' : '→'}</span><div><strong>{check.label}</strong><small>{check.detail}</small></div></article>)}</div></section>
+            </div>}
+
+            {false && visibilitySection === 'network' && <>
               <section className="glass-modal" style={{ marginBottom: '1.25rem', padding: 'clamp(1.25rem, 3vw, 2rem)', color: '#fff', background: 'radial-gradient(circle at 88% 8%, rgba(243,92,118,.34), transparent 27%), linear-gradient(135deg,#151A2D,#292359 68%,#48257A)', border: 'none', overflow: 'hidden' }}>
                 <div className="reachability-hero-grid" style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) auto', alignItems: 'center', gap: '1.5rem' }}>
                   <div>
@@ -2590,7 +2681,72 @@ const [importMsg, setImportMsg] = useState(null);
               <div style={{ marginTop: '1rem', padding: '1rem 1.15rem', borderRadius: '14px', background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text-muted)', fontSize: '12px', lineHeight: 1.55 }}><strong style={{ color: 'var(--text)' }}>Garanzia operativa:</strong> AllSocialToWeb può garantire pubblicazione, accessibilità, collegamenti, segnali tecnici e monitoraggio. L’indicizzazione e la posizione finale restano decisioni dei motori di ricerca.</div>
             </>}
 
-            {visibilitySection === 'overview' && <>
+            {visibilitySection === 'overview' && <div className="data-workspace">
+              <section className="data-hero">
+                <div>
+                  <span className="section-eyebrow">Pagine, dati e fonti</span>
+                  <h2>Capisci subito cosa esiste e cosa sta vedendo Google</h2>
+                  <p>I numeri non vengono mescolati: ogni indicatore mostra la propria fonte e la data dell'ultimo aggiornamento.</p>
+                </div>
+                <div className="coverage-dial" style={{ '--coverage': `${reachability.google?.presence_percent || 0}%` }}>
+                  <strong>{reachability.google?.presence_percent || 0}%</strong>
+                  <span>pagine rilevate</span>
+                </div>
+              </section>
+
+              <section className="metric-grid">
+                {[
+                  { value: networkPublishedPages, label: 'Pagine pubbliche nella rete', source: 'Database AllSocialToWeb', tone: 'violet' },
+                  { value: reachability.google?.has_evidence ? (reachability.google?.visible_pages || visibility.visible_pages || 0) : '—', label: 'Pagine rilevate da Google', source: reachability.google?.has_evidence ? 'Google Search Console' : 'Collega Search Console', tone: 'blue' },
+                  { value: reachability.google?.has_evidence ? Number(visibility.impressions || 0).toLocaleString('it-IT') : '—', label: 'Visualizzazioni su Google · 30 gg', source: reachability.google?.has_evidence ? 'Google Search Console' : 'Dato non ancora disponibile', tone: 'amber' },
+                  { value: Number(visibility.unique_visitors || 0).toLocaleString('it-IT'), label: 'Visitatori dello Spazio · 30 gg', source: 'Analytics interno', tone: 'teal' },
+                  { value: Number(visibility.actions || 0).toLocaleString('it-IT'), label: 'Contatti e azioni · 30 gg', source: 'Analytics interno', tone: 'green' },
+                ].map(metric => <article key={metric.label} className={`metric-card tone-${metric.tone}`}>
+                  <span className="metric-source">{metric.source}</span>
+                  <strong>{metric.value}</strong>
+                  <p>{metric.label}</p>
+                </article>)}
+              </section>
+
+              <div className="data-columns">
+                <section className="data-panel source-panel">
+                  <header><div><span className="section-eyebrow">Trasparenza</span><h3>Da dove arrivano i dati</h3></div><span className="live-badge">Fonti separate</span></header>
+                  <div className="source-list">
+                    {(reachability.data_sources || []).map(source => <div key={source.key} className={`source-row ${source.connected ? 'is-connected' : ''}`}>
+                      <span className="source-status">{source.connected ? '✓' : '!'}</span>
+                      <div><strong>{source.source || source.label}</strong><small>{source.label} · {source.connected ? 'fonte attiva' : 'da collegare per ottenere dati reali'}</small></div>
+                      <time>{source.updated_at ? new Date(source.updated_at).toLocaleDateString('it-IT') : 'Nessun dato'}</time>
+                    </div>)}
+                  </div>
+                  {!reachability.google?.connected && <button className="btn btn-primary" onClick={() => setVisibilitySection('network')}>Configura i dati Google</button>}
+                </section>
+
+                <section className="data-panel foundation-panel">
+                  <header><div><span className="section-eyebrow">Struttura</span><h3>Pagine fondamentali</h3></div><button className="btn btn-outline" onClick={rebuildSeoFoundation} disabled={savingProfile}>{savingProfile ? 'Aggiorno…' : 'Aggiorna'}</button></header>
+                  <p>Il sistema le costruisce con informazioni reali del profilo e le collega agli articoli pertinenti.</p>
+                  <div className="foundation-list">
+                    {(seoFoundation.pages || []).map(page => <a key={page.slug} href={`${siteUrl}/${page.slug}`} target="_blank" rel="noopener"><span>↗</span><strong>{page.title}</strong><small>Pagina pubblica</small></a>)}
+                    {!(seoFoundation.pages || []).length && <div className="data-empty">Completa il Profilo attività: da lì nasceranno le prime pagine.</div>}
+                  </div>
+                </section>
+              </div>
+
+              <section className="data-panel map-panel">
+                <header className="map-heading">
+                  <div><span className="section-eyebrow">Mappa della presenza</span><h3>Come persone e motori raggiungono i contenuti</h3><p>La mappa è costruita dalle pagine pubblicate, dai collegamenti HTML e dalla sitemap.</p></div>
+                  <div className="map-stats">
+                    <span><strong>{networkPublishedPages}</strong> pagine</span>
+                    <span><strong>{sources.length}</strong> fonti</span>
+                    <span><strong>{publishedPosts.length}</strong> articoli</span>
+                  </div>
+                </header>
+                <div className="map-legend"><span><i className="legend-hub" />Hub pubblico</span><span><i className="legend-space" />Spazio Vivo</span><span><i className="legend-page" />Pagine e articoli</span></div>
+                <SiteMapGraph posts={posts} siteUrl={siteUrl} siteTitle={data?.site?.title || user?.name || user?.slug} foundationPages={seoFoundation.pages || []} />
+                <div className="map-actions"><a href="/scopri" target="_blank" rel="noopener" className="btn btn-outline">Apri la rete pubblica</a><a href={`${siteUrl}/sitemap.xml`} target="_blank" rel="noopener" className="btn btn-outline">Apri la sitemap</a></div>
+              </section>
+            </div>}
+
+            {false && visibilitySection === 'overview' && <>
             <div className="glass-modal" style={{ marginBottom: '1.5rem', padding: '1.5rem' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap', alignItems: 'flex-start' }}>
                 <div>
@@ -2637,6 +2793,17 @@ const [importMsg, setImportMsg] = useState(null);
             </>}
 
             {visibilitySection === 'ideas' && <div id="ideas" className="glass-modal ideas-panel">
+              <section className="ideas-quick-start">
+                <div>
+                  <span className="section-eyebrow">Parti da qui</span>
+                  <h2>Scegli un'idea. L'AI scrive. La bozza compare negli Articoli.</h2>
+                  <p>Nulla viene pubblicato automaticamente: troverai sempre titolo e testo completi nell'editor, pronti da correggere.</p>
+                </div>
+                <div className="ideas-quick-actions">
+                  <button className="btn btn-primary" onClick={() => setCustomIdeaOpen(true)}>+ Crea da una mia idea</button>
+                  <button className="btn btn-outline" onClick={() => { setDashboardFilter('published-0'); setTab('site'); }}>Vedi {posts.filter(post => Number(post.published) === 0).length} bozze</button>
+                </div>
+              </section>
               <header className="ideas-head">
                 <div>
                   <h3>Idee per il prossimo contenuto</h3>
@@ -2776,7 +2943,7 @@ const [importMsg, setImportMsg] = useState(null);
               </p>
             </div>}
 
-            {visibilitySection === 'solutions' && <div id="modules" className="glass-modal" style={{ marginBottom: '1.5rem', padding: '1.5rem', background: 'linear-gradient(145deg, var(--surface), var(--primary-light))' }}>
+            {false && visibilitySection === 'solutions' && <div id="modules" className="glass-modal" style={{ marginBottom: '1.5rem', padding: '1.5rem', background: 'linear-gradient(145deg, var(--surface), var(--primary-light))' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem', alignItems: 'flex-start', flexWrap: 'wrap' }}>
                 <div style={{ maxWidth: '720px' }}>
                   <div style={{ color: 'var(--primary)', fontSize: '12px', fontWeight: 850, textTransform: 'uppercase', letterSpacing: '.08em' }}>Soluzioni modulari</div>
@@ -2884,6 +3051,8 @@ const [importMsg, setImportMsg] = useState(null);
             )}
           </div>
         )}
+
+        {tab === 'services' && renderVisibilityServices()}
 
         {/* Tab: Impostazioni */}
         {tab === 'settings' && (

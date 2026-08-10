@@ -1983,7 +1983,8 @@ if ($action === 'reoptimize-post' && $method === 'POST') {
 // ── GET drafts: bozze importate non ancora armonizzate ────────────────────
 if ($action === 'drafts' && $method === 'GET') {
     $drafts = DB::fetchAll(
-        'SELECT id, platform, media_url, source_url, transcript, published_at
+        'SELECT id, platform, media_url, media_type, source_url, transcript,
+                generated_title, generated_body, generated_excerpt, tags, seo_score, published, published_at
            FROM posts WHERE user_id=? AND published=0 ORDER BY id DESC LIMIT 50',
         [$userId]
     );
