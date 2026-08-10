@@ -1764,6 +1764,9 @@ if ($action === 'create-idea-draft' && $method === 'POST') {
     $ideaType = trim((string)($b['type'] ?? 'Idea editoriale'));
     $ideaSource = trim((string)($b['source'] ?? 'Analisi editoriale'));
     $ideaPriority = trim((string)($b['priority'] ?? 'Consigliata'));
+    // mode=ai: l'AI scrive il testo. mode=manual: si crea solo la traccia e
+    // scrive l'utente — nessuna chiamata all'AI, quindi nessun costo.
+    $ideaMode = ($b['mode'] ?? 'ai') === 'manual' ? 'manual' : 'ai';
     if ($ideaTitle === '') jsonError('Titolo idea mancante', 422);
     $ideaTitleLength = function_exists('mb_strlen') ? mb_strlen($ideaTitle, 'UTF-8') : strlen($ideaTitle);
     if ($ideaTitleLength > 240) jsonError('Titolo idea troppo lungo', 422);
@@ -1783,7 +1786,12 @@ if ($action === 'create-idea-draft' && $method === 'POST') {
     $safeSource = htmlspecialchars($ideaSource, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
     $safePriority = htmlspecialchars($ideaPriority, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
     $draftExcerpt = $ideaReason !== '' ? $ideaReason : 'Prima bozza editoriale da completare e personalizzare prima della pubblicazione.';
-    $draftBody = '<p><strong>Bozza iniziale pronta per la revisione.</strong></p>'
+    $draftBody = $ideaMode === 'manual'
+        ? ('<h2>' . $safeTitle . '</h2>'
+            . '<p>' . $safeReason . '</p>'
+            . '<h2>Scaletta</h2><ul><li>Apri con la domanda concreta del lettore.</li><li>Spiega il tema con parole tue.</li><li>Aggiungi un esempio reale della tua attivita.</li><li>Chiudi con il passo successivo.</li></ul>'
+            . '<p><em>Sostituisci questa traccia con il tuo testo.</em></p>')
+        : '<p><strong>Bozza iniziale pronta per la revisione.</strong></p>'
         . '<h2>Obiettivo del contenuto</h2><p>' . $safeReason . '</p>'
         . '<h2>Il punto di partenza</h2><p>Questo contenuto nasce da <strong>' . $safeSource . '</strong> ed è classificato come <strong>' . $safePriority . '</strong>. Deve rispondere con chiarezza al tema “' . $safeTitle . '” usando esempi e informazioni realmente disponibili.</p>'
         . '<h2>Scaletta da sviluppare</h2><ul><li>Aprire con il bisogno o la domanda concreta del pubblico.</li><li>Spiegare il tema con un linguaggio semplice e specifico.</li><li>Aggiungere prove, esempi o dettagli riconducibili all’attività.</li><li>Concludere con un prossimo passo chiaro, senza promesse non verificabili.</li></ul>'
@@ -1800,7 +1808,10 @@ if ($action === 'create-idea-draft' && $method === 'POST') {
         'ok' => true,
         'post_id' => (int)$postId,
         'status' => 'draft',
-        'ai_status' => function_exists('fastcgi_finish_request') ? 'processing' : 'scaffold',
+        'mode' => $ideaMode,
+        'ai_status' => $ideaMode === 'manual'
+            ? 'skipped'
+            : (function_exists('fastcgi_finish_request') ? 'processing' : 'scaffold'),
         'draft' => [
             'id' => (int)$postId,
             'title' => $ideaTitle,
@@ -1816,7 +1827,7 @@ if ($action === 'create-idea-draft' && $method === 'POST') {
     http_response_code(201);
     header('Content-Type: application/json; charset=utf-8');
     echo json_encode($response, JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE);
-    if (function_exists('fastcgi_finish_request')) {
+    if ($ideaMode === 'ai' && function_exists('fastcgi_finish_request')) {
         fastcgi_finish_request();
         ignore_user_abort(true);
         try {

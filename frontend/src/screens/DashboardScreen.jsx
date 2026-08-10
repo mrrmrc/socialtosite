@@ -455,6 +455,9 @@ const [importMsg, setImportMsg] = useState(null);
   const [savingReachability, setSavingReachability] = useState(false);
   const [savingSearchVisible, setSavingSearchVisible] = useState(false);
   const [preparingIdea, setPreparingIdea] = useState(-1);
+  const [editingIdea, setEditingIdea] = useState(null);      // {index, title, reason}
+  const [customIdeaOpen, setCustomIdeaOpen] = useState(false);
+  const [customIdea, setCustomIdea] = useState({ title: '', reason: '' });
   const [promptDrafts, setPromptDrafts] = useState({});
   const [savingPromptName, setSavingPromptName] = useState('');
   const [passwordForm, setPasswordForm] = useState({ current: '', next: '', confirm: '' });
@@ -1127,26 +1130,40 @@ const [importMsg, setImportMsg] = useState(null);
     setSavingReachability(false);
   }
 
-  async function createIdeaDraft(idea, index) {
+  async function createIdeaDraft(idea, index, mode = 'ai') {
+    if (!String(idea?.title || '').trim()) {
+      setSyncMsg({ ok: false, text: 'Serve un titolo per creare la bozza.' });
+      return;
+    }
     setPreparingIdea(index);
-    setSyncMsg({ ok: true, loading: true, text: 'Creo subito la bozza e avvio il completamento AI…' });
+    setSyncMsg({
+      ok: true, loading: true,
+      text: mode === 'manual'
+        ? 'Preparo la traccia da compilare…'
+        : 'Creo la bozza e avvio la scrittura AI…',
+    });
     const controller = new AbortController();
     const timeoutId = window.setTimeout(() => controller.abort(), 25000);
     try {
       const result = await apiFetch('/api/index.php?action=create-idea-draft', {
         method: 'POST',
-        body: JSON.stringify(idea),
+        body: JSON.stringify({ ...idea, mode }),
         signal: controller.signal,
       }, token);
       await Promise.all([loadData(), loadDrafts()]);
       setDashboardFilter('published-0');
       setTab('site');
       if (result?.draft) setEditingPost(result.draft);
+      setEditingIdea(null);
+      setCustomIdeaOpen(false);
+      setCustomIdea({ title: '', reason: '' });
       setSyncMsg({
         ok: true,
         text: result?.ai_status === 'processing'
-          ? 'Bozza creata e aperta. L’AI la sta completando in background: puoi già modificarla.'
-          : 'Bozza creata e aperta. Puoi completarla nell’editor prima di pubblicarla.',
+          ? 'Bozza creata e aperta. L’AI la sta scrivendo: puoi già modificarla.'
+          : (mode === 'manual'
+              ? 'Traccia creata e aperta nell’editor. Scrivi pure: nessun testo è stato generato.'
+              : 'Bozza creata e aperta. Puoi completarla nell’editor prima di pubblicarla.'),
       });
       if (result?.ai_status === 'processing') {
         window.setTimeout(() => loadData(), 20000);
@@ -1690,31 +1707,45 @@ const [importMsg, setImportMsg] = useState(null);
         </div>
         <div style={{ padding: '24px 16px', display: 'flex', flexDirection: 'column', gap: '8px', flex: 1, overflowY: 'auto' }}>
           {[
+            // Raggruppato per compito, non per ordine storico di sviluppo:
+            // undici voci piatte costringevano a rileggerle tutte ogni volta.
+            { group: 'Contenuti' },
             { id: 'overview', icon: '🏠', label: 'Home' },
-            { id: 'living-space', icon: '✦', label: 'Spazio Vivo', external: true },
-            { id: 'experience', icon: '◇', label: 'Scegli esperienza' },
+            // Promossa al primo livello: era due livelli sotto "Network della
+            // reperibilità", pur essendo il punto da cui nasce ogni contenuto.
+            { id: 'seo', section: 'ideas', icon: '💡', label: 'Idee contenuti' },
             { id: 'site', icon: '📝', label: 'Articoli' },
             { id: 'sources', icon: '📡', label: 'Canali' },
-            ...(user?.role === 'admin' ? [{ id: 'admin', icon: '👥', label: 'Gestione utenti' }] : []),
-            ...(user?.role === 'admin' ? [{ id: 'settings', icon: '🎨', label: 'Design legacy' }] : []),
-            ...(user?.role === 'admin' ? [
-              { id: 'general', icon: '⚙️', label: 'Impostazioni' }
-            ] : []),
-            { id: 'seo', icon: '◎', label: 'Network della reperibilità' },
+
+            { group: 'Visibilità' },
+            { id: 'seo', section: 'network', icon: '◎', label: 'Reperibilità' },
             { id: 'strategy', icon: '✓', label: 'Profilo guidato' },
-            { id: 'security', icon: '🔐', label: 'Password e sicurezza' }
-          ].map(item => (
-            <button key={item.id} onClick={() => item.external ? window.open(siteUrl, '_blank', 'noopener') : setTab(item.id)}
-              style={{
-                padding: '14px 16px', borderRadius: '12px', textAlign: 'left',
-                background: tab === item.id ? 'var(--primary-light)' : 'transparent',
-                color: tab === item.id ? 'var(--primary)' : 'var(--text-muted)',
-                fontWeight: tab === item.id ? 700 : 600,
-                display: 'flex', alignItems: 'center', gap: '14px',
-                border: tab === item.id ? '1px solid var(--primary-light)' : '1px solid transparent',
-                cursor: 'pointer', transition: 'all 0.2s ease',
+
+            { group: 'Il tuo sito' },
+            { id: 'experience', icon: '◇', label: 'Aspetto del sito' },
+            { id: 'living-space', icon: '↗', label: 'Apri lo Spazio Vivo', external: true },
+
+            { group: 'Account' },
+            { id: 'security', icon: '🔐', label: 'Password e sicurezza' },
+            ...(user?.role === 'admin' ? [
+              { group: 'Amministrazione' },
+              { id: 'admin', icon: '👥', label: 'Gestione utenti' },
+              { id: 'general', icon: '⚙️', label: 'Impostazioni' },
+              { id: 'settings', icon: '🎨', label: 'Design legacy' },
+            ] : []),
+          ].map((item, i) => item.group ? (
+            <div key={`g-${i}`} className="nav-group">{item.group}</div>
+          ) : (
+            <button
+              key={`${item.id}-${item.section || ''}`}
+              className={`nav-item ${(tab === item.id && (!item.section || visibilitySection === item.section)) ? 'is-active' : ''}`}
+              onClick={() => {
+                if (item.external) { window.open(siteUrl, '_blank', 'noopener'); return; }
+                setTab(item.id);
+                if (item.section) setVisibilitySection(item.section);
               }}>
-              <span style={{ fontSize: '20px' }}>{item.icon}</span> {item.label}
+              <span className="nav-icon">{item.icon}</span>
+              <span className="nav-label">{item.label}</span>
             </button>
           ))}
         </div>
@@ -2556,37 +2587,135 @@ const [importMsg, setImportMsg] = useState(null);
             </div>
             </>}
 
-            {visibilitySection === 'ideas' && <div id="ideas" className="glass-modal content-ideas-panel" style={{ marginBottom: '1.5rem', padding: '1.5rem' }}>
-              <div className="content-ideas-heading">
+            {visibilitySection === 'ideas' && <div id="ideas" className="glass-modal ideas-panel">
+              <header className="ideas-head">
                 <div>
-                  <div className="content-ideas-eyebrow">Il tuo prossimo contenuto parte da qui</div>
-                  <h3>Idee contenuti su misura per te</h3>
-                  <p>Non sono spunti generici: ogni proposta nasce dai tuoi social, dai media disponibili, dalle ricerche Google e dalle priorità che hai indicato. Le prime idee sono quelle su cui conviene lavorare adesso.</p>
+                  <h3>Idee per il prossimo contenuto</h3>
+                  <p>Proposte costruite dai tuoi canali, dalle ricerche reali su Google e dalle priorità che hai dichiarato. Per ognuna puoi far scrivere l’AI, scrivere tu, o adattare l’idea prima di partire. Niente viene pubblicato da solo.</p>
                 </div>
-                <button className="btn btn-outline" onClick={refreshUnderstanding} disabled={savingProfile}>{savingProfile ? 'Aggiornamento…' : 'Aggiorna le idee'}</button>
-              </div>
-              <div className="content-ideas-summary">
-                <div><strong>{contentIdeas.length}</strong><span>proposte pronte</span></div>
-                <div><strong>{publishedPosts.filter(post => post.media_url).length}</strong><span>media utilizzabili</span></div>
-                <div><strong>{(visibility.top_queries || []).length}</strong><span>segnali Google analizzati</span></div>
-              </div>
-              <div className="content-ideas-source"><strong>Come usarle:</strong> parti dalla prima proposta, genera una bozza e personalizzala nell’editor. Nulla viene pubblicato automaticamente.</div>
-              <div className="content-ideas-grid">
-                {contentIdeas.map((idea, index) => (
-                  <article key={`${idea.title}-${index}`} className={`content-idea-card ${index === 0 ? 'content-idea-card--featured' : ''}`}>
-                    <div className="content-idea-number">{index + 1}</div>
-                    <div className="content-idea-body">
-                      <div className="content-idea-meta"><span>{idea.type}</span><em>{idea.priority}</em></div>
-                      <h4>{idea.title}</h4>
-                      <p>{idea.reason}</p>
-                      <div className="content-idea-source">Basata su: {idea.source}</div>
-                      <button className={`btn ${index === 0 ? 'btn-primary' : 'btn-outline'}`} onClick={() => createIdeaDraft(idea, index)} disabled={preparingIdea !== -1}>
-                        {preparingIdea === index ? 'Preparazione bozza…' : 'Crea una bozza da questa idea'}
+                <button className="btn btn-outline" onClick={refreshUnderstanding} disabled={savingProfile}>
+                  {savingProfile ? 'Aggiornamento…' : 'Ricalcola le idee'}
+                </button>
+              </header>
+
+              <ol className="ideas-list">
+                {contentIdeas.map((idea, index) => {
+                  const inModifica = editingIdea?.index === index;
+                  const occupato = preparingIdea !== -1;
+                  return (
+                    <li key={`${idea.title}-${index}`} className={`idea-row ${inModifica ? 'is-editing' : ''}`}>
+                      <div className="idea-rank">{index + 1}</div>
+                      <div className="idea-main">
+                        {inModifica ? (
+                          <div className="idea-edit">
+                            <label>
+                              <span>Titolo del contenuto</span>
+                              <input
+                                type="text" value={editingIdea.title} autoFocus
+                                onChange={e => setEditingIdea({ ...editingIdea, title: e.target.value })}
+                                placeholder="Di cosa parla il contenuto"
+                              />
+                            </label>
+                            <label>
+                              <span>Cosa deve dire, in breve</span>
+                              <textarea
+                                rows={2} value={editingIdea.reason}
+                                onChange={e => setEditingIdea({ ...editingIdea, reason: e.target.value })}
+                                placeholder="Il punto che vuoi far arrivare al lettore"
+                              />
+                            </label>
+                            <div className="idea-actions">
+                              <button className="btn btn-primary" disabled={occupato}
+                                onClick={() => createIdeaDraft({ ...idea, title: editingIdea.title, reason: editingIdea.reason }, index, 'ai')}>
+                                ✨ Genera con l’AI
+                              </button>
+                              <button className="btn btn-outline" disabled={occupato}
+                                onClick={() => createIdeaDraft({ ...idea, title: editingIdea.title, reason: editingIdea.reason }, index, 'manual')}>
+                                ✎ Scrivo io
+                              </button>
+                              <button className="btn btn-ghost" onClick={() => setEditingIdea(null)}>Annulla</button>
+                            </div>
+                          </div>
+                        ) : (
+                          <>
+                            <div className="idea-title-row">
+                              <h4>{idea.title}</h4>
+                              <span className="idea-tag">{idea.type}</span>
+                            </div>
+                            <p className="idea-reason">{idea.reason}</p>
+                            <div className="idea-origin">Da: {idea.source}</div>
+                            <div className="idea-actions">
+                              <button className="btn btn-primary" disabled={occupato}
+                                onClick={() => createIdeaDraft(idea, index, 'ai')}>
+                                {preparingIdea === index ? 'Creo la bozza…' : '✨ Genera con l’AI'}
+                              </button>
+                              <button className="btn btn-outline" disabled={occupato}
+                                onClick={() => createIdeaDraft(idea, index, 'manual')}>
+                                ✎ Scrivo io
+                              </button>
+                              <button className="btn btn-ghost" disabled={occupato}
+                                onClick={() => setEditingIdea({ index, title: idea.title, reason: idea.reason })}>
+                                Adatta l’idea
+                              </button>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    </li>
+                  );
+                })}
+
+                {!contentIdeas.length && (
+                  <li className="idea-empty">
+                    Ancora nessuna proposta: servono contenuti pubblicati o il Profilo guidato compilato.
+                    Puoi comunque partire da un’idea tua, qui sotto.
+                  </li>
+                )}
+              </ol>
+
+              <div className={`idea-custom ${customIdeaOpen ? 'is-open' : ''}`}>
+                {!customIdeaOpen ? (
+                  <button className="btn btn-outline idea-custom-toggle" onClick={() => setCustomIdeaOpen(true)}>
+                    + Ho un’idea mia
+                  </button>
+                ) : (
+                  <div className="idea-edit">
+                    <div className="idea-custom-title">La tua idea</div>
+                    <label>
+                      <span>Titolo del contenuto</span>
+                      <input
+                        type="text" value={customIdea.title} autoFocus
+                        onChange={e => setCustomIdea({ ...customIdea, title: e.target.value })}
+                        placeholder="Es. Come scegliere il materasso giusto per la lombalgia"
+                      />
+                    </label>
+                    <label>
+                      <span>Cosa deve dire, in breve</span>
+                      <textarea
+                        rows={2} value={customIdea.reason}
+                        onChange={e => setCustomIdea({ ...customIdea, reason: e.target.value })}
+                        placeholder="Il punto che vuoi far arrivare al lettore"
+                      />
+                    </label>
+                    <div className="idea-actions">
+                      <button className="btn btn-primary" disabled={preparingIdea !== -1 || !customIdea.title.trim()}
+                        onClick={() => createIdeaDraft({ ...customIdea, type: 'Idea tua', source: 'Proposta manuale', priority: 'Scelta da te' }, -2, 'ai')}>
+                        ✨ Genera con l’AI
                       </button>
+                      <button className="btn btn-outline" disabled={preparingIdea !== -1 || !customIdea.title.trim()}
+                        onClick={() => createIdeaDraft({ ...customIdea, type: 'Idea tua', source: 'Proposta manuale', priority: 'Scelta da te' }, -2, 'manual')}>
+                        ✎ Scrivo io
+                      </button>
+                      <button className="btn btn-ghost" onClick={() => { setCustomIdeaOpen(false); setCustomIdea({ title: '', reason: '' }); }}>Annulla</button>
                     </div>
-                  </article>
-                ))}
+                  </div>
+                )}
               </div>
+
+              <p className="ideas-foot">
+                In ogni caso finisci nell’editor con una bozza <strong>non pubblicata</strong>:
+                «Genera con l’AI» te la consegna già scritta da rivedere, «Scrivo io» ti lascia una traccia vuota da riempire.
+              </p>
             </div>}
 
             {visibilitySection === 'solutions' && <div id="modules" className="glass-modal" style={{ marginBottom: '1.5rem', padding: '1.5rem', background: 'linear-gradient(145deg, var(--surface), var(--primary-light))' }}>
