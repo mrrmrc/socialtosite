@@ -4,6 +4,32 @@ header("Cache-Control: no-store, no-cache, must-revalidate, max-age=0");
 header("Cache-Control: post-check=0, pre-check=0", false);
 header("Pragma: no-cache");
 
+// ── Content Security Policy ────────────────────────────────────────────────
+// Seconda linea di difesa dietro la sanitizzazione di bodyHtml(): anche se un
+// tag pericoloso passasse il filtro, il browser rifiuterebbe di eseguirlo.
+// Gli script inline legittimi di questa pagina portano la nonce; uno script
+// iniettato in un articolo non può conoscerla, quindi non viene eseguito.
+$cspNonce = base64_encode(random_bytes(16));
+header(
+    "Content-Security-Policy: "
+    . "default-src 'self'; "
+    . "script-src 'self' 'nonce-$cspNonce'; "
+    // Gli attributi style="" inline sono usati in tutto il layout e non sono
+    // coprribili da nonce; la sanitizzazione li rimuove comunque dagli articoli.
+    . "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
+    . "font-src 'self' https://fonts.gstatic.com data:; "
+    // Le immagini arrivano dalle CDN dei social, non elencabili a priori.
+    . "img-src 'self' https: data:; "
+    . "media-src 'self' https:; "
+    . "connect-src 'self'; "
+    . "object-src 'none'; "
+    . "base-uri 'none'; "
+    . "form-action 'self'; "
+    . "frame-ancestors 'self'"
+);
+header('X-Content-Type-Options: nosniff');
+header('Referrer-Policy: strict-origin-when-cross-origin');
+
 require_once __DIR__ . '/../config/db.php';
 require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/../api/services/seo_foundation.php';
@@ -797,12 +823,126 @@ function mediaHtml(array $p): string {
     return '';
 }
 
+// ── Sanitizzazione HTML degli articoli ─────────────────────────────────────
+// Il corpo di un articolo arriva da tre strade non fidate: la generazione AI,
+// l'editor dell'utente e il webhook di ingestione esterna. Prima veniva
+// restituito così com'era appena conteneva un tag comune: bastava un
+// <img onerror=...> per eseguire codice sul sito pubblico.
+// Tutti i siti condividono la stessa origine, quindi uno script iniettato nel
+// sito di un cliente potrebbe leggere la sessione della dashboard di chiunque
+// stia navigando: il filtro qui sotto è una difesa multi-tenant, non estetica.
+
+/** Tag ammessi nel corpo di un articolo. */
+const BODY_ALLOWED_TAGS = [
+    'p', 'br', 'strong', 'b', 'em', 'i', 'u', 'span', 'div',
+    'h2', 'h3', 'h4', 'h5', 'h6',
+    'ul', 'ol', 'li', 'blockquote', 'pre', 'code', 'hr',
+    'a', 'img', 'figure', 'figcaption',
+    'table', 'thead', 'tbody', 'tfoot', 'tr', 'td', 'th', 'caption',
+];
+
+/** Attributi ammessi, per tag. Nessun on*, nessuno style. */
+const BODY_ALLOWED_ATTRS = [
+    'a'   => ['href', 'title', 'target', 'rel'],
+    'img' => ['src', 'alt', 'title', 'width', 'height', 'loading'],
+    'td'  => ['colspan', 'rowspan'],
+    'th'  => ['colspan', 'rowspan', 'scope'],
+];
+
+/** Consente solo URL navigabili: blocca javascript:, data:, vbscript:. */
+function bodySafeUrl(string $url, bool $allowData = false): ?string {
+    $url = trim(html_entity_decode($url, ENT_QUOTES, 'UTF-8'));
+    // Rimuove caratteri di controllo usati per mascherare "java\0script:"
+    $probe = strtolower(preg_replace('/[\x00-\x20]/', '', $url) ?? '');
+    if ($probe === '') return null;
+    if (str_starts_with($probe, 'javascript:') || str_starts_with($probe, 'vbscript:')) return null;
+    if (str_starts_with($probe, 'data:')) {
+        // Solo immagini inline, e solo dove ha senso (src di <img>)
+        if (!$allowData || !preg_match('~^data:image/(png|jpe?g|gif|webp);base64,~i', $url)) return null;
+    }
+    return $url;
+}
+
+function bodySanitizeHtml(string $html): string {
+    if (!class_exists('DOMDocument')) {
+        // Senza ext-dom non si può filtrare in modo affidabile: meglio
+        // degradare a testo semplice che servire HTML non verificato.
+        return nl2br(h(strip_tags($html)));
+    }
+
+    $doc = new DOMDocument();
+    $previous = libxml_use_internal_errors(true);
+    // L'HTML degli articoli è un frammento: lo si incapsula per non farsi
+    // aggiungere <html>/<body> impliciti, poi si estrae solo il contenuto.
+    $doc->loadHTML(
+        '<?xml encoding="UTF-8"><div id="sts-root">' . $html . '</div>',
+        LIBXML_HTML_NOIMPLIED | LIBXML_HTML_NODEFDTD
+    );
+    libxml_clear_errors();
+    libxml_use_internal_errors($previous);
+
+    $root = $doc->getElementById('sts-root');
+    if (!$root) return nl2br(h(strip_tags($html)));
+
+    // Visita in profondità raccogliendo prima i nodi, poi modifica: mutare
+    // l'albero durante l'iterazione salterebbe dei nodi.
+    $stack = [$root];
+    $nodes = [];
+    while ($stack) {
+        $node = array_pop($stack);
+        foreach ($node->childNodes as $child) {
+            $nodes[] = $child;
+            if ($child->nodeType === XML_ELEMENT_NODE) $stack[] = $child;
+        }
+    }
+
+    foreach ($nodes as $node) {
+        if ($node->nodeType === XML_ELEMENT_NODE) {
+            $tag = strtolower($node->nodeName);
+            if (!in_array($tag, BODY_ALLOWED_TAGS, true)) {
+                // Tag non ammesso: per script/style/iframe si butta tutto il
+                // contenuto, altrimenti si conserva il testo interno.
+                if (in_array($tag, ['script', 'style', 'iframe', 'object', 'embed', 'form', 'svg', 'math'], true)) {
+                    if ($node->parentNode) $node->parentNode->removeChild($node);
+                } elseif ($node->parentNode) {
+                    while ($node->firstChild) $node->parentNode->insertBefore($node->firstChild, $node);
+                    $node->parentNode->removeChild($node);
+                }
+                continue;
+            }
+
+            $allowed = BODY_ALLOWED_ATTRS[$tag] ?? [];
+            foreach (iterator_to_array($node->attributes ?? []) as $attr) {
+                $name = strtolower($attr->nodeName);
+                if (!in_array($name, $allowed, true)) { $node->removeAttribute($attr->nodeName); continue; }
+                if ($name === 'href' || $name === 'src') {
+                    $safe = bodySafeUrl((string)$attr->nodeValue, $name === 'src' && $tag === 'img');
+                    if ($safe === null) { $node->removeAttribute($attr->nodeName); continue; }
+                    $node->setAttribute($name, $safe);
+                }
+            }
+
+            // I link esterni non devono poter manipolare la finestra di origine.
+            if ($tag === 'a' && $node->getAttribute('target') !== '') {
+                $node->setAttribute('rel', 'noopener noreferrer');
+            }
+        } elseif (!in_array($node->nodeType, [XML_TEXT_NODE, XML_CDATA_SECTION_NODE], true)) {
+            // Commenti e istruzioni di elaborazione: via.
+            if ($node->parentNode) $node->parentNode->removeChild($node);
+        }
+    }
+
+    $out = '';
+    foreach ($root->childNodes as $child) $out .= $doc->saveHTML($child);
+    return $out;
+}
+
 function bodyHtml(?string $b): string {
     $b = trim((string)$b);
     if ($b === '') return '';
     // Se il testo contiene tag HTML comuni (p, br, table, div, strong, h2, h3), lo riteniamo HTML pre-formattato
     if (preg_match('/<(p|br|table|tr|td|th|div|strong|em|h2|h3|h4|ul|ol|li)[^>]*>/i', $b)) {
-        return $b;
+        return bodySanitizeHtml($b);
     }
     $out = '';
     foreach (preg_split('/\n{2,}/', $b) as $para) {
@@ -1646,10 +1786,10 @@ header('Link: <' . $siteUrl . '/feed.xml>; rel="alternate"; type="application/at
   <link rel="sitemap" type="application/xml" href="<?= $siteUrl ?>/sitemap.xml">
   <link rel="alternate" type="application/atom+xml" title="RSS Feed" href="<?= $siteUrl ?>/feed.xml">
   
-  <script type="application/ld+json"><?= json_encode($websiteSchema, $jsonLdFlags) ?></script>
-  <script type="application/ld+json"><?= json_encode($businessSchema, $jsonLdFlags) ?></script>
+  <script type="application/ld+json" nonce="<?= h($cspNonce) ?>"><?= json_encode($websiteSchema, $jsonLdFlags) ?></script>
+  <script type="application/ld+json" nonce="<?= h($cspNonce) ?>"><?= json_encode($businessSchema, $jsonLdFlags) ?></script>
   <?php if ($useHospitalityLanding): ?>
-  <script type="application/ld+json">
+  <script type="application/ld+json" nonce="<?= h($cspNonce) ?>">
   {
     "@context": "https://schema.org",
     "@type": "LodgingBusiness",
@@ -1667,15 +1807,15 @@ header('Link: <' . $siteUrl . '/feed.xml>; rel="alternate"; type="application/at
     $webPageSchema = ['@context'=>'https://schema.org','@type'=>'WebPage','name'=>$foundationPage['title'],'description'=>$foundationPage['meta_description'] ?? $foundationPage['intro'] ?? '','url'=>$foundationUrl,'isPartOf'=>['@id'=>$siteUrl]];
     $breadcrumbSchema = ['@context'=>'https://schema.org','@type'=>'BreadcrumbList','itemListElement'=>[['@type'=>'ListItem','position'=>1,'name'=>'Home','item'=>$siteUrl],['@type'=>'ListItem','position'=>2,'name'=>$foundationPage['title'],'item'=>$foundationUrl]]];
   ?>
-  <script type="application/ld+json"><?= json_encode($webPageSchema, $jsonLdFlags) ?></script>
-  <script type="application/ld+json"><?= json_encode($breadcrumbSchema, $jsonLdFlags) ?></script>
+  <script type="application/ld+json" nonce="<?= h($cspNonce) ?>"><?= json_encode($webPageSchema, $jsonLdFlags) ?></script>
+  <script type="application/ld+json" nonce="<?= h($cspNonce) ?>"><?= json_encode($breadcrumbSchema, $jsonLdFlags) ?></script>
   <?php if (!empty($foundationPage['faq'])):
     $faqSchema = ['@context'=>'https://schema.org','@type'=>'FAQPage','mainEntity'=>array_map(static fn($item) => ['@type'=>'Question','name'=>$item['question'],'acceptedAnswer'=>['@type'=>'Answer','text'=>$item['answer']]], $foundationPage['faq'])];
   ?>
-  <script type="application/ld+json"><?= json_encode($faqSchema, $jsonLdFlags) ?></script>
+  <script type="application/ld+json" nonce="<?= h($cspNonce) ?>"><?= json_encode($faqSchema, $jsonLdFlags) ?></script>
   <?php endif; ?>
   <?php elseif ($single): ?>
-  <script type="application/ld+json">
+  <script type="application/ld+json" nonce="<?= h($cspNonce) ?>">
   {
     "@context": "https://schema.org",
     "@type": "BreadcrumbList",
@@ -1691,11 +1831,11 @@ header('Link: <' . $siteUrl . '/feed.xml>; rel="alternate"; type="application/at
     }]
   }
   </script>
-  <script type="application/ld+json"><?= json_encode($articleSchema, $jsonLdFlags) ?></script>
+  <script type="application/ld+json" nonce="<?= h($cspNonce) ?>"><?= json_encode($articleSchema, $jsonLdFlags) ?></script>
   <?php else: ?>
-  <script type="application/ld+json"><?= json_encode($collectionSchema, $jsonLdFlags) ?></script>
+  <script type="application/ld+json" nonce="<?= h($cspNonce) ?>"><?= json_encode($collectionSchema, $jsonLdFlags) ?></script>
   <?php endif; ?>
-  <style>
+  <style nonce="<?= h($cspNonce) ?>">
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     /* ─── TEMA: <?= $theme ?> ─── */
     <?= $activeCss ?>
@@ -2930,7 +3070,7 @@ if ($isLivingHome) {
   </footer>
 <?php endif; ?>
 
-<script>
+<script nonce="<?= h($cspNonce) ?>">
 document.addEventListener('DOMContentLoaded', () => {
   document.querySelectorAll('.nav-brand img').forEach(image => {
     const showBrandFallback = () => {

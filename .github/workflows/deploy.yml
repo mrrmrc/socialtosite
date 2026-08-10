@@ -33,6 +33,22 @@ jobs:
           }
           EOF
 
+      - name: Controlla la sintassi PHP
+        # Cancello prima del deploy: un errore di sintassi non deve poter
+        # arrivare in produzione e lasciare il sito su pagina bianca.
+        run: |
+          errori=0
+          while IFS= read -r -d '' file; do
+            php -l "$file" > /dev/null 2>&1 || { echo "::error file=$file::Errore di sintassi PHP"; php -l "$file"; errori=1; }
+          done < <(find api public cron config -name '*.php' -print0)
+          [ "$errori" -eq 0 ] || { echo "Deploy annullato: correggi gli errori di sintassi."; exit 1; }
+          echo "Sintassi PHP verificata."
+
+      - name: Esegui i test
+        run: |
+          php tools/test_html_sanitizer.php
+          php tools/test_seo_feedback.php
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -45,20 +61,67 @@ jobs:
           npm run build
           cd ..
 
-      - name: Carica i file via SFTP
-        # Le credenziali vivono in config/deploy.env (committato: repo PRIVATO).
-        # Il file viene ESCLUSO dal mirror, così non finisce mai sul server web.
+      - name: Prepara la release
+        # Lista di INCLUSIONE, non di esclusione. Con una lista di esclusione
+        # ogni file nuovo finisce online per default: è così che script di
+        # debug e di migrazione sono arrivati in produzione. Qui va online
+        # soltanto ciò che è elencato qui sotto.
         run: |
-          set -a
-          . ./config/deploy.env
-          set +a
-          : "${FTP_HOST:?manca FTP_HOST in config/deploy.env}"
-          : "${FTP_USER:?manca FTP_USER in config/deploy.env}"
-          : "${FTP_PASS:?manca FTP_PASS in config/deploy.env}"
-          echo "Credenziali lette da config/deploy.env (HOST=$FTP_HOST USER=$FTP_USER)"
+          rm -rf release
+          mkdir -p release
 
-          # Sposta la build di Vite (dist) nella root per il mirror
-          cp -r frontend/dist/* ./
+          # Backend e sito pubblico
+          cp -r api      release/
+          cp -r public   release/
+          cp -r cron     release/
+          cp -r scraper  release/
+
+          # Build del frontend (Vite) nella root del sito
+          cp -r frontend/dist/. release/
+
+          # File di servizio della root
+          cp .htaccess robots.txt deploy-info.json release/
+          # Verifica di proprietà del dominio per Search Console
+          cp google*.html release/ 2>/dev/null || true
+
+          # config/ contiene SOLO i file di esempio: config.php e keys.php
+          # vivono unicamente sul server e non vanno mai sovrascritti.
+          mkdir -p release/config
+          cp config/db.php release/config/
+
+          # Cartella dei media caricati: si crea se manca, senza toccare
+          # quelli già presenti sul server.
+          mkdir -p release/public/media
+
+          echo "── Contenuto della release ──"
+          find release -type f | sort | head -50
+          echo "totale file: $(find release -type f | wc -l)"
+
+          # Rete di sicurezza: se un file che non deve mai uscire finisse
+          # nella release, il deploy si ferma qui invece di pubblicarlo.
+          if find release -name 'config.php' -o -name 'keys.php' -o -name '*.env' \
+                          -o -name 'reset-*' -o -name 'test_*' -o -name 'test-*' \
+                          -o -name 'debug*' -o -name 'diagnostic*' -o -name '*.sql' \
+             | grep -q .; then
+            echo "::error::La release contiene file che non devono essere pubblicati."
+            find release -name 'config.php' -o -name 'keys.php' -o -name '*.env' \
+                         -o -name 'reset-*' -o -name 'test_*' -o -name 'test-*' \
+                         -o -name 'debug*' -o -name 'diagnostic*' -o -name '*.sql'
+            exit 1
+          fi
+
+      - name: Carica i file via FTPS
+        # Le credenziali vivono nei Secrets del repository, non nel codice.
+        # Impostali in Settings → Secrets and variables → Actions.
+        env:
+          FTP_HOST: ${{ secrets.FTP_HOST }}
+          FTP_USER: ${{ secrets.FTP_USER }}
+          FTP_PASS: ${{ secrets.FTP_PASS }}
+        run: |
+          : "${FTP_HOST:?manca il secret FTP_HOST}"
+          : "${FTP_USER:?manca il secret FTP_USER}"
+          : "${FTP_PASS:?manca il secret FTP_PASS}"
+          echo "Deploy verso $FTP_HOST con l'utente $FTP_USER"
 
           # Aruba (ProFTPD) espone solo FTP/FTPS su porta 21: NON SFTP (22 chiusa).
           # Usiamo FTP con TLS opportunistico (AUTH TLS) e verifica certificato off.
@@ -71,15 +134,5 @@ jobs:
           set net:timeout 20;
           set net:persist-retries 3;
           open -u \"$FTP_USER\",\"$FTP_PASS\" ftp://$FTP_HOST;
-          mirror -R --verbose \
-            --exclude-glob .git* \
-            --exclude .github/ \
-            --exclude config/config.php \
-            --exclude config/deploy.env \
-            --exclude db/ \
-            --exclude frontend/ \
-            --exclude tools/ \
-            --exclude README.md \
-            --exclude CLAUDE.md \
-            ./ httpdocs/;
+          mirror -R --verbose release/ httpdocs/;
           "

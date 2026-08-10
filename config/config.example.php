@@ -50,5 +50,17 @@ define('GOOGLE_CLIENT_ID', '');
 define('GOOGLE_CLIENT_SECRET', '');
 define('GOOGLE_REDIRECT_URI', BASE_URL . '/api/auth/callback.php?platform=youtube');
 
+// OpenClaw — chiave del webhook di ingestione articoli esterni.
+// OBBLIGATORIA se usi /api/index.php?action=openclaw-webhook: senza questa
+// costante l'endpoint risponde 503 e rifiuta ogni chiamata (nessun default).
+// Genera con: php -r "echo bin2hex(random_bytes(32));"
+define('OPENCLAW_API_KEY', '');
+
+// Sale per lo pseudonimo dei visitatori nelle statistiche.
+// Tenuto separato da JWT_SECRET: ruotare il segreto di autenticazione non
+// deve azzerare la continuità storica delle statistiche.
+// Genera con: php -r "echo bin2hex(random_bytes(32));"
+define('ANALYTICS_SALT', '');
+
 // Timezone
 date_default_timezone_set('Europe/Rome');

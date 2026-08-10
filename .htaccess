@@ -58,6 +58,20 @@ RewriteRule ^([^/]+)/([^/]+)/?$ public/site.php?slug=$1&post=$2 [L,QSA]
   Require all denied
 </FilesMatch>
 
+# Script di servizio: non devono mai essere raggiungibili dal web, nemmeno se
+# per errore finissero nella release. La difesa principale è la lista di
+# inclusione nel workflow di deploy: questa è la seconda barriera.
+<FilesMatch "(?i)^(.*(debug|diagnostic|migrat|phpinfo).*|check[-_].*|.*[-_]check|test[-_].*|.*[-_]test|reset-.*|puppet|scraper)\.(php|js|py|txt|jsx|html)$">
+  Require all denied
+</FilesMatch>
+
+# File di appoggio e residui di editor: mai serviti.
+# (deploy-info.json resta accessibile: la dashboard lo legge per mostrare
+# quale release è online.)
+<FilesMatch "(?i)\.(log|bak|old|orig|swp|md|py)$">
+  Require all denied
+</FilesMatch>
+
 # Niente listing delle cartelle
 Options -Indexes
 

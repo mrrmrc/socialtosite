@@ -3,7 +3,9 @@
 require_once __DIR__ . '/../../config/config.php';
 
 class JWT {
-    public static function encode(array $payload, int $expDays = 30): string {
+    // 7 giorni invece di 30: un token rubato ha una finestra utile molto più
+    // corta. La revoca immediata passa comunque da users.token_version.
+    public static function encode(array $payload, int $expDays = 7): string {
         $payload['iat'] = time();
         $payload['exp'] = time() + ($expDays * 86400);
         $header  = self::b64(json_encode(['typ' => 'JWT', 'alg' => 'HS256']));

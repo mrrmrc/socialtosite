@@ -95,7 +95,11 @@ class VisibilityAnalytics {
 
         $referrer = trim((string)($_SERVER['HTTP_REFERER'] ?? ''));
         $referrerHost = $referrer !== '' ? (string)(parse_url($referrer, PHP_URL_HOST) ?? '') : '';
-        $secret = defined('JWT_SECRET') ? JWT_SECRET : (defined('DB_NAME') ? DB_NAME : 'socialtosite');
+        // Sale dedicato: se coincidesse con JWT_SECRET, ruotare il segreto di
+        // autenticazione spezzerebbe la continuità storica delle statistiche.
+        $secret = defined('ANALYTICS_SALT') && ANALYTICS_SALT !== ''
+            ? ANALYTICS_SALT
+            : (defined('JWT_SECRET') ? JWT_SECRET : (defined('DB_NAME') ? DB_NAME : 'socialtosite'));
         $visitorHash = hash('sha256',
             (string)($_SERVER['REMOTE_ADDR'] ?? '') . '|' .
             $userAgent . '|' .

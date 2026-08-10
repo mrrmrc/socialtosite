@@ -21,3 +21,8 @@ frontend/dist
 
 # Snapshot e artefatti diagnostici locali
 temp_*.html
+
+# Credenziali di deploy e chiavi dei servizi AI: vivono solo sul server
+# (keys.php) e nei Secrets GitHub (deploy.env). MAI committati.
+config/deploy.env
+config/keys.php
