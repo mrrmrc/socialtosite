@@ -67,6 +67,7 @@ function ensureSiteSchemaUpgrades(): void {
         'harmonize_agent'=>"VARCHAR(50) NOT NULL DEFAULT 'content_editor'",
         'living_space_mode'=>"VARCHAR(30) NOT NULL DEFAULT 'pulse'",
         'search_visible'=>'TINYINT NOT NULL DEFAULT 1',
+        'dismissed_content_ideas'=>'LONGTEXT NULL',
         'living_space_mode_updated_at'=>'DATETIME NULL',
     ];
     $existing = [];
@@ -358,6 +359,7 @@ if ($action === 'migrate') {
     try { DB::execute('ALTER TABLE sites ADD COLUMN editorial_last_run DATETIME NULL'); } catch (Throwable $e) {}
     try { DB::execute('ALTER TABLE sites ADD COLUMN site_understanding LONGTEXT NULL'); } catch (Throwable $e) {}
     try { DB::execute('ALTER TABLE sites ADD COLUMN site_understanding_corrections LONGTEXT NULL'); } catch (Throwable $e) {}
+    try { DB::execute('ALTER TABLE sites ADD COLUMN dismissed_content_ideas LONGTEXT NULL'); } catch (Throwable $e) {}
     try { DB::execute('ALTER TABLE posts ADD COLUMN featured TINYINT DEFAULT 0'); } catch (Throwable $e) {}
     try { DB::execute('ALTER TABLE posts ADD COLUMN edited_title VARCHAR(255) NULL'); } catch (Throwable $e) {}
     try { DB::execute('ALTER TABLE posts ADD COLUMN edited_body LONGTEXT NULL'); } catch (Throwable $e) {}
@@ -1346,6 +1348,7 @@ foreach (['edited_title'=>'VARCHAR(255) NULL','edited_body'=>'LONGTEXT NULL','ed
 // ── GET site ──────────────────────────────────────────────────────────────
 if ($action === 'site' && $method === 'GET') {
     try {
+        ensureSiteSchemaUpgrades();
         ensurePostMediaSchema();
         ensureSocialSyncSchema();
         $site  = DB::fetch('SELECT * FROM sites WHERE user_id=?', [$userId]);
@@ -1756,6 +1759,28 @@ if ($action === 'ingest-url' && $method === 'POST') {
     json($res);
 }
 
+// Nasconde in modo persistente una proposta editoriale per l'utente corrente.
+if ($action === 'dismiss-content-idea' && $method === 'POST') {
+    ensureSiteSchemaUpgrades();
+    $b = body();
+    $ideaKey = trim((string)($b['key'] ?? ''));
+    if ($ideaKey === '') jsonError('Proposta non valida', 422);
+    $ideaKeyLength = function_exists('mb_strlen') ? mb_strlen($ideaKey, 'UTF-8') : strlen($ideaKey);
+    if ($ideaKeyLength > 300) jsonError('Identificativo proposta troppo lungo', 422);
+
+    $site = DB::fetch('SELECT dismissed_content_ideas FROM sites WHERE user_id=?', [$userId]);
+    $dismissed = json_decode($site['dismissed_content_ideas'] ?? '[]', true);
+    if (!is_array($dismissed)) $dismissed = [];
+    $dismissed = array_values(array_unique(array_filter(array_map('strval', $dismissed))));
+    if (!in_array($ideaKey, $dismissed, true)) $dismissed[] = $ideaKey;
+    $dismissed = array_slice($dismissed, -100);
+    DB::execute('UPDATE sites SET dismissed_content_ideas=? WHERE user_id=?', [
+        json_encode($dismissed, JSON_UNESCAPED_UNICODE),
+        $userId,
+    ]);
+    json(['ok' => true, 'dismissed_content_ideas' => $dismissed]);
+}
+
 // Trasforma un suggerimento editoriale in una bozza, senza pubblicarla.
 if ($action === 'create-idea-draft' && $method === 'POST') {
     $b = body();
@@ -1804,38 +1829,62 @@ if ($action === 'create-idea-draft' && $method === 'POST') {
         [$userId, 'editorial_idea', $platformPostId, $brief, $ideaTitle, $draftBody, $draftExcerpt, json_encode([$ideaType], JSON_UNESCAPED_UNICODE), $metaDescription, $draftSlug, $contentHash]
     );
 
+    $aiStatus = $ideaMode === 'manual' ? 'skipped' : 'pending';
+    $aiError = null;
+    $responseDraft = [
+        'id' => (int)$postId,
+        'title' => $ideaTitle,
+        'body' => $draftBody,
+        'excerpt' => $draftExcerpt,
+        'tags' => $ideaType,
+    ];
+
+    // La scrittura AI si completa nella richiesta esplicita dell'utente.
+    // Il vecchio background dipendeva da fastcgi_finish_request(): sui server
+    // che non la espongono rimaneva per sempre soltanto la scaletta iniziale.
+    if ($ideaMode === 'ai') {
+        try {
+            $generated = Ingest::harmonize($userId, (int)$postId, 0);
+            $seo = is_array($generated['seo'] ?? null) ? $generated['seo'] : [];
+            $generatedBody = trim((string)($seo['body'] ?? ''));
+            $generatedBodyLength = function_exists('mb_strlen') ? mb_strlen(strip_tags($generatedBody), 'UTF-8') : strlen(strip_tags($generatedBody));
+            if ($generatedBodyLength < 300 || str_contains($generatedBody, "IDEA EDITORIALE SCELTA DALL'UTENTE")) {
+                throw new Exception('Il servizio AI non ha restituito un articolo completo');
+            }
+            $aiStatus = 'completed';
+            $responseDraft = [
+                'id' => (int)$postId,
+                'title' => (string)($seo['title'] ?? $ideaTitle),
+                'body' => $generatedBody,
+                'excerpt' => (string)($seo['excerpt'] ?? $draftExcerpt),
+                'tags' => $seo['tags'] ?? [$ideaType],
+            ];
+        } catch (Throwable $e) {
+            $aiStatus = 'failed';
+            $aiError = 'La scrittura AI non è riuscita: ' . $e->getMessage();
+            // Se il provider ha risposto con un fallback non valido, ripristina
+            // la scaletta leggibile e non lascia nel CMS il prompt tecnico.
+            DB::execute(
+                'UPDATE posts SET generated_title=?, generated_body=?, generated_excerpt=?, tags=?, meta_description=?, seo_score=10, slug=?, published=0, agent_notes=? WHERE id=? AND user_id=?',
+                [$ideaTitle, $draftBody, $draftExcerpt, json_encode([$ideaType], JSON_UNESCAPED_UNICODE), $metaDescription, $draftSlug, $aiError, $postId, $userId]
+            );
+        }
+    }
+
     $response = [
         'ok' => true,
         'post_id' => (int)$postId,
         'status' => 'draft',
         'mode' => $ideaMode,
-        'ai_status' => $ideaMode === 'manual'
-            ? 'skipped'
-            : (function_exists('fastcgi_finish_request') ? 'processing' : 'scaffold'),
-        'draft' => [
-            'id' => (int)$postId,
-            'title' => $ideaTitle,
-            'body' => $draftBody,
-            'excerpt' => $draftExcerpt,
-            'tags' => $ideaType,
-        ],
+        'ai_status' => $aiStatus,
+        'ai_error' => $aiError,
+        'draft' => $responseDraft,
     ];
 
-    // Rispondi subito: la bozza esiste già ed è modificabile. Su PHP-FPM la
-    // riscrittura AI continua dopo che il browser ha ricevuto la risposta.
     while (ob_get_level() > 0) ob_end_clean();
     http_response_code(201);
     header('Content-Type: application/json; charset=utf-8');
     echo json_encode($response, JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE);
-    if ($ideaMode === 'ai' && function_exists('fastcgi_finish_request')) {
-        fastcgi_finish_request();
-        ignore_user_abort(true);
-        try {
-            Ingest::harmonize($userId, (int)$postId, 0);
-        } catch (Throwable $e) {
-            DB::execute('UPDATE posts SET agent_notes=? WHERE id=? AND user_id=?', ['Bozza salvata; completamento AI non riuscito: ' . $e->getMessage(), $postId, $userId]);
-        }
-    }
     exit;
 }
 

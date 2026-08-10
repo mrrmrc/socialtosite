@@ -227,6 +227,12 @@ function buildEditorialIdeas(posts, understanding, visibility = {}) {
   }).slice(0, 8);
 }
 
+function editorialIdeaKey(idea) {
+  return [idea?.title, idea?.type, idea?.source]
+    .map(value => String(value || '').trim().toLocaleLowerCase('it-IT').replace(/\s+/g, ' '))
+    .join('|');
+}
+
 function strategyCompletion(understanding) {
   const strategy = understanding?.declared_strategy || {};
   const required = [
@@ -393,6 +399,7 @@ function SiteMapGraph({ posts, siteUrl, siteTitle, foundationPages = [] }) {
 export function DashboardScreen({ token, user, onLogout }) {
   const [tab, setTab] = useState('overview');
   const [visibilitySection, setVisibilitySection] = useState('network');
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [dashboardFilter, setDashboardFilter] = useState('all');
   const [data, setData] = useState(null);
   const [adminSeoStats, setAdminSeoStats] = useState([]);
@@ -458,6 +465,8 @@ const [importMsg, setImportMsg] = useState(null);
   const [editingIdea, setEditingIdea] = useState(null);      // {index, title, reason}
   const [customIdeaOpen, setCustomIdeaOpen] = useState(false);
   const [customIdea, setCustomIdea] = useState({ title: '', reason: '' });
+  const [dismissedIdeaKeys, setDismissedIdeaKeys] = useState([]);
+  const [dismissingIdeaKey, setDismissingIdeaKey] = useState('');
   const [promptDrafts, setPromptDrafts] = useState({});
   const [savingPromptName, setSavingPromptName] = useState('');
   const [passwordForm, setPasswordForm] = useState({ current: '', next: '', confirm: '' });
@@ -527,6 +536,14 @@ const [importMsg, setImportMsg] = useState(null);
       setFooterText(d.site?.footer_text || '');
       setHarmonizeAgent(d.site?.harmonize_agent || 'content_editor');
       setAccountType(d.site?.account_type || 'business');
+      try {
+        const dismissed = typeof d.site?.dismissed_content_ideas === 'string'
+          ? JSON.parse(d.site.dismissed_content_ideas || '[]')
+          : (d.site?.dismissed_content_ideas || []);
+        setDismissedIdeaKeys(Array.isArray(dismissed) ? dismissed : []);
+      } catch (_) {
+        setDismissedIdeaKeys([]);
+      }
       setReachabilityDraft(d.reachability?.profile || { official_site_url: '', business_profile_url: '', primary_topic: '', service_areas: [], reciprocal_link_confirmed: false });
       let parsedEditorialSettings = { enabled: true, auto_run: true, min_posts: 8, strict_indexing_mode: true };
       let parsedEditorialDna = {};
@@ -1143,7 +1160,7 @@ const [importMsg, setImportMsg] = useState(null);
         : 'Creo la bozza e avvio la scrittura AI…',
     });
     const controller = new AbortController();
-    const timeoutId = window.setTimeout(() => controller.abort(), 25000);
+    const timeoutId = window.setTimeout(() => controller.abort(), mode === 'ai' ? 120000 : 25000);
     try {
       const result = await apiFetch('/api/index.php?action=create-idea-draft', {
         method: 'POST',
@@ -1153,27 +1170,56 @@ const [importMsg, setImportMsg] = useState(null);
       await Promise.all([loadData(), loadDrafts()]);
       setDashboardFilter('published-0');
       setTab('site');
-      if (result?.draft) setEditingPost(result.draft);
+      if (result?.draft) {
+        setEditingPost({
+          ...result.draft,
+          tags: Array.isArray(result.draft.tags) ? result.draft.tags.join(', ') : String(result.draft.tags || ''),
+          mediaUrl: '',
+          mediaType: '',
+          mediaWidth: 100,
+          mediaAlignment: 'center',
+          noindex: 0,
+          imagePixelWidth: 1200,
+        });
+      }
       setEditingIdea(null);
       setCustomIdeaOpen(false);
       setCustomIdea({ title: '', reason: '' });
-      setSyncMsg({
-        ok: true,
-        text: result?.ai_status === 'processing'
-          ? 'Bozza creata e aperta. L’AI la sta scrivendo: puoi già modificarla.'
-          : (mode === 'manual'
+      setSyncMsg(result?.ai_status === 'failed'
+        ? { ok: false, text: result.ai_error || 'La scrittura AI non è riuscita. La traccia resta salvata tra le bozze.' }
+        : {
+            ok: true,
+            text: mode === 'manual'
               ? 'Traccia creata e aperta nell’editor. Scrivi pure: nessun testo è stato generato.'
-              : 'Bozza creata e aperta. Puoi completarla nell’editor prima di pubblicarla.'),
-      });
-      if (result?.ai_status === 'processing') {
-        window.setTimeout(() => loadData(), 20000);
-        window.setTimeout(() => loadData(), 60000);
-      }
+              : 'Articolo scritto dall’AI e aperto nell’editor. Rivedilo prima di pubblicare.',
+          });
     } catch (error) {
       setSyncMsg({ ok: false, text: error.name === 'AbortError' ? 'La richiesta ha impiegato troppo tempo. Riprova: il pulsante è stato sbloccato.' : error.message });
     } finally {
       window.clearTimeout(timeoutId);
       setPreparingIdea(-1);
+    }
+  }
+
+  async function dismissContentIdea(idea) {
+    const key = editorialIdeaKey(idea);
+    if (!key || dismissingIdeaKey) return;
+    const previous = dismissedIdeaKeys;
+    setDismissingIdeaKey(key);
+    setDismissedIdeaKeys(current => [...new Set([...current, key])]);
+    setEditingIdea(null);
+    try {
+      const result = await apiFetch('/api/index.php?action=dismiss-content-idea', {
+        method: 'POST',
+        body: JSON.stringify({ key }),
+      }, token);
+      if (Array.isArray(result?.dismissed_content_ideas)) setDismissedIdeaKeys(result.dismissed_content_ideas);
+      setSyncMsg({ ok: true, text: 'Proposta eliminata.' });
+    } catch (error) {
+      setDismissedIdeaKeys(previous);
+      setSyncMsg({ ok: false, text: error.message });
+    } finally {
+      setDismissingIdeaKey('');
     }
   }
 
@@ -1675,7 +1721,9 @@ const [importMsg, setImportMsg] = useState(null);
   const reachability = data?.reachability || { score: 0, stage: 'configurazione', checks: [] };
   let seoFoundation = {};
   try { seoFoundation = typeof site?.seo_foundation === 'string' ? JSON.parse(site.seo_foundation) : (site?.seo_foundation || {}); } catch (_) { seoFoundation = {}; }
-  const contentIdeas = buildEditorialIdeas(posts, understandingDraft || understandingReport, visibility);
+  const dismissedIdeaKeySet = new Set(dismissedIdeaKeys);
+  const contentIdeas = buildEditorialIdeas(posts, understandingDraft || understandingReport, visibility)
+    .filter(idea => !dismissedIdeaKeySet.has(editorialIdeaKey(idea)));
   const activeUnderstanding = understandingDraft || understandingReport || {};
   const declaredStrategy = activeUnderstanding.declared_strategy || {};
   const strategyProgress = strategyCompletion(activeUnderstanding);
@@ -1683,116 +1731,107 @@ const [importMsg, setImportMsg] = useState(null);
   const networkPublishedPages = (visibility.published_pages ?? (publishedPosts.length + 1)) + (seoFoundation.pages || []).length + (publishedPosts.length ? 1 : 0) + (sources.length ? 1 : 0);
   const sourceByPlatform = sources.reduce((acc, source) => ({ ...acc, [source.platform]: source }), {});
   const connByPlatform = connections.reduce((acc, c) => ({ ...acc, [c.platform]: c }), {});
+  const navigationGroups = [
+    {
+      label: 'Lavora sui contenuti',
+      items: [
+        { id: 'overview', icon: '⌂', label: 'Panoramica', hint: 'Stato e risultati' },
+        { id: 'seo', section: 'ideas', icon: '✦', label: 'Idee contenuti', hint: 'Scegli cosa pubblicare' },
+        { id: 'site', icon: '▤', label: 'Articoli', hint: 'Bozze e pubblicati' },
+      ],
+    },
+    {
+      label: 'Presenza online',
+      items: [
+        { id: 'sources', icon: '◉', label: 'Canali collegati', hint: 'Social e fonti' },
+        { id: 'seo', section: 'network', icon: '◎', label: 'Visibilità', hint: 'Google e rete' },
+        { id: 'experience', icon: '◇', label: 'Aspetto del sito', hint: 'Layout e identità' },
+        { id: 'strategy', icon: '✓', label: 'Profilo attività', hint: 'Obiettivi e pubblico' },
+      ],
+    },
+    ...(user?.role === 'admin' ? [{
+      label: 'Amministrazione',
+      items: [
+        { id: 'admin', icon: '♙', label: 'Utenti', hint: 'Account e accessi' },
+        { id: 'general', icon: '⚙', label: 'Sistema', hint: 'Agenti e impostazioni' },
+        { id: 'settings', icon: '◈', label: 'Design avanzato', hint: 'Strumenti legacy' },
+      ],
+    }] : []),
+  ];
+  const flatNavigation = navigationGroups.flatMap(group => group.items.map(item => ({ ...item, group: group.label })));
+  const isNavigationActive = item => tab === item.id && (!item.section || visibilitySection === item.section);
+  const activeNavigation = flatNavigation.find(isNavigationActive);
+  const pageMeta = {
+    overview: ['Panoramica', 'Controlla cosa sta funzionando e scegli la prossima azione.'],
+    strategy: ['Profilo attività', 'Definisci pubblico, obiettivi e priorità che guidano tutto il sistema.'],
+    site: ['Articoli', 'Rivedi le bozze, modifica i testi e decidi cosa pubblicare.'],
+    experience: ['Aspetto del sito', 'Scegli come si presenta il tuo spazio pubblico.'],
+    sources: ['Canali collegati', 'Gestisci le fonti da cui arrivano contenuti e aggiornamenti.'],
+    settings: ['Design avanzato', 'Controlli di compatibilità e personalizzazione avanzata.'],
+    general: ['Impostazioni di sistema', 'Configura agenti, automazioni e comportamento della piattaforma.'],
+    security: ['Password e sicurezza', 'Proteggi il tuo account e gestisci le sessioni attive.'],
+    admin: ['Utenti', 'Gestisci account, accessi e configurazioni dei clienti.'],
+  };
+  const seoMeta = visibilitySection === 'ideas'
+    ? ['Idee contenuti', 'Scegli una proposta, adattala oppure trasformala direttamente in articolo.']
+    : ['Visibilità', 'Controlla come le pagine vengono trovate, collegate e comprese da Google.'];
+  const [pageTitle, pageSubtitle] = tab === 'seo' ? seoMeta : (pageMeta[tab] || ['Dashboard', 'Gestisci il tuo spazio digitale.']);
+  const selectNavigation = item => {
+    setTab(item.id);
+    if (item.section) setVisibilitySection(item.section);
+    setMobileMenuOpen(false);
+  };
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', overflow: studioWorkspaceOpen ? 'hidden' : 'visible' }}>
-      {/* Sidebar Laterale (solo Desktop) */}
-      <div
-        className="desktop-sidebar"
-        style={{
-          width: '280px',
-          background: 'var(--surface)',
-          borderRight: '1px solid var(--border)',
-          flexDirection: 'column',
-          position: 'fixed',
-          height: '100vh',
-          top: 0,
-          left: 0,
-          zIndex: 50,
-          boxShadow: 'var(--shadow)',
-          visibility: studioWorkspaceOpen ? 'hidden' : 'visible',
-          pointerEvents: studioWorkspaceOpen ? 'none' : 'auto',
-        }}>
-        <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--border)' }}>
-          <div style={{ fontWeight: 800, fontSize: '20px', color: 'var(--primary)' }}><img src="/logo-cropped.png" alt="allsocialtoweb.com" style={{ height: '78px', width: 'auto', display: 'block' }} /></div>
+    <div className="dashboard-shell" style={{ overflow: studioWorkspaceOpen ? 'hidden' : 'visible' }}>
+      <aside className="desktop-sidebar" style={{ visibility: studioWorkspaceOpen ? 'hidden' : 'visible', pointerEvents: studioWorkspaceOpen ? 'none' : 'auto' }}>
+        <div className="sidebar-brand">
+          <img src="/logo-cropped.png" alt="allsocialtoweb.com" />
+          <span>Area di lavoro</span>
         </div>
-        <div style={{ padding: '24px 16px', display: 'flex', flexDirection: 'column', gap: '8px', flex: 1, overflowY: 'auto' }}>
-          {[
-            // Raggruppato per compito, non per ordine storico di sviluppo:
-            // undici voci piatte costringevano a rileggerle tutte ogni volta.
-            { group: 'Contenuti' },
-            { id: 'overview', icon: '🏠', label: 'Home' },
-            // Promossa al primo livello: era due livelli sotto "Network della
-            // reperibilità", pur essendo il punto da cui nasce ogni contenuto.
-            { id: 'seo', section: 'ideas', icon: '💡', label: 'Idee contenuti' },
-            { id: 'site', icon: '📝', label: 'Articoli' },
-            { id: 'sources', icon: '📡', label: 'Canali' },
-
-            { group: 'Visibilità' },
-            { id: 'seo', section: 'network', icon: '◎', label: 'Reperibilità' },
-            { id: 'strategy', icon: '✓', label: 'Profilo guidato' },
-
-            { group: 'Il tuo sito' },
-            { id: 'experience', icon: '◇', label: 'Aspetto del sito' },
-            { id: 'living-space', icon: '↗', label: 'Apri lo Spazio Vivo', external: true },
-
-            { group: 'Account' },
-            { id: 'security', icon: '🔐', label: 'Password e sicurezza' },
-            ...(user?.role === 'admin' ? [
-              { group: 'Amministrazione' },
-              { id: 'admin', icon: '👥', label: 'Gestione utenti' },
-              { id: 'general', icon: '⚙️', label: 'Impostazioni' },
-              { id: 'settings', icon: '🎨', label: 'Design legacy' },
-            ] : []),
-          ].map((item, i) => item.group ? (
-            <div key={`g-${i}`} className="nav-group">{item.group}</div>
-          ) : (
-            <button
-              key={`${item.id}-${item.section || ''}`}
-              className={`nav-item ${(tab === item.id && (!item.section || visibilitySection === item.section)) ? 'is-active' : ''}`}
-              onClick={() => {
-                if (item.external) { window.open(siteUrl, '_blank', 'noopener'); return; }
-                setTab(item.id);
-                if (item.section) setVisibilitySection(item.section);
-              }}>
-              <span className="nav-icon">{item.icon}</span>
-              <span className="nav-label">{item.label}</span>
-            </button>
-          ))}
-        </div>
-        <div style={{ padding: '24px', borderTop: '1px solid var(--border)' }}>
-          <div style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text)', marginBottom: '12px', overflow: 'hidden', textOverflow: 'ellipsis' }}>{user.email}</div>
-          <button className="btn btn-outline btn-full" onClick={toggleTheme} style={{ padding: '12px', borderRadius: '12px', fontWeight: 700, border: '1px solid var(--border-strong)', marginBottom: '10px' }}>
-            {theme === 'dark' ? '☀️ Tema chiaro' : '🌙 Tema scuro'}
-          </button>
-          <button className="btn btn-outline btn-full" onClick={onLogout} style={{ padding: '12px', borderRadius: '12px', fontWeight: 700, border: '1px solid var(--border-strong)' }}>Esci</button>
-        </div>
-      </div>
-
-      {/* Main Content Area */}
-      <div className="dashboard-main" style={studioWorkspaceOpen ? { marginLeft: 0 } : undefined}>
-        {/* Mobile Header (Only visible on mobile) */}
-        <div className="mobile-top-header">
-          <div style={{ fontWeight: 800, fontSize: '16px', color: 'var(--primary)' }}><img src="/logo-cropped.png" alt="allsocialtoweb.com" style={{ height: '52px', width: 'auto', display: 'block' }} /></div>
-          <div style={{ display: 'flex', gap: '8px' }}>
-            {user?.role === 'admin' && <button className="btn btn-outline" aria-label="Gestione utenti" onClick={() => setTab('admin')} style={{ padding: '8px 11px', fontSize: '14px' }}>👥</button>}
-            <button className="btn btn-outline" aria-label="Password e sicurezza" onClick={() => setTab('security')} style={{ padding: '8px 11px', fontSize: '14px' }}>🔐</button>
-            <button className="btn btn-outline" onClick={() => setTab('experience')} style={{ padding: '8px 16px', fontSize: '12px' }}>
-              ◇ Scegli Spazio Vivo
-            </button>
-          </div>
-        </div>
-
-        <div style={{ maxWidth: '1000px', margin: '0 auto' }}>
-          {/* Header Action Bar */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2.5rem' }}>
-            <h1 style={{ margin: 0, fontSize: '28px', fontWeight: 700, color: 'var(--text)' }}>
-              {tab === 'overview' && 'Panoramica'}
-              {tab === 'strategy' && 'Profilo guidato'}
-              {tab === 'site' && 'Gestione Contenuti'}
-              {tab === 'experience' && 'Scegli il tuo Spazio Vivo'}
-              {tab === 'sources' && 'I miei canali'}
-              {tab === 'settings' && 'Design & Aspetto'}
-                {tab === 'general' && 'Impostazioni Generali'}
-              {tab === 'seo' && 'Network della Reperibilità'}
-              {tab === 'security' && 'Password e sicurezza'}
-              {tab === 'admin' && 'Gestione utenti e amministrazione'}
-            </h1>
-            <div style={{ display: 'flex', gap: '12px' }}>
-              <button className="btn btn-outline" onClick={syncNow} disabled={syncing} style={{ background: 'var(--surface)', border: '1px solid var(--border-strong)', padding: '10px 20px', borderRadius: '10px' }}>
-                {syncing ? '⟳ Sync...' : '↻ Aggiorna Social'}
-              </button>
+        <button className="sidebar-create" onClick={() => selectNavigation({ id: 'seo', section: 'ideas' })}>
+          <span>＋</span><div><strong>Nuovo contenuto</strong><small>Parti da un’idea</small></div>
+        </button>
+        <nav className="sidebar-navigation" aria-label="Navigazione principale">
+          {navigationGroups.map(group => (
+            <div className="nav-section" key={group.label}>
+              <div className="nav-group">{group.label}</div>
+              {group.items.map(item => (
+                <button key={`${item.id}-${item.section || ''}`} className={`nav-item ${isNavigationActive(item) ? 'is-active' : ''}`} onClick={() => selectNavigation(item)}>
+                  <span className="nav-icon">{item.icon}</span>
+                  <span className="nav-copy"><strong>{item.label}</strong><small>{item.hint}</small></span>
+                </button>
+              ))}
             </div>
+          ))}
+        </nav>
+        <div className="sidebar-account">
+          <div className="account-summary"><span>{String(user?.email || 'U').charAt(0).toUpperCase()}</span><div><strong>{user?.name || 'Il tuo account'}</strong><small>{user.email}</small></div></div>
+          <div className="account-actions">
+            <button onClick={() => selectNavigation({ id: 'security' })}>Sicurezza</button>
+            <button onClick={toggleTheme}>{theme === 'dark' ? 'Tema chiaro' : 'Tema scuro'}</button>
+            <button onClick={onLogout}>Esci</button>
           </div>
+        </div>
+      </aside>
+
+      <div className="dashboard-main" style={studioWorkspaceOpen ? { marginLeft: 0 } : undefined}>
+        <div className="mobile-top-header">
+          <img src="/logo-cropped.png" alt="allsocialtoweb.com" />
+          <button className="mobile-menu-trigger" onClick={() => setMobileMenuOpen(true)} aria-label="Apri menu">☰</button>
+        </div>
+
+        <div className="dashboard-content">
+          <header className="dashboard-page-header">
+            <div className="page-heading">
+              <div className="page-kicker">{activeNavigation?.group || 'Area di lavoro'}</div>
+              <h1>{pageTitle}</h1>
+              <p>{pageSubtitle}</p>
+            </div>
+            <div className="page-actions">
+              <a className="btn btn-outline" href={siteUrl} target="_blank" rel="noopener">Apri il sito ↗</a>
+              <button className="btn btn-primary" onClick={syncNow} disabled={syncing}>{syncing ? '⟳ Aggiornamento…' : '↻ Aggiorna i canali'}</button>
+            </div>
+          </header>
         {syncMsg && (
           <div style={{ marginBottom: '1rem', padding: '12px 16px', borderRadius: 'var(--radius-sm)', fontSize: '14px',
             background: syncMsg.ok ? (syncMsg.loading ? 'var(--blue-light)' : 'var(--teal-light)') : 'var(--red-light)',
@@ -2478,14 +2517,14 @@ const [importMsg, setImportMsg] = useState(null);
               </label>
             </div>
 
-            <div className="glass-modal" style={{ marginBottom: '1.25rem', padding: '0.65rem', display: 'flex', gap: '8px', flexWrap: 'wrap', position: 'sticky', top: '12px', zIndex: 20 }}>
+            <div className="visibility-subnav">
               {[
-                ['network', '◎ Network'],
-                ['ideas', '✦ Idee contenuti'],
-                ['solutions', '⚡ Aumenta la visibilità'],
-                ['overview', '◎ Dati e struttura'],
-                ...(isAdmin ? [['lab', '◈ Lab Spazio Vivo']] : []),
-              ].map(([section, label]) => <button key={section} className={`btn ${visibilitySection === section ? 'btn-primary' : 'btn-outline'} ${section === 'ideas' ? 'visibility-ideas-tab' : ''}`} onClick={() => setVisibilitySection(section)} style={{ flex: section === 'ideas' ? '1.35 1 220px' : '1 1 170px', justifyContent: 'center' }}>{label}</button>)}
+                ['network', 'Stato visibilità'],
+                ['overview', 'Pagine e dati'],
+                ['ideas', 'Idee contenuti'],
+                ['solutions', 'Interventi'],
+                ...(isAdmin ? [['lab', 'Laboratorio']] : []),
+              ].map(([section, label]) => <button key={section} className={visibilitySection === section ? 'is-active' : ''} onClick={() => setVisibilitySection(section)}>{label}</button>)}
             </div>
 
             {isAdmin && visibilitySection === 'lab' && <SpazioVivoLab token={token} adminPreview />}
@@ -2602,6 +2641,7 @@ const [importMsg, setImportMsg] = useState(null);
                 {contentIdeas.map((idea, index) => {
                   const inModifica = editingIdea?.index === index;
                   const occupato = preparingIdea !== -1;
+                  const ideaKey = editorialIdeaKey(idea);
                   return (
                     <li key={`${idea.title}-${index}`} className={`idea-row ${inModifica ? 'is-editing' : ''}`}>
                       <div className="idea-rank">{index + 1}</div>
@@ -2634,6 +2674,10 @@ const [importMsg, setImportMsg] = useState(null);
                                 ✎ Scrivo io
                               </button>
                               <button className="btn btn-ghost" onClick={() => setEditingIdea(null)}>Annulla</button>
+                              <button className="btn btn-ghost idea-delete" disabled={occupato || dismissingIdeaKey === ideaKey}
+                                onClick={() => dismissContentIdea(idea)}>
+                                {dismissingIdeaKey === ideaKey ? 'Elimino…' : 'Elimina proposta'}
+                              </button>
                             </div>
                           </div>
                         ) : (
@@ -2656,6 +2700,10 @@ const [importMsg, setImportMsg] = useState(null);
                               <button className="btn btn-ghost" disabled={occupato}
                                 onClick={() => setEditingIdea({ index, title: idea.title, reason: idea.reason })}>
                                 Adatta l’idea
+                              </button>
+                              <button className="btn btn-ghost idea-delete" disabled={occupato || dismissingIdeaKey === ideaKey}
+                                onClick={() => dismissContentIdea(idea)}>
+                                {dismissingIdeaKey === ideaKey ? 'Elimino…' : 'Elimina'}
                               </button>
                             </div>
                           </>
@@ -3793,24 +3841,44 @@ const [importMsg, setImportMsg] = useState(null);
       </div>
       </div>
 
-      {/* Mobile Bottom Navigation */}
+      {mobileMenuOpen && (
+        <div className="mobile-menu-overlay" onClick={() => setMobileMenuOpen(false)}>
+          <aside className="mobile-menu-panel" onClick={event => event.stopPropagation()}>
+            <div className="mobile-menu-heading"><div><span>Menu</span><strong>{user?.name || user?.email}</strong></div><button onClick={() => setMobileMenuOpen(false)} aria-label="Chiudi menu">×</button></div>
+            <nav aria-label="Menu mobile">
+              {navigationGroups.map(group => (
+                <div className="nav-section" key={group.label}>
+                  <div className="nav-group">{group.label}</div>
+                  {group.items.map(item => (
+                    <button key={`${item.id}-${item.section || ''}`} className={`nav-item ${isNavigationActive(item) ? 'is-active' : ''}`} onClick={() => selectNavigation(item)}>
+                      <span className="nav-icon">{item.icon}</span>
+                      <span className="nav-copy"><strong>{item.label}</strong><small>{item.hint}</small></span>
+                    </button>
+                  ))}
+                </div>
+              ))}
+            </nav>
+            <div className="mobile-menu-account">
+              <button onClick={() => selectNavigation({ id: 'security' })}>Password e sicurezza</button>
+              <button onClick={toggleTheme}>{theme === 'dark' ? 'Passa al tema chiaro' : 'Passa al tema scuro'}</button>
+              <button onClick={onLogout}>Esci dall’account</button>
+            </div>
+          </aside>
+        </div>
+      )}
+
       <div className="mobile-nav">
-        <button className={`mobile-nav-item ${tab === 'overview' ? 'active' : ''}`} onClick={() => setTab('overview')}>
-          <span style={{fontSize: '20px'}}>🏠</span> Home
+        <button className={`mobile-nav-item ${tab === 'overview' ? 'active' : ''}`} onClick={() => selectNavigation({ id: 'overview' })}>
+          <span className="nav-icon-wrap">⌂</span><span>Home</span>
         </button>
-        <button className={`mobile-nav-item ${tab === 'site' ? 'active' : ''}`} onClick={() => setTab('site')}>
-          <span style={{fontSize: '20px'}}>📝</span> Articoli
+        <button className={`mobile-nav-item ${tab === 'seo' && visibilitySection === 'ideas' ? 'active' : ''}`} onClick={() => selectNavigation({ id: 'seo', section: 'ideas' })}>
+          <span className="nav-icon-wrap">✦</span><span>Idee</span>
         </button>
-        
-        <button className="mobile-fab" onClick={syncNow} disabled={syncing}>
-          {syncing ? '⟳' : '↻'}
+        <button className={`mobile-nav-item ${tab === 'site' ? 'active' : ''}`} onClick={() => selectNavigation({ id: 'site' })}>
+          <span className="nav-icon-wrap">▤</span><span>Articoli</span>
         </button>
-        
-        <button className={`mobile-nav-item ${tab === 'sources' ? 'active' : ''}`} onClick={() => setTab('sources')}>
-          <span style={{fontSize: '20px'}}>📡</span> Canali
-        </button>
-        <button className={`mobile-nav-item ${tab === 'seo' ? 'active' : ''}`} onClick={() => setTab('seo')}>
-          <span style={{fontSize: '20px'}}>◎</span> Network
+        <button className={`mobile-nav-item ${mobileMenuOpen ? 'active' : ''}`} onClick={() => setMobileMenuOpen(true)}>
+          <span className="nav-icon-wrap">☰</span><span>Menu</span>
         </button>
       </div>
       

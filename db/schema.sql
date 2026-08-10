@@ -112,6 +112,7 @@ CREATE TABLE IF NOT EXISTS sites (
   editorial_memory LONGTEXT,
   editorial_engine_state LONGTEXT,
   editorial_settings LONGTEXT,
+  dismissed_content_ideas LONGTEXT,
   editorial_last_run DATETIME,
   site_understanding LONGTEXT,
   site_understanding_corrections LONGTEXT,
