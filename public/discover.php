@@ -110,7 +110,7 @@ foreach ($profiles as $profile) {
         if ($handleSlug !== '') $identitySlugs[$handleSlug] = true;
     }
 }
-$genericTopics = array_fill_keys(['social','instagram','facebook','tiktok','youtube','reel','reels','post','video','foto','italia','italy'], true);
+$genericTopics = array_fill_keys(['social','instagram','facebook','tiktok','youtube','reel','reels','post','video','foto','italia','italy','giux','ritmi-creazioni'], true);
 $topics = [];
 $articlesByProfile = [];
 
