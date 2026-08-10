@@ -15,6 +15,8 @@ $profiles = DB::fetchAll(
     'SELECT u.slug, COALESCE(NULLIF(s.title, ""), u.name, u.slug) AS title,
             COALESCE(NULLIF(s.bio, ""), NULLIF(s.profile_summary, ""), "") AS description,
             s.logo_url, s.last_sync,
+            (SELECT GROUP_CONCAT(DISTINCT sc.handle SEPARATOR "||")
+               FROM social_connections sc WHERE sc.user_id=u.id AND sc.handle IS NOT NULL AND sc.handle != "") AS social_handles,
             (SELECT COUNT(*) FROM posts p WHERE p.user_id=u.id AND p.published=1 AND p.seo_score>0) AS post_count
        FROM users u
        JOIN sites s ON s.user_id=u.id
@@ -81,6 +83,10 @@ $identitySlugs = [];
 foreach ($profiles as $profile) {
     $identitySlugs[discoverSlug((string)$profile['slug'])] = true;
     $identitySlugs[discoverSlug((string)$profile['title'])] = true;
+    foreach (explode('||', (string)($profile['social_handles'] ?? '')) as $handle) {
+        $handleSlug = discoverSlug(ltrim(trim($handle), '@'));
+        if ($handleSlug !== '') $identitySlugs[$handleSlug] = true;
+    }
 }
 $genericTopics = array_fill_keys(['social','instagram','facebook','tiktok','youtube','reel','reels','post','video','foto','italia','italy'], true);
 $topics = [];
