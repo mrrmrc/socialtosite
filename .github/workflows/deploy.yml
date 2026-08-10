@@ -111,16 +111,29 @@ jobs:
           fi
 
       - name: Carica i file via FTPS
-        # Le credenziali vivono nei Secrets del repository, non nel codice.
-        # Impostali in Settings → Secrets and variables → Actions.
+        # Credenziali: prima i Secrets del repository, in mancanza si ricade su
+        # config/deploy.env (committato).
+        #
+        # DEBITO DA SALDARE: le credenziali in deploy.env sono in chiaro nella
+        # history di git. Appena i tre Secrets sono impostati, questo passo li
+        # usa da solo senza altre modifiche: basta cancellare config/deploy.env
+        # e rimetterlo in .gitignore.
         env:
           FTP_HOST: ${{ secrets.FTP_HOST }}
           FTP_USER: ${{ secrets.FTP_USER }}
           FTP_PASS: ${{ secrets.FTP_PASS }}
         run: |
-          : "${FTP_HOST:?manca il secret FTP_HOST}"
-          : "${FTP_USER:?manca il secret FTP_USER}"
-          : "${FTP_PASS:?manca il secret FTP_PASS}"
+          if [ -n "$FTP_HOST" ] && [ -n "$FTP_USER" ] && [ -n "$FTP_PASS" ]; then
+            echo "Credenziali lette dai Secrets del repository."
+          elif [ -f ./config/deploy.env ]; then
+            echo "::warning::Secrets non impostati: uso config/deploy.env. Sposta le credenziali nei Secrets appena possibile."
+            set -a
+            . ./config/deploy.env
+            set +a
+          fi
+          : "${FTP_HOST:?nessuna credenziale: imposta i Secrets FTP_* oppure fornisci config/deploy.env}"
+          : "${FTP_USER:?nessuna credenziale: imposta i Secrets FTP_* oppure fornisci config/deploy.env}"
+          : "${FTP_PASS:?nessuna credenziale: imposta i Secrets FTP_* oppure fornisci config/deploy.env}"
           echo "Deploy verso $FTP_HOST con l'utente $FTP_USER"
 
           # Aruba (ProFTPD) espone solo FTP/FTPS su porta 21: NON SFTP (22 chiusa).

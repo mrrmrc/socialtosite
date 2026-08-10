@@ -27,8 +27,12 @@ prima del deploy**.
 > trigger automatico su push non serve: aggiornare `main` avvia il deploy.
 
 ## Sicurezza
-- Credenziali deploy nei **Secrets** GitHub: `FTP_HOST`, `FTP_USER`, `FTP_PASS`.
-  Il workflow le legge solo da lì: `config/deploy.env` non è più committato.
+- Credenziali deploy: il workflow usa i **Secrets** GitHub (`FTP_HOST`,
+  `FTP_USER`, `FTP_PASS`) se impostati, altrimenti ricade su
+  `config/deploy.env`, che al momento è **committato in chiaro**.
+  ⚠️ **Debito aperto (rilievo A1)**: quella password è nella history di git e
+  va ruotata. Appena i Secrets sono impostati, cancellare `config/deploy.env`
+  e rimetterlo in `.gitignore` — il workflow non richiede altre modifiche.
 - `config/config.php` e `config/keys.php` vivono **solo sul server**, non nel
   repo. I modelli sono `config.example.php` e `keys.example.php`.
 - Il deploy usa una **lista di inclusione** (`api/`, `public/`, `cron/`,
