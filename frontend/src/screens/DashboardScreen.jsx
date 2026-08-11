@@ -458,6 +458,9 @@ const [importMsg, setImportMsg] = useState(null);
   const [siteTitleDraft, setSiteTitleDraft] = useState('');
   const [savingSiteTitle, setSavingSiteTitle] = useState(false);
   const [sidebarTitleEditing, setSidebarTitleEditing] = useState(false);
+  const [siteNameIdeas, setSiteNameIdeas] = useState([]);
+  const [generatingSiteNames, setGeneratingSiteNames] = useState(false);
+  const [siteNameUniquenessNote, setSiteNameUniquenessNote] = useState('');
   const [heroTagline, setHeroTagline] = useState('');
   const [customCss, setCustomCss] = useState('');
   const [menuLinksStr, setMenuLinksStr] = useState('');
@@ -1258,6 +1261,21 @@ const [importMsg, setImportMsg] = useState(null);
     }
   }
 
+  async function suggestSiteNames() {
+    setGeneratingSiteNames(true);
+    setSiteNameIdeas([]);
+    setSiteNameUniquenessNote('');
+    try {
+      const result = await apiFetch('/api/index.php?action=suggest-site-names', { method: 'POST', body: '{}' }, token);
+      setSiteNameIdeas(Array.isArray(result.names) ? result.names.slice(0, 3) : []);
+      setSiteNameUniquenessNote(result.uniqueness_note || 'Prima dell’uso commerciale verifica dominio e disponibilità del marchio.');
+    } catch (error) {
+      setSyncMsg({ ok: false, text: error.message });
+    } finally {
+      setGeneratingSiteNames(false);
+    }
+  }
+
   async function saveReachabilityNetwork() {
     setSavingReachability(true);
     try {
@@ -1996,7 +2014,7 @@ const [importMsg, setImportMsg] = useState(null);
       ) : (
         <><strong title={site?.title || siteTitleDraft}>{site?.title || siteTitleDraft || 'Sito senza nome'}</strong><div className="site-command-actions"><a href={siteUrl} target="_blank" rel="noopener">Apri sito ↗</a><button onClick={() => setSidebarTitleEditing(true)}>Modifica nome</button></div></>
       )}
-      <button className="site-command-identity" onClick={openSiteIdentity}>Logo, immagine e identità →</button>
+      <button className="site-command-identity" onClick={openSiteIdentity}>Trova nome, logo e identità →</button>
     </section>
   );
   const renderVisibilityServices = () => (
@@ -2642,7 +2660,9 @@ const [importMsg, setImportMsg] = useState(null);
               <header><div><span className="section-eyebrow">Identità del sito</span><h2>Scegli nome e immagine</h2><p>Il cliente decide come presentarsi: il nome scritto qui resta prioritario e non viene sostituito dalle successive importazioni social.</p></div><a className="btn btn-outline" href={siteUrl} target="_blank" rel="noopener">Vedi anteprima ↗</a></header>
               <form className="site-name-editor" onSubmit={saveSiteTitle}>
                 <label htmlFor="site-title"><strong>Nome del sito</strong><span>Comparirà nell’intestazione, nelle pagine e nei risultati condivisi.</span></label>
-                <div><input id="site-title" type="text" maxLength={120} required value={siteTitleDraft} onChange={event => setSiteTitleDraft(event.target.value)} placeholder="Es. Studio Rossi, Casa Verde, Marco Bianchi" /><button className="btn btn-primary" type="submit" disabled={savingSiteTitle}>{savingSiteTitle ? 'Salvataggio…' : 'Salva nome'}</button></div>
+                <div><input id="site-title" type="text" maxLength={120} required value={siteTitleDraft} onChange={event => setSiteTitleDraft(event.target.value)} placeholder="Es. Studio Rossi, Casa Verde, Marco Bianchi" /><button className="btn btn-outline" type="button" onClick={suggestSiteNames} disabled={generatingSiteNames}>{generatingSiteNames ? 'Cerco…' : 'Proponi 3 nomi'}</button><button className="btn btn-primary" type="submit" disabled={savingSiteTitle}>{savingSiteTitle ? 'Salvataggio…' : 'Salva nome'}</button></div>
+                {siteNameIdeas.length > 0 && <div className="site-name-suggestions">{siteNameIdeas.map(idea => <button type="button" key={idea.name} className={siteTitleDraft === idea.name ? 'is-selected' : ''} onClick={() => setSiteTitleDraft(idea.name)}><span>{idea.style}</span><strong>{idea.name}</strong><small>{idea.reason}</small>{idea.tagline && <em>“{idea.tagline}”</em>}</button>)}</div>}
+                {siteNameUniquenessNote && <small className="site-name-legal-note">{siteNameUniquenessNote}</small>}
               </form>
               <div className="visual-choice-intro"><strong>Immagine del sito</strong><span>Usa un logo se hai un marchio riconoscibile; scegli una foto per raccontare subito attività, luogo o persona.</span></div>
               <div className="visual-choice-grid" role="radiogroup" aria-label="Tipo di immagine del sito">

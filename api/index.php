@@ -1932,6 +1932,31 @@ if ($action === 'generate-content-ideas' && $method === 'POST') {
     }
 }
 
+// Naming assistito: tre direzioni basate esclusivamente sul profilo e sui
+// contenuti reali. La scelta resta sempre modificabile e richiede conferma.
+if ($action === 'suggest-site-names' && $method === 'POST') {
+    try {
+        require_once __DIR__ . '/services/ai.php';
+        $site = DB::fetch('SELECT * FROM sites WHERE user_id=? LIMIT 1', [$userId]) ?: [];
+        $sources = DB::fetchAll('SELECT platform, label, topic_summary FROM social_sources WHERE user_id=? AND active=1 ORDER BY id DESC LIMIT 8', [$userId]);
+        $posts = DB::fetchAll(
+            'SELECT generated_title, edited_title, generated_excerpt, edited_excerpt
+               FROM posts WHERE user_id=? ORDER BY published_at DESC, id DESC LIMIT 12',
+            [$userId]
+        );
+        if (empty($sources) && empty($posts) && trim((string)($site['profile_summary'] ?? $site['bio'] ?? '')) === '') {
+            jsonError('Completa prima il profilo o collega almeno un canale: servono informazioni reali per creare un nome adatto.', 422);
+        }
+        json([
+            'ok'=>true,
+            'names'=>AI::siteNameIdeas($site, $sources, $posts),
+            'uniqueness_note'=>'Le proposte sono originali rispetto al profilo, ma disponibilità del dominio e registrabilità del marchio vanno verificate prima dell’uso commerciale.',
+        ]);
+    } catch (Throwable $e) {
+        jsonError('Non riesco a proporre i nomi: ' . $e->getMessage(), 502);
+    }
+}
+
 // Produce una versione pronta per un social. La condivisione finale resta
 // esplicita e passa dal dispositivo dell'utente, evitando autopubblicazioni.
 if ($action === 'generate-social-content' && $method === 'POST') {

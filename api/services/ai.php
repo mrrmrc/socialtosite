@@ -2264,6 +2264,66 @@ Testi da analizzare:
         ];
     }
 
+    public static function siteNameIdeas(array $site, array $sources, array $posts): array {
+        $understanding = is_array($site['site_understanding'] ?? null)
+            ? $site['site_understanding']
+            : (json_decode((string)($site['site_understanding'] ?? ''), true) ?: []);
+        $declared = $understanding['declared_strategy'] ?? [];
+        $sourceContext = array_map(static fn(array $source): array => [
+            'platform' => $source['platform'] ?? '',
+            'label' => $source['label'] ?? '',
+            'topic' => $source['topic_summary'] ?? '',
+        ], array_slice($sources, 0, 8));
+        $postContext = array_map(static fn(array $post): array => [
+            'title' => $post['edited_title'] ?? $post['generated_title'] ?? '',
+            'excerpt' => $post['edited_excerpt'] ?? $post['generated_excerpt'] ?? '',
+        ], array_slice($posts, 0, 12));
+
+        $prompt = "Sei un brand namer italiano. Proponi ESATTAMENTE 3 nomi distintivi per un sito editoriale nato dai contenuti social di questa attivita.\n"
+            . "PROFILO: " . json_encode([
+                'nome_attuale'=>$site['title'] ?? '',
+                'descrizione'=>$site['profile_summary'] ?? $site['bio'] ?? '',
+                'missione'=>$site['role_mission'] ?? '',
+                'strategia'=>$site['content_strategy'] ?? '',
+                'attivita'=>$declared['activity_type'] ?? '',
+                'offerta'=>$declared['offer_summary'] ?? '',
+                'pubblico'=>$declared['target_audience'] ?? '',
+                'territorio'=>$declared['geographic_area'] ?? '',
+            ], JSON_UNESCAPED_UNICODE) . "\n"
+            . "CANALI: " . json_encode($sourceContext, JSON_UNESCAPED_UNICODE) . "\n"
+            . "CONTENUTI: " . json_encode($postContext, JSON_UNESCAPED_UNICODE) . "\n\n"
+            . "Regole: ogni nome deve essere memorabile, pronunciabile e coerente; massimo 4 parole e 45 caratteri; evita formule generiche come Il Mio Blog, Mondo di, Official, Hub, Magazine; non usare nomi di piattaforme social; non copiare il nome attuale con una semplice aggiunta. "
+            . "Differenzia le tre direzioni: una autorevole, una evocativa, una piu originale. Non dichiarare che dominio o marchio siano disponibili: l'unicita legale richiede una verifica separata. "
+            . "Rispondi SOLO JSON valido: {\"names\":[{\"name\":\"nome\",\"reason\":\"perche funziona per questa identita\",\"tagline\":\"breve promessa editoriale\",\"style\":\"Autorevole|Evocativo|Originale\"}]}";
+
+        $text = self::gemini([['text'=>$prompt]], [
+            'responseMimeType'=>'application/json',
+            'maxOutputTokens'=>2048,
+            'temperature'=>0.85,
+            '_timeout'=>35,
+        ]);
+        $decoded = json_decode(preg_replace('/```json|```/', '', trim($text)), true);
+        $candidates = is_array($decoded['names'] ?? null) ? $decoded['names'] : [];
+        $names = [];
+        $seen = [];
+        foreach ($candidates as $candidate) {
+            $name = trim((string)($candidate['name'] ?? ''));
+            $length = function_exists('mb_strlen') ? mb_strlen($name, 'UTF-8') : strlen($name);
+            $key = function_exists('mb_strtolower') ? mb_strtolower($name, 'UTF-8') : strtolower($name);
+            if ($length < 3 || $length > 45 || str_word_count($name, 0, 'àèéìòùÀÈÉÌÒÙ') > 4 || isset($seen[$key])) continue;
+            $seen[$key] = true;
+            $names[] = [
+                'name'=>$name,
+                'reason'=>trim((string)($candidate['reason'] ?? 'Nome coerente con il profilo e i contenuti.')),
+                'tagline'=>trim((string)($candidate['tagline'] ?? '')),
+                'style'=>in_array(($candidate['style'] ?? ''), ['Autorevole','Evocativo','Originale'], true) ? $candidate['style'] : 'Originale',
+            ];
+            if (count($names) === 3) break;
+        }
+        if (count($names) !== 3) throw new RuntimeException('L’AI non ha restituito tre nomi validi');
+        return $names;
+    }
+
     public static function socialContent(array $site, array $idea, string $platform): array {
         $allowed = ['instagram','facebook','tiktok','linkedin'];
         if (!in_array($platform, $allowed, true)) $platform = 'instagram';
