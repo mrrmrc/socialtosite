@@ -4,6 +4,7 @@ import { SocialIcon } from '../components/SocialIcon';
 import { QuillEditor } from '../components/QuillEditor';
 import { AdminScreen } from './AdminScreen';
 import { SpazioVivoLab } from '../components/SpazioVivoLab';
+import { ProductGuide } from '../components/ProductGuide';
 
 const STUDIO_DEFAULTS = {
   font_heading: 'Outfit',
@@ -456,6 +457,7 @@ const [importMsg, setImportMsg] = useState(null);
   const [brandVisualMode, setBrandVisualMode] = useState('logo');
   const [siteTitleDraft, setSiteTitleDraft] = useState('');
   const [savingSiteTitle, setSavingSiteTitle] = useState(false);
+  const [sidebarTitleEditing, setSidebarTitleEditing] = useState(false);
   const [heroTagline, setHeroTagline] = useState('');
   const [customCss, setCustomCss] = useState('');
   const [menuLinksStr, setMenuLinksStr] = useState('');
@@ -1248,6 +1250,7 @@ const [importMsg, setImportMsg] = useState(null);
       setSiteTitleDraft(title);
       setData(prev => ({ ...prev, site: { ...(prev.site || {}), title } }));
       setSyncMsg({ ok: true, text: 'Nome del sito salvato. È già attivo sul sito pubblico.' });
+      setSidebarTitleEditing(false);
     } catch (error) {
       setSyncMsg({ ok: false, text: error.message });
     } finally {
@@ -1980,6 +1983,22 @@ const [importMsg, setImportMsg] = useState(null);
     if (item.section) setVisibilitySection(item.section);
     setMobileMenuOpen(false);
   };
+  const openSiteIdentity = () => {
+    setTab('experience');
+    setMobileMenuOpen(false);
+    window.setTimeout(() => document.getElementById('visual-identity')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 80);
+  };
+  const renderSiteCommandPanel = compact => (
+    <section className={`site-command-panel ${compact ? 'is-mobile' : ''}`} aria-label="Comandi del sito">
+      <span className="site-command-kicker">Il tuo sito</span>
+      {sidebarTitleEditing ? (
+        <form onSubmit={saveSiteTitle}><input autoFocus value={siteTitleDraft} maxLength={120} required onChange={event => setSiteTitleDraft(event.target.value)} aria-label="Nome del sito" /><div><button type="button" onClick={() => { setSiteTitleDraft(site?.title || ''); setSidebarTitleEditing(false); }}>Annulla</button><button type="submit" disabled={savingSiteTitle}>{savingSiteTitle ? 'Salvo…' : 'Salva'}</button></div></form>
+      ) : (
+        <><strong title={site?.title || siteTitleDraft}>{site?.title || siteTitleDraft || 'Sito senza nome'}</strong><div className="site-command-actions"><a href={siteUrl} target="_blank" rel="noopener">Apri sito ↗</a><button onClick={() => setSidebarTitleEditing(true)}>Modifica nome</button></div></>
+      )}
+      <button className="site-command-identity" onClick={openSiteIdentity}>Logo, immagine e identità →</button>
+    </section>
+  );
   const renderVisibilityServices = () => (
     <div className="services-page">
       <section className="services-intro">
@@ -2050,6 +2069,7 @@ const [importMsg, setImportMsg] = useState(null);
         <button className="sidebar-create" onClick={() => selectNavigation({ id: 'seo', section: 'ideas' })}>
           <span>＋</span><div><strong>Nuovo contenuto</strong><small>Parti da un’idea</small></div>
         </button>
+        {renderSiteCommandPanel(false)}
         <nav className="sidebar-navigation" aria-label="Navigazione principale">
           {navigationGroups.map(group => (
             <div className="nav-section" key={group.label}>
@@ -2087,7 +2107,6 @@ const [importMsg, setImportMsg] = useState(null);
               <p>{pageSubtitle}</p>
             </div>
             <div className="page-actions">
-              <a className="btn btn-outline" href={siteUrl} target="_blank" rel="noopener">Apri il sito ↗</a>
               <button className="btn btn-primary" onClick={syncNow} disabled={syncing}>{syncing ? '⟳ Aggiornamento…' : '↻ Aggiorna i canali'}</button>
             </div>
           </header>
@@ -2103,6 +2122,14 @@ const [importMsg, setImportMsg] = useState(null);
         {(tab === 'overview' || tab === 'strategy') && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
             {tab === 'overview' && <>
+            <section className="trust-simulator-card">
+              <div className="trust-simulator-copy"><span className="section-eyebrow">Prova verificabile</span><h2>Guarda cosa può accadere, usando i tuoi dati</h2><p>Nessuna promessa di traffico o vendite: questa simulazione mostra soltanto ciò che il sistema ha già acquisito, preparato e pubblicato.</p><div><button className="btn btn-primary" onClick={() => selectNavigation({ id: 'site' })}>Controlla gli articoli</button><a className="btn btn-outline" href={siteUrl} target="_blank" rel="noopener">Controlla il sito ↗</a></div></div>
+              <div className="trust-simulator-steps">
+                <article><span>1</span><div><strong>{sources.length} fonti reali</strong><small>Canali da cui arrivano i contenuti</small></div></article>
+                <article><span>2</span><div><strong>{posts.length} contenuti acquisiti</strong><small>{posts.filter(post => Number(post.seo_score) >= 0).length} già trasformati in articoli</small></div></article>
+                <article><span>3</span><div><strong>{publishedPosts.length} articoli online</strong><small>Apribili e controllabili sul sito pubblico</small></div></article>
+              </div>
+            </section>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1.25rem' }}>
               {[
                 { n: networkPublishedPages, l: 'Pagine pubblicate', c: 'var(--primary)' },
@@ -4366,6 +4393,7 @@ const [importMsg, setImportMsg] = useState(null);
           <aside className="mobile-menu-panel" onClick={event => event.stopPropagation()}>
             <div className="mobile-menu-heading"><div><span>Menu</span><strong>{user?.name || user?.email}</strong></div><button onClick={() => setMobileMenuOpen(false)} aria-label="Chiudi menu">×</button></div>
             <nav aria-label="Menu mobile">
+              {renderSiteCommandPanel(true)}
               {navigationGroups.map(group => (
                 <div className="nav-section" key={group.label}>
                   <div className="nav-group">{group.label}</div>
@@ -4401,6 +4429,7 @@ const [importMsg, setImportMsg] = useState(null);
           <span className="nav-icon-wrap">☰</span><span>Menu</span>
         </button>
       </div>
+      <ProductGuide posts={posts} sources={sources} siteUrl={siteUrl} onNavigate={target => { if (target === 'articles') selectNavigation({ id: 'site' }); }} />
       
     </div>
   );
