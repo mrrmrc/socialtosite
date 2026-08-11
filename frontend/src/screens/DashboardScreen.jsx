@@ -43,7 +43,7 @@ function postProcessingLabel(post) {
   const status = postProcessingStatus(post);
   if (status === 'processing') return 'IN ELABORAZIONE';
   if (status === 'failed') return 'DA RIPROVARE';
-  return 'IN CODA';
+  return 'DA ELABORARE';
 }
 
 const EDITORIAL_AGENT_META = {
@@ -2707,7 +2707,7 @@ const [importMsg, setImportMsg] = useState(null);
                       
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                         {post.media_type === 'VIDEO' && <span style={{ background: 'var(--primary-light)', color: 'var(--primary-dark)', padding: '4px 10px', borderRadius: '20px', fontSize: '11px', fontWeight: 700, whiteSpace: 'nowrap' }}>🎥 VIDEO</span>}
-                        {Number(post.seo_score) < 0 ? <span className={`article-processing-pulse ${postProcessingStatus(post) === 'failed' ? 'is-error' : ''}`} title={postProcessingStatus(post) === 'failed' ? 'Elaborazione fallita' : postProcessingStatus(post) === 'processing' ? 'Elaborazione in corso' : 'In attesa di elaborazione'} /> : (
+                        {Number(post.seo_score) < 0 ? (postProcessingStatus(post) === 'processing' ? <span className="article-processing-pulse" title="Elaborazione realmente in corso" /> : null) : (
                           <div style={{ width: '32px', height: '32px', borderRadius: '50%', flexShrink: 0, background: post.seo_score >= 80 ? 'var(--teal-light)' : (post.seo_score >= 50 ? 'var(--amber-light)' : 'var(--red-light)'), color: post.seo_score >= 80 ? 'var(--teal)' : (post.seo_score >= 50 ? 'var(--amber)' : 'var(--red)'), display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: '12px', border: `2px solid ${post.seo_score >= 80 ? 'var(--teal)' : (post.seo_score >= 50 ? 'var(--amber)' : 'var(--red)')}`, boxShadow: '0 4px 10px rgba(0,0,0,0.05)' }} title={`Score SEO: ${post.seo_score}`}>
                             {post.seo_score}
                           </div>
@@ -2721,7 +2721,7 @@ const [importMsg, setImportMsg] = useState(null);
                         {post.generated_title || (post.raw_content ? post.raw_content.substring(0, 80) : 'Nuovo contenuto')}
                       </h4>
                       <div style={{ fontSize: '14px', color: 'var(--text-muted)', display: '-webkit-box', WebkitLineClamp: 4, WebkitBoxOrient: 'vertical', overflow: 'hidden', lineHeight: 1.6, fontWeight: 500 }}>
-                        {post.generated_excerpt || (post.generated_body ? post.generated_body.substring(0, 200) : Number(post.seo_score) < 0 ? postProcessingStatus(post) === 'failed' ? (post.processing_error || String(post.agent_notes || '').replace(/^Errore:\s*/, '')) : postProcessingStatus(post) === 'processing' ? 'Creazione articolo in corso.' : "Contenuto acquisito e in attesa di elaborazione." : '')}
+                        {post.generated_excerpt || (post.generated_body ? post.generated_body.substring(0, 200) : Number(post.seo_score) < 0 ? postProcessingStatus(post) === 'failed' ? (post.processing_error || String(post.agent_notes || '').replace(/^Errore:\s*/, '')) : postProcessingStatus(post) === 'processing' ? 'Creazione articolo in corso.' : "Contenuto acquisito, pronto per essere elaborato." : '')}
                       </div>
 
                       {post.tags?.length > 0 && (
@@ -2732,7 +2732,7 @@ const [importMsg, setImportMsg] = useState(null);
                     </div>
 
                     {/* Azioni Fondo Card */}
-                    {Number(post.seo_score) < 0 && <div className={`article-processing-note ${postProcessingStatus(post) === 'failed' ? 'is-error' : ''}`}>{postProcessingStatus(post) === 'failed' ? 'Il tentativo precedente non è riuscito. Usa Riprova per riavviare la lavorazione.' : postProcessingStatus(post) === 'processing' ? 'La creazione è già in corso: aprire questa pagina non la riavvia.' : 'Il contenuto è in coda. Puoi avviare subito la lavorazione.'}</div>}
+                    {Number(post.seo_score) < 0 && <div className={`article-processing-note ${postProcessingStatus(post) === 'failed' ? 'is-error' : ''}`}>{postProcessingStatus(post) === 'failed' ? 'Il tentativo precedente non è riuscito. Usa Riprova per riavviare la lavorazione.' : postProcessingStatus(post) === 'processing' ? 'La creazione è già in corso: aprire questa pagina non la riavvia.' : 'Non è in lavorazione. Premi Elabora ora per avviarla.'}</div>}
                     <div className="article-card-footer">
                       {Number(post.seo_score) < 0 && <button className="article-retry-button" disabled={postProcessingStatus(post) === 'processing'} onClick={() => retryPendingPost(post.id)}>{postProcessingStatus(post) === 'processing' ? '⏳ IN CORSO' : postProcessingStatus(post) === 'failed' ? '↻ RIPROVA' : '▶ ELABORA ORA'}</button>}
                       <button disabled={Number(post.seo_score) < 0} onClick={() => openPostEditor(post)} style={{ flex: '1', padding: '10px', fontSize: '13px', fontWeight: 800, borderRadius: 'var(--radius-sm)', background: 'var(--primary)', color: '#fff', border: 'none', cursor: 'pointer', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '6px', transition: 'all 0.2s', boxShadow: '0 4px 12px rgba(99,102,241,0.3)' }}>
