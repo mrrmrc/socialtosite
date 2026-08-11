@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useDeferredValue } from 'react';
+import React, { useState, useEffect, useDeferredValue, useRef } from 'react';
 import { apiFetch, SOCIAL, SITE_LAYOUTS, detectPlatformFromUrl, PLATFORM_DESCRIPTIONS } from '../utils/api';
 import { SocialIcon } from '../components/SocialIcon';
 import { QuillEditor } from '../components/QuillEditor';
@@ -426,6 +426,7 @@ const [importMsg, setImportMsg] = useState(null);
   const [processingQueue, setProcessingQueue] = useState([]);
   const [syncMsg, setSyncMsg] = useState(null);
   const [acquisitionModal, setAcquisitionModal] = useState(null);
+  const pendingAutoRecoveryStarted = useRef(false);
   const [profileDraft, setProfileDraft] = useState('');
   const [roleMissionDraft, setRoleMissionDraft] = useState('');
   const [strategyDraft, setStrategyDraft] = useState('');
@@ -717,7 +718,7 @@ const [importMsg, setImportMsg] = useState(null);
       let skippedCount = 0;
       let deletedCount = 0;
       let errorCount = 0;
-      const concurrency = 2; // Limita timeout e rate limit dei provider AI sull'hosting condiviso.
+      const concurrency = 1; // Una richiesta AI alla volta evita rate limit e sovraccarico dell'hosting.
 
       const updateProgress = () => {
         const msg = `Elaborazione AI: completati ${completed} su ${total} post...`;
@@ -1697,6 +1698,14 @@ const [importMsg, setImportMsg] = useState(null);
     setStudioSourceLabel('Layout attuale');
     setStudioWorkspaceOpen(true);
   }, [tab]);
+
+  useEffect(() => {
+    if (tab !== 'site' || !data || pendingAutoRecoveryStarted.current) return;
+    const pendingCount = (data.posts || []).filter(post => Number(post.seo_score) < 0).length;
+    if (pendingCount === 0) return;
+    pendingAutoRecoveryStarted.current = true;
+    processPendingLoop(false);
+  }, [tab, data]);
 
     async function regenerateMenuAi() {
     setRegeneratingMenu(true);

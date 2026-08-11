@@ -366,6 +366,26 @@ class Ingest {
         return ['id' => $postId, 'seo' => $seo];
     }
 
+    public static function recoverAsDraft(int $userId, int $postId, string $error = ''): array {
+        $post = DB::fetch('SELECT platform, source_url, transcript, raw_content FROM posts WHERE id=? AND user_id=?', [$postId, $userId]);
+        if (!$post) throw new Exception('Contenuto non trovato durante il recupero');
+
+        $raw = trim((string)($post['transcript'] ?: $post['raw_content']));
+        $title = trim(preg_replace('/\s+/', ' ', strip_tags($raw)));
+        $title = $title !== '' ? mb_substr($title, 0, 90) : ucfirst((string)$post['platform']) . ' - contenuto importato';
+        $excerpt = $raw !== '' ? mb_substr(trim(preg_replace('/\s+/', ' ', strip_tags($raw))), 0, 220) : 'Contenuto acquisito da completare prima della pubblicazione.';
+        $body = $raw !== ''
+            ? '<p>' . nl2br(htmlspecialchars($raw, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8')) . '</p>'
+            : '<p>Contenuto acquisito da <a href="' . htmlspecialchars((string)$post['source_url'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') . '">questa fonte</a>. Completa il testo prima della pubblicazione.</p>';
+
+        DB::execute(
+            'UPDATE posts SET generated_title=?, generated_body=?, generated_excerpt=?, tags=?, meta_description=?, seo_score=1, slug=?, published=0, agent_notes=? WHERE id=? AND user_id=?',
+            [$title, $body, $excerpt, '[]', $excerpt, slugify($title), 'Recuperato dopo errore AI: ' . $error, $postId, $userId]
+        );
+
+        return ['id' => $postId, 'title' => $title, 'recovered' => true];
+    }
+
     // ── AGENTE 2b (Riottimizzatore): articolo pubblicato → titolo che risponde
     //    alla ricerca reale. Tocca solo titolo, meta ed estratto: il corpo
     //    dell'articolo e lo slug restano invariati, così non si perdono i

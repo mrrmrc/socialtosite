@@ -88,7 +88,12 @@ foreach ($users as $row) {
                     }
                 } catch (Throwable $e) {
                     echo "Errore: " . $e->getMessage() . "\n";
-                    DB::execute('UPDATE posts SET agent_notes=? WHERE id=?', ['Errore: ' . $e->getMessage(), $postId]);
+                    try {
+                        Ingest::recoverAsDraft($userId, $postId, $e->getMessage());
+                        echo "      Creata bozza di recupero modificabile.\n";
+                    } catch (Throwable $recoveryError) {
+                        DB::execute('UPDATE posts SET agent_notes=? WHERE id=?', ['Errore: ' . $e->getMessage(), $postId]);
+                    }
                 }
             }
         }

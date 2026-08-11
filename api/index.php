@@ -2125,43 +2125,6 @@ if ($action === 'process-pending' && $method === 'POST') {
             // Aggiorna trascrizione prima di passare ad armonizza
             DB::execute('UPDATE posts SET transcript=? WHERE id=?', [$transcript, $postId]);
             
-            // Decisione sui contenuti e Memoria (RAG)
-            $site = DB::fetch('SELECT profile_summary, role_mission, content_strategy, rag_knowledge FROM sites WHERE user_id=?', [$userId]);
-            
-            // Aggiorna memoria RAG asincrona (in questo thread, per semplicità)
-            $newMemory = AI::updateMemory($raw, $site['rag_knowledge'] ?? '');
-            if ($newMemory !== ($site['rag_knowledge'] ?? '')) {
-                DB::execute('UPDATE sites SET rag_knowledge=? WHERE user_id=?', [$newMemory, $userId]);
-            }
-
-            $editorialContext = trim(
-                "Profilo:\n" . ($site['profile_summary'] ?? '') . "\n\n"
-                . "Ruolo/Missione:\n" . ($site['role_mission'] ?? '') . "\n\n"
-                . "Strategia:\n" . ($site['content_strategy'] ?? '') . "\n\n"
-                . "Memoria e Stile Utente (RAG):\n" . $newMemory
-            );
-            $recentPosts = DB::fetchAll(
-                'SELECT generated_title, generated_excerpt, raw_content FROM posts WHERE user_id=? AND published=1 ORDER BY published_at DESC LIMIT 12',
-                [$userId]
-            );
-            $decision = AI::contentDecision($raw, $post['platform'], $post['source_url'], $editorialContext, $recentPosts);
-            DB::execute(
-                'UPDATE posts SET relevance_score=?, agent_notes=? WHERE id=? AND user_id=?',
-                [$decision['relevance_score'], json_encode($decision, JSON_UNESCAPED_UNICODE), $postId, $userId]
-            );
-            
-            if (!$decision['publish'] || $decision['relevance_score'] < 55 || $decision['duplicate_risk'] >= 75) {
-                // Post saltato perché non rilevante o duplicato (impostiamo seo_score=0 così esce dalla coda)
-                DB::execute('UPDATE posts SET seo_score=0 WHERE id=?', [$postId]);
-                echo json_encode([
-                    'ok' => true,
-                    'status' => 'skipped',
-                    'published' => false,
-                    'message' => 'Post scartato dal curatore AI (punteggio basso o non rilevante)'
-                ]);
-                exit;
-            }
-
             // Ottieni impostazione auto-publish della fonte
             $source = DB::fetch('SELECT auto_publish FROM social_sources WHERE user_id=? AND platform=?', [$userId, $post['platform']]);
             $autoPublish = isset($source['auto_publish']) ? (int)$source['auto_publish'] : 1;
@@ -2186,9 +2149,17 @@ if ($action === 'process-pending' && $method === 'POST') {
             ]);
         }
     } catch (Throwable $e) {
-        // Se errore AI, mantienilo in coda o segnalalo
-        DB::execute('UPDATE posts SET agent_notes=? WHERE id=?', ['Errore: ' . $e->getMessage(), $postId]);
-        jsonError('Errore processing: ' . $e->getMessage());
+        // Non lasciare mai un contenuto bloccato per sempre: se il provider AI
+        // fallisce, crea una bozza minima che l'utente può correggere e pubblicare.
+        Ingest::recoverAsDraft($userId, $postId, $e->getMessage());
+        json([
+            'ok' => true,
+            'status' => 'draft',
+            'published' => false,
+            'recovered' => true,
+            'id' => $postId,
+            'message' => 'Il servizio AI non ha risposto: è stata creata una bozza modificabile.'
+        ]);
     }
 }
 
