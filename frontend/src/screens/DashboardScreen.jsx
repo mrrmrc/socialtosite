@@ -472,7 +472,7 @@ const [importMsg, setImportMsg] = useState(null);
   const [savingUnderstanding, setSavingUnderstanding] = useState(false);
   const [strategyStep, setStrategyStep] = useState(0);
   const [uploadingLogo, setUploadingLogo] = useState(false);
-  const [reachabilityDraft, setReachabilityDraft] = useState({ presence_mode: 'undecided', official_site_url: '', business_profile_url: '', primary_topic: '', service_areas: [], reciprocal_link_confirmed: false, phone: '', whatsapp: '', email: '', search_console_choice: 'unknown' });
+  const [reachabilityDraft, setReachabilityDraft] = useState({ presence_mode: 'undecided', official_site_url: '', business_profile_url: '', primary_topic: '', service_areas: [], reciprocal_link_confirmed: false, phone: '', whatsapp: '', email: '' });
   const [savingReachability, setSavingReachability] = useState(false);
   const [savingSearchVisible, setSavingSearchVisible] = useState(false);
   const [aiContentIdeas, setAiContentIdeas] = useState([]);
@@ -566,7 +566,7 @@ const [importMsg, setImportMsg] = useState(null);
       } catch (_) {
         setDismissedIdeaKeys([]);
       }
-      setReachabilityDraft(d.reachability?.profile || { presence_mode: 'undecided', official_site_url: '', business_profile_url: '', primary_topic: '', service_areas: [], reciprocal_link_confirmed: false, phone: '', whatsapp: '', email: '', search_console_choice: 'unknown' });
+      setReachabilityDraft(d.reachability?.profile || { presence_mode: 'undecided', official_site_url: '', business_profile_url: '', primary_topic: '', service_areas: [], reciprocal_link_confirmed: false, phone: '', whatsapp: '', email: '' });
       let parsedEditorialSettings = { enabled: true, auto_run: true, min_posts: 8, strict_indexing_mode: true };
       let parsedEditorialDna = {};
       let parsedEditorialMemory = {};
@@ -1893,7 +1893,7 @@ const [importMsg, setImportMsg] = useState(null);
     overview: ['Panoramica', 'Controlla cosa sta funzionando e scegli la prossima azione.'],
     strategy: ['Profilo attività', 'Definisci pubblico, obiettivi e priorità che guidano tutto il sistema.'],
     site: ['Articoli', 'Rivedi le bozze, modifica i testi e decidi cosa pubblicare.'],
-    experience: ['Aspetto del sito', 'Scegli come si presenta il tuo spazio pubblico.'],
+    experience: ['Identità del sito', 'Logo e contenuti personali dentro una struttura accessibile e coerente.'],
     sources: ['Canali collegati', 'Gestisci le fonti da cui arrivano contenuti e aggiornamenti.'],
     settings: ['Design avanzato', 'Controlli di compatibilità e personalizzazione avanzata.'],
     general: ['Impostazioni di sistema', 'Configura agenti, automazioni e comportamento della piattaforma.'],
@@ -1936,7 +1936,7 @@ const [importMsg, setImportMsg] = useState(null);
       <div className="settings-hub-grid">
         {[
           ['Profilo attività','Obiettivi, pubblico, servizi e territorio','strategy','✓'],
-          ['Aspetto dello spazio','Layout, colori, logo e identità','experience','◇'],
+          ['Identità del sito','Logo, contenuti e anteprima del sito pubblico','experience','◇'],
           ['Sicurezza','Password e sessioni del tuo account','security','⌾'],
           ['Servizi opzionali','Interventi professionali su richiesta','services','↗'],
         ].map(([title,description,target,icon]) => <button key={target} onClick={() => setTab(target)}><span>{icon}</span><div><strong>{title}</strong><small>{description}</small></div><i>→</i></button>)}
@@ -2531,7 +2531,27 @@ const [importMsg, setImportMsg] = useState(null);
           );
         })()}
 
-        {tab === 'experience' && <SpazioVivoLab token={token} onConfirmed={loadData} />}
+        {tab === 'experience' && (
+          <div style={{ display: 'grid', gap: '1rem' }}>
+            <section className="card" style={{ padding: 'clamp(1.25rem, 3vw, 2rem)', background: 'linear-gradient(135deg, var(--surface), var(--primary-light))', border: '1px solid var(--border)' }}>
+              <span style={{ display: 'inline-flex', padding: '6px 10px', borderRadius: '999px', background: 'var(--teal-light)', color: 'var(--teal)', fontSize: '12px', fontWeight: 850 }}>STRUTTURA OTTIMIZZATA ATTIVA</span>
+              <h2 style={{ margin: '0.8rem 0 0.55rem', color: 'var(--text)', fontSize: 'clamp(24px, 4vw, 36px)', lineHeight: 1.08 }}>Un sito semplice da capire, su ogni dispositivo</h2>
+              <p style={{ maxWidth: '760px', margin: 0, color: 'var(--text-muted)', fontSize: '15px', lineHeight: 1.7 }}>La grafica non viene più reinventata dall’AI. Tutti i siti usano la stessa architettura editoriale, progettata per leggibilità, navigazione da tastiera, contrasto, mobile e accesso rapido agli articoli. Restano personali il tuo logo, i testi, le immagini e i contenuti.</p>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', marginTop: '1.25rem' }}>
+                <a className="btn btn-primary" href={siteUrl} target="_blank" rel="noopener">Apri il sito pubblico ↗</a>
+                <button className="btn btn-outline" type="button" onClick={() => setTab('strategy')}>Aggiorna logo e identità</button>
+              </div>
+            </section>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: '1rem' }}>
+              {[
+                ['01', 'Orientamento immediato', 'Home, articoli, argomenti e informazioni mantengono sempre una posizione riconoscibile.'],
+                ['02', 'Lettura accessibile', 'Testi, contrasti, focus visibile e spaziature seguono regole comuni e verificabili.'],
+                ['03', 'Mobile prima di tutto', 'Menu, schede e azioni si adattano senza nascondere i contenuti importanti.'],
+                ['04', 'Identità autentica', 'Il sito usa il tuo marchio e il tuo patrimonio social, senza layout casuali generati.'],
+              ].map(([number, title, description]) => <article className="card" key={number} style={{ padding: '1.25rem', border: '1px solid var(--border)' }}><span style={{ color: 'var(--primary)', fontWeight: 900, fontSize: '12px' }}>{number}</span><h3 style={{ margin: '0.55rem 0', color: 'var(--text)', fontSize: '17px' }}>{title}</h3><p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '13px', lineHeight: 1.65 }}>{description}</p></article>)}
+            </div>
+          </div>
+        )}
 
         {/* Tab: Sito */}
         {tab === 'site' && (() => {
@@ -2777,14 +2797,14 @@ const [importMsg, setImportMsg] = useState(null);
               </section>
 
               <section className="google-progress-panel">
-                <div className="google-progress-heading"><div><span>Dati reali, non punteggi inventati</span><h3>Google: collegamento e copertura</h3></div><small>Fonte: {reachability.google?.source || 'Google Search Console'}</small></div>
+                <div className="google-progress-heading"><div><span>Monitoraggio automatico incluso</span><h3>Google: copertura delle pagine</h3></div><small>{reachability.google?.has_evidence ? 'Dati Google aggiornati automaticamente' : 'Raccolta dati in corso'}</small></div>
                 <div className="google-progress-grid">
                   {[
-                    ['Collegamento dati', reachability.google?.connection_percent || 0, reachability.google?.connected ? 'Search Console sta inviando dati' : 'Completa la risposta nel percorso qui sotto'],
+                    ['Monitoraggio', 100, 'Gestito centralmente da AllSocialToWeb: non devi configurare nulla'],
                     ['Pagine rilevate', reachability.google?.presence_percent || 0, `${reachability.google?.visible_pages || 0} su ${reachability.google?.published_pages || 0} pagine con segnali Google`],
                   ].map(([label, value, detail]) => <div className="google-progress-card" key={label}><div><strong>{value}%</strong><span>{label}</span></div><div className="progress-track"><span style={{ width: `${value}%` }} /></div><p>{detail}</p></div>)}
                 </div>
-                <div className="google-progress-note">La percentuale “Pagine rilevate” misura la copertura osservata, non la posizione su Google. Può crescere solo quando Search Console registra impressioni reali.</div>
+                <div className="google-progress-note">La percentuale “Pagine rilevate” misura la copertura osservata, non la posizione. I dati possono comparire dopo alcuni giorni dalla pubblicazione.</div>
               </section>
 
               <section className="presence-setup">
@@ -2806,12 +2826,6 @@ const [importMsg, setImportMsg] = useState(null);
 
                 <div className="presence-step">
                   <div className="presence-step-number">3</div><div className="presence-step-body"><h4>Come possono contattarti?</h4><p>I pulsanti vengono mostrati automaticamente negli articoli. I campi vuoti non compaiono.</p><div className="presence-fields three"><label><span>Telefono</span><input value={reachabilityDraft.phone || ''} onChange={e => setReachabilityDraft(prev => ({ ...prev, phone: e.target.value }))} placeholder="+39 06 1234567" /></label><label><span>WhatsApp</span><input value={reachabilityDraft.whatsapp || ''} onChange={e => setReachabilityDraft(prev => ({ ...prev, whatsapp: e.target.value }))} placeholder="340 1234567" /></label><label><span>Email</span><input type="email" value={reachabilityDraft.email || ''} onChange={e => setReachabilityDraft(prev => ({ ...prev, email: e.target.value }))} placeholder="info@attivita.it" /></label></div></div>
-                </div>
-
-                <div className="presence-step">
-                  <div className="presence-step-number">4</div><div className="presence-step-body"><h4>Hai già Google Search Console?</h4><p>La risposta ci dice qual è il prossimo passo. Non trasforma artificialmente in verde una verifica che Google non ha ancora fornito.</p><div className="presence-choice-grid three">
-                    {[['connected','Sì, è collegata','Il sistema controllerà che arrivino dati'],['not_connected','No','Ti mostreremo come attivarla'],['need_help','Non lo so','Puoi richiedere assistenza']].map(([value,label,detail]) => <button key={value} className={reachabilityDraft.search_console_choice === value ? 'is-selected' : ''} onClick={() => setReachabilityDraft(prev => ({ ...prev, search_console_choice: value }))}><strong>{label}</strong><span>{detail}</span></button>)}
-                  </div>{reachabilityDraft.search_console_choice === 'need_help' && <a className="btn btn-outline presence-help" href={`mailto:support@ideesitiweb.it?subject=${encodeURIComponent(`Aiuto Search Console - ${user?.slug || ''}`)}`}>Richiedi aiuto per Search Console</a>}</div>
                 </div>
 
                 <div className="presence-save"><div><strong>Le tue risposte alimentano tutto il sistema</strong><span>Pagine, dati strutturati, contatti e analisi useranno queste informazioni.</span></div><button className="btn btn-primary" onClick={saveReachabilityNetwork} disabled={savingReachability}>{savingReachability ? 'Salvataggio…' : 'Salva e aggiorna la presenza'}</button></div>
@@ -2897,8 +2911,8 @@ const [importMsg, setImportMsg] = useState(null);
               <section className="metric-grid">
                 {[
                   { value: networkPublishedPages, label: 'Pagine pubbliche nella rete', source: 'Database AllSocialToWeb', tone: 'violet' },
-                  { value: reachability.google?.has_evidence ? (reachability.google?.visible_pages || visibility.visible_pages || 0) : '—', label: 'Pagine rilevate da Google', source: reachability.google?.has_evidence ? 'Google Search Console' : 'Collega Search Console', tone: 'blue' },
-                  { value: reachability.google?.has_evidence ? Number(visibility.impressions || 0).toLocaleString('it-IT') : '—', label: 'Visualizzazioni su Google · 30 gg', source: reachability.google?.has_evidence ? 'Google Search Console' : 'Dato non ancora disponibile', tone: 'amber' },
+                  { value: reachability.google?.has_evidence ? (reachability.google?.visible_pages || visibility.visible_pages || 0) : '—', label: 'Pagine rilevate da Google', source: reachability.google?.has_evidence ? 'Monitoraggio automatico' : 'Raccolta dati in corso', tone: 'blue' },
+                  { value: reachability.google?.has_evidence ? Number(visibility.impressions || 0).toLocaleString('it-IT') : '—', label: 'Visualizzazioni su Google · 30 gg', source: reachability.google?.has_evidence ? 'Monitoraggio automatico' : 'Dato non ancora disponibile', tone: 'amber' },
                   { value: Number(visibility.unique_visitors || 0).toLocaleString('it-IT'), label: 'Visitatori dello Spazio · 30 gg', source: 'Analytics interno', tone: 'teal' },
                   { value: Number(visibility.actions || 0).toLocaleString('it-IT'), label: 'Contatti e azioni · 30 gg', source: 'Analytics interno', tone: 'green' },
                 ].map(metric => <article key={metric.label} className={`metric-card tone-${metric.tone}`}>
@@ -2918,7 +2932,6 @@ const [importMsg, setImportMsg] = useState(null);
                       <time>{source.updated_at ? new Date(source.updated_at).toLocaleDateString('it-IT') : 'Nessun dato'}</time>
                     </div>)}
                   </div>
-                  {!reachability.google?.connected && <button className="btn btn-primary" onClick={() => setVisibilitySection('network')}>Configura i dati Google</button>}
                 </section>
 
                 <section className="data-panel foundation-panel">

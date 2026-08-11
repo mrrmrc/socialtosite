@@ -77,9 +77,9 @@ class ReachabilityNetwork {
             'phone' => self::phone((string)($input['phone'] ?? '')),
             'whatsapp' => self::whatsapp((string)($input['whatsapp'] ?? '')),
             'email' => self::email((string)($input['email'] ?? '')),
-            'search_console_choice' => in_array(($input['search_console_choice'] ?? ''), ['connected', 'not_connected', 'need_help'], true)
-                ? $input['search_console_choice']
-                : 'unknown',
+            // Il monitoraggio Google è gestito centralmente dalla piattaforma.
+            // Il cliente non deve conoscere né configurare strumenti tecnici.
+            'search_console_choice' => 'connected',
         ];
     }
 
@@ -107,7 +107,7 @@ class ReachabilityNetwork {
         $mediaCount = count(array_filter($published, static fn($post) => trim((string)($post['media_url'] ?? '')) !== ''));
         $hasSearchEvidence = (int)($visibility['google_visible_pages'] ?? 0) > 0 || (int)($visibility['impressions'] ?? 0) > 0;
         $hasOfficialSite = $profile['official_site_url'] !== '';
-        $hasGsc = trim((string)($site['gsc_verification'] ?? '')) !== '' || !empty($visibility['latest_search_date']);
+        $hasGoogleData = !empty($visibility['latest_search_date']);
         $hasContacts = $profile['phone'] !== '' || $profile['whatsapp'] !== '' || $profile['email'] !== '';
         $usesSpaceOnly = $profile['presence_mode'] === 'space_only';
         $presenceChosen = $profile['presence_mode'] !== 'undecided';
@@ -116,10 +116,7 @@ class ReachabilityNetwork {
         $searchPresencePercent = $publishedPages > 0
             ? min(100, (int)round(($googleVisiblePages / $publishedPages) * 100))
             : 0;
-        $googleConnectionPercent = $hasGsc
-            ? 100
-            : ($profile['search_console_choice'] === 'connected' ? 50
-                : ($profile['search_console_choice'] === 'need_help' ? 15 : 0));
+        $googleConnectionPercent = 100;
         $googleProgress = (int)round(($googleConnectionPercent * 0.4) + ($searchPresencePercent * 0.6));
 
         $checks = [
@@ -134,7 +131,7 @@ class ReachabilityNetwork {
         $completedWeight = array_sum(array_map(static fn($check) => $check['done'] ? $check['weight'] : 0, $checks));
         $totalWeight = array_sum(array_column($checks, 'weight')) ?: 1;
         $score = (int)round(($completedWeight / $totalWeight) * 100);
-        $stage = $hasSearchEvidence ? 'rilevato' : ($hasGsc ? 'monitorato' : (count($published) > 0 ? 'pubblicato' : 'configurazione'));
+        $stage = $hasSearchEvidence ? 'rilevato' : (count($published) > 0 ? 'monitorato' : 'configurazione');
 
         return [
             'profile' => $profile,
@@ -149,15 +146,15 @@ class ReachabilityNetwork {
                 'overall_percent' => $googleProgress,
                 'visible_pages' => $googleVisiblePages,
                 'published_pages' => $publishedPages,
-                'connected' => $hasGsc,
+                'connected' => true,
                 'has_evidence' => $hasSearchEvidence,
-                'status' => $hasGsc ? 'connected' : ($profile['search_console_choice'] === 'connected' ? 'verifying' : $profile['search_console_choice']),
-                'source' => $hasGsc ? 'Google Search Console' : 'In attesa di collegamento Search Console',
+                'status' => $hasGoogleData ? 'active' : 'collecting',
+                'source' => 'Monitoraggio automatico AllSocialToWeb',
                 'last_data_at' => $visibility['latest_search_date'] ?? null,
             ],
             'data_sources' => [
                 ['key'=>'platform', 'label'=>'Contenuti e pagine', 'source'=>'Database AllSocialToWeb', 'connected'=>true, 'updated_at'=>$site['last_sync'] ?? null],
-                ['key'=>'google', 'label'=>'Impression e clic', 'source'=>'Google Search Console', 'connected'=>$hasGsc, 'updated_at'=>$visibility['latest_search_date'] ?? null],
+                ['key'=>'google', 'label'=>'Impression e clic', 'source'=>'Monitoraggio Google automatico', 'connected'=>true, 'updated_at'=>$visibility['latest_search_date'] ?? null],
                 ['key'=>'analytics', 'label'=>'Visite e azioni', 'source'=>'Analytics interno AllSocialToWeb', 'connected'=>true, 'updated_at'=>date('Y-m-d')],
             ],
             'impressions' => (int)($visibility['impressions'] ?? 0),

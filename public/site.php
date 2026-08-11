@@ -515,11 +515,12 @@ if (!empty($mediaPosts)) {
 // Le vecchie scelte grafiche restano nei dati, ma non governano piu il sito pubblico.
 $menuLinks = [
     ['label' => 'Home', 'url' => '/'],
-    ['label' => 'Ultimi contenuti', 'url' => '/#ultimi'],
-    ['label' => 'Categorie', 'url' => '/#categorie'],
 ];
-if (!empty($mediaPosts)) {
-    $menuLinks[] = ['label' => 'Foto e video', 'url' => '/?view=media'];
+if (!empty($chronologicalPosts)) {
+    $menuLinks[] = ['label' => 'Articoli', 'url' => count($chronologicalPosts) > 1 ? '/#ultimi' : '/#in-evidenza'];
+}
+if (!empty($tagCounts)) {
+    $menuLinks[] = ['label' => 'Argomenti', 'url' => '/#categorie'];
 }
 $preferredFoundationPages = [
     'cosa-offriamo' => 'Cosa offriamo',
@@ -529,9 +530,11 @@ $preferredFoundationPages = [
     'domande-frequenti' => 'FAQ',
     'contatti' => 'Contatti',
 ];
-foreach ($preferredFoundationPages as $pageSlug => $label) {
+$primaryFoundationNavigation = ['cosa-offriamo', 'chi-siamo', 'contatti'];
+foreach ($primaryFoundationNavigation as $pageSlug) {
     if (isset($foundationPagesBySlug[$pageSlug])) {
-        $menuLinks[] = ['label' => $label, 'url' => '/' . $pageSlug];
+        $menuLinks[] = ['label' => $preferredFoundationPages[$pageSlug], 'url' => '/' . $pageSlug];
+        if (count($menuLinks) >= 5) break;
     }
 }
 $footerText   = $site['footer_text'] ?? '';
@@ -827,15 +830,16 @@ function mediaHtml(array $p): string {
     $width = max(30, min(100, (int)($p['media_display_width'] ?? 100)));
     $alignment = in_array(($p['media_alignment'] ?? 'center'), ['left', 'center', 'right'], true) ? $p['media_alignment'] : 'center';
     $wrapper = '<div class="media media-sized media-align-' . $alignment . '" style="--media-display-width:' . $width . '%">';
+    $mediaLabel = h(postTitle($p));
     if (preg_match('~(?:youtube\.com|youtu\.be)~i', $u) &&
         preg_match('~(?:v=|youtu\.be/|shorts/|embed/)([A-Za-z0-9_-]{11})~', $u, $m)) {
-        return $wrapper . '<iframe src="https://www.youtube.com/embed/' . $m[1] . '" allowfullscreen loading="lazy"></iframe></div>';
+        return $wrapper . '<iframe src="https://www.youtube.com/embed/' . $m[1] . '" title="Video: ' . $mediaLabel . '" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen loading="lazy"></iframe></div>';
     }
     $type = strtolower($p['media_type'] ?? '');
     if ($type === 'image' || preg_match('~\.(jpg|jpeg|png|webp)(\?|$)~i', $u))
-        return $wrapper . '<img src="' . h($u) . '" alt="" loading="lazy"></div>';
+        return $wrapper . '<img src="' . h($u) . '" alt="' . $mediaLabel . '" loading="lazy" decoding="async"></div>';
     if ($type === 'video' || preg_match('~\.(mp4|mov|webm)(\?|$)~i', $u))
-        return $wrapper . '<video controls preload="metadata"><source src="' . h($u) . '"></video></div>';
+        return $wrapper . '<video controls preload="metadata" aria-label="Video: ' . $mediaLabel . '"><source src="' . h($u) . '"></video></div>';
     return '';
 }
 
@@ -2236,6 +2240,75 @@ header('Link: <' . $siteUrl . '/feed.xml>; rel="alternate"; type="application/at
     .official-channel span { color:#5B5CE2; }
     .content-method { font-size:.9rem; line-height:1.65; color:#566078; border-left:4px solid #5B5CE2; }
     .theme-network-standard .footer { background:#182033; border-radius:0; }
+
+    /* Layout universale: una gerarchia editoriale stabile per ogni profilo. */
+    .skip-link { position:fixed; top:.75rem; left:.75rem; z-index:1000; padding:.75rem 1rem; border-radius:10px; background:#fff; color:#182033; font-weight:800; box-shadow:0 10px 30px rgba(0,0,0,.2); transform:translateY(-160%); }
+    .skip-link:focus { transform:translateY(0); }
+    :where(a,button,input,textarea,select,summary):focus-visible { outline:3px solid #FFB020; outline-offset:3px; }
+    .universal-home { width:min(100%,1160px); margin:0 auto; }
+    .universal-hero { display:grid; grid-template-columns:minmax(0,1.05fr) minmax(320px,.95fr); gap:clamp(2rem,5vw,5rem); align-items:center; padding:clamp(2.5rem,7vw,6rem) 0 clamp(3rem,7vw,5.5rem); }
+    .universal-hero-copy { min-width:0; }
+    .universal-eyebrow { display:inline-block; margin-bottom:.8rem; color:#4038B7; font-size:.76rem; font-weight:850; letter-spacing:.12em; text-transform:uppercase; }
+    .universal-identity { display:flex; align-items:center; gap:.8rem; margin-bottom:1rem; color:#46506A; font-size:.9rem; font-weight:800; }
+    .universal-identity img { width:56px; height:56px; border:1px solid #E3E6EF; border-radius:14px; object-fit:contain; background:#fff; }
+    .universal-hero h1 { max-width:760px; margin:0; color:#182033; font-size:clamp(2.7rem,6vw,5.6rem); line-height:.98; letter-spacing:-.055em; text-wrap:balance; }
+    .universal-hero-copy > p { max-width:680px; margin:1.4rem 0 0; color:#46506A; font-size:clamp(1.05rem,2vw,1.25rem); line-height:1.7; }
+    .universal-actions { display:flex; flex-wrap:wrap; gap:.75rem; margin-top:1.7rem; }
+    .universal-button { display:inline-flex; min-height:48px; align-items:center; justify-content:center; padding:.8rem 1.2rem; border:1px solid #C9CEDB; border-radius:12px; background:#fff; color:#182033; font-weight:800; }
+    .universal-button:hover { border-color:#4038B7; color:#4038B7; }
+    .universal-button-primary { border-color:#4038B7; background:#4038B7; color:#fff; }
+    .universal-button-primary:hover { background:#2F298F; color:#fff; }
+    .universal-stats { display:flex; flex-wrap:wrap; gap:1.5rem; margin-top:2rem; padding:0; list-style:none; }
+    .universal-stats li { display:grid; gap:.15rem; min-width:92px; }
+    .universal-stats strong { color:#182033; font-size:1.45rem; line-height:1; }
+    .universal-stats span { color:#667085; font-size:.78rem; }
+    .universal-lead { position:relative; display:flex; min-height:480px; overflow:hidden; border-radius:28px; background:#182033; color:#fff; box-shadow:0 28px 70px rgba(24,32,51,.18); isolation:isolate; scroll-margin-top:100px; }
+    .universal-lead::after { content:''; position:absolute; inset:0; z-index:1; background:linear-gradient(0deg,rgba(11,16,30,.94),rgba(11,16,30,.06) 72%); }
+    .universal-lead img { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; }
+    .universal-lead-body { position:relative; z-index:2; display:flex; align-self:flex-end; width:100%; flex-direction:column; gap:.7rem; padding:clamp(1.4rem,4vw,2.2rem); }
+    .universal-lead-body small { color:#D9D6FF; font-size:.72rem; font-weight:800; letter-spacing:.08em; text-transform:uppercase; }
+    .universal-lead-body strong { color:#fff; font-size:clamp(1.55rem,3vw,2.25rem); line-height:1.12; text-wrap:balance; }
+    .universal-lead-body > span { display:-webkit-box; overflow:hidden; color:rgba(255,255,255,.78); line-height:1.6; -webkit-line-clamp:3; -webkit-box-orient:vertical; }
+    .universal-lead-body b { margin-top:.3rem; color:#fff; font-size:.9rem; }
+    .universal-lead-no-image { background:linear-gradient(145deg,#182033,#332D72); }
+    .universal-lead-empty { min-height:360px; }
+    .universal-section { padding:clamp(2.5rem,6vw,4.5rem) 0; border-top:1px solid #E3E6EF; scroll-margin-top:100px; }
+    .universal-section-heading { display:flex; justify-content:space-between; gap:1.5rem; align-items:end; margin-bottom:1.5rem; }
+    .universal-section-heading h2 { margin:0; color:#182033; font-size:clamp(2rem,4vw,3.25rem); line-height:1.05; letter-spacing:-.04em; }
+    .universal-section-heading > a { color:#4038B7; font-weight:800; }
+    .universal-card-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:1.25rem; }
+    .universal-card { display:flex; min-width:0; flex-direction:column; overflow:hidden; border:1px solid #E3E6EF; border-radius:18px; background:#fff; }
+    .universal-card-media:empty { display:none; }
+    .universal-card-media .media { width:100%!important; margin:0; border-radius:0; }
+    .universal-card-media .media img,.universal-card-media .media video,.universal-card-media .media iframe { width:100%; aspect-ratio:16/10; object-fit:cover; border-radius:0; }
+    .universal-card-body { display:flex; flex:1; flex-direction:column; align-items:flex-start; padding:1.25rem; }
+    .universal-meta { display:flex; width:100%; justify-content:space-between; gap:.75rem; margin-bottom:.8rem; color:#667085; font-size:.75rem; font-weight:700; }
+    .universal-card h3 { margin:0; font-size:1.25rem; line-height:1.3; letter-spacing:-.02em; }
+    .universal-card h3 a { color:#182033; }
+    .universal-card h3 a:hover { color:#4038B7; }
+    .universal-card p { display:-webkit-box; margin:.75rem 0 1rem; overflow:hidden; color:#566078; line-height:1.65; -webkit-line-clamp:3; -webkit-box-orient:vertical; }
+    .universal-read { margin-top:auto; color:#4038B7; font-size:.88rem; font-weight:850; }
+    .universal-topic-list { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:.75rem; }
+    .universal-topic-list a { display:flex; min-height:54px; align-items:center; justify-content:space-between; gap:.75rem; padding:.8rem 1rem; border:1px solid #DDE2EE; border-radius:12px; background:#fff; color:#182033; font-weight:800; }
+    .universal-topic-list a:hover { border-color:#4038B7; color:#4038B7; }
+    .universal-topic-list strong { display:grid; min-width:28px; height:28px; place-items:center; border-radius:999px; background:#ECEBFF; color:#4038B7; font-size:.72rem; }
+    .universal-info-grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:1rem; }
+    .universal-info-grid a { display:flex; min-height:190px; flex-direction:column; padding:1.3rem; border-radius:16px; background:#182033; color:#fff; }
+    .universal-info-grid a > span { color:#fff; font-size:1.15rem; font-weight:850; }
+    .universal-info-grid p { margin:.7rem 0 1rem; color:#D7DBE7; font-size:.9rem; line-height:1.6; }
+    .universal-info-grid strong { margin-top:auto; color:#D9D6FF; font-size:.85rem; }
+    .theme-network-standard .single-post { max-width:780px; border:1px solid #E3E6EF; border-radius:18px; box-shadow:none; }
+    .theme-network-standard .single-post h1 { font-size:clamp(2.1rem,5vw,3.8rem); line-height:1.08; letter-spacing:-.045em; text-wrap:balance; }
+    .theme-network-standard .body-content { color:#263149; font-size:1.125rem; line-height:1.8; opacity:1; }
+    .theme-network-standard .body-content :where(p,li) { max-width:72ch; }
+    .theme-network-standard .body-content :where(h2,h3) { margin:2.2rem 0 .8rem; line-height:1.2; }
+    .theme-network-standard .body-content { overflow-wrap:anywhere; }
+    .theme-network-standard .body-content table { display:block; width:100%; overflow-x:auto; border-collapse:collapse; }
+    .theme-network-standard .body-content :where(th,td) { padding:.65rem .8rem; border:1px solid #D8DDEA; text-align:left; }
+    .theme-network-standard .body-content :where(img,video,iframe) { max-width:100%; }
+    @media(max-width:900px){.universal-hero{grid-template-columns:1fr}.universal-lead{min-height:420px}.universal-card-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.universal-topic-list,.universal-info-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+    @media(max-width:620px){.universal-hero{padding:2rem 0 3.5rem}.universal-hero h1{font-size:clamp(2.45rem,13vw,4rem)}.universal-lead{min-height:360px;border-radius:20px}.universal-actions .universal-button{width:100%}.universal-stats{justify-content:space-between;gap:.75rem}.universal-card-grid,.universal-topic-list,.universal-info-grid{grid-template-columns:1fr}.universal-section-heading{align-items:flex-start;flex-direction:column}.theme-network-standard .single-post{padding:1.35rem}.theme-network-standard .body-content{font-size:1.05rem}.network-trust{display:none}}
+    @media(prefers-reduced-motion:reduce){html:focus-within{scroll-behavior:auto}*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;scroll-behavior:auto!important}.post{opacity:1;transform:none}}
     /* Spazio Vivo: portale visuale, non homepage tradizionale */
     .theme-network-standard .container { max-width:1440px; }
     .living-experience { position:relative; margin:0 0 3rem; padding:10px; border-radius:36px; background:#0C1020; color:#fff; overflow:hidden; box-shadow:0 38px 100px rgba(15,15,45,.24); }
@@ -2534,8 +2607,10 @@ header('Link: <' . $siteUrl . '/feed.xml>; rel="alternate"; type="application/at
       $placeholderImage = "https://source.unsplash.com/1600x900/?" . urlencode($unsplashKeyword);
   }
 ?>
-<?php $isLivingHome = !$useHospitalityLanding && !$single && !$foundationPage && $view === '' && !$activeTag && !empty($chronologicalPosts); ?>
+<?php // La home pubblica usa sempre la struttura editoriale universale. ?>
+<?php $isLivingHome = false; ?>
 <body class="theme-<?= h($archetype) ?> layout-<?= $layoutVariant ?> living-mode-<?= h($livingSpaceMode) ?><?= $isLivingHome ? ' has-living-home' : '' ?><?= $useHospitalityLanding ? ' is-hospitality-site' : '' ?>">
+<a class="skip-link" href="#main-content">Vai al contenuto principale</a>
 <div class="network-bar">
   <div class="network-signature">
     <a class="network-signature-brand" href="<?= BASE_URL ?>/scopri"><img src="/logo-cropped.png" alt=""><strong>AllSocialToWeb</strong></a>
@@ -2552,11 +2627,11 @@ ob_start();
     <?php else: ?><?= $title ?><?php endif; ?>
   </a>
   <?php if ($menuLinks): ?>
-  <button class="nav-toggle" aria-label="Apri menu" aria-expanded="false" id="nav-toggle">
+  <button class="nav-toggle" aria-label="Apri menu" aria-expanded="false" aria-controls="nav-links" id="nav-toggle">
     <span></span><span></span><span></span>
   </button>
   <div class="nav-overlay" id="nav-overlay"></div>
-  <div class="nav-links" id="nav-links" role="menubar">
+  <div class="nav-links" id="nav-links">
     <?php foreach ($menuLinks as $link): 
         $href = trim($link['url'] ?? '');
         if ($href === '/' || $href === '') { $href = $siteUrl; }
@@ -2565,7 +2640,7 @@ ob_start();
         elseif (str_starts_with($href, '/')) { $href = $siteUrl . $href; }
         else { $href = h($href); }
     ?>
-      <a href="<?= $href ?>" role="menuitem"><?= h($link['label']) ?></a>
+      <a href="<?= $href ?>"><?= h($link['label']) ?></a>
     <?php endforeach; ?>
   </div>
   <?php endif; ?>
@@ -2894,6 +2969,94 @@ ob_start();
 
   <?php else: ?>
 
+  <?php
+    $homeLead = $chronologicalPosts[0] ?? null;
+    $homeLatest = $homeLead
+        ? array_values(array_filter($chronologicalPosts, static fn($item) => (int)($item['id'] ?? 0) !== (int)($homeLead['id'] ?? 0)))
+        : $chronologicalPosts;
+    $homeLatest = array_slice($homeLatest, 0, 6);
+    $homeLeadImage = '';
+    if ($homeLead && strtolower((string)($homeLead['media_type'] ?? '')) !== 'video') {
+        $homeLeadImage = normalizeMediaUrl((string)($homeLead['media_url'] ?? ''));
+    }
+    if ($homeLeadImage === '') $homeLeadImage = $coverUrl;
+
+    $homeContactUrl = '';
+    $homeContactLabel = '';
+    if (isset($foundationPagesBySlug['contatti'])) {
+        $homeContactUrl = $siteUrl . '/contatti';
+        $homeContactLabel = 'Contatti';
+    } elseif (!empty($reachabilityProfile['whatsapp'])) {
+        $homeContactUrl = 'https://wa.me/' . $reachabilityProfile['whatsapp'];
+        $homeContactLabel = 'Scrivi su WhatsApp';
+    } elseif (!empty($reachabilityProfile['phone'])) {
+        $homeContactUrl = 'tel:' . $reachabilityProfile['phone'];
+        $homeContactLabel = 'Chiama';
+    } elseif (!empty($reachabilityProfile['email'])) {
+        $homeContactUrl = 'mailto:' . $reachabilityProfile['email'];
+        $homeContactLabel = 'Scrivi una email';
+    }
+  ?>
+
+  <div class="universal-home">
+    <section class="universal-hero" aria-labelledby="universal-home-title">
+      <div class="universal-hero-copy">
+        <span class="universal-eyebrow">Contenuti e canali ufficiali</span>
+        <div class="universal-identity"><?php if ($logoUrl): ?><img src="<?= h($logoUrl) ?>" alt="" width="56" height="56"><?php endif; ?><span><?= $title ?></span></div>
+        <h1 id="universal-home-title"><?= $heroTagline ?: $title ?></h1>
+        <p><?= $bio ?: 'Informazioni, esperienze e aggiornamenti raccolti in uno spazio semplice da consultare.' ?></p>
+        <div class="universal-actions">
+          <?php if (!empty($chronologicalPosts)): ?><a class="universal-button universal-button-primary" href="<?= count($chronologicalPosts) > 1 ? '#ultimi' : '#in-evidenza' ?>">Leggi gli ultimi contenuti</a><?php endif; ?>
+          <?php if ($homeContactUrl !== ''): ?><a class="universal-button" href="<?= h($homeContactUrl) ?>"><?= h($homeContactLabel) ?></a><?php endif; ?>
+        </div>
+        <ul class="universal-stats" aria-label="Riepilogo del sito">
+          <li><strong><?= count($allPosts) ?></strong><span>contenuti</span></li>
+          <li><strong><?= count($tagCounts) ?></strong><span>argomenti</span></li>
+          <li><strong><?= count($sources) ?></strong><span>canali ufficiali</span></li>
+        </ul>
+      </div>
+
+      <?php if ($homeLead): ?>
+      <a id="in-evidenza" class="universal-lead<?= $homeLeadImage === '' ? ' universal-lead-no-image' : '' ?>" href="<?= $siteUrl . '/' . h($homeLead['slug'] ?? '') ?>" aria-label="Leggi: <?= h(postTitle($homeLead)) ?>">
+        <?php if ($homeLeadImage !== ''): ?><img src="<?= h($homeLeadImage) ?>" alt="" loading="eager" fetchpriority="high"><?php endif; ?>
+        <span class="universal-lead-body"><small>In evidenza · <?= h(ucfirst((string)($homeLead['platform'] ?? 'contenuto'))) ?></small><strong><?= h(postTitle($homeLead)) ?></strong><span><?= h(postExcerpt($homeLead)) ?></span><b>Leggi l’articolo →</b></span>
+      </a>
+      <?php else: ?>
+      <div class="universal-lead universal-lead-empty" aria-hidden="true"><span class="universal-lead-body"><small>Spazio ufficiale</small><strong><?= $title ?></strong><span>I prossimi contenuti saranno pubblicati qui.</span></span></div>
+      <?php endif; ?>
+    </section>
+
+    <?php if (!empty($homeLatest)): ?>
+    <section class="universal-section" id="ultimi" aria-labelledby="universal-latest-title">
+      <header class="universal-section-heading"><div><span class="universal-eyebrow">Aggiornamenti</span><h2 id="universal-latest-title">Ultimi contenuti</h2></div><?php if (isset($foundationPagesBySlug['contenuti'])): ?><a href="<?= $siteUrl ?>/contenuti">Vedi tutto →</a><?php endif; ?></header>
+      <div class="universal-card-grid">
+        <?php foreach ($homeLatest as $p): $purl = $siteUrl . '/' . h($p['slug'] ?? ''); ?>
+        <article class="universal-card">
+          <div class="universal-card-media"><?= mediaHtml($p) ?></div>
+          <div class="universal-card-body"><div class="universal-meta"><span><?= h(ucfirst((string)($p['platform'] ?? 'Contenuto'))) ?></span><time datetime="<?= h(substr((string)($p['published_at'] ?? ''), 0, 10)) ?>"><?= !empty($p['published_at']) ? date('d/m/Y', strtotime($p['published_at'])) : '' ?></time></div><h3><a href="<?= $purl ?>"><?= h(postTitle($p)) ?></a></h3><p><?= h(postExcerpt($p)) ?></p><a class="universal-read" href="<?= $purl ?>">Continua a leggere <span aria-hidden="true">→</span></a></div>
+        </article>
+        <?php endforeach; ?>
+      </div>
+    </section>
+    <?php endif; ?>
+
+    <?php if (!empty($tagCounts)): ?>
+    <nav class="universal-section universal-topics" id="categorie" aria-labelledby="universal-topics-title">
+      <div class="universal-section-heading"><div><span class="universal-eyebrow">Esplora</span><h2 id="universal-topics-title">Argomenti</h2></div></div>
+      <div class="universal-topic-list"><?php arsort($tagCounts); foreach (array_slice($tagCounts, 0, 8, true) as $tag => $tagCount): ?><a href="<?= $siteUrl ?>/categoria/<?= rawurlencode(networkTopicSlug($tag)) ?>"><span><?= h(humanizeDisplayName($tag)) ?></span><strong><?= (int)$tagCount ?></strong></a><?php endforeach; ?></div>
+    </nav>
+    <?php endif; ?>
+
+    <?php if (!empty($foundationPagesBySlug)): ?>
+    <section class="universal-section universal-info" aria-labelledby="universal-info-title">
+      <header class="universal-section-heading"><div><span class="universal-eyebrow">Informazioni utili</span><h2 id="universal-info-title">Conosci meglio <?= $title ?></h2></div></header>
+      <div class="universal-info-grid"><?php $homeInfoCount = 0; foreach ($preferredFoundationPages as $pageSlug => $label): if (!isset($foundationPagesBySlug[$pageSlug]) || $homeInfoCount >= 4) continue; $page = $foundationPagesBySlug[$pageSlug]; $homeInfoCount++; ?><a href="<?= $siteUrl . '/' . rawurlencode($pageSlug) ?>"><span><?= h($label) ?></span><p><?= h($page['meta_description'] ?? $page['intro'] ?? '') ?></p><strong>Approfondisci →</strong></a><?php endforeach; ?></div>
+    </section>
+    <?php endif; ?>
+  </div>
+
+  <?php if (false): // Modalità sperimentali disattivate: il pubblico usa il layout universale. ?>
+
   <?php if (!empty($chronologicalPosts)):
     $wallPosts = array_slice($chronologicalPosts, 0, 16);
     $wallPlatforms = [];
@@ -3096,6 +3259,8 @@ ob_start();
 
   <?php endif; ?>
 
+  <?php endif; ?>
+
 <?php endif; ?>
 <?php
 $mainContentHtml = ob_get_clean();
@@ -3178,8 +3343,8 @@ ob_start();
 <?php endif; ?>
 <?php
 $heroHtml = ob_get_clean();
-if ($isLivingHome) {
-    // La Social Intelligence Wall sostituisce il classico hero/slider nella home.
+if (!$single && !$foundationPage && $view === '' && !$activeTag && !$useHospitalityLanding) {
+    // La homepage universale include già il proprio hero accessibile.
     $heroHtml = '';
 }
 ?>
@@ -3197,7 +3362,7 @@ if ($isLivingHome) {
         </footer>
       <?php endif; ?>
     </aside>
-    <main class="layout-content-col">
+    <main class="layout-content-col" id="main-content">
        <?php if ($layoutVariant === 'split' && !$single): ?>
          <div class="split-hero" style="background: url('<?= $coverUrl ?: $placeholderImage ?>') center/cover; position:relative; overflow:hidden;">
             <div style="position:absolute; inset:0; background:linear-gradient(to right, rgba(0,0,0,0.9), transparent);"></div>
@@ -3228,7 +3393,7 @@ if ($isLivingHome) {
 
   <?= $heroHtml ?>
 
-  <main class="container">
+  <main class="container" id="main-content">
      <?= $mainContentHtml ?>
   </main>
 
@@ -3378,15 +3543,21 @@ document.addEventListener('DOMContentLoaded', () => {
   const navOverlay = document.getElementById('nav-overlay');
   
   if (navToggle && navLinks && navOverlay) {
-    const toggleMenu = () => {
-      const isOpen = navLinks.classList.contains('open');
-      navLinks.classList.toggle('open');
-      navOverlay.classList.toggle('open');
-      navToggle.classList.toggle('open');
-      navToggle.setAttribute('aria-expanded', !isOpen);
+    const setMenuOpen = (open, returnFocus = false) => {
+      navLinks.classList.toggle('open', open);
+      navOverlay.classList.toggle('open', open);
+      navToggle.classList.toggle('open', open);
+      navToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+      navToggle.setAttribute('aria-label', open ? 'Chiudi menu' : 'Apri menu');
+      document.body.style.overflow = open ? 'hidden' : '';
+      if (returnFocus) navToggle.focus();
     };
-    navToggle.addEventListener('click', toggleMenu);
-    navOverlay.addEventListener('click', toggleMenu);
+    navToggle.addEventListener('click', () => setMenuOpen(!navLinks.classList.contains('open')));
+    navOverlay.addEventListener('click', () => setMenuOpen(false, true));
+    navLinks.querySelectorAll('a').forEach(link => link.addEventListener('click', () => setMenuOpen(false)));
+    document.addEventListener('keydown', event => {
+      if (event.key === 'Escape' && navLinks.classList.contains('open')) setMenuOpen(false, true);
+    });
   }
 
   const observer = new IntersectionObserver(entries => {
