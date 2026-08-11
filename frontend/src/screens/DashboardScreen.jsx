@@ -420,6 +420,7 @@ export function DashboardScreen({ token, user, onLogout }) {
 
   const [viewMode, setViewMode] = useState('grid');
   const [selectedPosts, setSelectedPosts] = useState([]);
+  const [publishingPostId, setPublishingPostId] = useState(null);
   const [syncing, setSyncing] = useState(false);
   const [linkUrl, setLinkUrl] = useState('');
   const [importing, setImporting] = useState(false);
@@ -816,12 +817,20 @@ const [importMsg, setImportMsg] = useState(null);
   }
 
   async function togglePublishPost(id, currentStatus) {
-    const newStatus = currentStatus ? 0 : 1;
-    await apiFetch('/api/index.php?action=toggle-publish-post', { method: 'POST', body: JSON.stringify({ id, published: newStatus }) }, token);
-    setData(prev => ({
-      ...prev,
-      posts: prev.posts.map(p => p.id === id ? { ...p, published: newStatus } : p)
-    }));
+    const newStatus = Number(currentStatus) === 1 ? 0 : 1;
+    setPublishingPostId(id);
+    try {
+      await apiFetch('/api/index.php?action=toggle-publish-post', { method: 'POST', body: JSON.stringify({ id, published: newStatus }) }, token);
+      setData(prev => ({
+        ...prev,
+        posts: prev.posts.map(p => p.id === id ? { ...p, published: newStatus } : p)
+      }));
+      setSyncMsg({ ok: true, text: newStatus === 1 ? 'Articolo pubblicato sul sito.' : 'Articolo rimosso dal sito e riportato in bozza.' });
+    } catch (error) {
+      setSyncMsg({ ok: false, text: error.message });
+    } finally {
+      setPublishingPostId(null);
+    }
   }
 
   async function deletePost(id) {
@@ -2697,9 +2706,9 @@ const [importMsg, setImportMsg] = useState(null);
                           <span className={`article-processing-badge ${postProcessingStatus(post) === 'failed' ? 'is-error' : ''}`}>
                             {postProcessingLabel(post)}
                           </span>
-                        ) : post.published != 1 && (
-                          <span style={{ background: 'var(--amber-light)', color: 'var(--amber)', padding: '4px 10px', borderRadius: '20px', fontSize: '11px', fontWeight: 800, whiteSpace: 'nowrap' }}>
-                            BOZZA
+                        ) : (
+                          <span className={`article-publication-status ${Number(post.published) === 1 ? 'is-published' : 'is-draft'}`}>
+                            {Number(post.published) === 1 ? 'PUBBLICATO' : 'BOZZA'}
                           </span>
                         )}
                         {Number(post.noindex) === 1 && <span style={{ background: 'var(--red-light)', color: 'var(--red)', padding: '4px 10px', borderRadius: '20px', fontSize: '11px', fontWeight: 800, whiteSpace: 'nowrap' }}>NOINDEX</span>}
@@ -2738,8 +2747,8 @@ const [importMsg, setImportMsg] = useState(null);
                       <button disabled={Number(post.seo_score) < 0} onClick={() => openPostEditor(post)} style={{ flex: '1', padding: '10px', fontSize: '13px', fontWeight: 800, borderRadius: 'var(--radius-sm)', background: 'var(--primary)', color: '#fff', border: 'none', cursor: 'pointer', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '6px', transition: 'all 0.2s', boxShadow: '0 4px 12px rgba(99,102,241,0.3)' }}>
                         ✏️ MODIFICA
                       </button>
-                      <button disabled={Number(post.seo_score) < 0} onClick={() => togglePublishPost(post.id, post.published)} title={post.published == 1 ? "Nascondi dal sito" : "Pubblica sul sito"} style={{ padding: '10px', borderRadius: 'var(--radius-sm)', border: 'none', fontSize: '16px', cursor: 'pointer', background: post.published == 1 ? 'var(--teal-light)' : 'var(--surface)', color: post.published == 1 ? 'var(--teal)' : 'var(--text-muted)', border: post.published == 1 ? '1px solid rgba(16,185,129,0.3)' : '1px solid var(--border-strong)', transition: 'all 0.2s', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-                        {post.published == 1 ? '👁️' : '🚫'}
+                      <button className={`article-publish-button ${Number(post.published) === 1 ? 'is-published' : 'is-draft'}`} disabled={Number(post.seo_score) < 0 || publishingPostId === post.id} onClick={() => togglePublishPost(post.id, post.published)}>
+                        {publishingPostId === post.id ? 'AGGIORNAMENTO…' : Number(post.published) === 1 ? 'RIMUOVI DAL SITO' : 'PUBBLICA SUL SITO'}
                       </button>
                       <button onClick={() => deletePost(post.id)} title="Elimina" style={{ padding: '10px', borderRadius: 'var(--radius-sm)', border: 'none', fontSize: '16px', cursor: 'pointer', background: 'var(--red-light)', color: 'var(--red)', border: '1px solid rgba(239,68,68,0.3)', transition: 'all 0.2s', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
                         ❌
@@ -2770,7 +2779,7 @@ const [importMsg, setImportMsg] = useState(null);
                           <input type="checkbox" checked={selectedPosts.includes(post.id)} onChange={() => togglePostSelection(post.id)} style={{ cursor: 'pointer', transform: 'scale(1.2)' }} />
                         </td>
                         <td style={{ padding: '16px' }}>
-                           {Number(post.seo_score) < 0 ? <span className={`article-processing-badge ${postProcessingStatus(post) === 'failed' ? 'is-error' : ''}`}>{postProcessingLabel(post)}</span> : <input type="checkbox" checked={post.published == 1} onChange={() => togglePublishPost(post.id, post.published)} title={post.published == 1 ? "Nascondi" : "Pubblica"} style={{ transform: 'scale(1.4)', cursor: 'pointer' }} />}
+                           {Number(post.seo_score) < 0 ? <span className={`article-processing-badge ${postProcessingStatus(post) === 'failed' ? 'is-error' : ''}`}>{postProcessingLabel(post)}</span> : <span className={`article-publication-status ${Number(post.published) === 1 ? 'is-published' : 'is-draft'}`}>{Number(post.published) === 1 ? 'PUBBLICATO' : 'BOZZA'}</span>}
                         </td>
                         <td style={{ padding: '16px', fontWeight: 600, fontSize: '15px' }}>
                           {post.generated_title || (post.raw_content ? `${post.raw_content.substring(0, 40)}...` : 'Contenuto acquisito')}
@@ -2790,6 +2799,7 @@ const [importMsg, setImportMsg] = useState(null);
                           <div style={{ display: 'flex', gap: '10px' }}>
                             {Number(post.seo_score) < 0 && <button disabled={postProcessingStatus(post) === 'processing'} onClick={() => retryPendingPost(post.id)} className="article-retry-button">{postProcessingStatus(post) === 'processing' ? '⏳ In corso' : postProcessingStatus(post) === 'failed' ? '↻ Riprova' : '▶ Elabora'}</button>}
                             {Number(post.seo_score) >= 0 && <button onClick={() => openPostEditor(post)} style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', color: 'var(--text)', padding: '6px 12px', borderRadius: '6px', cursor: 'pointer', fontSize: '13px', fontWeight: 600 }}>✏️ Modifica</button>}
+                            {Number(post.seo_score) >= 0 && <button className={`article-publish-button is-compact ${Number(post.published) === 1 ? 'is-published' : 'is-draft'}`} disabled={publishingPostId === post.id} onClick={() => togglePublishPost(post.id, post.published)}>{publishingPostId === post.id ? 'Aggiornamento…' : Number(post.published) === 1 ? 'Rimuovi dal sito' : 'Pubblica sul sito'}</button>}
                             <button onClick={() => deletePost(post.id)} style={{ background: 'rgba(255,0,50,0.1)', border: '1px solid rgba(255,0,50,0.3)', color: 'var(--red)', padding: '6px 12px', borderRadius: '6px', cursor: 'pointer', fontSize: '13px', fontWeight: 600 }}>❌ Elimina</button>
                           </div>
                         </td>

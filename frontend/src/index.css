@@ -152,6 +152,14 @@ button { cursor: pointer; border: 1px solid transparent; border-radius: var(--ra
   flex-wrap: wrap;
   gap: 12px;
 }
+.article-publication-status { display:inline-flex; align-items:center; padding:4px 10px; border-radius:999px; font-size:10px; font-weight:850; letter-spacing:.04em; white-space:nowrap; }
+.article-publication-status.is-published { color:#0f6e56; background:var(--teal-light); }
+.article-publication-status.is-draft { color:#9a5b08; background:var(--amber-light); }
+.article-publish-button { min-width:150px; padding:10px 13px; border:1px solid; border-radius:var(--radius-sm); cursor:pointer; font-size:11px; font-weight:850; white-space:nowrap; transition:background .18s,border-color .18s,color .18s; }
+.article-publish-button.is-draft { color:#fff; border-color:#0f9f76; background:#0f9f76; }
+.article-publish-button.is-published { color:#9a3412; border-color:#fdba74; background:#fff7ed; }
+.article-publish-button.is-compact { min-width:138px; padding:7px 10px; }
+.article-publish-button:disabled { cursor:not-allowed; opacity:.55; }
 
 .gradient-text { background: var(--gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
 
