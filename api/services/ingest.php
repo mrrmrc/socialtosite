@@ -9,6 +9,28 @@ require_once __DIR__ . '/../middleware/response.php';
 if (file_exists(__DIR__ . '/../middleware/logger.php')) require_once __DIR__ . '/../middleware/logger.php';
 
 class Ingest {
+    public static function ensureProcessingSchema(): void {
+        static $done = false;
+        if ($done) return;
+        $done = true;
+
+        $definitions = [
+            'processing_status' => "VARCHAR(20) NOT NULL DEFAULT 'pending'",
+            'processing_started_at' => 'DATETIME NULL',
+            'processing_attempts' => 'INT NOT NULL DEFAULT 0',
+            'processing_error' => 'TEXT NULL',
+        ];
+        $existing = [];
+        try { foreach (DB::fetchAll('SHOW COLUMNS FROM posts') as $column) $existing[$column['Field']] = true; } catch (Throwable $e) { return; }
+        foreach ($definitions as $column => $definition) {
+            if (isset($existing[$column])) continue;
+            try { DB::execute("ALTER TABLE posts ADD COLUMN `$column` $definition"); } catch (Throwable $e) {}
+        }
+        try {
+            DB::execute("UPDATE posts SET processing_status=CASE WHEN seo_score=-1 THEN 'pending' ELSE 'done' END WHERE processing_status='' OR processing_status IS NULL OR (seo_score>=0 AND processing_status='pending')");
+        } catch (Throwable $e) {}
+    }
+
     private static function cleanSiteIdentityCandidate(string $value): string {
         $value = trim(html_entity_decode($value, ENT_QUOTES | ENT_HTML5, 'UTF-8'));
         $value = preg_replace('/\s+/', ' ', $value);
@@ -183,14 +205,17 @@ class Ingest {
             if (empty($caption) && empty($prefetched['media_url'])) {
                 $r       = AI::apifyResolve($platform, $url);
                 $caption = $r['caption'] ?? '';
+                $hasUsableCaption = mb_strlen(trim(strip_tags((string)$caption))) >= 40;
 
                 if (!empty($r['video'])) {
-                    // Conserva il video sul server
-                    $saved = self::saveMedia($r['video'], $platform, $postId, 'mp4');
-                    if ($saved) {
-                        $mediaUrl  = $saved['url'];
-                        $mediaType = 'video';
-                        $transcript = '';
+                    $mediaUrl = $r['video'];
+                    $mediaType = 'video';
+                    // Il download dei video può durare minuti. Se la didascalia
+                    // è già sufficiente per l'articolo, lo rimandiamo alla
+                    // manutenzione media senza bloccare l'importazione.
+                    if (!$hasUsableCaption) {
+                        $saved = self::saveMedia($r['video'], $platform, $postId, 'mp4');
+                        if ($saved) $mediaUrl = $saved['url'];
                     }
                 } elseif (!empty($r['image'])) {
                     $saved = self::saveMedia($r['image'], $platform, $postId, 'jpg');
@@ -198,7 +223,8 @@ class Ingest {
                 }
             } else {
                 // Abbiamo i dati dal prefetched. Salviamo i media se possibile
-                if ($mediaType === 'video' && !empty($prefetched['media_url']) && strpos($prefetched['media_url'], 'http') === 0) {
+                $hasUsableCaption = mb_strlen(trim(strip_tags((string)$caption))) >= 40;
+                if ($mediaType === 'video' && !$hasUsableCaption && !empty($prefetched['media_url']) && strpos($prefetched['media_url'], 'http') === 0) {
                      $saved = self::saveMedia($prefetched['media_url'], $platform, $postId, 'mp4');
                      if ($saved) { $mediaUrl = $saved['url']; }
                 } elseif ($mediaType === 'image' && !empty($prefetched['media_url']) && strpos($prefetched['media_url'], 'http') === 0) {
@@ -301,6 +327,7 @@ class Ingest {
 
     // ── AGENTE 2 (Armonizzatore): bozza → articolo SEO pubblicato ──────────
     public static function harmonize(int $userId, int $postId, int $autoPublish = 1, string $length = 'compact'): array {
+        self::ensureProcessingSchema();
         $post = DB::fetch('SELECT * FROM posts WHERE id=? AND user_id=?', [$postId, $userId]);
         if (!$post) throw new Exception('Contenuto non trovato');
 
@@ -354,7 +381,8 @@ class Ingest {
         DB::execute('
             UPDATE posts SET
               generated_title=?, generated_body=?, generated_excerpt=?,
-              tags=?, meta_description=?, seo_score=?, slug=?, published=?
+              tags=?, meta_description=?, seo_score=?, slug=?, published=?,
+              processing_status=\'done\', processing_started_at=NULL, processing_error=NULL
             WHERE id=? AND user_id=?
         ', [
             $seo['title'] ?? '', $seo['body'] ?? '', $seo['excerpt'] ?? '',
@@ -367,6 +395,7 @@ class Ingest {
     }
 
     public static function recoverAsDraft(int $userId, int $postId, string $error = ''): array {
+        self::ensureProcessingSchema();
         $post = DB::fetch('SELECT platform, source_url, transcript, raw_content FROM posts WHERE id=? AND user_id=?', [$postId, $userId]);
         if (!$post) throw new Exception('Contenuto non trovato durante il recupero');
 
@@ -379,7 +408,7 @@ class Ingest {
             : '<p>Contenuto acquisito da <a href="' . htmlspecialchars((string)$post['source_url'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') . '">questa fonte</a>. Completa il testo prima della pubblicazione.</p>';
 
         DB::execute(
-            'UPDATE posts SET generated_title=?, generated_body=?, generated_excerpt=?, tags=?, meta_description=?, seo_score=1, slug=?, published=0, agent_notes=? WHERE id=? AND user_id=?',
+            'UPDATE posts SET generated_title=?, generated_body=?, generated_excerpt=?, tags=?, meta_description=?, seo_score=1, slug=?, published=0, agent_notes=?, processing_status=\'done\', processing_started_at=NULL, processing_error=NULL WHERE id=? AND user_id=?',
             [$title, $body, $excerpt, '[]', $excerpt, slugify($title), 'Recuperato dopo errore AI: ' . $error, $postId, $userId]
         );
 
@@ -463,11 +492,10 @@ class Ingest {
             );
         }
 
-        // Controlla se l'utente ha già post ELABORATI nel DB (seo_score >= 0).
-        // Le bozze pending (seo_score=-1) e i post nascosti vuoti NON contano:
-        // se il DB ha solo bozze fallite, trattiamo come DB vuoto e ignoriamo since_date.
+        // Se abbiamo già acquisito almeno un post, rispettiamo la data della
+        // fonte: rileggere ogni volta l'intero storico rallenta inutilmente.
         $hasExistingPosts = (bool) DB::fetch(
-            'SELECT id FROM posts WHERE user_id=? AND seo_score >= 0 AND published = 1 LIMIT 1',
+            'SELECT id FROM posts WHERE user_id=? LIMIT 1',
             [$userId]
         );
         
@@ -478,18 +506,14 @@ class Ingest {
             'limitPerSource'   => $limitPerSource,
         ]);
 
-        $report = ['sources' => count($sources), 'found' => 0, 'imported' => 0, 'published' => 0, 'skipped' => 0, 'duplicates' => 0, 'filtered_by_date' => 0, 'errors' => []];
+        $report = ['sources' => count($sources), 'found' => 0, 'imported' => 0, 'imported_ids' => [], 'published' => 0, 'skipped' => 0, 'duplicates' => 0, 'filtered_by_date' => 0, 'errors' => []];
         $seenUrls = [];
-        $collectedTextsForBrandVoice = [];
-        $siteRecord = DB::fetch('SELECT brand_voice_profile FROM sites WHERE user_id=?', [$userId]);
-        $needsBrandVoice = empty($siteRecord['brand_voice_profile']);
-
         foreach ($sources as $source) {
             try {
                 $siteVisuals = DB::fetch('SELECT logo_url, cover_url FROM sites WHERE user_id=?', [$userId]);
                 $needsLogo = empty($siteVisuals['logo_url']);
                 $needsCover = empty($siteVisuals['cover_url']);
-                if ($needsLogo || $needsCover || $source['platform'] === 'facebook') {
+                if ($needsLogo || $needsCover) {
                     try {
                         $visuals = AI::sourceProfileVisuals($source['platform'], $source['url']);
                         $logoUrl = trim($visuals['logo_url'] ?? '');
@@ -535,7 +559,7 @@ class Ingest {
                             }
                         }
 
-                        if (($needsLogo || $source['platform'] === 'facebook') && $logoUrl !== '') {
+                        if ($needsLogo && $logoUrl !== '') {
                             $savedLogo = self::saveMedia($logoUrl, $source['platform'], 'profile_logo_' . $source['id'], 'jpg');
                             if ($savedLogo && !empty($savedLogo['url'])) {
                                 DB::execute('UPDATE sites SET logo_url=? WHERE user_id=?', [$savedLogo['url'], $userId]);
@@ -587,15 +611,13 @@ class Ingest {
                     }
                     $seenUrls[$normalizedUrl] = true;
                     try {
-                        if ($needsBrandVoice && !empty($item['caption'])) {
-                            $collectedTextsForBrandVoice[] = $item['caption'];
-                        }
                         $ingested = self::url($userId, $sourceUrl, $item);
                         if (!empty($ingested['duplicate'])) {
                             $report['duplicates']++;
                             continue;
                         }
                         $report['imported']++;
+                        if (!empty($ingested['id'])) $report['imported_ids'][] = (int)$ingested['id'];
                         Logger::info('scan', 'Post importato', ['platform' => $source['platform'], 'url' => $sourceUrl, 'db_id' => $ingested['id'] ?? null]);
                         // L'ingestione si ferma qui (bozza creata). L'elaborazione AI avviene in process-pending.
                     } catch (Throwable $e) {
@@ -610,17 +632,6 @@ class Ingest {
         }
         
         Logger::info('scan', 'scanSources completato', $report);
-
-        if ($needsBrandVoice && count($collectedTextsForBrandVoice) > 0) {
-            try {
-                Logger::info('scan', 'Generazione Brand Voice Profile...');
-                $brandVoiceJson = AI::generateBrandVoiceProfile($collectedTextsForBrandVoice);
-                DB::execute('UPDATE sites SET brand_voice_profile=? WHERE user_id=?', [$brandVoiceJson, $userId]);
-                Logger::info('scan', 'Brand Voice Profile generato con successo');
-            } catch (Throwable $e) {
-                Logger::error('scan', 'Errore generazione Brand Voice', ['error' => $e->getMessage()]);
-            }
-        }
 
         // L'orchestrazione globale (Caporedattore, SEO, Graphic Designer) 
         // è stata spostata all'endpoint finalize-sync per essere eseguita a fine batch.

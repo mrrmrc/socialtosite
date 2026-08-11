@@ -6,6 +6,7 @@
 require_once __DIR__ . '/../config/db.php';
 require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/../api/services/sync.php';
+require_once __DIR__ . '/../api/services/ingest.php';
 require_once __DIR__ . '/../api/services/seo_foundation.php';
 require_once __DIR__ . '/../api/middleware/response.php';
 
@@ -26,6 +27,7 @@ register_shutdown_function(function (): void {
 echo "[" . date('Y-m-d H:i:s') . "] Avvio sync automatico...\n";
 
 Sync::ensureAutoSyncSchema();
+Ingest::ensureProcessingSchema();
 
 $users = DB::fetchAll('
     SELECT DISTINCT user_id FROM social_connections WHERE active=1 AND auto_sync=1
@@ -44,18 +46,38 @@ foreach ($users as $row) {
         echo " OK ($new nuovi contenuti)\n";
 
         // Elaborazione in background (coda AI)
-        $pending = DB::fetchAll('SELECT id FROM posts WHERE user_id=? AND seo_score=-1 ORDER BY id ASC', [$userId]);
+        DB::execute(
+            "UPDATE posts SET processing_status='pending', processing_started_at=NULL
+              WHERE user_id=? AND seo_score=-1 AND processing_status='processing'
+                AND processing_started_at < DATE_SUB(NOW(), INTERVAL 10 MINUTE)",
+            [$userId]
+        );
+        $pending = DB::fetchAll(
+            "SELECT id FROM posts
+              WHERE user_id=? AND seo_score=-1 AND processing_status IN ('pending', 'failed')
+              ORDER BY id ASC",
+            [$userId]
+        );
         if (count($pending) > 0) {
             echo "  Coda AI: trovati " . count($pending) . " post da elaborare...\n";
             require_once __DIR__ . '/../api/services/ai.php';
-            require_once __DIR__ . '/../api/services/ingest.php';
             foreach ($pending as $idx => $p) {
                 echo "    [" . ($idx+1) . "/" . count($pending) . "] Elaborazione post #{$p['id']}... ";
                 $postId = $p['id'];
                 try {
-                    DB::execute('UPDATE posts SET agent_notes=NULL WHERE id=?', [$postId]);
-                    $post = DB::fetch('SELECT media_url, media_type, raw_content, source_url, platform, transcript FROM posts WHERE id=?', [$postId]);
-                    if (!$post) continue;
+                    $claimed = DB::execute(
+                        "UPDATE posts
+                            SET processing_status='processing', processing_started_at=NOW(), processing_error=NULL,
+                                processing_attempts=processing_attempts+1, agent_notes=NULL
+                          WHERE id=? AND user_id=? AND seo_score=-1 AND processing_status IN ('pending', 'failed')",
+                        [$postId, $userId]
+                    );
+                    if ($claimed !== 1) {
+                        echo "Già in lavorazione, salto\n";
+                        continue;
+                    }
+                    $post = DB::fetch("SELECT media_url, media_type, raw_content, source_url, platform, transcript FROM posts WHERE id=? AND user_id=? AND processing_status='processing'", [$postId, $userId]);
+                    if (!$post) throw new Exception('Post non disponibile dopo il claim della coda');
                     
                     $transcript = trim($post['transcript'] ?? '');
                     $hasUsableRawContent = mb_strlen(trim(strip_tags((string)($post['raw_content'] ?? '')))) >= 40;
@@ -93,7 +115,11 @@ foreach ($users as $row) {
                         Ingest::recoverAsDraft($userId, $postId, $e->getMessage());
                         echo "      Creata bozza di recupero modificabile.\n";
                     } catch (Throwable $recoveryError) {
-                        DB::execute('UPDATE posts SET agent_notes=? WHERE id=?', ['Errore: ' . $e->getMessage(), $postId]);
+                        $message = mb_substr($e->getMessage() . ' | Recupero: ' . $recoveryError->getMessage(), 0, 2000);
+                        DB::execute(
+                            "UPDATE posts SET processing_status='failed', processing_started_at=NULL, processing_error=?, agent_notes=? WHERE id=? AND user_id=?",
+                            [$message, 'Errore: ' . $message, $postId, $userId]
+                        );
                     }
                 }
             }

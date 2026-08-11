@@ -159,7 +159,9 @@ class Sync {
         //    persistente (/public/media/...). ─────────────────────────────────
         $mUrl  = trim($d['media_url'] ?? '');
         $mType = strtolower($d['media_type'] ?? '');
-        $isRemoteMedia = $mUrl && str_starts_with($mUrl, 'http') && in_array($mType, ['image', 'video'], true);
+        $hasUsableText = mb_strlen(trim(strip_tags((string)($d['raw_content'] ?? '')))) >= 40;
+        $deferVideoDownload = $mType === 'video' && $hasUsableText;
+        $isRemoteMedia = $mUrl && str_starts_with($mUrl, 'http') && in_array($mType, ['image', 'video'], true) && !$deferVideoDownload;
 
         // Auto-heal: post già presente ma con media ancora remoto (CDN scaduto)
         // → riscaricalo dall'URL fresco appena ottenuto dall'API e aggiorna.

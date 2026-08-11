@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useDeferredValue, useRef } from 'react';
+import React, { useState, useEffect, useDeferredValue } from 'react';
 import { apiFetch, SOCIAL, SITE_LAYOUTS, detectPlatformFromUrl, PLATFORM_DESCRIPTIONS } from '../utils/api';
 import { SocialIcon } from '../components/SocialIcon';
 import { QuillEditor } from '../components/QuillEditor';
@@ -32,6 +32,19 @@ const STUDIO_DEFAULTS = {
   custom_css: '',
   design_archetype: 'tech-clarity',
 };
+
+function postProcessingStatus(post) {
+  if (Number(post?.seo_score) >= 0) return 'done';
+  if (post?.processing_status) return post.processing_status;
+  return String(post?.agent_notes || '').startsWith('Errore:') ? 'failed' : 'pending';
+}
+
+function postProcessingLabel(post) {
+  const status = postProcessingStatus(post);
+  if (status === 'processing') return 'IN ELABORAZIONE';
+  if (status === 'failed') return 'DA RIPROVARE';
+  return 'IN CODA';
+}
 
 const EDITORIAL_AGENT_META = {
   content_editor: { icon: '✍️', title: 'Content Editor', role: 'Riscrive i singoli contenuti social in articoli.' },
@@ -426,7 +439,6 @@ const [importMsg, setImportMsg] = useState(null);
   const [processingQueue, setProcessingQueue] = useState([]);
   const [syncMsg, setSyncMsg] = useState(null);
   const [acquisitionModal, setAcquisitionModal] = useState(null);
-  const pendingAutoRecoveryStarted = useRef(false);
   const [profileDraft, setProfileDraft] = useState('');
   const [roleMissionDraft, setRoleMissionDraft] = useState('');
   const [strategyDraft, setStrategyDraft] = useState('');
@@ -657,7 +669,7 @@ const [importMsg, setImportMsg] = useState(null);
       } else {
         setImportMsg({ ok: true, text: 'Acquisizione completata! Elaborazione AI in corso...' });
         // Mantiene aperto il flusso guidato fino al completamento dell'articolo.
-        await processPendingLoop(true);
+        await processPendingLoop(true, [r.id]);
       }
       setLinkUrl('');
       await loadDrafts();
@@ -701,11 +713,15 @@ const [importMsg, setImportMsg] = useState(null);
   }
 
   // Funzione helper per elaborare la coda (ora in parallelo)
-  async function processPendingLoop(isScan = false) {
+  async function processPendingLoop(isScan = false, onlyIds = null) {
     try {
-      const pending = await apiFetch('/api/index.php?action=pending-posts', {}, token);
+      const allPending = await apiFetch('/api/index.php?action=pending-posts', {}, token);
+      const requestedIds = Array.isArray(onlyIds) ? new Set(onlyIds.map(Number)) : null;
+      const pending = requestedIds
+        ? (allPending || []).filter(post => requestedIds.has(Number(post.id)))
+        : (allPending || []);
       if (!pending || pending.length === 0) {
-        setAcquisitionModal({ status: 'success', title: 'Sincronizzazione completata', text: 'Non ci sono nuovi contenuti da elaborare. Gli articoli già acquisiti sono aggiornati.' });
+        setAcquisitionModal({ status: 'success', title: 'Nessun contenuto da elaborare', text: requestedIds ? 'Il contenuto è già stato elaborato oppure è già in lavorazione.' : 'Non ci sono nuovi contenuti in attesa. Gli articoli già acquisiti non vengono rigenerati.' });
         return;
       }
       
@@ -746,6 +762,7 @@ const [importMsg, setImportMsg] = useState(null);
           else if (res?.status === 'draft') draftCount++;
           else if (res?.status === 'skipped') skippedCount++;
           else if (res?.status === 'deleted') deletedCount++;
+          else if (res?.busy) skippedCount++;
         } catch (e) {
           console.error("Errore post", post.id, e);
           errorMsg = e.message;
@@ -762,25 +779,7 @@ const [importMsg, setImportMsg] = useState(null);
         await Promise.all(chunk.map(post => processPost(post)));
       }
 
-      const finalMsg = `Orchestrazione finale del sito in corso...`;
-      setAcquisitionModal({ status: 'working', title: 'Ultimi ritocchi', text: 'Organizzo i nuovi articoli e aggiorno il tuo spazio pubblico.', completed: total, total });
-      if (isScan) setScanMsg({ ok: true, text: finalMsg, loading: true });
-      else setSyncMsg({ ok: true, text: finalMsg, loading: true });
-
-      try {
-        await apiFetch('/api/index.php?action=finalize-sync', {
-          method: 'POST',
-          body: JSON.stringify({
-             profile_summary: typeof profileDraft !== 'undefined' ? profileDraft : '',
-             role_mission: typeof roleMissionDraft !== 'undefined' ? roleMissionDraft : '',
-             content_strategy: typeof strategyDraft !== 'undefined' ? strategyDraft : ''
-          })
-        }, token);
-      } catch (e) {
-        console.error("Errore orchestrazione", e);
-      }
-      
-      const doneMsg = `Pipeline completata. Trovati in coda: ${total}. Pubblicati: ${publishedCount}. In bozza: ${draftCount}. Scartati: ${skippedCount}. Saltati: ${deletedCount}. Errori: ${errorCount}.`;
+      const doneMsg = `Elaborazione completata. Contenuti: ${total}. Pubblicati: ${publishedCount}. In bozza: ${draftCount}. Già in lavorazione: ${skippedCount}. Saltati: ${deletedCount}. Errori: ${errorCount}.`;
       setAcquisitionModal({ status: errorCount === total ? 'error' : 'success', title: errorCount === total ? 'Elaborazione non riuscita' : errorCount > 0 ? 'Completato con alcuni errori' : 'I contenuti sono pronti', text: doneMsg, completed: total, total });
       if (isScan) setScanMsg({ ok: true, text: doneMsg });
       else setSyncMsg({ ok: true, text: doneMsg });
@@ -952,9 +951,9 @@ const [importMsg, setImportMsg] = useState(null);
     let totalFound = 0;
     let totalDuplicates = 0;
     let totalErrors = 0;
+    const importedIds = [];
 
-    for (let i = 0; i < sources.length; i++) {
-      const source = sources[i];
+    const scanSource = async (source, i) => {
       const sourceName = source.label || source.platform;
       const sourceOrdinal = `sorgente ${i + 1} di ${sources.length}`;
       setScanProgress(prev => prev.map(s => s.id === source.id ? {
@@ -982,6 +981,7 @@ const [importMsg, setImportMsg] = useState(null);
         totalImported += (r.imported || 0);
         totalFound += (r.found || 0);
         totalDuplicates += (r.duplicates || 0);
+        if (Array.isArray(r.imported_ids)) importedIds.push(...r.imported_ids.map(Number));
         const errorsForSource = Array.isArray(r.errors) ? r.errors.length : 0;
         totalErrors += errorsForSource;
         const resultText = [
@@ -1014,15 +1014,29 @@ const [importMsg, setImportMsg] = useState(null);
           loading: false
         });
       }
+    };
+
+    // Le sorgenti esterne sono indipendenti: ne interroghiamo fino a tre
+    // insieme, così tre canali non richiedono tre attese consecutive.
+    const sourceConcurrency = 3;
+    for (let i = 0; i < sources.length; i += sourceConcurrency) {
+      const chunk = sources.slice(i, i + sourceConcurrency);
+      await Promise.all(chunk.map((source, offset) => scanSource(source, i + offset)));
     }
-    
+
     setScanMsg({
       ok: totalErrors === 0,
-      text: `Acquisizione completata. Totale trovati: ${totalFound}. Nuovi importati: ${totalImported}. Duplicati: ${totalDuplicates}. Errori: ${totalErrors}. Avvio ora l'elaborazione AI dei nuovi contenuti.`,
-      loading: true
+      text: importedIds.length > 0
+        ? `Acquisizione completata. Totale trovati: ${totalFound}. Nuovi importati: ${totalImported}. Duplicati: ${totalDuplicates}. Errori: ${totalErrors}. Elaboro soltanto i nuovi contenuti.`
+        : `Acquisizione completata. Nessun nuovo contenuto da elaborare. Duplicati: ${totalDuplicates}. Errori: ${totalErrors}.`,
+      loading: importedIds.length > 0
     });
     setTimeout(() => setScanProgress([]), 3000);
-    await processPendingLoop(true);
+    if (importedIds.length > 0) {
+      await processPendingLoop(true, importedIds);
+    } else {
+      setAcquisitionModal({ status: 'success', title: 'Canali aggiornati', text: 'Non sono stati trovati nuovi contenuti. Nessun articolo esistente è stato rigenerato.' });
+    }
     setScanning(false);
   }
 
@@ -1698,14 +1712,6 @@ const [importMsg, setImportMsg] = useState(null);
     setStudioSourceLabel('Layout attuale');
     setStudioWorkspaceOpen(true);
   }, [tab]);
-
-  useEffect(() => {
-    if (tab !== 'site' || !data || pendingAutoRecoveryStarted.current) return;
-    const pendingCount = (data.posts || []).filter(post => Number(post.seo_score) < 0).length;
-    if (pendingCount === 0) return;
-    pendingAutoRecoveryStarted.current = true;
-    processPendingLoop(false);
-  }, [tab, data]);
 
     async function regenerateMenuAi() {
     setRegeneratingMenu(true);
@@ -2531,7 +2537,7 @@ const [importMsg, setImportMsg] = useState(null);
         {tab === 'site' && (() => {
           const allPlatforms = [...new Set(posts.map(p => p.platform))].sort();
           const allTags = [...new Set(posts.flatMap(p => p.tags || []).map(t => t.toLowerCase()))].sort();
-          const pendingPosts = posts.filter(p => Number(p.seo_score) < 0);
+          const pendingPosts = posts.filter(p => Number(p.seo_score) < 0 && postProcessingStatus(p) !== 'processing');
           const filteredPosts = posts.filter(p => {
             if (dashboardFilter === 'all') return true;
             if (dashboardFilter.startsWith('published-')) return Number(p.published) === Number(dashboardFilter.replace('published-', ''));
@@ -2616,8 +2622,8 @@ const [importMsg, setImportMsg] = useState(null);
                         <span style={{ fontWeight: 800, fontSize: '14px', color: 'var(--text)', textTransform: 'capitalize' }}>{SOCIAL[post.platform]?.label || post.platform}</span>
                         {/* Badge Stato (Nascoso/Bozza) */}
                         {Number(post.seo_score) < 0 ? (
-                          <span className={`article-processing-badge ${String(post.agent_notes || '').startsWith('Errore:') ? 'is-error' : ''}`}>
-                            {String(post.agent_notes || '').startsWith('Errore:') ? 'DA RIPROVARE' : 'IN CODA'}
+                          <span className={`article-processing-badge ${postProcessingStatus(post) === 'failed' ? 'is-error' : ''}`}>
+                            {postProcessingLabel(post)}
                           </span>
                         ) : post.published != 1 && (
                           <span style={{ background: 'var(--amber-light)', color: 'var(--amber)', padding: '4px 10px', borderRadius: '20px', fontSize: '11px', fontWeight: 800, whiteSpace: 'nowrap' }}>
@@ -2629,7 +2635,7 @@ const [importMsg, setImportMsg] = useState(null);
                       
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                         {post.media_type === 'VIDEO' && <span style={{ background: 'var(--primary-light)', color: 'var(--primary-dark)', padding: '4px 10px', borderRadius: '20px', fontSize: '11px', fontWeight: 700, whiteSpace: 'nowrap' }}>🎥 VIDEO</span>}
-                        {Number(post.seo_score) < 0 ? <span className={`article-processing-pulse ${String(post.agent_notes || '').startsWith('Errore:') ? 'is-error' : ''}`} title={String(post.agent_notes || '').startsWith('Errore:') ? 'Elaborazione fallita' : 'In attesa di elaborazione'} /> : (
+                        {Number(post.seo_score) < 0 ? <span className={`article-processing-pulse ${postProcessingStatus(post) === 'failed' ? 'is-error' : ''}`} title={postProcessingStatus(post) === 'failed' ? 'Elaborazione fallita' : postProcessingStatus(post) === 'processing' ? 'Elaborazione in corso' : 'In attesa di elaborazione'} /> : (
                           <div style={{ width: '32px', height: '32px', borderRadius: '50%', flexShrink: 0, background: post.seo_score >= 80 ? 'var(--teal-light)' : (post.seo_score >= 50 ? 'var(--amber-light)' : 'var(--red-light)'), color: post.seo_score >= 80 ? 'var(--teal)' : (post.seo_score >= 50 ? 'var(--amber)' : 'var(--red)'), display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: '12px', border: `2px solid ${post.seo_score >= 80 ? 'var(--teal)' : (post.seo_score >= 50 ? 'var(--amber)' : 'var(--red)')}`, boxShadow: '0 4px 10px rgba(0,0,0,0.05)' }} title={`Score SEO: ${post.seo_score}`}>
                             {post.seo_score}
                           </div>
@@ -2643,7 +2649,7 @@ const [importMsg, setImportMsg] = useState(null);
                         {post.generated_title || (post.raw_content ? post.raw_content.substring(0, 80) : 'Nuovo contenuto')}
                       </h4>
                       <div style={{ fontSize: '14px', color: 'var(--text-muted)', display: '-webkit-box', WebkitLineClamp: 4, WebkitBoxOrient: 'vertical', overflow: 'hidden', lineHeight: 1.6, fontWeight: 500 }}>
-                        {post.generated_excerpt || (post.generated_body ? post.generated_body.substring(0, 200) : Number(post.seo_score) < 0 ? String(post.agent_notes || '').startsWith('Errore:') ? String(post.agent_notes).replace(/^Errore:\s*/, '') : "Contenuto acquisito e in attesa di elaborazione." : '')}
+                        {post.generated_excerpt || (post.generated_body ? post.generated_body.substring(0, 200) : Number(post.seo_score) < 0 ? postProcessingStatus(post) === 'failed' ? (post.processing_error || String(post.agent_notes || '').replace(/^Errore:\s*/, '')) : postProcessingStatus(post) === 'processing' ? 'Creazione articolo in corso.' : "Contenuto acquisito e in attesa di elaborazione." : '')}
                       </div>
 
                       {post.tags?.length > 0 && (
@@ -2654,9 +2660,9 @@ const [importMsg, setImportMsg] = useState(null);
                     </div>
 
                     {/* Azioni Fondo Card */}
-                    {Number(post.seo_score) < 0 && <div className={`article-processing-note ${String(post.agent_notes || '').startsWith('Errore:') ? 'is-error' : ''}`}>{String(post.agent_notes || '').startsWith('Errore:') ? 'Il tentativo precedente non è riuscito. Usa Riprova per riavviare la lavorazione.' : 'Il contenuto è in coda. Puoi avviare subito la lavorazione.'}</div>}
+                    {Number(post.seo_score) < 0 && <div className={`article-processing-note ${postProcessingStatus(post) === 'failed' ? 'is-error' : ''}`}>{postProcessingStatus(post) === 'failed' ? 'Il tentativo precedente non è riuscito. Usa Riprova per riavviare la lavorazione.' : postProcessingStatus(post) === 'processing' ? 'La creazione è già in corso: aprire questa pagina non la riavvia.' : 'Il contenuto è in coda. Puoi avviare subito la lavorazione.'}</div>}
                     <div className="article-card-footer">
-                      {Number(post.seo_score) < 0 && <button className="article-retry-button" onClick={() => retryPendingPost(post.id)}>{String(post.agent_notes || '').startsWith('Errore:') ? '↻ RIPROVA' : '▶ ELABORA ORA'}</button>}
+                      {Number(post.seo_score) < 0 && <button className="article-retry-button" disabled={postProcessingStatus(post) === 'processing'} onClick={() => retryPendingPost(post.id)}>{postProcessingStatus(post) === 'processing' ? '⏳ IN CORSO' : postProcessingStatus(post) === 'failed' ? '↻ RIPROVA' : '▶ ELABORA ORA'}</button>}
                       <button disabled={Number(post.seo_score) < 0} onClick={() => openPostEditor(post)} style={{ flex: '1', padding: '10px', fontSize: '13px', fontWeight: 800, borderRadius: 'var(--radius-sm)', background: 'var(--primary)', color: '#fff', border: 'none', cursor: 'pointer', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '6px', transition: 'all 0.2s', boxShadow: '0 4px 12px rgba(99,102,241,0.3)' }}>
                         ✏️ MODIFICA
                       </button>
@@ -2692,7 +2698,7 @@ const [importMsg, setImportMsg] = useState(null);
                           <input type="checkbox" checked={selectedPosts.includes(post.id)} onChange={() => togglePostSelection(post.id)} style={{ cursor: 'pointer', transform: 'scale(1.2)' }} />
                         </td>
                         <td style={{ padding: '16px' }}>
-                           {Number(post.seo_score) < 0 ? <span className={`article-processing-badge ${String(post.agent_notes || '').startsWith('Errore:') ? 'is-error' : ''}`}>{String(post.agent_notes || '').startsWith('Errore:') ? 'DA RIPROVARE' : 'IN CODA'}</span> : <input type="checkbox" checked={post.published == 1} onChange={() => togglePublishPost(post.id, post.published)} title={post.published == 1 ? "Nascondi" : "Pubblica"} style={{ transform: 'scale(1.4)', cursor: 'pointer' }} />}
+                           {Number(post.seo_score) < 0 ? <span className={`article-processing-badge ${postProcessingStatus(post) === 'failed' ? 'is-error' : ''}`}>{postProcessingLabel(post)}</span> : <input type="checkbox" checked={post.published == 1} onChange={() => togglePublishPost(post.id, post.published)} title={post.published == 1 ? "Nascondi" : "Pubblica"} style={{ transform: 'scale(1.4)', cursor: 'pointer' }} />}
                         </td>
                         <td style={{ padding: '16px', fontWeight: 600, fontSize: '15px' }}>
                           {post.generated_title || (post.raw_content ? `${post.raw_content.substring(0, 40)}...` : 'Contenuto acquisito')}
@@ -2710,7 +2716,7 @@ const [importMsg, setImportMsg] = useState(null);
                         </td>
                         <td style={{ padding: '16px' }}>
                           <div style={{ display: 'flex', gap: '10px' }}>
-                            {Number(post.seo_score) < 0 && <button onClick={() => retryPendingPost(post.id)} className="article-retry-button">↻ Riprova</button>}
+                            {Number(post.seo_score) < 0 && <button disabled={postProcessingStatus(post) === 'processing'} onClick={() => retryPendingPost(post.id)} className="article-retry-button">{postProcessingStatus(post) === 'processing' ? '⏳ In corso' : postProcessingStatus(post) === 'failed' ? '↻ Riprova' : '▶ Elabora'}</button>}
                             {Number(post.seo_score) >= 0 && <button onClick={() => openPostEditor(post)} style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', color: 'var(--text)', padding: '6px 12px', borderRadius: '6px', cursor: 'pointer', fontSize: '13px', fontWeight: 600 }}>✏️ Modifica</button>}
                             <button onClick={() => deletePost(post.id)} style={{ background: 'rgba(255,0,50,0.1)', border: '1px solid rgba(255,0,50,0.3)', color: 'var(--red)', padding: '6px 12px', borderRadius: '6px', cursor: 'pointer', fontSize: '13px', fontWeight: 600 }}>❌ Elimina</button>
                           </div>

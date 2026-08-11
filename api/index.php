@@ -95,6 +95,7 @@ function ensurePostMediaSchema(): void {
         if (isset($existing[$column])) continue;
         try { DB::execute("ALTER TABLE posts ADD COLUMN `$column` $definition"); } catch (Throwable $e) {}
     }
+    Ingest::ensureProcessingSchema();
 }
 
 function ensureSocialSyncSchema(): void {
@@ -1422,14 +1423,13 @@ if ($action === 'site' && $method === 'GET') {
             $site['site_understanding'] = !empty($mergedUnderstanding) ? $mergedUnderstanding : null;
         }
         $posts = DB::fetchAll(
-            'SELECT id, user_id, platform, platform_post_id, SUBSTR(raw_content, 1, 500) as raw_content, generated_title, generated_excerpt, generated_body, edited_body, edited_title, edited_excerpt, tags, media_url, media_type, media_display_width, media_alignment, noindex, source_url, published_at, seo_score, slug, published, agent_notes
+            'SELECT id, user_id, platform, platform_post_id, SUBSTR(raw_content, 1, 500) as raw_content, generated_title, generated_excerpt, generated_body, edited_body, edited_title, edited_excerpt, tags, media_url, media_type, media_display_width, media_alignment, noindex, source_url, published_at, seo_score, slug, published, agent_notes, processing_status, processing_started_at, processing_attempts, processing_error
                FROM posts
               WHERE user_id=?
               ORDER BY published_at DESC
               LIMIT 300',
             [$userId]
         );
-        file_put_contents(__DIR__ . '/../public/debug.json', json_encode(array_map(function($p) { return ['id' => $p['id'], 'title' => $p['generated_title'], 'gen_body_len' => strlen($p['generated_body'] ?? ''), 'edited_body_len' => strlen($p['edited_body'] ?? '')]; }, array_slice($posts, 0, 10))));
         $connections = DB::fetchAll(
             'SELECT platform, handle, active, since_date, auto_publish, auto_sync, max_posts FROM social_connections WHERE user_id=?', [$userId]
         );
@@ -1441,8 +1441,8 @@ if ($action === 'site' && $method === 'GET') {
             'SELECT platform, COUNT(*) AS content_count, MAX(published_at) AS last_content_at,
                     SUM(CASE WHEN published=1 THEN 1 ELSE 0 END) AS published_count,
                     SUM(CASE WHEN published=0 AND seo_score >= 0 THEN 1 ELSE 0 END) AS draft_count,
-                    SUM(CASE WHEN seo_score < 0 AND (agent_notes IS NULL OR agent_notes NOT LIKE \'Errore:%\') THEN 1 ELSE 0 END) AS processing_count,
-                    SUM(CASE WHEN seo_score < 0 AND agent_notes LIKE \'Errore:%\' THEN 1 ELSE 0 END) AS failed_count
+                    SUM(CASE WHEN seo_score < 0 AND processing_status IN (\'pending\', \'processing\') THEN 1 ELSE 0 END) AS processing_count,
+                    SUM(CASE WHEN seo_score < 0 AND processing_status=\'failed\' THEN 1 ELSE 0 END) AS failed_count
                FROM posts WHERE user_id=? GROUP BY platform',
             [$userId]
         );
@@ -2065,8 +2065,18 @@ if ($action === 'drafts' && $method === 'GET') {
 
 // ── GET pending-posts: post in coda per elaborazione AI ───────────────────
 if ($action === 'pending-posts' && $method === 'GET') {
+    ensurePostMediaSchema();
+    DB::execute(
+        "UPDATE posts SET processing_status='pending', processing_started_at=NULL
+          WHERE user_id=? AND seo_score=-1 AND processing_status='processing'
+            AND processing_started_at < DATE_SUB(NOW(), INTERVAL 10 MINUTE)",
+        [$userId]
+    );
     $pending = DB::fetchAll(
-        'SELECT id, platform, source_url, published_at FROM posts WHERE user_id=? AND seo_score=-1 ORDER BY id ASC',
+        "SELECT id, platform, source_url, published_at, processing_status, processing_attempts, processing_error
+           FROM posts
+          WHERE user_id=? AND seo_score=-1 AND processing_status IN ('pending', 'failed')
+          ORDER BY id ASC",
         [$userId]
     );
     json($pending);
@@ -2074,19 +2084,42 @@ if ($action === 'pending-posts' && $method === 'GET') {
 
 // ── POST process-pending: elabora un singolo post in coda ─────────────────
 if ($action === 'process-pending' && $method === 'POST') {
+    ensurePostMediaSchema();
     $b = body();
     $postId = (int)($b['id'] ?? 0);
     if (!$postId) jsonError('ID mancante');
-    
-    // Controlla che il post esista e sia pendente
-    $post = DB::fetch('SELECT id, platform, media_url, media_type, raw_content, source_url, transcript FROM posts WHERE id=? AND user_id=? AND seo_score=-1', [$postId, $userId]);
-    if (!$post) {
-        json(['ok' => false, 'message' => 'Post non trovato o gia elaborato']);
+
+    // Recupera solo un lock abbandonato. Un processo attivo non viene mai
+    // rilanciato da un secondo browser o dal cron.
+    DB::execute(
+        "UPDATE posts SET processing_status='pending', processing_started_at=NULL
+          WHERE id=? AND user_id=? AND seo_score=-1 AND processing_status='processing'
+            AND processing_started_at < DATE_SUB(NOW(), INTERVAL 10 MINUTE)",
+        [$postId, $userId]
+    );
+    $claimed = DB::execute(
+        "UPDATE posts
+            SET processing_status='processing', processing_started_at=NOW(), processing_error=NULL,
+                processing_attempts=processing_attempts+1, agent_notes=NULL
+          WHERE id=? AND user_id=? AND seo_score=-1 AND processing_status IN ('pending', 'failed')",
+        [$postId, $userId]
+    );
+    if ($claimed !== 1) {
+        $state = DB::fetch('SELECT seo_score, processing_status FROM posts WHERE id=? AND user_id=?', [$postId, $userId]);
+        json([
+            'ok' => false,
+            'busy' => ($state['processing_status'] ?? '') === 'processing',
+            'status' => ($state['processing_status'] ?? '') === 'processing' ? 'processing' : 'skipped',
+            'message' => ($state['processing_status'] ?? '') === 'processing'
+                ? 'Questo articolo è già in elaborazione.'
+                : 'Post non trovato o già elaborato.',
+        ]);
     }
 
+    $post = DB::fetch('SELECT id, platform, media_url, media_type, raw_content, source_url, transcript FROM posts WHERE id=? AND user_id=? AND seo_score=-1 AND processing_status=\'processing\'', [$postId, $userId]);
+    if (!$post) jsonError('Impossibile acquisire il contenuto dalla coda', 409);
+
     try {
-        // Un nuovo tentativo deve tornare visibilmente "in elaborazione".
-        DB::execute('UPDATE posts SET agent_notes=NULL WHERE id=? AND user_id=?', [$postId, $userId]);
         require_once __DIR__ . '/services/ai.php';
         
         // 1. Analisi Media (Trascrizione se Video, OCR/Descrittore se Immagine)
@@ -2152,15 +2185,24 @@ if ($action === 'process-pending' && $method === 'POST') {
     } catch (Throwable $e) {
         // Non lasciare mai un contenuto bloccato per sempre: se il provider AI
         // fallisce, crea una bozza minima che l'utente può correggere e pubblicare.
-        Ingest::recoverAsDraft($userId, $postId, $e->getMessage());
-        json([
-            'ok' => true,
-            'status' => 'draft',
-            'published' => false,
-            'recovered' => true,
-            'id' => $postId,
-            'message' => 'Il servizio AI non ha risposto: è stata creata una bozza modificabile.'
-        ]);
+        try {
+            Ingest::recoverAsDraft($userId, $postId, $e->getMessage());
+            json([
+                'ok' => true,
+                'status' => 'draft',
+                'published' => false,
+                'recovered' => true,
+                'id' => $postId,
+                'message' => 'Il servizio AI non ha risposto: è stata creata una bozza modificabile.'
+            ]);
+        } catch (Throwable $recoveryError) {
+            $message = mb_substr($e->getMessage() . ' | Recupero: ' . $recoveryError->getMessage(), 0, 2000);
+            DB::execute(
+                "UPDATE posts SET processing_status='failed', processing_started_at=NULL, processing_error=?, agent_notes=? WHERE id=? AND user_id=?",
+                [$message, 'Errore: ' . $message, $postId, $userId]
+            );
+            jsonError('Elaborazione non riuscita: ' . $e->getMessage(), 502);
+        }
     }
 }
 

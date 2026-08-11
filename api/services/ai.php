@@ -430,6 +430,8 @@ class AI {
         $model = defined('GEMINI_MODEL') ? GEMINI_MODEL : 'gemini-2.5-flash';
         $url = "https://generativelanguage.googleapis.com/v1beta/models/$model:generateContent?key=" . GEMINI_API_KEY;
 
+        $timeout = max(30, min(300, (int)($config['_timeout'] ?? 90)));
+        unset($config['_timeout']);
         $payload = ['contents' => [['parts' => $parts]]];
         if ($config) $payload['generationConfig'] = $config;
 
@@ -439,7 +441,8 @@ class AI {
             CURLOPT_POST           => true,
             CURLOPT_HTTPHEADER     => ['Content-Type: application/json'],
             CURLOPT_POSTFIELDS     => json_encode($payload, JSON_UNESCAPED_UNICODE),
-            CURLOPT_TIMEOUT        => 600, // i video lunghi richiedono tempo
+            CURLOPT_CONNECTTIMEOUT => 10,
+            CURLOPT_TIMEOUT        => $timeout,
         ]);
         $res  = curl_exec($ch);
         $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
@@ -512,6 +515,7 @@ Restituisci SOLO la nuova memoria aggiornata (testo semplice), nient'altro.";
                      . "dall'inizio alla fine. NON riassumere, NON saltare parti, NON fermarti prima della fine. "
                      . "Restituisci SOLO il testo della trascrizione, senza timestamp e senza commenti."],
         ], [
+            '_timeout'       => 300,
             'temperature'    => 0,
             'maxOutputTokens'=> 65536,
             'thinkingConfig' => ['thinkingBudget' => 0],
@@ -527,6 +531,7 @@ Restituisci SOLO la nuova memoria aggiornata (testo semplice), nient'altro.";
             ['text' => "Trascrivi INTEGRALMENTE e VERBATIM, in italiano, tutto il parlato dall'inizio "
                      . "alla fine. NON riassumere. Solo il testo."],
         ], [
+            '_timeout'       => 300,
             'temperature'    => 0,
             'maxOutputTokens'=> 65536,
             'thinkingConfig' => ['thinkingBudget' => 0],
