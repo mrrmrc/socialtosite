@@ -547,7 +547,10 @@ class Ingest {
                                 $footerCandidate = implode(' | ', array_unique($footerParts));
                                 $summaryCandidate = trim((string)($visuals['description'] ?? ''));
 
-                                if ($pageTitle !== '') {
+                                $currentSiteTitle = trim((string)($siteRecord['title'] ?? ''));
+                                $replaceableSiteTitles = ['', 'Sito Personale', 'Il mio sito'];
+                                $canImportSiteTitle = in_array($currentSiteTitle, $replaceableSiteTitles, true) || filter_var($currentSiteTitle, FILTER_VALIDATE_EMAIL);
+                                if ($pageTitle !== '' && $canImportSiteTitle) {
                                     DB::execute('UPDATE sites SET title=? WHERE user_id=?', [$pageTitle, $userId]);
                                 }
                                 if ($summaryCandidate !== '' && empty($siteRecord['profile_summary']) && empty($siteRecord['bio'])) {

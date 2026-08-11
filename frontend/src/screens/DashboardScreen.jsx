@@ -454,6 +454,8 @@ const [importMsg, setImportMsg] = useState(null);
   const [logoUrl, setLogoUrl] = useState('');
   const [coverUrl, setCoverUrl] = useState('');
   const [brandVisualMode, setBrandVisualMode] = useState('logo');
+  const [siteTitleDraft, setSiteTitleDraft] = useState('');
+  const [savingSiteTitle, setSavingSiteTitle] = useState(false);
   const [heroTagline, setHeroTagline] = useState('');
   const [customCss, setCustomCss] = useState('');
   const [menuLinksStr, setMenuLinksStr] = useState('');
@@ -557,6 +559,7 @@ const [importMsg, setImportMsg] = useState(null);
       setLogoUrl(d.site?.logo_url || '');
       setCoverUrl(d.site?.cover_url || '');
       setBrandVisualMode(d.site?.brand_visual_mode === 'cover' ? 'cover' : 'logo');
+      setSiteTitleDraft(d.site?.title || '');
       setHeroTagline(d.site?.hero_tagline || '');
       setCustomCss(d.site?.custom_css || '');
       setFooterText(d.site?.footer_text || '');
@@ -1226,6 +1229,29 @@ const [importMsg, setImportMsg] = useState(null);
       setSyncMsg({ ok: false, text: error.message });
     } finally {
       setSavingVisualMode(false);
+    }
+  }
+
+  async function saveSiteTitle(event) {
+    event?.preventDefault();
+    const title = siteTitleDraft.trim();
+    if (!title) {
+      setSyncMsg({ ok: false, text: 'Inserisci il nome del sito.' });
+      return;
+    }
+    setSavingSiteTitle(true);
+    try {
+      await apiFetch('/api/index.php?action=site-update', {
+        method: 'POST',
+        body: JSON.stringify({ title }),
+      }, token);
+      setSiteTitleDraft(title);
+      setData(prev => ({ ...prev, site: { ...(prev.site || {}), title } }));
+      setSyncMsg({ ok: true, text: 'Nome del sito salvato. È già attivo sul sito pubblico.' });
+    } catch (error) {
+      setSyncMsg({ ok: false, text: error.message });
+    } finally {
+      setSavingSiteTitle(false);
     }
   }
 
@@ -2586,7 +2612,12 @@ const [importMsg, setImportMsg] = useState(null);
               </div>
             </section>
             <section className="card visual-identity-panel" id="visual-identity">
-              <header><div><span className="section-eyebrow">Identità visiva</span><h2>Scegli cosa rappresenta il sito</h2><p>Usa un logo se hai un marchio riconoscibile; scegli un’immagine se vuoi raccontare subito attività, luogo o persona.</p></div><a className="btn btn-outline" href={siteUrl} target="_blank" rel="noopener">Vedi anteprima ↗</a></header>
+              <header><div><span className="section-eyebrow">Identità del sito</span><h2>Scegli nome e immagine</h2><p>Il cliente decide come presentarsi: il nome scritto qui resta prioritario e non viene sostituito dalle successive importazioni social.</p></div><a className="btn btn-outline" href={siteUrl} target="_blank" rel="noopener">Vedi anteprima ↗</a></header>
+              <form className="site-name-editor" onSubmit={saveSiteTitle}>
+                <label htmlFor="site-title"><strong>Nome del sito</strong><span>Comparirà nell’intestazione, nelle pagine e nei risultati condivisi.</span></label>
+                <div><input id="site-title" type="text" maxLength={120} required value={siteTitleDraft} onChange={event => setSiteTitleDraft(event.target.value)} placeholder="Es. Studio Rossi, Casa Verde, Marco Bianchi" /><button className="btn btn-primary" type="submit" disabled={savingSiteTitle}>{savingSiteTitle ? 'Salvataggio…' : 'Salva nome'}</button></div>
+              </form>
+              <div className="visual-choice-intro"><strong>Immagine del sito</strong><span>Usa un logo se hai un marchio riconoscibile; scegli una foto per raccontare subito attività, luogo o persona.</span></div>
               <div className="visual-choice-grid" role="radiogroup" aria-label="Tipo di immagine del sito">
                 {[
                   ['logo', 'Logo', 'Ideale per marchi e professionisti', logoUrl],

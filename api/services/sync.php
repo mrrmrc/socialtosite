@@ -83,7 +83,10 @@ class Sync {
 
         $site = DB::fetch('SELECT title, profile_summary, bio, footer_text, logo_url, cover_url FROM sites WHERE user_id=?', [$userId]) ?: [];
 
-        if ($pageName !== '') {
+        $currentSiteTitle = trim((string)($site['title'] ?? ''));
+        $replaceableSiteTitles = ['', 'Sito Personale', 'Il mio sito'];
+        $canImportSiteTitle = in_array($currentSiteTitle, $replaceableSiteTitles, true) || filter_var($currentSiteTitle, FILTER_VALIDATE_EMAIL);
+        if ($pageName !== '' && $canImportSiteTitle) {
             DB::execute('UPDATE sites SET title=? WHERE user_id=?', [$pageName, $userId]);
         }
         if ($description !== '' && empty($site['profile_summary']) && empty($site['bio'])) {

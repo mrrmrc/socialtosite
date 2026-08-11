@@ -1609,7 +1609,14 @@ if ($action === 'site-update' && $method === 'POST') {
     
     $fields = [];
     $params = [];
-    if (array_key_exists('title', $b)) { $fields[] = 'title = ?'; $params[] = $b['title']; }
+    if (array_key_exists('title', $b)) {
+        $siteTitle = trim((string)$b['title']);
+        if ($siteTitle === '') jsonError('Inserisci il nome del sito.', 422);
+        $siteTitleLength = function_exists('mb_strlen') ? mb_strlen($siteTitle, 'UTF-8') : strlen($siteTitle);
+        if ($siteTitleLength > 120) jsonError('Il nome del sito non può superare 120 caratteri.', 422);
+        $fields[] = 'title = ?';
+        $params[] = $siteTitle;
+    }
     if (array_key_exists('bio', $b)) { $fields[] = 'bio = ?'; $params[] = $b['bio']; }
     if (array_key_exists('profile_summary', $b)) { $fields[] = 'profile_summary = ?'; $params[] = $b['profile_summary']; }
     if (array_key_exists('role_mission', $b)) { $fields[] = 'role_mission = ?'; $params[] = $b['role_mission']; }
