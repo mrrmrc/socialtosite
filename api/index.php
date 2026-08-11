@@ -2091,7 +2091,8 @@ if ($action === 'process-pending' && $method === 'POST') {
         
         // 1. Analisi Media (Trascrizione se Video, OCR/Descrittore se Immagine)
         $transcript = trim($post['transcript'] ?? '');
-        if (!$transcript && !empty($post['media_url'])) {
+        $hasUsableRawContent = mb_strlen(trim(strip_tags((string)($post['raw_content'] ?? '')))) >= 40;
+        if (!$transcript && !$hasUsableRawContent && !empty($post['media_url'])) {
             if (strtoupper($post['media_type']) === 'VIDEO') {
                 // Verifica cache nel database
                 $cache = DB::fetch('SELECT transcript FROM posts WHERE (source_url=? OR media_url=?) AND transcript IS NOT NULL AND transcript != "" LIMIT 1', [$post['source_url'], $post['media_url']]);

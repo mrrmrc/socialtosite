@@ -58,7 +58,8 @@ foreach ($users as $row) {
                     if (!$post) continue;
                     
                     $transcript = trim($post['transcript'] ?? '');
-                    if (!$transcript && !empty($post['media_url']) && strtoupper($post['media_type']) === 'VIDEO') {
+                    $hasUsableRawContent = mb_strlen(trim(strip_tags((string)($post['raw_content'] ?? '')))) >= 40;
+                    if (!$transcript && !$hasUsableRawContent && !empty($post['media_url']) && strtoupper($post['media_type']) === 'VIDEO') {
                         $cache = DB::fetch('SELECT transcript FROM posts WHERE (source_url=? OR media_url=?) AND transcript IS NOT NULL AND transcript != "" LIMIT 1', [$post['source_url'], $post['media_url']]);
                         if ($cache) {
                             $transcript = $cache['transcript'];

@@ -718,7 +718,7 @@ const [importMsg, setImportMsg] = useState(null);
       let skippedCount = 0;
       let deletedCount = 0;
       let errorCount = 0;
-      const concurrency = 1; // Una richiesta AI alla volta evita rate limit e sovraccarico dell'hosting.
+      const concurrency = 3; // Tre armonizzazioni leggere in parallelo, senza trascrizioni inutili.
 
       const updateProgress = () => {
         const msg = `Elaborazione AI: completati ${completed} su ${total} post...`;
