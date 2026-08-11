@@ -1217,7 +1217,12 @@ const [importMsg, setImportMsg] = useState(null);
       setAiContentIdeas(Array.isArray(result.ideas) ? result.ideas : []);
       setIdeasGeneratedAt(result.generated_at || new Date().toISOString());
       setIdeasNewsSignals(Number(result.news_signals || 0));
-      setSyncMsg({ ok: true, text: '5 nuove proposte create dall\'AI. Scegline una per l\'articolo o per un social.' });
+      const generationMessage = result.generation_source === 'profile_fallback'
+        ? '5 proposte pronte dal tuo profilo editoriale. Il servizio AI non era disponibile, ma il lavoro non si è bloccato.'
+        : result.generation_source === 'ai_completed'
+          ? '5 proposte pronte. La risposta AI era parziale ed è stata completata automaticamente dal tuo profilo.'
+          : '5 nuove proposte create dall\'AI. Scegline una per l\'articolo o per un social.';
+      setSyncMsg({ ok: true, text: generationMessage });
     } catch (error) {
       setSyncMsg({ ok: false, text: error.message });
     } finally {

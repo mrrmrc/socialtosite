@@ -4,6 +4,7 @@
 require_once __DIR__ . '/../../config/config.php';
 if (file_exists(__DIR__ . '/../../config/keys.php')) require_once __DIR__ . '/../../config/keys.php';
 if (file_exists(__DIR__ . '/../middleware/logger.php')) require_once __DIR__ . '/../middleware/logger.php';
+require_once __DIR__ . '/content_ideas.php';
 
 class AI {
     private static function sanitizeProfileText(string $text): string {
@@ -2176,7 +2177,8 @@ Testi da analizzare:
         curl_setopt_array($ch, [
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_FOLLOWLOCATION => true,
-            CURLOPT_TIMEOUT => 12,
+            CURLOPT_CONNECTTIMEOUT => 3,
+            CURLOPT_TIMEOUT => 6,
             CURLOPT_USERAGENT => 'AllSocialToWeb/1.0 content-research',
         ]);
         $xml = curl_exec($ch);
@@ -2230,15 +2232,34 @@ Testi da analizzare:
             . "Non inventare eventi, date, prezzi o notizie. Se usi un segnale recente, conserva source_url e spiega il collegamento. Ogni idea deve poter diventare sia articolo sia post social. "
             . "Rispondi SOLO con JSON valido: {\"ideas\":[{\"title\":\"titolo\",\"reason\":\"perche e utile ora\",\"type\":\"Attualita|Guida|Domanda cliente|Storia|Offerta\",\"priority\":\"Alta|Media\",\"source\":\"origine comprensibile\",\"source_url\":\"https://... oppure stringa vuota\",\"freshness\":\"Attuale|Evergreen\",\"social_angle\":\"taglio breve per il social\"}]}";
 
-        $text = self::gemini([['text'=>$prompt]], [
-            'responseMimeType'=>'application/json',
-            'maxOutputTokens'=>4096,
-            'temperature'=>0.65,
-        ]);
-        $result = json_decode(preg_replace('/```json|```/', '', trim($text)), true);
-        $ideas = is_array($result['ideas'] ?? null) ? array_slice($result['ideas'], 0, 5) : [];
-        if (count($ideas) !== 5) throw new RuntimeException('L\'AI non ha restituito cinque proposte valide');
-        return ['ideas'=>$ideas, 'generated_at'=>date(DATE_ATOM), 'news_signals'=>count($signals), 'query'=>$newsQuery];
+        $fallbacks = ContentIdeaFormatter::fallbacks($site, $declared, $reachability);
+        $candidates = [];
+        $aiError = '';
+        try {
+            $text = self::gemini([['text'=>$prompt]], [
+                'responseMimeType'=>'application/json',
+                'maxOutputTokens'=>3072,
+                'temperature'=>0.5,
+                '_timeout'=>45,
+            ]);
+            $candidates = ContentIdeaFormatter::decode($text);
+        } catch (Throwable $e) {
+            $aiError = $e->getMessage();
+            if (class_exists('Logger')) Logger::warn('ai', 'Idee editoriali: uso fallback locale', ['error'=>$aiError]);
+        }
+
+        $validAiIdeas = ContentIdeaFormatter::normalize($candidates);
+        $ideas = ContentIdeaFormatter::normalize($validAiIdeas, $fallbacks);
+        if (count($ideas) < 5) throw new RuntimeException('Impossibile costruire cinque proposte editoriali');
+
+        $source = $aiError !== '' ? 'profile_fallback' : (count($validAiIdeas) < 5 ? 'ai_completed' : 'ai');
+        return [
+            'ideas'=>$ideas,
+            'generated_at'=>date(DATE_ATOM),
+            'news_signals'=>count($signals),
+            'query'=>$newsQuery,
+            'generation_source'=>$source,
+        ];
     }
 
     public static function socialContent(array $site, array $idea, string $platform): array {

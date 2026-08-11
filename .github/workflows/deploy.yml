@@ -49,6 +49,7 @@ jobs:
           php tools/test_html_sanitizer.php
           php tools/test_seo_feedback.php
           php tools/test_reachability_contacts.php
+          php tools/test_content_ideas.php
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
