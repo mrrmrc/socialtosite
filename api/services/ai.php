@@ -588,9 +588,11 @@ Restituisci SOLO la nuova memoria aggiornata (testo semplice), nient'altro.";
             $promptTemplate
         );
         $lengthRules = [
+            'brief' => 'Scrivi fra 90 e 140 parole. Un titolo, un’apertura diretta e massimo 2 sezioni. Nessuna introduzione generica.',
             'compact' => 'Scrivi fra 180 e 280 parole. Massimo 3 sezioni brevi, paragrafi di 2-4 frasi. Vai subito al punto.',
             'standard' => 'Scrivi fra 320 e 450 parole. Massimo 4 sezioni, senza ripetizioni o introduzioni generiche.',
             'deep' => 'Scrivi fra 550 e 750 parole, solo se le informazioni fornite bastano. Non allungare inventando o ripetendo.',
+            'pillar' => 'Scrivi fra 900 e 1200 parole, con indice logico e 6-8 sezioni utili. Usa questa lunghezza solo se il materiale disponibile la sostiene: non inventare e non ripetere.',
         ];
         if (!isset($lengthRules[$length])) $length = 'compact';
         // Questa istruzione viene aggiunta anche ai prompt personalizzati già
@@ -599,7 +601,7 @@ Restituisci SOLO la nuova memoria aggiornata (testo semplice), nient'altro.";
 
         $text = self::gemini([['text' => $prompt]], [
             'responseMimeType' => 'application/json',
-            'maxOutputTokens'  => $length === 'deep' ? 4096 : 3072,
+            'maxOutputTokens'  => $length === 'pillar' ? 6144 : ($length === 'deep' ? 4096 : ($length === 'brief' ? 2048 : 3072)),
         ]);
         $text = preg_replace('/```json|```/', '', trim($text));
         $result = json_decode($text, true);

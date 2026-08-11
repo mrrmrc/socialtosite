@@ -91,6 +91,7 @@ CREATE TABLE IF NOT EXISTS sites (
   avatar_url    TEXT,
   cover_url     TEXT,
   logo_url      TEXT,
+  brand_visual_mode VARCHAR(20) NOT NULL DEFAULT 'logo',
   menu_links    TEXT,
   footer_text   TEXT,
   accent_color  VARCHAR(50),

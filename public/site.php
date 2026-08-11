@@ -413,6 +413,7 @@ $accentColor  = $site['accent_color'] ?? '';
 $accentSecondary = $site['accent_secondary'] ?? $site['accent_color'] ?? '';
 $logoUrl      = normalizeMediaUrl($site['logo_url'] ?? '');
 $coverUrl     = normalizeMediaUrl($site['cover_url'] ?? '');
+$brandVisualMode = ($site['brand_visual_mode'] ?? 'logo') === 'cover' ? 'cover' : 'logo';
 if (str_contains($logoUrl, 'profile_logo_fallback_')) $logoUrl = '';
 
 foreach ($allPosts as &$p) {
@@ -548,6 +549,7 @@ if (!is_array($aiData)) $aiData = [];
 $understanding = !empty($site['site_understanding']) ? json_decode($site['site_understanding'], true) : [];
 if (!is_array($understanding)) $understanding = [];
 $coverUrl     = $coverUrl ?: normalizeMediaUrl($aiData['cover_url'] ?? '');
+$brandVisualUrl = $brandVisualMode === 'cover' ? ($coverUrl ?: $logoUrl) : ($logoUrl ?: $coverUrl);
 $heroTagline  = $heroTagline ?: h($aiData['hero_tagline'] ?? '');
 $ctaText      = $ctaText ?: h($aiData['cta_text'] ?? '');
 $fontHeading = $aiData['font_heading'] ?? 'Inter';
@@ -2178,6 +2180,8 @@ header('Link: <' . $siteUrl . '/feed.xml>; rel="alternate"; type="application/at
     .network-trust { margin-left:auto; color:rgba(255,255,255,.76); }
     .theme-network-standard .navbar { background:rgba(255,255,255,.96)!important; border-bottom:1px solid #E3E6EF; padding:1rem max(1.25rem,calc((100vw - 1160px)/2))!important; }
     .theme-network-standard .nav-brand { color:#182033; }
+    .theme-network-standard .nav-brand-image { width:44px; height:44px; border-radius:10px; object-fit:contain; background:#fff; }
+    .theme-network-standard .nav-brand-image.is-cover { width:64px; object-fit:cover; }
     .nav-brand-fallback { display:none; }
     .theme-network-standard .container { width:min(100%,1160px); }
     .content-archive { width:min(100%,1160px); margin:2rem auto 4rem; }
@@ -2251,6 +2255,8 @@ header('Link: <' . $siteUrl . '/feed.xml>; rel="alternate"; type="application/at
     .universal-eyebrow { display:inline-block; margin-bottom:.8rem; color:#4038B7; font-size:.76rem; font-weight:850; letter-spacing:.12em; text-transform:uppercase; }
     .universal-identity { display:flex; align-items:center; gap:.8rem; margin-bottom:1rem; color:#46506A; font-size:.9rem; font-weight:800; }
     .universal-identity img { width:56px; height:56px; border:1px solid #E3E6EF; border-radius:14px; object-fit:contain; background:#fff; }
+    .universal-brand-cover { width:min(100%,520px); margin:0 0 1rem; overflow:hidden; border:1px solid #E3E6EF; border-radius:18px; background:#fff; }
+    .universal-brand-cover img { display:block; width:100%; aspect-ratio:16/7; object-fit:cover; }
     .universal-hero h1 { max-width:760px; margin:0; color:#182033; font-size:clamp(2.7rem,6vw,5.6rem); line-height:.98; letter-spacing:-.055em; text-wrap:balance; }
     .universal-hero-copy > p { max-width:680px; margin:1.4rem 0 0; color:#46506A; font-size:clamp(1.05rem,2vw,1.25rem); line-height:1.7; }
     .universal-actions { display:flex; flex-wrap:wrap; gap:.75rem; margin-top:1.7rem; }
@@ -2623,7 +2629,7 @@ header('Link: <' . $siteUrl . '/feed.xml>; rel="alternate"; type="application/at
 ob_start();
 ?>
   <a href="<?= $siteUrl ?>" class="nav-brand">
-    <?php if ($logoUrl): ?><img src="<?= h($logoUrl) ?>" alt="" style="height:40px;border-radius:8px;"><span class="nav-brand-fallback"><?= $title ?></span>
+    <?php if ($brandVisualUrl): ?><img class="nav-brand-image<?= $brandVisualMode === 'cover' ? ' is-cover' : '' ?>" src="<?= h($brandVisualUrl) ?>" alt=""><span class="nav-brand-fallback"><?= $title ?></span>
     <?php else: ?><?= $title ?><?php endif; ?>
   </a>
   <?php if ($menuLinks): ?>
@@ -3002,7 +3008,8 @@ ob_start();
     <section class="universal-hero" aria-labelledby="universal-home-title">
       <div class="universal-hero-copy">
         <span class="universal-eyebrow">Contenuti e canali ufficiali</span>
-        <div class="universal-identity"><?php if ($logoUrl): ?><img src="<?= h($logoUrl) ?>" alt="" width="56" height="56"><?php endif; ?><span><?= $title ?></span></div>
+        <?php if ($brandVisualMode === 'cover' && $coverUrl): ?><div class="universal-brand-cover"><img src="<?= h($coverUrl) ?>" alt="Immagine rappresentativa di <?= h($displayTitle) ?>" loading="eager" fetchpriority="high"></div><?php endif; ?>
+        <div class="universal-identity"><?php if ($brandVisualMode === 'logo' && $logoUrl): ?><img src="<?= h($logoUrl) ?>" alt="" width="56" height="56"><?php endif; ?><span><?= $title ?></span></div>
         <h1 id="universal-home-title"><?= $heroTagline ?: $title ?></h1>
         <p><?= $bio ?: 'Informazioni, esperienze e aggiornamenti raccolti in uno spazio semplice da consultare.' ?></p>
         <div class="universal-actions">

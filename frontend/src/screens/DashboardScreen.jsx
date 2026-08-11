@@ -452,6 +452,7 @@ const [importMsg, setImportMsg] = useState(null);
   const [accentColor, setAccentColor] = useState('');
   const [logoUrl, setLogoUrl] = useState('');
   const [coverUrl, setCoverUrl] = useState('');
+  const [brandVisualMode, setBrandVisualMode] = useState('logo');
   const [heroTagline, setHeroTagline] = useState('');
   const [customCss, setCustomCss] = useState('');
   const [menuLinksStr, setMenuLinksStr] = useState('');
@@ -472,6 +473,7 @@ const [importMsg, setImportMsg] = useState(null);
   const [savingUnderstanding, setSavingUnderstanding] = useState(false);
   const [strategyStep, setStrategyStep] = useState(0);
   const [uploadingLogo, setUploadingLogo] = useState(false);
+  const [savingVisualMode, setSavingVisualMode] = useState(false);
   const [reachabilityDraft, setReachabilityDraft] = useState({ presence_mode: 'undecided', official_site_url: '', business_profile_url: '', primary_topic: '', service_areas: [], reciprocal_link_confirmed: false, phone: '', whatsapp: '', email: '' });
   const [savingReachability, setSavingReachability] = useState(false);
   const [savingSearchVisible, setSavingSearchVisible] = useState(false);
@@ -553,6 +555,7 @@ const [importMsg, setImportMsg] = useState(null);
       setAccentColor(d.site?.accent_color || '');
       setLogoUrl(d.site?.logo_url || '');
       setCoverUrl(d.site?.cover_url || '');
+      setBrandVisualMode(d.site?.brand_visual_mode === 'cover' ? 'cover' : 'logo');
       setHeroTagline(d.site?.hero_tagline || '');
       setCustomCss(d.site?.custom_css || '');
       setFooterText(d.site?.footer_text || '');
@@ -1079,6 +1082,7 @@ const [importMsg, setImportMsg] = useState(null);
           accent_color: accentColor,
           logo_url: logoUrl,
           cover_url: coverUrl,
+          brand_visual_mode: brandVisualMode,
           hero_tagline: heroTagline,
           custom_css: customCss,
           footer_text: footerText,
@@ -1158,16 +1162,17 @@ const [importMsg, setImportMsg] = useState(null);
     setSavingUnderstanding(false);
   }
 
-  async function uploadBrandLogo(event) {
+  async function uploadSiteVisual(event, kind = 'logo') {
     const file = event.target.files?.[0];
     event.target.value = '';
     if (!file) return;
     if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
-      setSyncMsg({ ok: false, text: 'Usa un logo JPG, PNG o WebP.' });
+      setSyncMsg({ ok: false, text: 'Usa un’immagine JPG, PNG o WebP.' });
       return;
     }
-    if (file.size > 3 * 1024 * 1024) {
-      setSyncMsg({ ok: false, text: 'Il logo deve pesare meno di 3 MB.' });
+    const maxBytes = kind === 'cover' ? 8 * 1024 * 1024 : 3 * 1024 * 1024;
+    if (file.size > maxBytes) {
+      setSyncMsg({ ok: false, text: kind === 'cover' ? 'L’immagine deve pesare meno di 8 MB.' : 'Il logo deve pesare meno di 3 MB.' });
       return;
     }
     setUploadingLogo(true);
@@ -1178,17 +1183,41 @@ const [importMsg, setImportMsg] = useState(null);
         reader.onerror = reject;
         reader.readAsDataURL(file);
       });
-      const response = await apiFetch('/api/index.php?action=site-logo-upload', {
+      const response = await apiFetch('/api/index.php?action=site-visual-upload', {
         method: 'POST',
-        body: JSON.stringify({ data_url: dataUrl }),
+        body: JSON.stringify({ data_url: dataUrl, kind }),
       }, token);
-      setLogoUrl(response.logo_url || '');
-      setSyncMsg({ ok: true, text: 'Logo salvato. È già visibile nello Spazio Vivo.' });
+      if (kind === 'cover') setCoverUrl(response.cover_url || response.url || '');
+      else setLogoUrl(response.logo_url || response.url || '');
+      setBrandVisualMode(kind);
+      setSyncMsg({ ok: true, text: kind === 'cover' ? 'Immagine del sito salvata e attivata.' : 'Logo salvato e attivato sul sito.' });
       await loadData();
     } catch (error) {
       setSyncMsg({ ok: false, text: error.message });
     }
     setUploadingLogo(false);
+  }
+
+  async function uploadBrandLogo(event) {
+    return uploadSiteVisual(event, 'logo');
+  }
+
+  async function selectBrandVisualMode(mode) {
+    const nextMode = mode === 'cover' ? 'cover' : 'logo';
+    setBrandVisualMode(nextMode);
+    setSavingVisualMode(true);
+    try {
+      await apiFetch('/api/index.php?action=site-update', {
+        method: 'POST',
+        body: JSON.stringify({ brand_visual_mode: nextMode }),
+      }, token);
+      setSyncMsg({ ok: true, text: nextMode === 'cover' ? 'Il sito userà l’immagine rappresentativa.' : 'Il sito userà il logo.' });
+      await loadData();
+    } catch (error) {
+      setSyncMsg({ ok: false, text: error.message });
+    } finally {
+      setSavingVisualMode(false);
+    }
   }
 
   async function saveReachabilityNetwork() {
@@ -2544,7 +2573,25 @@ const [importMsg, setImportMsg] = useState(null);
               <p style={{ maxWidth: '760px', margin: 0, color: 'var(--text-muted)', fontSize: '15px', lineHeight: 1.7 }}>La grafica non viene più reinventata dall’AI. Tutti i siti usano la stessa architettura editoriale, progettata per leggibilità, navigazione da tastiera, contrasto, mobile e accesso rapido agli articoli. Restano personali il tuo logo, i testi, le immagini e i contenuti.</p>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', marginTop: '1.25rem' }}>
                 <a className="btn btn-primary" href={siteUrl} target="_blank" rel="noopener">Apri il sito pubblico ↗</a>
-                <button className="btn btn-outline" type="button" onClick={() => setTab('strategy')}>Aggiorna logo e identità</button>
+                <button className="btn btn-outline" type="button" onClick={() => document.getElementById('visual-identity')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}>Scegli logo o immagine</button>
+              </div>
+            </section>
+            <section className="card visual-identity-panel" id="visual-identity">
+              <header><div><span className="section-eyebrow">Identità visiva</span><h2>Scegli cosa rappresenta il sito</h2><p>Usa un logo se hai un marchio riconoscibile; scegli un’immagine se vuoi raccontare subito attività, luogo o persona.</p></div><a className="btn btn-outline" href={siteUrl} target="_blank" rel="noopener">Vedi anteprima ↗</a></header>
+              <div className="visual-choice-grid" role="radiogroup" aria-label="Tipo di immagine del sito">
+                {[
+                  ['logo', 'Logo', 'Ideale per marchi e professionisti', logoUrl],
+                  ['cover', 'Immagine rappresentativa', 'Ideale per luoghi, persone e attività', coverUrl],
+                ].map(([mode, label, description, image]) => (
+                  <button type="button" role="radio" aria-checked={brandVisualMode === mode} className={brandVisualMode === mode ? 'is-selected' : ''} onClick={() => selectBrandVisualMode(mode)} disabled={savingVisualMode} key={mode}>
+                    <span className={`visual-choice-preview is-${mode}`}>{image ? <img src={image} alt="" /> : <b>{mode === 'logo' ? 'LOGO' : 'IMMAGINE'}</b>}</span>
+                    <span><strong>{label}</strong><small>{description}</small></span><i>{brandVisualMode === mode ? '✓' : ''}</i>
+                  </button>
+                ))}
+              </div>
+              <div className="visual-upload-row">
+                <div><strong>{brandVisualMode === 'cover' ? 'Immagine orizzontale consigliata' : 'Logo quadrato o orizzontale'}</strong><span>{brandVisualMode === 'cover' ? 'JPG, PNG o WebP · massimo 8 MB · rapporto consigliato 16:9' : 'JPG, PNG o WebP · massimo 3 MB · sfondo trasparente consigliato'}</span></div>
+                <label className="btn btn-primary">{uploadingLogo ? 'Caricamento…' : `${brandVisualMode === 'cover' ? 'Carica immagine' : 'Carica logo'}`}<input type="file" accept="image/png,image/jpeg,image/webp" onChange={event => uploadSiteVisual(event, brandVisualMode)} disabled={uploadingLogo} /></label>
               </div>
             </section>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: '1rem' }}>
@@ -3026,9 +3073,11 @@ const [importMsg, setImportMsg] = useState(null);
               <div className="article-length-picker">
                 <div><strong>Lunghezza degli articoli AI</strong><span>Compatto è il formato consigliato: più diretto e più facile da leggere.</span></div>
                 <div>{[
+                  ['brief','Flash','90–140 parole'],
                   ['compact','Compatto','180–280 parole'],
                   ['standard','Standard','320–450 parole'],
                   ['deep','Approfondito','550–750 parole'],
+                  ['pillar','Guida completa','900–1.200 parole'],
                 ].map(([value,label,detail]) => <button key={value} className={articleLength === value ? 'is-active' : ''} onClick={() => setArticleLength(value)}><strong>{label}</strong><small>{detail}</small></button>)}</div>
               </div>
               <header className="ideas-head">

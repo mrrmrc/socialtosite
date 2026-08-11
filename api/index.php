@@ -53,7 +53,8 @@ function ensureSiteSchemaUpgrades(): void {
     $done = true;
 
     $definitions = [
-        'cover_url'=>'TEXT NULL', 'logo_url'=>'TEXT NULL', 'footer_text'=>'TEXT NULL',
+        'cover_url'=>'TEXT NULL', 'logo_url'=>'TEXT NULL',
+        'brand_visual_mode'=>"VARCHAR(20) NOT NULL DEFAULT 'logo'", 'footer_text'=>'TEXT NULL',
         'accent_color'=>'VARCHAR(50) NULL', 'accent_secondary'=>'VARCHAR(50) NULL',
         'header_layout'=>'VARCHAR(50) NULL', 'custom_css'=>'TEXT NULL', 'hero_tagline'=>'TEXT NULL',
         'cta_text'=>'TEXT NULL', 'generated_layouts'=>'LONGTEXT NULL', 'site_ai_data'=>'LONGTEXT NULL',
@@ -347,6 +348,7 @@ if ($action === 'migrate') {
     try { DB::execute('ALTER TABLE sites ADD COLUMN menu_links TEXT NULL'); } catch (Throwable $e) {}
     try { DB::execute('ALTER TABLE sites ADD COLUMN cover_url TEXT NULL'); } catch (Throwable $e) {}
     try { DB::execute('ALTER TABLE sites ADD COLUMN logo_url TEXT NULL'); } catch (Throwable $e) {}
+    try { DB::execute("ALTER TABLE sites ADD COLUMN brand_visual_mode VARCHAR(20) NOT NULL DEFAULT 'logo'"); } catch (Throwable $e) {}
     try { DB::execute('ALTER TABLE sites ADD COLUMN footer_text TEXT NULL'); } catch (Throwable $e) {}
     try { DB::execute('ALTER TABLE sites ADD COLUMN accent_color VARCHAR(50) NULL'); } catch (Throwable $e) {}
     try { DB::execute('ALTER TABLE sites ADD COLUMN header_layout VARCHAR(50) NULL'); } catch (Throwable $e) {}
@@ -578,8 +580,40 @@ if ($action === 'site-logo-upload' && $method === 'POST') {
     if (@file_put_contents($path, $binary, LOCK_EX) === false) jsonError('Impossibile salvare il logo.', 500);
 
     $logoUrl = '/public/media/' . $filename;
-    DB::execute('UPDATE sites SET logo_url=? WHERE user_id=?', [$logoUrl, $userId]);
-    json(['ok' => true, 'logo_url' => $logoUrl]);
+    DB::execute("UPDATE sites SET logo_url=?, brand_visual_mode='logo' WHERE user_id=?", [$logoUrl, $userId]);
+    json(['ok' => true, 'logo_url' => $logoUrl, 'brand_visual_mode' => 'logo']);
+}
+
+// Identità visiva scelta dall'utente: marchio compatto oppure immagine
+// rappresentativa. Il tipo selezionato governa anche il sito pubblico.
+if ($action === 'site-visual-upload' && $method === 'POST') {
+    ensureSiteSchemaUpgrades();
+    $b = body();
+    $kind = ($b['kind'] ?? '') === 'cover' ? 'cover' : 'logo';
+    $dataUrl = trim((string)($b['data_url'] ?? ''));
+    if (!preg_match('~^data:(image/(?:jpeg|png|webp));base64,([A-Za-z0-9+/=\r\n]+)$~', $dataUrl, $matches)) {
+        jsonError('Formato immagine non valido. Usa JPG, PNG o WebP.', 422);
+    }
+    $binary = base64_decode(preg_replace('/\s+/', '', $matches[2]), true);
+    if ($binary === false || strlen($binary) < 32) jsonError('Il file è vuoto o danneggiato.', 422);
+    $maxBytes = $kind === 'cover' ? 8 * 1024 * 1024 : 3 * 1024 * 1024;
+    if (strlen($binary) > $maxBytes) jsonError($kind === 'cover' ? 'L’immagine deve pesare meno di 8 MB.' : 'Il logo deve pesare meno di 3 MB.', 413);
+
+    $mime = (new finfo(FILEINFO_MIME_TYPE))->buffer($binary) ?: '';
+    $extension = match ($mime) {
+        'image/jpeg' => 'jpg', 'image/png' => 'png', 'image/webp' => 'webp', default => '',
+    };
+    if ($extension === '') jsonError('Il contenuto del file non è un’immagine supportata.', 422);
+
+    $directory = __DIR__ . '/../public/media';
+    if (!is_dir($directory) && !@mkdir($directory, 0775, true)) jsonError('Impossibile preparare la cartella immagini.', 500);
+    $filename = ($kind === 'cover' ? 'brand_image_' : 'brand_logo_') . $userId . '_' . date('YmdHis') . '.' . $extension;
+    if (@file_put_contents($directory . '/' . $filename, $binary, LOCK_EX) === false) jsonError('Impossibile salvare l’immagine.', 500);
+
+    $url = '/public/media/' . $filename;
+    $column = $kind === 'cover' ? 'cover_url' : 'logo_url';
+    DB::execute("UPDATE sites SET `$column`=?, brand_visual_mode=? WHERE user_id=?", [$url, $kind, $userId]);
+    json(['ok'=>true, 'kind'=>$kind, 'url'=>$url, 'logo_url'=>$kind === 'logo' ? $url : null, 'cover_url'=>$kind === 'cover' ? $url : null, 'brand_visual_mode'=>$kind]);
 }
 
 if ($action === 'post-media-upload' && $method === 'POST') {
@@ -1597,6 +1631,7 @@ if (array_key_exists('theme', $b)) {
     if (array_key_exists('header_layout', $b)) { $fields[] = 'header_layout = ?'; $params[] = $b['header_layout']; }
     if (array_key_exists('logo_url', $b)) { $fields[] = 'logo_url = ?'; $params[] = $b['logo_url']; }
     if (array_key_exists('cover_url', $b)) { $fields[] = 'cover_url = ?'; $params[] = $b['cover_url']; }
+    if (array_key_exists('brand_visual_mode', $b)) { $fields[] = 'brand_visual_mode = ?'; $params[] = ($b['brand_visual_mode'] === 'cover' ? 'cover' : 'logo'); }
     if (array_key_exists('hero_tagline', $b)) { $fields[] = 'hero_tagline = ?'; $params[] = $b['hero_tagline']; }
     if (array_key_exists('cta_text', $b)) { $fields[] = 'cta_text = ?'; $params[] = $b['cta_text']; }
     if (array_key_exists('custom_css', $b)) { $fields[] = 'custom_css = ?'; $params[] = $b['custom_css']; }
@@ -1925,7 +1960,7 @@ if ($action === 'create-idea-draft' && $method === 'POST') {
     // mode=ai: l'AI scrive il testo. mode=manual: si crea solo la traccia e
     // scrive l'utente — nessuna chiamata all'AI, quindi nessun costo.
     $ideaMode = ($b['mode'] ?? 'ai') === 'manual' ? 'manual' : 'ai';
-    $articleLength = in_array(($b['length'] ?? ''), ['compact', 'standard', 'deep'], true) ? $b['length'] : 'compact';
+    $articleLength = in_array(($b['length'] ?? ''), ['brief', 'compact', 'standard', 'deep', 'pillar'], true) ? $b['length'] : 'compact';
     if ($ideaTitle === '') jsonError('Titolo idea mancante', 422);
     $ideaTitleLength = function_exists('mb_strlen') ? mb_strlen($ideaTitle, 'UTF-8') : strlen($ideaTitle);
     if ($ideaTitleLength > 240) jsonError('Titolo idea troppo lungo', 422);
