@@ -48,18 +48,18 @@ $ok = $out['official_site_url']==='https://esempio.it' && $out['primary_topic']=
 if ($ok) { $pass++; echo "  ok    sito, tema e territori invariati\n"; }
 else { $fail++; echo "  FALLITO campi preesistenti alterati\n"; }
 
-echo "\nScelta della presenza e Search Console\n";
-t('solo Spazio Vivo', ['presence_mode'=>'space_only', 'search_console_choice'=>'not_connected'], [
+echo "\nScelta della presenza e monitoraggio Google centralizzato\n";
+t('solo Spazio Vivo usa il monitoraggio centrale', ['presence_mode'=>'space_only', 'search_console_choice'=>'not_connected'], [
     'presence_mode'=>'space_only',
-    'search_console_choice'=>'not_connected',
+    'search_console_choice'=>'connected',
 ]);
-t('sito esistente e console collegata', ['presence_mode'=>'existing_site', 'search_console_choice'=>'connected'], [
+t('sito esistente usa il monitoraggio centrale', ['presence_mode'=>'existing_site', 'search_console_choice'=>'connected'], [
     'presence_mode'=>'existing_site',
     'search_console_choice'=>'connected',
 ]);
-t('valori sconosciuti tornano neutri', ['presence_mode'=>'altro', 'search_console_choice'=>'forse'], [
+t('input tecnico sconosciuto non disattiva il monitoraggio', ['presence_mode'=>'altro', 'search_console_choice'=>'forse'], [
     'presence_mode'=>'undecided',
-    'search_console_choice'=>'unknown',
+    'search_console_choice'=>'connected',
 ]);
 
 echo "\n".str_repeat('─',46)."\n".($fail===0?"TUTTI I TEST PASSATI":"CI SONO FALLIMENTI")." — $pass ok, $fail falliti\n";
