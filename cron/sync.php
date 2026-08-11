@@ -31,6 +31,8 @@ $users = DB::fetchAll('
     SELECT DISTINCT user_id FROM social_connections WHERE active=1 AND auto_sync=1
     UNION
     SELECT DISTINCT user_id FROM social_sources WHERE active=1 AND auto_sync=1
+    UNION
+    SELECT DISTINCT user_id FROM posts WHERE seo_score=-1
 ');
 
 foreach ($users as $row) {
@@ -51,6 +53,7 @@ foreach ($users as $row) {
                 echo "    [" . ($idx+1) . "/" . count($pending) . "] Elaborazione post #{$p['id']}... ";
                 $postId = $p['id'];
                 try {
+                    DB::execute('UPDATE posts SET agent_notes=NULL WHERE id=?', [$postId]);
                     $post = DB::fetch('SELECT media_url, media_type, raw_content, source_url, platform, transcript FROM posts WHERE id=?', [$postId]);
                     if (!$post) continue;
                     

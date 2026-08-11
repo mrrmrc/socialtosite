@@ -682,6 +682,23 @@ const [importMsg, setImportMsg] = useState(null);
     setHarmonizingId(0);
   }
 
+  async function retryPendingPost(id) {
+    setAcquisitionModal({ status: 'working', title: 'Riprovo l\'elaborazione', text: 'Recupero nuovamente il contenuto e preparo una bozza pubblicabile.', completed: 0, total: 1 });
+    try {
+      const result = await apiFetch('/api/index.php?action=process-pending', {
+        method: 'POST',
+        body: JSON.stringify({ id })
+      }, token);
+      if (result?.ok === false) throw new Error(result.message || 'Il contenuto non è più disponibile nella coda.');
+      await loadDrafts();
+      await loadData();
+      setAcquisitionModal({ status: 'success', title: 'Articolo elaborato', text: result?.status === 'published' ? 'Il contenuto è stato elaborato e pubblicato.' : 'Il contenuto è stato elaborato ed è disponibile negli Articoli.', completed: 1, total: 1 });
+    } catch (error) {
+      await loadData();
+      setAcquisitionModal({ status: 'error', title: 'Elaborazione non riuscita', text: error.message || 'Non è stato possibile elaborare il contenuto.' });
+    }
+  }
+
   // Funzione helper per elaborare la coda (ora in parallelo)
   async function processPendingLoop(isScan = false) {
     try {
@@ -700,7 +717,7 @@ const [importMsg, setImportMsg] = useState(null);
       let skippedCount = 0;
       let deletedCount = 0;
       let errorCount = 0;
-      const concurrency = 4; // Elabora fino a 4 post in parallelo
+      const concurrency = 2; // Limita timeout e rate limit dei provider AI sull'hosting condiviso.
 
       const updateProgress = () => {
         const msg = `Elaborazione AI: completati ${completed} su ${total} post...`;
@@ -763,7 +780,7 @@ const [importMsg, setImportMsg] = useState(null);
       }
       
       const doneMsg = `Pipeline completata. Trovati in coda: ${total}. Pubblicati: ${publishedCount}. In bozza: ${draftCount}. Scartati: ${skippedCount}. Saltati: ${deletedCount}. Errori: ${errorCount}.`;
-      setAcquisitionModal({ status: errorCount === total ? 'error' : 'success', title: errorCount === total ? 'Elaborazione non riuscita' : 'I contenuti sono pronti', text: doneMsg, completed: total, total });
+      setAcquisitionModal({ status: errorCount === total ? 'error' : 'success', title: errorCount === total ? 'Elaborazione non riuscita' : errorCount > 0 ? 'Completato con alcuni errori' : 'I contenuti sono pronti', text: doneMsg, completed: total, total });
       if (isScan) setScanMsg({ ok: true, text: doneMsg });
       else setSyncMsg({ ok: true, text: doneMsg });
       
@@ -2170,6 +2187,7 @@ const [importMsg, setImportMsg] = useState(null);
               published_count: Number(c.published_count || 0),
               draft_count: Number(c.draft_count || 0),
               processing_count: Number(c.processing_count || 0),
+              failed_count: Number(c.failed_count || 0),
               last_content_at: c.last_content_at || null,
               label: c.handle ? `@${c.handle}` : '',
             });
@@ -2195,6 +2213,7 @@ const [importMsg, setImportMsg] = useState(null);
               published_count: Number(s.published_count || 0),
               draft_count: Number(s.draft_count || 0),
               processing_count: Number(s.processing_count || 0),
+              failed_count: Number(s.failed_count || 0),
               last_content_at: s.last_content_at || null,
               topic_summary: s.topic_summary,
               hasDuplicateOAuth: hasOAuth,
@@ -2365,6 +2384,7 @@ const [importMsg, setImportMsg] = useState(null);
                           <div><strong>{channel.published_count}</strong><span>pubblicati</span></div>
                           <div><strong>{channel.draft_count}</strong><span>in bozza</span></div>
                           <div><strong>{channel.processing_count}</strong><span>in elaborazione</span></div>
+                          <div className={channel.failed_count > 0 ? 'has-errors' : ''}><strong>{channel.failed_count}</strong><span>da riprovare</span></div>
                           <div className="last"><strong>{channel.last_content_at ? new Date(channel.last_content_at).toLocaleDateString('it-IT') : 'Mai'}</strong><span>ultimo contenuto</span></div>
                         </div>
 
@@ -2502,6 +2522,7 @@ const [importMsg, setImportMsg] = useState(null);
         {tab === 'site' && (() => {
           const allPlatforms = [...new Set(posts.map(p => p.platform))].sort();
           const allTags = [...new Set(posts.flatMap(p => p.tags || []).map(t => t.toLowerCase()))].sort();
+          const pendingPosts = posts.filter(p => Number(p.seo_score) < 0);
           const filteredPosts = posts.filter(p => {
             if (dashboardFilter === 'all') return true;
             if (dashboardFilter.startsWith('published-')) return Number(p.published) === Number(dashboardFilter.replace('published-', ''));
@@ -2547,6 +2568,11 @@ const [importMsg, setImportMsg] = useState(null);
                 </a>
               </div>
               <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                {pendingPosts.length > 0 && (
+                  <button className="btn btn-primary" onClick={() => processPendingLoop(false)}>
+                    ↻ Elabora {pendingPosts.length} contenuti
+                  </button>
+                )}
                 {selectedPosts.length > 0 && (
                   <button onClick={bulkDeletePosts} style={{ background: 'var(--red)', color: 'white', border: 'none', padding: '8px 14px', borderRadius: 'var(--radius-sm)', fontSize: '13px', cursor: 'pointer', fontWeight: 500 }}>
                     🗑 Elimina {selectedPosts.length} selezionati
@@ -2581,7 +2607,9 @@ const [importMsg, setImportMsg] = useState(null);
                         <span style={{ fontWeight: 800, fontSize: '14px', color: 'var(--text)', textTransform: 'capitalize' }}>{SOCIAL[post.platform]?.label || post.platform}</span>
                         {/* Badge Stato (Nascoso/Bozza) */}
                         {Number(post.seo_score) < 0 ? (
-                          <span className="article-processing-badge">IN ELABORAZIONE</span>
+                          <span className={`article-processing-badge ${String(post.agent_notes || '').startsWith('Errore:') ? 'is-error' : ''}`}>
+                            {String(post.agent_notes || '').startsWith('Errore:') ? 'DA RIPROVARE' : 'IN CODA'}
+                          </span>
                         ) : post.published != 1 && (
                           <span style={{ background: 'var(--amber-light)', color: 'var(--amber)', padding: '4px 10px', borderRadius: '20px', fontSize: '11px', fontWeight: 800, whiteSpace: 'nowrap' }}>
                             BOZZA
@@ -2592,7 +2620,7 @@ const [importMsg, setImportMsg] = useState(null);
                       
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                         {post.media_type === 'VIDEO' && <span style={{ background: 'var(--primary-light)', color: 'var(--primary-dark)', padding: '4px 10px', borderRadius: '20px', fontSize: '11px', fontWeight: 700, whiteSpace: 'nowrap' }}>🎥 VIDEO</span>}
-                        {Number(post.seo_score) < 0 ? <span className="article-processing-pulse" title="Elaborazione AI in corso" /> : (
+                        {Number(post.seo_score) < 0 ? <span className={`article-processing-pulse ${String(post.agent_notes || '').startsWith('Errore:') ? 'is-error' : ''}`} title={String(post.agent_notes || '').startsWith('Errore:') ? 'Elaborazione fallita' : 'In attesa di elaborazione'} /> : (
                           <div style={{ width: '32px', height: '32px', borderRadius: '50%', flexShrink: 0, background: post.seo_score >= 80 ? 'var(--teal-light)' : (post.seo_score >= 50 ? 'var(--amber-light)' : 'var(--red-light)'), color: post.seo_score >= 80 ? 'var(--teal)' : (post.seo_score >= 50 ? 'var(--amber)' : 'var(--red)'), display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: '12px', border: `2px solid ${post.seo_score >= 80 ? 'var(--teal)' : (post.seo_score >= 50 ? 'var(--amber)' : 'var(--red)')}`, boxShadow: '0 4px 10px rgba(0,0,0,0.05)' }} title={`Score SEO: ${post.seo_score}`}>
                             {post.seo_score}
                           </div>
@@ -2606,7 +2634,7 @@ const [importMsg, setImportMsg] = useState(null);
                         {post.generated_title || (post.raw_content ? post.raw_content.substring(0, 80) : 'Nuovo contenuto')}
                       </h4>
                       <div style={{ fontSize: '14px', color: 'var(--text-muted)', display: '-webkit-box', WebkitLineClamp: 4, WebkitBoxOrient: 'vertical', overflow: 'hidden', lineHeight: 1.6, fontWeight: 500 }}>
-                        {post.generated_excerpt || (post.generated_body ? post.generated_body.substring(0, 200) : Number(post.seo_score) < 0 ? "Contenuto acquisito. Stiamo preparando il testo dell'articolo e l'ottimizzazione SEO." : '')}
+                        {post.generated_excerpt || (post.generated_body ? post.generated_body.substring(0, 200) : Number(post.seo_score) < 0 ? String(post.agent_notes || '').startsWith('Errore:') ? String(post.agent_notes).replace(/^Errore:\s*/, '') : "Contenuto acquisito e in attesa di elaborazione." : '')}
                       </div>
 
                       {post.tags?.length > 0 && (
@@ -2617,8 +2645,9 @@ const [importMsg, setImportMsg] = useState(null);
                     </div>
 
                     {/* Azioni Fondo Card */}
-                    {Number(post.seo_score) < 0 && <div className="article-processing-note">L'articolo comparirà completo appena termina l'elaborazione.</div>}
+                    {Number(post.seo_score) < 0 && <div className={`article-processing-note ${String(post.agent_notes || '').startsWith('Errore:') ? 'is-error' : ''}`}>{String(post.agent_notes || '').startsWith('Errore:') ? 'Il tentativo precedente non è riuscito. Usa Riprova per riavviare la lavorazione.' : 'Il contenuto è in coda. Puoi avviare subito la lavorazione.'}</div>}
                     <div className="article-card-footer">
+                      {Number(post.seo_score) < 0 && <button className="article-retry-button" onClick={() => retryPendingPost(post.id)}>{String(post.agent_notes || '').startsWith('Errore:') ? '↻ RIPROVA' : '▶ ELABORA ORA'}</button>}
                       <button disabled={Number(post.seo_score) < 0} onClick={() => openPostEditor(post)} style={{ flex: '1', padding: '10px', fontSize: '13px', fontWeight: 800, borderRadius: 'var(--radius-sm)', background: 'var(--primary)', color: '#fff', border: 'none', cursor: 'pointer', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '6px', transition: 'all 0.2s', boxShadow: '0 4px 12px rgba(99,102,241,0.3)' }}>
                         ✏️ MODIFICA
                       </button>
@@ -2654,7 +2683,7 @@ const [importMsg, setImportMsg] = useState(null);
                           <input type="checkbox" checked={selectedPosts.includes(post.id)} onChange={() => togglePostSelection(post.id)} style={{ cursor: 'pointer', transform: 'scale(1.2)' }} />
                         </td>
                         <td style={{ padding: '16px' }}>
-                           {Number(post.seo_score) < 0 ? <span className="article-processing-badge">IN ELABORAZIONE</span> : <input type="checkbox" checked={post.published == 1} onChange={() => togglePublishPost(post.id, post.published)} title={post.published == 1 ? "Nascondi" : "Pubblica"} style={{ transform: 'scale(1.4)', cursor: 'pointer' }} />}
+                           {Number(post.seo_score) < 0 ? <span className={`article-processing-badge ${String(post.agent_notes || '').startsWith('Errore:') ? 'is-error' : ''}`}>{String(post.agent_notes || '').startsWith('Errore:') ? 'DA RIPROVARE' : 'IN CODA'}</span> : <input type="checkbox" checked={post.published == 1} onChange={() => togglePublishPost(post.id, post.published)} title={post.published == 1 ? "Nascondi" : "Pubblica"} style={{ transform: 'scale(1.4)', cursor: 'pointer' }} />}
                         </td>
                         <td style={{ padding: '16px', fontWeight: 600, fontSize: '15px' }}>
                           {post.generated_title || (post.raw_content ? `${post.raw_content.substring(0, 40)}...` : 'Contenuto acquisito')}
@@ -2672,7 +2701,8 @@ const [importMsg, setImportMsg] = useState(null);
                         </td>
                         <td style={{ padding: '16px' }}>
                           <div style={{ display: 'flex', gap: '10px' }}>
-                            <button onClick={() => openPostEditor(post)} style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', color: 'var(--text)', padding: '6px 12px', borderRadius: '6px', cursor: 'pointer', fontSize: '13px', fontWeight: 600 }}>✏️ Modifica</button>
+                            {Number(post.seo_score) < 0 && <button onClick={() => retryPendingPost(post.id)} className="article-retry-button">↻ Riprova</button>}
+                            {Number(post.seo_score) >= 0 && <button onClick={() => openPostEditor(post)} style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', color: 'var(--text)', padding: '6px 12px', borderRadius: '6px', cursor: 'pointer', fontSize: '13px', fontWeight: 600 }}>✏️ Modifica</button>}
                             <button onClick={() => deletePost(post.id)} style={{ background: 'rgba(255,0,50,0.1)', border: '1px solid rgba(255,0,50,0.3)', color: 'var(--red)', padding: '6px 12px', borderRadius: '6px', cursor: 'pointer', fontSize: '13px', fontWeight: 600 }}>❌ Elimina</button>
                           </div>
                         </td>
