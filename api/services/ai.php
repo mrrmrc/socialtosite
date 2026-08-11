@@ -2221,7 +2221,7 @@ Testi da analizzare:
             ];
         }
         $today = date('Y-m-d');
-        $prompt = "Sei un caporedattore italiano. Genera ESATTAMENTE 5 idee editoriali concrete per questa attivita.\n"
+        $prompt = "Sei un caporedattore italiano. Genera ESATTAMENTE 3 idee editoriali concrete per questa attivita.\n"
             . "Data di oggi: {$today}.\n"
             . "ATTIVITA: " . json_encode(['tipo'=>$activity,'offerta'=>$offer,'territorio'=>$area,'profilo'=>$site['profile_summary'] ?? ''], JSON_UNESCAPED_UNICODE) . "\n"
             . "STRATEGIA CONFERMATA: " . json_encode($declared, JSON_UNESCAPED_UNICODE) . "\n"
@@ -2250,9 +2250,9 @@ Testi da analizzare:
 
         $validAiIdeas = ContentIdeaFormatter::normalize($candidates);
         $ideas = ContentIdeaFormatter::normalize($validAiIdeas, $fallbacks);
-        if (count($ideas) < 5) throw new RuntimeException('Impossibile costruire cinque proposte editoriali');
+        if (count($ideas) < 3) throw new RuntimeException('Impossibile costruire tre proposte editoriali');
 
-        $source = $aiError !== '' ? 'profile_fallback' : (count($validAiIdeas) < 5 ? 'ai_completed' : 'ai');
+        $source = $aiError !== '' ? 'profile_fallback' : (count($validAiIdeas) < 3 ? 'ai_completed' : 'ai');
         return [
             'ideas'=>$ideas,
             'generated_at'=>date(DATE_ATOM),

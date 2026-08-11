@@ -2,7 +2,7 @@
 
 /**
  * Rende affidabile l'output editoriale anche quando il modello restituisce
- * JSON imperfetto, campi con nomi diversi o meno di cinque proposte.
+ * JSON imperfetto, campi con nomi diversi o meno di tre proposte.
  */
 final class ContentIdeaFormatter {
     private static function text($value, int $maxLength): string {
@@ -40,7 +40,7 @@ final class ContentIdeaFormatter {
     }
 
     /**
-     * Normalizza, deduplica e completa fino a cinque elementi. I fallback sono
+     * Normalizza, deduplica e completa fino a tre elementi. I fallback sono
      * deliberatamente deterministici: nessuna seconda chiamata AI e nessun 502.
      */
     public static function normalize(array $candidates, array $fallbacks = []): array {
@@ -86,13 +86,13 @@ final class ContentIdeaFormatter {
                     ?: 'Apri con una domanda diretta e invita il pubblico a condividere la propria esperienza.',
             ];
             $seen[$key] = true;
-            if (count($ideas) >= 5) break;
+            if (count($ideas) >= 3) break;
         }
 
         return $ideas;
     }
 
-    /** Cinque tracce sicure costruite esclusivamente da dati già disponibili. */
+    /** Tre tracce sicure costruite esclusivamente da dati già disponibili. */
     public static function fallbacks(array $site, array $declared, array $reachability): array {
         $subject = '';
         foreach ([$reachability['primary_topic'] ?? '', $declared['activity_type'] ?? '', $site['title'] ?? ''] as $subjectCandidate) {
@@ -102,8 +102,6 @@ final class ContentIdeaFormatter {
         if ($subject === '') $subject = 'questa attività';
         $offer = self::text($declared['offer_summary'] ?? $site['profile_summary'] ?? $site['bio'] ?? '', 160);
         $audience = self::text($declared['primary_audience'] ?? '', 120);
-        $difference = self::text($declared['differentiators'] ?? '', 160);
-        $desiredAction = self::text($declared['desired_action'] ?? '', 100);
         $profileSource = 'Profilo e strategia dell’attività';
 
         return [
@@ -124,18 +122,6 @@ final class ContentIdeaFormatter {
                 'reason' => 'Aiuta il pubblico a scegliere con criteri concreti senza promesse o informazioni inventate.',
                 'type' => 'Guida', 'priority' => 'Media', 'source' => $profileSource, 'source_url' => '', 'freshness' => 'Evergreen',
                 'social_angle' => 'Checklist breve di criteri utili da salvare e condividere.',
-            ],
-            [
-                'title' => "Il nostro approccio a {$subject}",
-                'reason' => $difference !== '' ? "Rende comprensibile ciò che distingue l’attività: {$difference}." : 'Trasforma identità e metodo in un contenuto concreto e riconoscibile.',
-                'type' => 'Storia', 'priority' => 'Media', 'source' => $profileSource, 'source_url' => '', 'freshness' => 'Evergreen',
-                'social_angle' => 'Racconto in prima persona: problema, metodo e principio guida.',
-            ],
-            [
-                'title' => "Dall’interesse al prossimo passo: {$subject}",
-                'reason' => $desiredAction !== '' ? "Accompagna con chiarezza verso l’azione dichiarata: {$desiredAction}." : 'Collega il bisogno informativo a un passo successivo semplice e non aggressivo.',
-                'type' => 'Offerta', 'priority' => 'Media', 'source' => $profileSource, 'source_url' => '', 'freshness' => 'Evergreen',
-                'social_angle' => 'Spiega un solo passo utile e chiudi con una chiamata all’azione chiara.',
             ],
         ];
     }

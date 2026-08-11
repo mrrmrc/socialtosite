@@ -26,11 +26,12 @@ $fallbacks = ContentIdeaFormatter::fallbacks(
     ['activity_type'=>'consulenza professionale', 'primary_audience'=>'famiglie', 'desired_action'=>'richiedere informazioni'],
     ['primary_topic'=>'consulenza per famiglie']
 );
-$ideas = ContentIdeaFormatter::normalize($decoded, $fallbacks);
-checkIdea('una risposta con tre elementi viene completata a cinque', count($ideas) === 5);
+$ideas = ContentIdeaFormatter::normalize(array_slice($decoded, 0, 2), $fallbacks);
+checkIdea('una risposta con due elementi viene completata a tre', count($ideas) === 3);
 checkIdea('i nomi italiani dei campi vengono normalizzati', ($ideas[1]['title'] ?? '') === 'Idea due');
-checkIdea('gli URL non sicuri vengono rimossi', ($ideas[2]['source_url'] ?? 'x') === '');
-checkIdea('tutte le idee hanno titolo e motivazione', count(array_filter($ideas, fn($idea) => $idea['title'] !== '' && $idea['reason'] !== '')) === 5);
+$unsafeUrlIdea = ContentIdeaFormatter::normalize([$decoded[2]])[0] ?? [];
+checkIdea('gli URL non sicuri vengono rimossi', ($unsafeUrlIdea['source_url'] ?? 'x') === '');
+checkIdea('tutte le idee hanno titolo e motivazione', count(array_filter($ideas, fn($idea) => $idea['title'] !== '' && $idea['reason'] !== '')) === 3);
 
 echo "\nDeduplicazione\n";
 $duplicates = ContentIdeaFormatter::normalize([
@@ -38,8 +39,7 @@ $duplicates = ContentIdeaFormatter::normalize([
     ['title'=>'La stessa idea!'],
 ], $fallbacks);
 checkIdea('i titoli equivalenti non vengono ripetuti', count(array_filter($duplicates, fn($idea) => str_starts_with($idea['title'], 'La stessa idea'))) === 1);
-checkIdea('anche dopo la deduplicazione restano cinque proposte', count($duplicates) === 5);
+checkIdea('anche dopo la deduplicazione restano tre proposte', count($duplicates) === 3);
 
 echo "\n" . str_repeat('─', 46) . "\n" . ($fail === 0 ? 'TUTTI I TEST PASSATI' : 'CI SONO FALLIMENTI') . " — {$pass} ok, {$fail} falliti\n";
 exit($fail === 0 ? 0 : 1);
-

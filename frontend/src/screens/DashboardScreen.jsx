@@ -1212,16 +1212,16 @@ const [importMsg, setImportMsg] = useState(null);
     try {
       const result = await apiFetch('/api/index.php?action=generate-content-ideas', {
         method: 'POST',
-        body: JSON.stringify({ count: 5 }),
+        body: JSON.stringify({ count: 3 }),
       }, token);
       setAiContentIdeas(Array.isArray(result.ideas) ? result.ideas : []);
       setIdeasGeneratedAt(result.generated_at || new Date().toISOString());
       setIdeasNewsSignals(Number(result.news_signals || 0));
       const generationMessage = result.generation_source === 'profile_fallback'
-        ? '5 proposte pronte dal tuo profilo editoriale. Il servizio AI non era disponibile, ma il lavoro non si è bloccato.'
+        ? '3 proposte pronte dal tuo profilo editoriale. Il servizio AI non era disponibile, ma il lavoro non si è bloccato.'
         : result.generation_source === 'ai_completed'
-          ? '5 proposte pronte. La risposta AI era parziale ed è stata completata automaticamente dal tuo profilo.'
-          : '5 nuove proposte create dall\'AI. Scegline una per l\'articolo o per un social.';
+          ? '3 proposte pronte. La risposta AI era parziale ed è stata completata automaticamente dal tuo profilo.'
+          : '3 nuove proposte create dall\'AI. Scegline una per l\'articolo o per un social.';
       setSyncMsg({ ok: true, text: generationMessage });
     } catch (error) {
       setSyncMsg({ ok: false, text: error.message });
@@ -3014,11 +3014,11 @@ const [importMsg, setImportMsg] = useState(null);
               <section className="ideas-quick-start">
                 <div>
                   <span className="section-eyebrow">Parti da qui</span>
-                  <h2>Chiedi 5 idee all'AI, poi scegli articolo o social.</h2>
+                  <h2>Chiedi 3 idee all'AI, poi scegli articolo o social.</h2>
                   <p>L'AI incrocia attività, pubblico, contenuti esistenti, ricerche Google e segnali di attualità pertinenti. Nulla viene pubblicato senza conferma.</p>
                 </div>
                 <div className="ideas-quick-actions">
-                  <button className="btn btn-primary" onClick={generateAiContentIdeas} disabled={generatingIdeas}>{generatingIdeas ? 'Cerco e genero…' : '✦ Suggeriscimi 5 contenuti'}</button>
+                  <button className="btn btn-primary" onClick={generateAiContentIdeas} disabled={generatingIdeas}>{generatingIdeas ? 'Cerco e genero…' : '✦ Suggeriscimi 3 contenuti'}</button>
                   <button className="btn btn-primary" onClick={() => setCustomIdeaOpen(true)}>+ Crea da una mia idea</button>
                   <button className="btn btn-outline" onClick={() => { setDashboardFilter('published-0'); setTab('site'); }}>Vedi {posts.filter(post => Number(post.published) === 0).length} bozze</button>
                 </div>
@@ -3037,7 +3037,7 @@ const [importMsg, setImportMsg] = useState(null);
                   <p>Proposte costruite dai tuoi canali, dalle ricerche reali su Google e dalle priorità che hai dichiarato. Per ognuna puoi far scrivere l’AI, scrivere tu, o adattare l’idea prima di partire. Niente viene pubblicato da solo.</p>
                 </div>
                 <button className="btn btn-outline" onClick={generateAiContentIdeas} disabled={generatingIdeas}>
-                  {generatingIdeas ? 'Generazione…' : 'Genera altre 5 idee'}
+                  {generatingIdeas ? 'Generazione…' : 'Genera altre 3 idee'}
                 </button>
               </header>
 

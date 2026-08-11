@@ -1872,7 +1872,7 @@ if ($action === 'dismiss-content-idea' && $method === 'POST') {
     json(['ok' => true, 'dismissed_content_ideas' => $dismissed]);
 }
 
-// Genera cinque proposte nuove usando profilo, archivio, domanda Google e
+// Genera al massimo tre proposte nuove usando profilo, archivio, domanda Google e
 // segnali di attualita. Le proposte restano suggerimenti: nessuna pubblicazione.
 if ($action === 'generate-content-ideas' && $method === 'POST') {
     try {
