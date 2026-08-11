@@ -425,6 +425,7 @@ const [importMsg, setImportMsg] = useState(null);
   const [scanProgress, setScanProgress] = useState([]);
   const [processingQueue, setProcessingQueue] = useState([]);
   const [syncMsg, setSyncMsg] = useState(null);
+  const [acquisitionModal, setAcquisitionModal] = useState(null);
   const [profileDraft, setProfileDraft] = useState('');
   const [roleMissionDraft, setRoleMissionDraft] = useState('');
   const [strategyDraft, setStrategyDraft] = useState('');
@@ -645,21 +646,24 @@ const [importMsg, setImportMsg] = useState(null);
     e.preventDefault();
     if (!linkUrl.trim()) return;
     setImporting(true); setImportMsg(null);
+    setAcquisitionModal({ status: 'working', title: 'Sto acquisendo il contenuto', text: 'Apro il link e recupero testo, immagini o video. Puoi seguire qui tutte le fasi.' });
     try {
       const r = await apiFetch('/api/index.php?action=ingest-url',
         { method: 'POST', body: JSON.stringify({ url: linkUrl.trim() }) }, token);
       if (r.duplicate) {
+        setAcquisitionModal({ status: 'success', title: 'Contenuto già presente', text: 'Il link era stato acquisito in precedenza: lo trovi nella sezione Articoli.' });
         setImportMsg({ ok: true, text: 'Questo contenuto era già stato importato.' });
       } else {
         setImportMsg({ ok: true, text: 'Acquisizione completata! Elaborazione AI in corso...' });
-        // Avvia elaborazione in background automaticamente
-        processPendingLoop(true);
+        // Mantiene aperto il flusso guidato fino al completamento dell'articolo.
+        await processPendingLoop(true);
       }
       setLinkUrl('');
       await loadDrafts();
       await loadData();
     } catch (err) {
       setImportMsg({ ok: false, text: err.message });
+      setAcquisitionModal({ status: 'error', title: 'Importazione non completata', text: err.message });
     }
     setImporting(false);
   }
@@ -682,7 +686,10 @@ const [importMsg, setImportMsg] = useState(null);
   async function processPendingLoop(isScan = false) {
     try {
       const pending = await apiFetch('/api/index.php?action=pending-posts', {}, token);
-      if (!pending || pending.length === 0) return;
+      if (!pending || pending.length === 0) {
+        setAcquisitionModal({ status: 'success', title: 'Sincronizzazione completata', text: 'Non ci sono nuovi contenuti da elaborare. Gli articoli già acquisiti sono aggiornati.' });
+        return;
+      }
       
       setProcessingQueue(pending.map(p => ({ ...p, status: 'pending' })));
 
@@ -697,6 +704,7 @@ const [importMsg, setImportMsg] = useState(null);
 
       const updateProgress = () => {
         const msg = `Elaborazione AI: completati ${completed} su ${total} post...`;
+        setAcquisitionModal({ status: 'working', title: 'Creo i tuoi articoli', text: msg, completed, total });
         if (isScan) setScanMsg({ ok: true, text: msg, loading: true });
         else setSyncMsg({ ok: true, text: msg, loading: true });
       };
@@ -707,6 +715,7 @@ const [importMsg, setImportMsg] = useState(null);
         setProcessingQueue(prev => prev.map(p => p.id === post.id ? { ...p, status: 'processing' } : p));
         const postLabel = post.generated_title || post.source_url || `${post.platform} #${post.id}`;
         const processingMsg = `Elaborazione AI in corso: ${completed + 1}/${total} - ${post.platform.toUpperCase()} - ${postLabel}`;
+        setAcquisitionModal({ status: 'working', title: 'Creo i tuoi articoli', text: processingMsg, completed, total });
         if (isScan) setScanMsg({ ok: true, text: processingMsg, loading: true });
         else setSyncMsg({ ok: true, text: processingMsg, loading: true });
         let errorMsg = null;
@@ -736,6 +745,7 @@ const [importMsg, setImportMsg] = useState(null);
       }
 
       const finalMsg = `Orchestrazione finale del sito in corso...`;
+      setAcquisitionModal({ status: 'working', title: 'Ultimi ritocchi', text: 'Organizzo i nuovi articoli e aggiorno il tuo spazio pubblico.', completed: total, total });
       if (isScan) setScanMsg({ ok: true, text: finalMsg, loading: true });
       else setSyncMsg({ ok: true, text: finalMsg, loading: true });
 
@@ -753,6 +763,7 @@ const [importMsg, setImportMsg] = useState(null);
       }
       
       const doneMsg = `Pipeline completata. Trovati in coda: ${total}. Pubblicati: ${publishedCount}. In bozza: ${draftCount}. Scartati: ${skippedCount}. Saltati: ${deletedCount}. Errori: ${errorCount}.`;
+      setAcquisitionModal({ status: errorCount === total ? 'error' : 'success', title: errorCount === total ? 'Elaborazione non riuscita' : 'I contenuti sono pronti', text: doneMsg, completed: total, total });
       if (isScan) setScanMsg({ ok: true, text: doneMsg });
       else setSyncMsg({ ok: true, text: doneMsg });
       
@@ -764,11 +775,13 @@ const [importMsg, setImportMsg] = useState(null);
     } catch (e) {
       console.error(e);
       setProcessingQueue([]);
+      setAcquisitionModal({ status: 'error', title: 'Elaborazione interrotta', text: e.message || 'Si è verificato un errore durante la creazione degli articoli.' });
     }
   }
 
   async function syncNow() {
     setSyncing(true); setSyncMsg({ ok: true, text: 'Acquisizione post in corso...', loading: true });
+    setAcquisitionModal({ status: 'working', title: 'Aggiorno i tuoi canali', text: "Cerco nuovi contenuti sui canali collegati. L'operazione può richiedere qualche minuto." });
     try {
       await apiFetch('/api/index.php?action=sync', { 
         method: 'POST', 
@@ -777,6 +790,7 @@ const [importMsg, setImportMsg] = useState(null);
       await processPendingLoop(false);
     } catch (e) {
       setSyncMsg({ ok: false, text: e.message });
+      setAcquisitionModal({ status: 'error', title: 'Aggiornamento non completato', text: e.message });
     }
     setSyncing(false);
   }
@@ -891,6 +905,7 @@ const [importMsg, setImportMsg] = useState(null);
     setScanning(true);
     setScanProgress([]);
     setScanMsg({ ok: true, text: 'Sincronizzazione manuale di tutti i canali attivi...', loading: true });
+    setAcquisitionModal({ status: 'working', title: 'Sincronizzo tutti i canali', text: "Controllo ogni fonte collegata e acquisisco i nuovi contenuti. Puoi seguire qui l'avanzamento." });
     try {
       await apiFetch('/api/index.php?action=sync', {
         method: 'POST',
@@ -900,6 +915,7 @@ const [importMsg, setImportMsg] = useState(null);
       await loadData();
     } catch (err) {
       setScanMsg({ ok: false, text: err.message });
+      setAcquisitionModal({ status: 'error', title: 'Sincronizzazione non completata', text: err.message });
     } finally {
       setScanning(false);
     }
@@ -1897,6 +1913,34 @@ const [importMsg, setImportMsg] = useState(null);
   );
   return (
     <div className="dashboard-shell" style={{ overflow: studioWorkspaceOpen ? 'hidden' : 'visible' }}>
+      {acquisitionModal && (
+        <div className="acquisition-overlay" role="dialog" aria-modal="true" aria-live="polite" aria-labelledby="acquisition-title">
+          <div className={`acquisition-modal is-${acquisitionModal.status}`}>
+            <div className="acquisition-visual" aria-hidden="true">
+              {acquisitionModal.status === 'working' ? <span className="acquisition-spinner" /> : acquisitionModal.status === 'success' ? '✓' : '!'}
+            </div>
+            <span className="acquisition-kicker">
+              {acquisitionModal.status === 'working' ? 'Importazione in corso' : acquisitionModal.status === 'success' ? 'Operazione completata' : 'Serve attenzione'}
+            </span>
+            <h2 id="acquisition-title">{acquisitionModal.title}</h2>
+            <p>{acquisitionModal.text}</p>
+            {acquisitionModal.total > 0 && (
+              <div className="acquisition-progress">
+                <div><span style={{ width: `${Math.round((acquisitionModal.completed || 0) / acquisitionModal.total * 100)}%` }} /></div>
+                <small>{acquisitionModal.completed || 0} di {acquisitionModal.total} contenuti elaborati</small>
+              </div>
+            )}
+            {acquisitionModal.status === 'working' ? (
+              <div className="acquisition-wait">Non chiudere questa pagina: continuiamo a lavorare sui tuoi contenuti.</div>
+            ) : (
+              <div className="acquisition-actions">
+                <button className="btn btn-outline" onClick={() => setAcquisitionModal(null)}>Chiudi</button>
+                {acquisitionModal.status === 'success' && <button className="btn btn-primary" onClick={() => { setAcquisitionModal(null); setTab('site'); }}>Vai agli articoli</button>}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
       <aside className="desktop-sidebar" style={{ visibility: studioWorkspaceOpen ? 'hidden' : 'visible', pointerEvents: studioWorkspaceOpen ? 'none' : 'auto' }}>
         <div className="sidebar-brand">
           <img src="/logo-cropped.png" alt="allsocialtoweb.com" />
@@ -2125,6 +2169,7 @@ const [importMsg, setImportMsg] = useState(null);
               content_count: Number(c.content_count || 0),
               published_count: Number(c.published_count || 0),
               draft_count: Number(c.draft_count || 0),
+              processing_count: Number(c.processing_count || 0),
               last_content_at: c.last_content_at || null,
               label: c.handle ? `@${c.handle}` : '',
             });
@@ -2149,6 +2194,7 @@ const [importMsg, setImportMsg] = useState(null);
               content_count: Number(s.content_count || 0),
               published_count: Number(s.published_count || 0),
               draft_count: Number(s.draft_count || 0),
+              processing_count: Number(s.processing_count || 0),
               last_content_at: s.last_content_at || null,
               topic_summary: s.topic_summary,
               hasDuplicateOAuth: hasOAuth,
@@ -2180,6 +2226,7 @@ const [importMsg, setImportMsg] = useState(null);
                 <form onSubmit={handleAddChannel} style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                   <div style={{ position: 'relative' }}>
                     <input
+                      className="channel-url-input"
                       type="url"
                       placeholder="https://www.instagram.com/nomeutente/ oppure https://tuosito.it"
                       value={addUrl}
@@ -2317,6 +2364,7 @@ const [importMsg, setImportMsg] = useState(null);
                           <div><strong>{channel.content_count}</strong><span>acquisiti</span></div>
                           <div><strong>{channel.published_count}</strong><span>pubblicati</span></div>
                           <div><strong>{channel.draft_count}</strong><span>in bozza</span></div>
+                          <div><strong>{channel.processing_count}</strong><span>in elaborazione</span></div>
                           <div className="last"><strong>{channel.last_content_at ? new Date(channel.last_content_at).toLocaleDateString('it-IT') : 'Mai'}</strong><span>ultimo contenuto</span></div>
                         </div>
 
@@ -2428,7 +2476,7 @@ const [importMsg, setImportMsg] = useState(null);
                   Incolla il link di un singolo video o post per importarlo e convertirlo subito in articolo.
                 </p>
                 <form onSubmit={doImport} style={{ display: 'flex', gap: '8px' }}>
-                  <input type="text" placeholder="https://www.youtube.com/watch?v=... oppure link Instagram/TikTok"
+                  <input className="channel-url-input" type="text" placeholder="https://www.youtube.com/watch?v=... oppure link Instagram/TikTok"
                     value={linkUrl} onChange={e => setLinkUrl(e.target.value)} style={{ flex: 1 }} />
                   <button type="submit" className="btn btn-primary" disabled={importing}>
                     {importing ? '⟳ Elaborazione...' : 'Importa'}
@@ -2532,7 +2580,9 @@ const [importMsg, setImportMsg] = useState(null);
                         </div>
                         <span style={{ fontWeight: 800, fontSize: '14px', color: 'var(--text)', textTransform: 'capitalize' }}>{SOCIAL[post.platform]?.label || post.platform}</span>
                         {/* Badge Stato (Nascoso/Bozza) */}
-                        {post.published != 1 && (
+                        {Number(post.seo_score) < 0 ? (
+                          <span className="article-processing-badge">IN ELABORAZIONE</span>
+                        ) : post.published != 1 && (
                           <span style={{ background: 'var(--amber-light)', color: 'var(--amber)', padding: '4px 10px', borderRadius: '20px', fontSize: '11px', fontWeight: 800, whiteSpace: 'nowrap' }}>
                             BOZZA
                           </span>
@@ -2542,9 +2592,11 @@ const [importMsg, setImportMsg] = useState(null);
                       
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                         {post.media_type === 'VIDEO' && <span style={{ background: 'var(--primary-light)', color: 'var(--primary-dark)', padding: '4px 10px', borderRadius: '20px', fontSize: '11px', fontWeight: 700, whiteSpace: 'nowrap' }}>🎥 VIDEO</span>}
-                        <div style={{ width: '32px', height: '32px', borderRadius: '50%', flexShrink: 0, background: post.seo_score >= 80 ? 'var(--teal-light)' : (post.seo_score >= 50 ? 'var(--amber-light)' : 'var(--red-light)'), color: post.seo_score >= 80 ? 'var(--teal)' : (post.seo_score >= 50 ? 'var(--amber)' : 'var(--red)'), display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: '12px', border: `2px solid ${post.seo_score >= 80 ? 'var(--teal)' : (post.seo_score >= 50 ? 'var(--amber)' : 'var(--red)')}`, boxShadow: '0 4px 10px rgba(0,0,0,0.05)' }} title={`Score SEO: ${post.seo_score}`}>
-                          {post.seo_score}
-                        </div>
+                        {Number(post.seo_score) < 0 ? <span className="article-processing-pulse" title="Elaborazione AI in corso" /> : (
+                          <div style={{ width: '32px', height: '32px', borderRadius: '50%', flexShrink: 0, background: post.seo_score >= 80 ? 'var(--teal-light)' : (post.seo_score >= 50 ? 'var(--amber-light)' : 'var(--red-light)'), color: post.seo_score >= 80 ? 'var(--teal)' : (post.seo_score >= 50 ? 'var(--amber)' : 'var(--red)'), display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: '12px', border: `2px solid ${post.seo_score >= 80 ? 'var(--teal)' : (post.seo_score >= 50 ? 'var(--amber)' : 'var(--red)')}`, boxShadow: '0 4px 10px rgba(0,0,0,0.05)' }} title={`Score SEO: ${post.seo_score}`}>
+                            {post.seo_score}
+                          </div>
+                        )}
                       </div>
                     </div>
                     
@@ -2554,7 +2606,7 @@ const [importMsg, setImportMsg] = useState(null);
                         {post.generated_title || (post.raw_content ? post.raw_content.substring(0, 80) : 'Nuovo contenuto')}
                       </h4>
                       <div style={{ fontSize: '14px', color: 'var(--text-muted)', display: '-webkit-box', WebkitLineClamp: 4, WebkitBoxOrient: 'vertical', overflow: 'hidden', lineHeight: 1.6, fontWeight: 500 }}>
-                        {post.generated_excerpt || (post.generated_body ? post.generated_body.substring(0, 200) : '')}
+                        {post.generated_excerpt || (post.generated_body ? post.generated_body.substring(0, 200) : Number(post.seo_score) < 0 ? "Contenuto acquisito. Stiamo preparando il testo dell'articolo e l'ottimizzazione SEO." : '')}
                       </div>
 
                       {post.tags?.length > 0 && (
@@ -2565,11 +2617,12 @@ const [importMsg, setImportMsg] = useState(null);
                     </div>
 
                     {/* Azioni Fondo Card */}
+                    {Number(post.seo_score) < 0 && <div className="article-processing-note">L'articolo comparirà completo appena termina l'elaborazione.</div>}
                     <div className="article-card-footer">
-                      <button onClick={() => openPostEditor(post)} style={{ flex: '1', padding: '10px', fontSize: '13px', fontWeight: 800, borderRadius: 'var(--radius-sm)', background: 'var(--primary)', color: '#fff', border: 'none', cursor: 'pointer', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '6px', transition: 'all 0.2s', boxShadow: '0 4px 12px rgba(99,102,241,0.3)' }}>
+                      <button disabled={Number(post.seo_score) < 0} onClick={() => openPostEditor(post)} style={{ flex: '1', padding: '10px', fontSize: '13px', fontWeight: 800, borderRadius: 'var(--radius-sm)', background: 'var(--primary)', color: '#fff', border: 'none', cursor: 'pointer', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '6px', transition: 'all 0.2s', boxShadow: '0 4px 12px rgba(99,102,241,0.3)' }}>
                         ✏️ MODIFICA
                       </button>
-                      <button onClick={() => togglePublishPost(post.id, post.published)} title={post.published == 1 ? "Nascondi dal sito" : "Pubblica sul sito"} style={{ padding: '10px', borderRadius: 'var(--radius-sm)', border: 'none', fontSize: '16px', cursor: 'pointer', background: post.published == 1 ? 'var(--teal-light)' : 'var(--surface)', color: post.published == 1 ? 'var(--teal)' : 'var(--text-muted)', border: post.published == 1 ? '1px solid rgba(16,185,129,0.3)' : '1px solid var(--border-strong)', transition: 'all 0.2s', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                      <button disabled={Number(post.seo_score) < 0} onClick={() => togglePublishPost(post.id, post.published)} title={post.published == 1 ? "Nascondi dal sito" : "Pubblica sul sito"} style={{ padding: '10px', borderRadius: 'var(--radius-sm)', border: 'none', fontSize: '16px', cursor: 'pointer', background: post.published == 1 ? 'var(--teal-light)' : 'var(--surface)', color: post.published == 1 ? 'var(--teal)' : 'var(--text-muted)', border: post.published == 1 ? '1px solid rgba(16,185,129,0.3)' : '1px solid var(--border-strong)', transition: 'all 0.2s', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
                         {post.published == 1 ? '👁️' : '🚫'}
                       </button>
                       <button onClick={() => deletePost(post.id)} title="Elimina" style={{ padding: '10px', borderRadius: 'var(--radius-sm)', border: 'none', fontSize: '16px', cursor: 'pointer', background: 'var(--red-light)', color: 'var(--red)', border: '1px solid rgba(239,68,68,0.3)', transition: 'all 0.2s', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
@@ -2601,10 +2654,10 @@ const [importMsg, setImportMsg] = useState(null);
                           <input type="checkbox" checked={selectedPosts.includes(post.id)} onChange={() => togglePostSelection(post.id)} style={{ cursor: 'pointer', transform: 'scale(1.2)' }} />
                         </td>
                         <td style={{ padding: '16px' }}>
-                           <input type="checkbox" checked={post.published == 1} onChange={() => togglePublishPost(post.id, post.published)} title={post.published == 1 ? "Nascondi" : "Pubblica"} style={{ transform: 'scale(1.4)', cursor: 'pointer' }} />
+                           {Number(post.seo_score) < 0 ? <span className="article-processing-badge">IN ELABORAZIONE</span> : <input type="checkbox" checked={post.published == 1} onChange={() => togglePublishPost(post.id, post.published)} title={post.published == 1 ? "Nascondi" : "Pubblica"} style={{ transform: 'scale(1.4)', cursor: 'pointer' }} />}
                         </td>
                         <td style={{ padding: '16px', fontWeight: 600, fontSize: '15px' }}>
-                          {post.generated_title || post.raw_content?.substring(0, 40) + '...'}
+                          {post.generated_title || (post.raw_content ? `${post.raw_content.substring(0, 40)}...` : 'Contenuto acquisito')}
                           {Number(post.noindex) === 1 && <span style={{ display: 'inline-block', marginLeft: '8px', padding: '3px 7px', borderRadius: '999px', background: 'var(--red-light)', color: 'var(--red)', fontSize: '10px', fontWeight: 800 }}>NOINDEX</span>}
                         </td>
                         <td style={{ padding: '16px' }}>
@@ -2614,7 +2667,7 @@ const [importMsg, setImportMsg] = useState(null);
                         </td>
                         <td style={{ padding: '16px' }}>
                           <span style={{ background: post.seo_score >= 80 ? 'rgba(0,255,150,0.1)' : (post.seo_score >= 50 ? 'rgba(255,149,0,0.1)' : 'rgba(255,0,50,0.1)'), color: post.seo_score >= 80 ? 'var(--teal)' : (post.seo_score >= 50 ? 'var(--amber)' : 'var(--red)'), padding: '6px 12px', borderRadius: '20px', fontSize: '13px', fontWeight: 800, border: `1px solid ${post.seo_score >= 80 ? 'rgba(0,255,150,0.2)' : (post.seo_score >= 50 ? 'rgba(255,149,0,0.2)' : 'rgba(255,0,50,0.2)')}` }}>
-                            {post.seo_score}
+                            {Number(post.seo_score) < 0 ? '—' : post.seo_score}
                           </span>
                         </td>
                         <td style={{ padding: '16px' }}>

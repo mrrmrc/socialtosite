@@ -1425,7 +1425,6 @@ if ($action === 'site' && $method === 'GET') {
             'SELECT id, user_id, platform, platform_post_id, SUBSTR(raw_content, 1, 500) as raw_content, generated_title, generated_excerpt, generated_body, edited_body, edited_title, edited_excerpt, tags, media_url, media_type, media_display_width, media_alignment, noindex, source_url, published_at, seo_score, slug, published
                FROM posts
               WHERE user_id=?
-                AND seo_score >= 0
               ORDER BY published_at DESC
               LIMIT 300',
             [$userId]
@@ -1441,7 +1440,8 @@ if ($action === 'site' && $method === 'GET') {
         $channelStatRows = DB::fetchAll(
             'SELECT platform, COUNT(*) AS content_count, MAX(published_at) AS last_content_at,
                     SUM(CASE WHEN published=1 THEN 1 ELSE 0 END) AS published_count,
-                    SUM(CASE WHEN published=0 THEN 1 ELSE 0 END) AS draft_count
+                    SUM(CASE WHEN published=0 AND seo_score >= 0 THEN 1 ELSE 0 END) AS draft_count,
+                    SUM(CASE WHEN seo_score < 0 THEN 1 ELSE 0 END) AS processing_count
                FROM posts WHERE user_id=? GROUP BY platform',
             [$userId]
         );
@@ -1449,19 +1449,20 @@ if ($action === 'site' && $method === 'GET') {
         foreach ($channelStatRows as $row) {
             $key = ($row['platform'] ?? '') === 'instagram_login' ? 'instagram' : ($row['platform'] ?? '');
             if ($key === '') continue;
-            if (!isset($channelStats[$key])) $channelStats[$key] = ['content_count'=>0, 'published_count'=>0, 'draft_count'=>0, 'last_content_at'=>null];
+            if (!isset($channelStats[$key])) $channelStats[$key] = ['content_count'=>0, 'published_count'=>0, 'draft_count'=>0, 'processing_count'=>0, 'last_content_at'=>null];
             $channelStats[$key]['content_count'] += (int)($row['content_count'] ?? 0);
             $channelStats[$key]['published_count'] += (int)($row['published_count'] ?? 0);
             $channelStats[$key]['draft_count'] += (int)($row['draft_count'] ?? 0);
+            $channelStats[$key]['processing_count'] += (int)($row['processing_count'] ?? 0);
             if (($row['last_content_at'] ?? '') > ($channelStats[$key]['last_content_at'] ?? '')) $channelStats[$key]['last_content_at'] = $row['last_content_at'];
         }
         foreach ($connections as &$connection) {
             $key = ($connection['platform'] ?? '') === 'instagram_login' ? 'instagram' : ($connection['platform'] ?? '');
-            $connection = array_merge($connection, $channelStats[$key] ?? ['content_count'=>0, 'published_count'=>0, 'draft_count'=>0, 'last_content_at'=>null]);
+            $connection = array_merge($connection, $channelStats[$key] ?? ['content_count'=>0, 'published_count'=>0, 'draft_count'=>0, 'processing_count'=>0, 'last_content_at'=>null]);
         }
         unset($connection);
         foreach ($sources as &$source) {
-            $source = array_merge($source, $channelStats[$source['platform'] ?? ''] ?? ['content_count'=>0, 'published_count'=>0, 'draft_count'=>0, 'last_content_at'=>null]);
+            $source = array_merge($source, $channelStats[$source['platform'] ?? ''] ?? ['content_count'=>0, 'published_count'=>0, 'draft_count'=>0, 'processing_count'=>0, 'last_content_at'=>null]);
         }
         unset($source);
         foreach ($posts as &$p) {
