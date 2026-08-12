@@ -1777,7 +1777,7 @@ if ($single) {
             '@id' => rtrim(BASE_URL, '/') . '#organization',
             'name' => 'LinkSeoWeb',
             'url' => rtrim(BASE_URL, '/'),
-            'logo' => ['@type' => 'ImageObject', 'url' => rtrim(BASE_URL, '/') . '/logo-cropped.png'],
+            'logo' => ['@type' => 'ImageObject', 'url' => rtrim(BASE_URL, '/') . '/logo-cropped.png?v=2'],
         ],
         'isAccessibleForFree' => true,
         'inLanguage' => 'it-IT',
@@ -2619,7 +2619,7 @@ header('Link: <' . $siteUrl . '/feed.xml>; rel="alternate"; type="application/at
 <a class="skip-link" href="#main-content">Vai al contenuto principale</a>
 <div class="network-bar">
   <div class="network-signature">
-    <a class="network-signature-brand" href="<?= BASE_URL ?>/scopri"><img src="/logo-cropped.png" alt=""><strong>LinkSeoWeb</strong></a>
+    <a class="network-signature-brand" href="<?= BASE_URL ?>/scopri"><img src="/logo-cropped.png?v=2" alt=""><strong>LinkSeoWeb</strong></a>
     <span class="network-product-name">✦ Spazio Vivo</span>
     <span class="network-trust">Contenuti collegati alle fonti ufficiali</span>
   </div>

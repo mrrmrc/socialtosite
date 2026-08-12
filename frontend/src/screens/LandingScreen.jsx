@@ -17,7 +17,7 @@ export function LandingScreen({ onGetStarted }) {
       {/* Navbar */}
       <header style={{ padding: '16px 40px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(11, 15, 25, 0.8)', backdropFilter: 'blur(24px)', WebkitBackdropFilter: 'blur(24px)', position: 'sticky', top: 0, zIndex: 100, borderBottom: '1px solid rgba(255,255,255,0.05)', boxShadow: '0 2px 20px rgba(0,0,0,0.2)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <div style={{ width: 36, height: 36, borderRadius: '10px', background: 'var(--gradient)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px', boxShadow: '0 4px 12px rgba(99,102,241,0.35)' }}>✦</div>
+          <img src="/logo.png?v=2" alt="" style={{ width: 42, height: 42, objectFit: 'contain', filter: 'drop-shadow(0 6px 12px rgba(99,102,241,.25))' }} />
           <span style={{ fontWeight: 800, fontSize: '18px', letterSpacing: '-0.5px' }}>LinkSeo<span className="gradient-text">Web</span></span>
         </div>
         <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
@@ -131,7 +131,7 @@ export function LandingScreen({ onGetStarted }) {
 
       {/* Footer */}
       <footer style={{ position: 'relative', zIndex: 1, padding: '32px 24px', textAlign: 'center', color: 'var(--text-faint)', fontSize: '13px', borderTop: '1px solid var(--border)' }}>
-        <div style={{ marginBottom: '8px', fontWeight: 700, color: 'var(--text-muted)', fontSize: '14px' }}><img src="/logo.png" alt="LinkSeoWeb" style={{ height: '24px' }} /></div>
+        <div style={{ marginBottom: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontWeight: 800, color: 'var(--text-muted)', fontSize: '14px' }}><img src="/logo.png?v=2" alt="" style={{ width: 30, height: 30, objectFit: 'contain' }} /><span>LinkSeoWeb</span></div>
         <p><a href="/scopri" style={{ color: 'inherit' }}>Esplora attività e contenuti</a> · © 2026 LinkSeoWeb. Tutti i diritti riservati. · Piano gratuito · Fino a 3 social</p>
       </footer>
     </div>

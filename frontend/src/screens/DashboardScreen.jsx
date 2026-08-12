@@ -2063,8 +2063,8 @@ const [importMsg, setImportMsg] = useState(null);
       )}
       <aside className="desktop-sidebar" style={{ visibility: studioWorkspaceOpen ? 'hidden' : 'visible', pointerEvents: studioWorkspaceOpen ? 'none' : 'auto' }}>
         <div className="sidebar-brand">
-          <img src="/logo-cropped.png" alt="LinkSeoWeb" />
-          <span>Area di lavoro</span>
+          <img src="/logo-cropped.png?v=2" alt="LinkSeoWeb" />
+          <div><strong>LinkSeoWeb</strong><span>Area di lavoro</span></div>
         </div>
         <button className="sidebar-create" onClick={() => selectNavigation({ id: 'seo', section: 'ideas' })}>
           <span>＋</span><div><strong>Nuovo contenuto</strong><small>Parti da un’idea</small></div>
@@ -2095,7 +2095,7 @@ const [importMsg, setImportMsg] = useState(null);
 
       <div className="dashboard-main" style={studioWorkspaceOpen ? { marginLeft: 0 } : undefined}>
         <div className="mobile-top-header">
-          <img src="/logo-cropped.png" alt="LinkSeoWeb" />
+          <div className="mobile-brand"><img src="/logo-cropped.png?v=2" alt="" /><strong>LinkSeoWeb</strong></div>
           <button className="mobile-menu-trigger" onClick={() => setMobileMenuOpen(true)} aria-label="Apri menu">☰</button>
         </div>
 
