@@ -39,7 +39,7 @@ services:
     restart: unless-stopped
     environment: *app-environment
     ports:
-      - "${APP_BIND_ADDRESS:-0.0.0}:${APP_PORT:-8081}:80"
+      - "${APP_BIND_ADDRESS:-0.0.0.0}:${APP_PORT:-8081}:80"
     volumes:
       - media_data:/var/www/html/public/media
       - ./secrets:/var/www/html/secrets:ro
