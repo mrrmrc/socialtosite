@@ -8,8 +8,8 @@ function envValue(string $name, string $default = ''): string {
 }
 
 define('DB_HOST', envValue('DB_HOST', 'db'));
-define('DB_NAME', envValue('DB_NAME', 'socialtosite'));
-define('DB_USER', envValue('DB_USER', 'socialtosite'));
+define('DB_NAME', envValue('DB_NAME', 'linkseoweb'));
+define('DB_USER', envValue('DB_USER', 'linkseoweb'));
 define('DB_PASS', envValue('DB_PASS'));
 define('DB_CHARSET', envValue('DB_CHARSET', 'utf8mb4'));
 

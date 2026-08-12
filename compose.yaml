@@ -1,11 +1,11 @@
-name: socialtosite
+name: linkseoweb
 
 x-app-environment: &app-environment
   TZ: Europe/Rome
   DB_HOST: db
-  DB_NAME: ${SOCIALTOSITE_DB_NAME:-socialtosite}
-  DB_USER: ${SOCIALTOSITE_DB_USER:-socialtosite}
-  DB_PASS: ${SOCIALTOSITE_DB_PASSWORD:?Imposta SOCIALTOSITE_DB_PASSWORD nel file .env}
+  DB_NAME: ${LINKSEOWEB_DB_NAME:-linkseoweb}
+  DB_USER: ${LINKSEOWEB_DB_USER:-linkseoweb}
+  DB_PASS: ${LINKSEOWEB_DB_PASSWORD:?Imposta LINKSEOWEB_DB_PASSWORD nel file .env}
   DB_CHARSET: utf8mb4
   BASE_URL: ${BASE_URL:-http://localhost:8081}
   ALLOWED_ORIGIN: ${ALLOWED_ORIGIN:-http://localhost:8081}
@@ -33,7 +33,7 @@ x-app-environment: &app-environment
 
 services:
   app:
-    image: socialtosite-app:latest
+    image: linkseoweb-app:latest
     build:
       context: .
     restart: unless-stopped
@@ -54,9 +54,9 @@ services:
       start_period: 20s
 
   cron:
-    image: socialtosite-app:latest
+    image: linkseoweb-app:latest
     restart: unless-stopped
-    command: ["socialtosite-cron"]
+    command: ["linkseoweb-cron"]
     environment: *app-environment
     volumes:
       - media_data:/var/www/html/public/media
@@ -70,10 +70,10 @@ services:
     restart: unless-stopped
     environment:
       TZ: Europe/Rome
-      MARIADB_DATABASE: ${SOCIALTOSITE_DB_NAME:-socialtosite}
-      MARIADB_USER: ${SOCIALTOSITE_DB_USER:-socialtosite}
-      MARIADB_PASSWORD: ${SOCIALTOSITE_DB_PASSWORD:?Imposta SOCIALTOSITE_DB_PASSWORD nel file .env}
-      MARIADB_ROOT_PASSWORD: ${SOCIALTOSITE_DB_ROOT_PASSWORD:?Imposta SOCIALTOSITE_DB_ROOT_PASSWORD nel file .env}
+      MARIADB_DATABASE: ${LINKSEOWEB_DB_NAME:-linkseoweb}
+      MARIADB_USER: ${LINKSEOWEB_DB_USER:-linkseoweb}
+      MARIADB_PASSWORD: ${LINKSEOWEB_DB_PASSWORD:?Imposta LINKSEOWEB_DB_PASSWORD nel file .env}
+      MARIADB_ROOT_PASSWORD: ${LINKSEOWEB_DB_ROOT_PASSWORD:?Imposta LINKSEOWEB_DB_ROOT_PASSWORD nel file .env}
     volumes:
       - db_data:/var/lib/mysql
       - ./db/schema.sql:/docker-entrypoint-initdb.d/001-schema.sql:ro
@@ -86,4 +86,7 @@ services:
 
 volumes:
   db_data:
+    # Mantiene i dati creati dal primo deploy, prima del rebranding.
+    name: socialtosite_db_data
   media_data:
+    name: socialtosite_media_data

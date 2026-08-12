@@ -142,7 +142,7 @@ $activeTopicData = $activeTopic !== '' ? ($topics[$activeTopic] ?? null) : null;
 if ($activeTopic !== '' && !$activeTopicData) {
     http_response_code(404);
     header('Content-Type: text/html; charset=utf-8');
-    echo '<!doctype html><html lang="it"><meta charset="utf-8"><title>Argomento non trovato</title><body><main><h1>Argomento non trovato</h1><p><a href="/scopri">Torna alla rete AllSocialToWeb</a></p></main></body></html>';
+    echo '<!doctype html><html lang="it"><meta charset="utf-8"><title>Argomento non trovato</title><body><main><h1>Argomento non trovato</h1><p><a href="/scopri">Torna alla rete LinkSeoWeb</a></p></main></body></html>';
     exit;
 }
 
@@ -190,11 +190,11 @@ foreach (array_slice($focusedArticles, 0, 18) as $index => $article) {
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title><?= $activeTopicData ? htmlspecialchars($activeTopicData['label'], ENT_QUOTES, 'UTF-8') . ' | ' : '' ?>Scopri attività e storie | AllSocialToWeb</title>
-  <meta name="description" content="<?= $activeTopicData ? 'Contenuti e attività su ' . htmlspecialchars($activeTopicData['label'], ENT_QUOTES, 'UTF-8') . ' nella rete AllSocialToWeb.' : 'Esplora contenuti, attività e professionisti della rete AllSocialToWeb per argomento o per nome.' ?>">
+  <title><?= $activeTopicData ? htmlspecialchars($activeTopicData['label'], ENT_QUOTES, 'UTF-8') . ' | ' : '' ?>Scopri attività e storie | LinkSeoWeb</title>
+  <meta name="description" content="<?= $activeTopicData ? 'Contenuti e attività su ' . htmlspecialchars($activeTopicData['label'], ENT_QUOTES, 'UTF-8') . ' nella rete LinkSeoWeb.' : 'Esplora contenuti, attività e professionisti della rete LinkSeoWeb per argomento o per nome.' ?>">
   <link rel="canonical" href="<?= htmlspecialchars($base . ($activeTopicData ? '/scopri/tema/' . $activeTopicData['slug'] : '/scopri'), ENT_QUOTES, 'UTF-8') ?>">
   <link rel="sitemap" type="application/xml" href="<?= htmlspecialchars($base . '/scopri/sitemap.xml', ENT_QUOTES, 'UTF-8') ?>">
-  <script type="application/ld+json"><?= json_encode(['@context'=>'https://schema.org','@type'=>'ItemList','name'=>'Contenuti dalla rete AllSocialToWeb','itemListElement'=>$schemaItems], JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES|JSON_HEX_TAG|JSON_HEX_AMP|JSON_HEX_APOS|JSON_HEX_QUOT) ?></script>
+  <script type="application/ld+json"><?= json_encode(['@context'=>'https://schema.org','@type'=>'ItemList','name'=>'Contenuti dalla rete LinkSeoWeb','itemListElement'=>$schemaItems], JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES|JSON_HEX_TAG|JSON_HEX_AMP|JSON_HEX_APOS|JSON_HEX_QUOT) ?></script>
   <style>
     :root{color-scheme:light;--ink:#17132f;--muted:#69657c;--line:#e8e5f0;--brand:#6947ed;--brand2:#ee4f86;--paper:#f5f3fa;--card:#fff;--night:#211942}*{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;font-family:Inter,ui-sans-serif,system-ui,-apple-system,sans-serif;color:var(--ink);background:var(--paper)}a{color:inherit}.wrap{width:min(1220px,calc(100% - 40px));margin:auto}.topbar{height:70px;background:rgba(255,255,255,.94);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:20;backdrop-filter:blur(14px)}.topbar .wrap{height:100%;display:flex;align-items:center;justify-content:space-between;gap:20px}.brand{text-decoration:none;font-weight:900;letter-spacing:-.04em;font-size:20px}.brand i{font-style:normal;color:var(--brand)}.toplinks{display:flex;align-items:center;gap:8px}.toplinks a{text-decoration:none;font-size:13px;font-weight:750;padding:9px 13px;border-radius:999px}.toplinks .cta{color:#fff;background:var(--ink)}
     .hero{background:var(--night);color:#fff;padding:54px 0 42px;overflow:hidden;position:relative}.hero:after{content:"";position:absolute;width:430px;height:430px;border-radius:50%;right:-120px;top:-260px;background:radial-gradient(circle,#744af7,transparent 68%);opacity:.75}.eyebrow{text-transform:uppercase;letter-spacing:.14em;font-size:11px;font-weight:850;color:#bdb0fa}.hero h1{font-size:clamp(38px,5.5vw,70px);line-height:.98;letter-spacing:-.055em;max-width:920px;margin:13px 0 18px}.hero p{font-size:17px;line-height:1.6;color:#d4cee8;max-width:720px;margin:0}.switcher{display:flex;gap:8px;margin-top:28px;position:relative;z-index:2}.switcher button,.switcher a{appearance:none;border:1px solid rgba(255,255,255,.22);background:rgba(255,255,255,.08);color:#fff;text-decoration:none;padding:11px 16px;border-radius:12px;font:inherit;font-size:13px;font-weight:800;cursor:pointer}.switcher .active{background:#fff;color:var(--night)}
@@ -249,7 +249,7 @@ foreach (array_slice($focusedArticles, 0, 18) as $index => $article) {
     <section class="section panel" id="nomi" data-panel-content="names" hidden><div class="wrap"><div class="section-head"><div><h2>Wall per nome</h2><p>Scegli un’attività e guarda subito i suoi tre contenuti più recenti.</p></div><span class="count"><?= count($wallProfiles) ?> attività aggiornate</span></div><?php include __FILE__ . '.profiles.inc'; ?></div></section>
   <?php endif; ?>
 </main>
-<footer><div class="wrap"><span>AllSocialToWeb · Contenuti organizzati, non sommati.</span><span><a href="/">Crea il tuo spazio</a> · <a href="/scopri/sitemap.xml">Mappa XML</a></span></div></footer>
+<footer><div class="wrap"><span>LinkSeoWeb · Contenuti organizzati, non sommati.</span><span><a href="/">Crea il tuo spazio</a> · <a href="/scopri/sitemap.xml">Mappa XML</a></span></div></footer>
 <script>
 (() => {
   const tabs = [...document.querySelectorAll('[data-panel]')];

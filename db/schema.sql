@@ -1,4 +1,4 @@
--- SocialToSite — Schema MySQL
+-- LinkSeoWeb — Schema MySQL
 -- Esegui questo file una volta sul tuo hosting via phpMyAdmin
 
 CREATE TABLE IF NOT EXISTS users (

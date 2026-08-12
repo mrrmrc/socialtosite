@@ -1,7 +1,7 @@
 <?php
 // cron/sync.php — Esegui via cron job del tuo hosting ogni 6 ore
 // Configura nel pannello hosting:
-// 0 */6 * * * php /path/to/socialtosite/cron/sync.php
+// 0 */6 * * * php /path/to/linkseoweb/cron/sync.php
 
 require_once __DIR__ . '/../config/db.php';
 require_once __DIR__ . '/../config/config.php';

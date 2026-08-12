@@ -60,7 +60,7 @@ export function LandingScreen({ onGetStarted }) {
               <div style={{ width: 12, height: 12, borderRadius: '50%', background: '#FDA4AF' }} />
               <div style={{ width: 12, height: 12, borderRadius: '50%', background: '#FDE68A' }} />
               <div style={{ width: 12, height: 12, borderRadius: '50%', background: '#6EE7B7' }} />
-              <div style={{ flex: 1, background: 'var(--bg)', borderRadius: '8px', padding: '6px 14px', fontSize: '12px', color: 'var(--text-muted)', marginLeft: '8px', border: '1px solid var(--border)' }}>🔒 tuonome.socialtosite.com</div>
+              <div style={{ flex: 1, background: 'var(--bg)', borderRadius: '8px', padding: '6px 14px', fontSize: '12px', color: 'var(--text-muted)', marginLeft: '8px', border: '1px solid var(--border)' }}>🔒 LinkSeoWeb / il tuo spazio</div>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px' }}>
               {[
@@ -131,8 +131,8 @@ export function LandingScreen({ onGetStarted }) {
 
       {/* Footer */}
       <footer style={{ position: 'relative', zIndex: 1, padding: '32px 24px', textAlign: 'center', color: 'var(--text-faint)', fontSize: '13px', borderTop: '1px solid var(--border)' }}>
-        <div style={{ marginBottom: '8px', fontWeight: 700, color: 'var(--text-muted)', fontSize: '14px' }}><img src="/logo.png" alt="AllSocialToWeb" style={{ height: '24px' }} /></div>
-        <p><a href="/scopri" style={{ color: 'inherit' }}>Esplora attività e contenuti</a> · © 2026 AllSocialToWeb. Tutti i diritti riservati. · Piano gratuito · Fino a 3 social</p>
+        <div style={{ marginBottom: '8px', fontWeight: 700, color: 'var(--text-muted)', fontSize: '14px' }}><img src="/logo.png" alt="LinkSeoWeb" style={{ height: '24px' }} /></div>
+        <p><a href="/scopri" style={{ color: 'inherit' }}>Esplora attività e contenuti</a> · © 2026 LinkSeoWeb. Tutti i diritti riservati. · Piano gratuito · Fino a 3 social</p>
       </footer>
     </div>
   );

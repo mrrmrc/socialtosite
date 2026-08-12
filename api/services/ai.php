@@ -1671,7 +1671,7 @@ Restituisci SOLO la nuova memoria aggiornata (testo semplice), nient'altro.";
             CURLOPT_FILE           => $fp,
             CURLOPT_FOLLOWLOCATION => true,
             CURLOPT_TIMEOUT        => 120,
-            CURLOPT_USERAGENT      => 'Mozilla/5.0 (compatible; SocialToSite/1.0)',
+            CURLOPT_USERAGENT      => 'Mozilla/5.0 (compatible; LinkSeoWeb/1.0)',
         ]);
         curl_exec($ch);
         curl_close($ch);
@@ -1728,7 +1728,7 @@ Testi da analizzare:
             CURLOPT_FILE           => $fp,
             CURLOPT_FOLLOWLOCATION => true,
             CURLOPT_TIMEOUT        => 60,
-            CURLOPT_USERAGENT      => 'SocialToSite/1.0',
+            CURLOPT_USERAGENT      => 'LinkSeoWeb/1.0',
         ]);
         curl_exec($ch);
         curl_close($ch);
@@ -2181,7 +2181,7 @@ Testi da analizzare:
             CURLOPT_FOLLOWLOCATION => true,
             CURLOPT_CONNECTTIMEOUT => 3,
             CURLOPT_TIMEOUT => 6,
-            CURLOPT_USERAGENT => 'AllSocialToWeb/1.0 content-research',
+            CURLOPT_USERAGENT => 'LinkSeoWeb/1.0 content-research',
         ]);
         $xml = curl_exec($ch);
         $status = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);

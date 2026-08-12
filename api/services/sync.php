@@ -142,7 +142,7 @@ class Sync {
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_HTTPHEADER     => $headers,
             CURLOPT_TIMEOUT        => 30,
-            CURLOPT_USERAGENT      => 'SocialToSite/1.0',
+            CURLOPT_USERAGENT      => 'LinkSeoWeb/1.0',
         ]);
         $res = curl_exec($ch);
         curl_close($ch);

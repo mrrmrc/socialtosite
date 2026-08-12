@@ -1,4 +1,4 @@
-# SocialToSite — Note per Claude
+# LinkSeoWeb — Note per Claude
 
 App **PHP + MySQL** che importa i contenuti dai social (Instagram, Facebook,
 TikTok, YouTube), li trascrive/riscrive in chiave SEO con AI (Whisper + Claude)

@@ -2,7 +2,7 @@
 
 Il pannello `https://213.32.22.252:10000` è verosimilmente Webmin. La porta
 `10000` va lasciata al pannello. Anche `8080` è già usata da Adminer sul VPS:
-SocialToSite viene quindi esposto inizialmente sulla porta `8081`, oppure dietro
+LinkSeoWeb viene quindi esposto inizialmente sulla porta `8081`, oppure dietro
 un reverse proxy HTTPS quando sarà disponibile un dominio.
 
 ## Prima installazione
@@ -11,8 +11,8 @@ Sul server installa Docker Engine con il plugin Compose, quindi clona il
 repository e prepara l'ambiente:
 
 ```bash
-git clone https://github.com/mrrmrc/socialtosite.git
-cd socialtosite
+git clone https://github.com/mrrmrc/socialtosite.git linkseoweb
+cd linkseoweb
 cp .env.docker.example .env
 nano .env
 mkdir -p secrets

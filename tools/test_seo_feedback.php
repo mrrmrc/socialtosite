@@ -69,7 +69,7 @@ check('il briefing avvisa di non forzare le parole chiave', str_contains($b, 'NO
 // ── 4. Estrazione slug dagli URL di Search Console ───────────────────────
 echo "\n4. Associazione URL Google → articolo\n";
 $GLOBALS['__rows']['pages'] = [
-    ['page_url' => 'https://allsocialtoweb.com/mario/esercizi-per-la-cervicale', 'impressions' => 120, 'clicks' => 2, 'position' => 9.3],
+    ['page_url' => 'https://linkseoweb.example/mario/esercizi-per-la-cervicale', 'impressions' => 120, 'clicks' => 2, 'position' => 9.3],
 ];
 $GLOBALS['__rows']['fetch'] = ['id' => 42, 'slug' => 'esercizi-per-la-cervicale', 'generated_title' => 'Esercizi', 'edited_title' => null, 'meta_description' => ''];
 $GLOBALS['__rows']['page'] = [['query_text' => 'esercizi cervicale', 'impressions' => 90, 'clicks' => 1, 'position' => 9.1]];

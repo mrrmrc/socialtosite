@@ -289,7 +289,7 @@ class Ingest {
             CURLOPT_FILE           => $fp,
             CURLOPT_FOLLOWLOCATION => true,
             CURLOPT_TIMEOUT        => 120,
-            CURLOPT_USERAGENT      => 'Mozilla/5.0 (compatible; SocialToSite/1.0)',
+            CURLOPT_USERAGENT      => 'Mozilla/5.0 (compatible; LinkSeoWeb/1.0)',
         ]);
         curl_exec($ch);
         curl_close($ch);

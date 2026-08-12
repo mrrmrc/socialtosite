@@ -99,7 +99,7 @@ class VisibilityAnalytics {
         // autenticazione spezzerebbe la continuità storica delle statistiche.
         $secret = defined('ANALYTICS_SALT') && ANALYTICS_SALT !== ''
             ? ANALYTICS_SALT
-            : (defined('JWT_SECRET') ? JWT_SECRET : (defined('DB_NAME') ? DB_NAME : 'socialtosite'));
+            : (defined('JWT_SECRET') ? JWT_SECRET : (defined('DB_NAME') ? DB_NAME : 'linkseoweb'));
         $visitorHash = hash('sha256',
             (string)($_SERVER['REMOTE_ADDR'] ?? '') . '|' .
             $userAgent . '|' .

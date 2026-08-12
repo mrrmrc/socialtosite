@@ -390,7 +390,7 @@ function SiteMapGraph({ posts, siteUrl, siteTitle, foundationPages = [] }) {
   const short = value => String(value || 'Articolo').replace(/\s+/g, ' ').slice(0, 24);
   return (
     <div style={{ overflowX: 'auto', paddingBottom: '0.5rem' }}>
-      <svg viewBox="0 0 860 445" role="img" aria-label="Grafo dei collegamenti dal dominio AllSocialToWeb allo Spazio Vivo, ai temi e ai suoi contenuti" style={{ width: '100%', minWidth: '690px', height: 'auto', display: 'block' }}>
+      <svg viewBox="0 0 860 445" role="img" aria-label="Grafo dei collegamenti dal dominio LinkSeoWeb allo Spazio Vivo, ai temi e ai suoi contenuti" style={{ width: '100%', minWidth: '690px', height: 'auto', display: 'block' }}>
         <defs>
           <linearGradient id="graphRoot" x1="0" x2="1"><stop stopColor="#6366f1"/><stop offset="1" stopColor="#06b6d4"/></linearGradient>
           <filter id="graphShadow"><feDropShadow dx="0" dy="5" stdDeviation="7" floodOpacity="0.13"/></filter>
@@ -399,7 +399,7 @@ function SiteMapGraph({ posts, siteUrl, siteTitle, foundationPages = [] }) {
         {graphLabels.length === 0 && visiblePosts.length > 0 && <path d="M430 224 L430 312" stroke="var(--border-strong)" strokeWidth="2" />}
         {topicPositions.map(topic => <path key={topic.label} d={`M430 224 C430 250 ${topic.x} 242 ${topic.x} 276`} fill="none" stroke="var(--primary)" strokeOpacity=".55" strokeWidth="2" />)}
         {positions.slice(0, visiblePosts.length).map(([x], index) => { const postTags=visiblePosts[index]?.tags || []; const parent=foundationPages.length ? topicPositions[index % Math.max(topicPositions.length, 1)] : topicPositions.find(topic => postTags.includes(topic.label)); const fromX=parent?.x || 430; return <path key={index} d={`M${fromX} 312 C${fromX} 334 ${x} 326 ${x} 350`} fill="none" stroke="var(--border-strong)" strokeWidth="2" />; })}
-        <g filter="url(#graphShadow)"><rect x="310" y="22" width="240" height="60" rx="18" fill="url(#graphRoot)"/><text x="430" y="48" textAnchor="middle" fill="#fff" fontSize="15" fontWeight="800">ALLSOCIALTOWEB.COM</text><text x="430" y="67" textAnchor="middle" fill="rgba(255,255,255,.82)" fontSize="11">Hub pubblico /scopri</text></g>
+        <g filter="url(#graphShadow)"><rect x="310" y="22" width="240" height="60" rx="18" fill="url(#graphRoot)"/><text x="430" y="48" textAnchor="middle" fill="#fff" fontSize="15" fontWeight="800">LINKSEOWEB</text><text x="430" y="67" textAnchor="middle" fill="rgba(255,255,255,.82)" fontSize="11">Hub pubblico /scopri</text></g>
         <g filter="url(#graphShadow)"><rect x="285" y="142" width="290" height="82" rx="20" fill="var(--surface)" stroke="var(--primary)" strokeWidth="2"/><text x="430" y="174" textAnchor="middle" fill="var(--text)" fontSize="17" fontWeight="800">{short(siteTitle || 'Spazio Vivo')}</text><text x="430" y="198" textAnchor="middle" fill="var(--text-muted)" fontSize="12">{siteUrl.replace(window.location.origin, '')}</text></g>
         {topicPositions.map(topic => <g key={topic.label}><rect x={topic.x-58} y="276" width="116" height="36" rx="18" fill="var(--primary-light)" stroke="var(--primary)"/><text x={topic.x} y="299" textAnchor="middle" fill="var(--primary)" fontSize="10" fontWeight="800">{short(topic.label).slice(0,19)}</text></g>)}
         {visiblePosts.map((post, index) => { const [x,y]=positions[index]; return <g key={post.id}><rect x={x-56} y={y-15} width="112" height="58" rx="14" fill="var(--bg)" stroke="var(--border-strong)"/><text x={x} y={y+7} textAnchor="middle" fill="var(--text)" fontSize="10" fontWeight="700"><tspan x={x}>{short(post.generated_title).slice(0,16)}</tspan><tspan x={x} dy="14">{short(post.generated_title).slice(16,32)}</tspan></text></g> })}
@@ -2063,7 +2063,7 @@ const [importMsg, setImportMsg] = useState(null);
       )}
       <aside className="desktop-sidebar" style={{ visibility: studioWorkspaceOpen ? 'hidden' : 'visible', pointerEvents: studioWorkspaceOpen ? 'none' : 'auto' }}>
         <div className="sidebar-brand">
-          <img src="/logo-cropped.png" alt="allsocialtoweb.com" />
+          <img src="/logo-cropped.png" alt="LinkSeoWeb" />
           <span>Area di lavoro</span>
         </div>
         <button className="sidebar-create" onClick={() => selectNavigation({ id: 'seo', section: 'ideas' })}>
@@ -2095,7 +2095,7 @@ const [importMsg, setImportMsg] = useState(null);
 
       <div className="dashboard-main" style={studioWorkspaceOpen ? { marginLeft: 0 } : undefined}>
         <div className="mobile-top-header">
-          <img src="/logo-cropped.png" alt="allsocialtoweb.com" />
+          <img src="/logo-cropped.png" alt="LinkSeoWeb" />
           <button className="mobile-menu-trigger" onClick={() => setMobileMenuOpen(true)} aria-label="Apri menu">☰</button>
         </div>
 
@@ -2920,7 +2920,7 @@ const [importMsg, setImportMsg] = useState(null);
                 <div className="google-progress-heading"><div><span>Monitoraggio automatico incluso</span><h3>Google: copertura delle pagine</h3></div><small>{reachability.google?.has_evidence ? 'Dati Google aggiornati automaticamente' : 'Raccolta dati in corso'}</small></div>
                 <div className="google-progress-grid">
                   {[
-                    ['Monitoraggio', 100, 'Gestito centralmente da AllSocialToWeb: non devi configurare nulla'],
+                    ['Monitoraggio', 100, 'Gestito centralmente da LinkSeoWeb: non devi configurare nulla'],
                     ['Pagine rilevate', reachability.google?.presence_percent || 0, `${reachability.google?.visible_pages || 0} su ${reachability.google?.published_pages || 0} pagine con segnali Google`],
                   ].map(([label, value, detail]) => <div className="google-progress-card" key={label}><div><strong>{value}%</strong><span>{label}</span></div><div className="progress-track"><span style={{ width: `${value}%` }} /></div><p>{detail}</p></div>)}
                 </div>
@@ -2958,7 +2958,7 @@ const [importMsg, setImportMsg] = useState(null);
               <section className="glass-modal" style={{ marginBottom: '1.25rem', padding: 'clamp(1.25rem, 3vw, 2rem)', color: '#fff', background: 'radial-gradient(circle at 88% 8%, rgba(243,92,118,.34), transparent 27%), linear-gradient(135deg,#151A2D,#292359 68%,#48257A)', border: 'none', overflow: 'hidden' }}>
                 <div className="reachability-hero-grid" style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) auto', alignItems: 'center', gap: '1.5rem' }}>
                   <div>
-                    <div style={{ color: '#D9CEFF', fontSize: '12px', fontWeight: 850, letterSpacing: '.1em', textTransform: 'uppercase' }}>AllSocialToWeb · controllo continuo</div>
+                    <div style={{ color: '#D9CEFF', fontSize: '12px', fontWeight: 850, letterSpacing: '.1em', textTransform: 'uppercase' }}>LinkSeoWeb · controllo continuo</div>
                     <h2 style={{ margin: '.45rem 0 .65rem', color: '#fff', fontSize: 'clamp(25px,4vw,40px)', letterSpacing: '-.04em' }}>Network della Reperibilità</h2>
                     <p style={{ maxWidth: '720px', margin: 0, color: 'rgba(255,255,255,.76)', lineHeight: 1.65 }}>Unisce Spazio Vivo, sito ufficiale, social e motori di ricerca. Verifica ciò che è pubblicato, collegato, rilevato e capace di generare un’azione.</p>
                     <span style={{ display: 'inline-flex', marginTop: '.85rem', padding: '.4rem .7rem', borderRadius: '999px', background: 'rgba(255,255,255,.11)', border: '1px solid rgba(255,255,255,.2)', color: '#fff', fontSize: '11px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.06em' }}>Fase attuale · {reachability.stage || 'configurazione'}</span>
@@ -3012,7 +3012,7 @@ const [importMsg, setImportMsg] = useState(null);
                   <button className="btn btn-primary" onClick={saveReachabilityNetwork} disabled={savingReachability} style={{ width: '100%', justifyContent: 'center' }}>{savingReachability ? 'Aggiornamento…' : 'Aggiorna il Network'}</button>
                 </section>
               </div>
-              <div style={{ marginTop: '1rem', padding: '1rem 1.15rem', borderRadius: '14px', background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text-muted)', fontSize: '12px', lineHeight: 1.55 }}><strong style={{ color: 'var(--text)' }}>Garanzia operativa:</strong> AllSocialToWeb può garantire pubblicazione, accessibilità, collegamenti, segnali tecnici e monitoraggio. L’indicizzazione e la posizione finale restano decisioni dei motori di ricerca.</div>
+              <div style={{ marginTop: '1rem', padding: '1rem 1.15rem', borderRadius: '14px', background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text-muted)', fontSize: '12px', lineHeight: 1.55 }}><strong style={{ color: 'var(--text)' }}>Garanzia operativa:</strong> LinkSeoWeb può garantire pubblicazione, accessibilità, collegamenti, segnali tecnici e monitoraggio. L’indicizzazione e la posizione finale restano decisioni dei motori di ricerca.</div>
             </>}
 
             {visibilitySection === 'overview' && <div className="data-workspace">
@@ -3030,7 +3030,7 @@ const [importMsg, setImportMsg] = useState(null);
 
               <section className="metric-grid">
                 {[
-                  { value: networkPublishedPages, label: 'Pagine pubbliche nella rete', source: 'Database AllSocialToWeb', tone: 'violet' },
+                  { value: networkPublishedPages, label: 'Pagine pubbliche nella rete', source: 'Database LinkSeoWeb', tone: 'violet' },
                   { value: reachability.google?.has_evidence ? (reachability.google?.visible_pages || visibility.visible_pages || 0) : '—', label: 'Pagine rilevate da Google', source: reachability.google?.has_evidence ? 'Monitoraggio automatico' : 'Raccolta dati in corso', tone: 'blue' },
                   { value: reachability.google?.has_evidence ? Number(visibility.impressions || 0).toLocaleString('it-IT') : '—', label: 'Visualizzazioni su Google · 30 gg', source: reachability.google?.has_evidence ? 'Monitoraggio automatico' : 'Dato non ancora disponibile', tone: 'amber' },
                   { value: Number(visibility.unique_visitors || 0).toLocaleString('it-IT'), label: 'Visitatori dello Spazio · 30 gg', source: 'Analytics interno', tone: 'teal' },
@@ -3084,7 +3084,7 @@ const [importMsg, setImportMsg] = useState(null);
               <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap', alignItems: 'flex-start' }}>
                 <div>
                   <h3 style={{ margin: '0 0 0.45rem', color: 'var(--primary)' }}>🌐 La rete sta distribuendo i tuoi contenuti</h3>
-                  <p style={{ margin: 0, fontSize: '14px', color: 'var(--text-muted)', lineHeight: 1.65, maxWidth: '700px' }}>Il tuo Spazio Vivo e i suoi contenuti sono collegati dall’hub pubblico di AllSocialToWeb. Ogni nuovo contenuto entra automaticamente nella rete, senza configurazioni da parte tua.</p>
+                  <p style={{ margin: 0, fontSize: '14px', color: 'var(--text-muted)', lineHeight: 1.65, maxWidth: '700px' }}>Il tuo Spazio Vivo e i suoi contenuti sono collegati dall’hub pubblico di LinkSeoWeb. Ogni nuovo contenuto entra automaticamente nella rete, senza configurazioni da parte tua.</p>
                 </div>
                 <span style={{ padding: '9px 13px', borderRadius: '999px', background: 'var(--teal-light)', color: 'var(--teal)', fontSize: '12px', fontWeight: 800 }}>Attivo</span>
               </div>

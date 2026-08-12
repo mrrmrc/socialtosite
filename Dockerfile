@@ -32,13 +32,13 @@ COPY --from=frontend-build /build/frontend/dist/ ./
 COPY --from=frontend-build /usr/local/bin/node /usr/local/bin/node
 COPY --from=scraper-build /build/scraper/node_modules/ ./scraper/node_modules/
 COPY docker/apache-vhost.conf /etc/apache2/sites-available/000-default.conf
-COPY docker/entrypoint.sh /usr/local/bin/socialtosite-entrypoint
-COPY docker/run-cron.sh /usr/local/bin/socialtosite-cron
+COPY docker/entrypoint.sh /usr/local/bin/linkseoweb-entrypoint
+COPY docker/run-cron.sh /usr/local/bin/linkseoweb-cron
 RUN cp config/config.docker.php config/config.php \
-    && chmod +x /usr/local/bin/socialtosite-entrypoint /usr/local/bin/socialtosite-cron \
+    && chmod +x /usr/local/bin/linkseoweb-entrypoint /usr/local/bin/linkseoweb-cron \
     && mkdir -p public/media \
     && chown -R www-data:www-data public/media
 
 EXPOSE 80
-ENTRYPOINT ["socialtosite-entrypoint"]
+ENTRYPOINT ["linkseoweb-entrypoint"]
 CMD ["apache2-foreground"]

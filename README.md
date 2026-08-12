@@ -1,8 +1,8 @@
-# SocialToSite — PHP + MySQL
+# LinkSeoWeb — PHP + MySQL
 
 ## Modello pubblico e SEO
 
-Ogni profilo pubblico fa parte della rete editoriale AllSocialToWeb e usa lo stesso tema accessibile e riconoscibile. Le personalizzazioni grafiche legacy restano disponibili agli amministratori, ma non modificano più il rendering pubblico.
+Ogni profilo pubblico fa parte della rete editoriale LinkSeoWeb e usa lo stesso tema accessibile e riconoscibile. Le personalizzazioni grafiche legacy restano disponibili agli amministratori, ma non modificano più il rendering pubblico.
 
 La pipeline SEO crea automaticamente, quando esistono prove sufficienti nei contenuti importati, pagine fondamentali come `chi-siamo`, `cosa-offriamo`, `per-chi` e FAQ. Ogni sezione generata dall'AI deve citare ID di post pubblicati realmente; affermazioni non verificabili vengono escluse e trasformate in domande da confermare. Le pagine `contenuti` e `contatti` sono deterministiche e collegano rispettivamente gli articoli e i canali ufficiali.
 
@@ -11,7 +11,7 @@ La sitemap principale è un indice che include la sitemap dell'hub `/scopri` e u
 ## Struttura del progetto
 
 ```
-socialtosite-php/
+linkseoweb-php/
 ├── .htaccess              ← Routing Apache (carica nella root)
 ├── config/
 │   ├── config.example.php ← RINOMINA in config.php e compila
@@ -42,7 +42,7 @@ socialtosite-php/
 
 ## Setup su GitHub
 
-1. Crea un repo su GitHub (es. `socialtosite`)
+1. Crea un repo su GitHub (es. `linkseoweb`)
 2. Carica tutti i file del progetto
 3. **Non caricare** `config/config.php` — aggiungilo a `.gitignore`
 
@@ -75,7 +75,7 @@ cp config/config.example.php config/config.php
 # - JWT_SECRET (genera: php -r "echo bin2hex(random_bytes(32));")
 # - OPENAI_API_KEY
 # - ANTHROPIC_API_KEY
-# - BASE_URL (es: https://socialtosite.it)
+# - BASE_URL (es: https://linkseoweb.example)
 # - Credenziali OAuth social
 ```
 

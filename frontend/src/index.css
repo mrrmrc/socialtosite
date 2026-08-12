@@ -87,8 +87,7 @@
 }
 
 /* Logo: su tema scuro il suo testo blu scuro sparirebbe → chip chiaro dietro */
-:root[data-theme="dark"] img[alt="allsocialtoweb.com"],
-:root[data-theme="dark"] img[alt="AllSocialToWeb"] {
+:root[data-theme="dark"] img[alt="LinkSeoWeb"] {
   background: #fff;
   padding: 3px 8px;
   border-radius: 8px;
