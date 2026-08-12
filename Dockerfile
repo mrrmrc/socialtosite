@@ -35,6 +35,7 @@ COPY docker/apache-vhost.conf /etc/apache2/sites-available/000-default.conf
 COPY docker/entrypoint.sh /usr/local/bin/linkseoweb-entrypoint
 COPY docker/run-cron.sh /usr/local/bin/linkseoweb-cron
 RUN cp config/config.docker.php config/config.php \
+    && chmod -R a+rX /var/www/html \
     && chmod +x /usr/local/bin/linkseoweb-entrypoint /usr/local/bin/linkseoweb-cron \
     && mkdir -p public/media \
     && chown -R www-data:www-data public/media

@@ -18,7 +18,7 @@ export function LandingScreen({ onGetStarted }) {
       <header style={{ padding: '16px 40px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(11, 15, 25, 0.8)', backdropFilter: 'blur(24px)', WebkitBackdropFilter: 'blur(24px)', position: 'sticky', top: 0, zIndex: 100, borderBottom: '1px solid rgba(255,255,255,0.05)', boxShadow: '0 2px 20px rgba(0,0,0,0.2)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           <div style={{ width: 36, height: 36, borderRadius: '10px', background: 'var(--gradient)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px', boxShadow: '0 4px 12px rgba(99,102,241,0.35)' }}>✦</div>
-          <span style={{ fontWeight: 800, fontSize: '18px', letterSpacing: '-0.5px' }}>AllSocial<span className="gradient-text">ToWeb</span></span>
+          <span style={{ fontWeight: 800, fontSize: '18px', letterSpacing: '-0.5px' }}>LinkSeo<span className="gradient-text">Web</span></span>
         </div>
         <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
           <a href="/scopri" style={{ color: 'var(--text-muted)', textDecoration: 'none', fontSize: '14px', fontWeight: 700 }}>Scopri</a>
