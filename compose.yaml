@@ -1,0 +1,89 @@
+name: socialtosite
+
+x-app-environment: &app-environment
+  TZ: Europe/Rome
+  DB_HOST: db
+  DB_NAME: ${SOCIALTOSITE_DB_NAME:-socialtosite}
+  DB_USER: ${SOCIALTOSITE_DB_USER:-socialtosite}
+  DB_PASS: ${SOCIALTOSITE_DB_PASSWORD:?Imposta SOCIALTOSITE_DB_PASSWORD nel file .env}
+  DB_CHARSET: utf8mb4
+  BASE_URL: ${BASE_URL:-http://localhost:8081}
+  ALLOWED_ORIGIN: ${ALLOWED_ORIGIN:-http://localhost:8081}
+  JWT_SECRET: ${JWT_SECRET:?Imposta JWT_SECRET nel file .env}
+  ENCRYPTION_KEY: ${ENCRYPTION_KEY:?Imposta ENCRYPTION_KEY nel file .env}
+  ANALYTICS_SALT: ${ANALYTICS_SALT:?Imposta ANALYTICS_SALT nel file .env}
+  OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+  ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+  GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+  GEMINI_MODEL: ${GEMINI_MODEL:-gemini-2.5-flash}
+  APIFY_TOKEN: ${APIFY_TOKEN:-}
+  META_APP_ID: ${META_APP_ID:-}
+  META_APP_SECRET: ${META_APP_SECRET:-}
+  FB_APP_ID: ${FB_APP_ID:-}
+  FB_APP_SECRET: ${FB_APP_SECRET:-}
+  IG_LOGIN_APP_ID: ${IG_LOGIN_APP_ID:-}
+  IG_LOGIN_APP_SECRET: ${IG_LOGIN_APP_SECRET:-}
+  TIKTOK_CLIENT_KEY: ${TIKTOK_CLIENT_KEY:-}
+  TIKTOK_CLIENT_SECRET: ${TIKTOK_CLIENT_SECRET:-}
+  GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+  GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+  OPENCLAW_API_KEY: ${OPENCLAW_API_KEY:-}
+  GSC_PROPERTY: ${GSC_PROPERTY:-}
+  GCP_CREDENTIALS_PATH: /var/www/html/secrets/gcp-credentials.json
+
+services:
+  app:
+    image: socialtosite-app:latest
+    build:
+      context: .
+    restart: unless-stopped
+    environment: *app-environment
+    ports:
+      - "${APP_BIND_ADDRESS:-0.0.0}:${APP_PORT:-8081}:80"
+    volumes:
+      - media_data:/var/www/html/public/media
+      - ./secrets:/var/www/html/secrets:ro
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "--silent", "http://localhost/"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  cron:
+    image: socialtosite-app:latest
+    restart: unless-stopped
+    command: ["socialtosite-cron"]
+    environment: *app-environment
+    volumes:
+      - media_data:/var/www/html/public/media
+      - ./secrets:/var/www/html/secrets:ro
+    depends_on:
+      db:
+        condition: service_healthy
+
+  db:
+    image: mariadb:11.4
+    restart: unless-stopped
+    environment:
+      TZ: Europe/Rome
+      MARIADB_DATABASE: ${SOCIALTOSITE_DB_NAME:-socialtosite}
+      MARIADB_USER: ${SOCIALTOSITE_DB_USER:-socialtosite}
+      MARIADB_PASSWORD: ${SOCIALTOSITE_DB_PASSWORD:?Imposta SOCIALTOSITE_DB_PASSWORD nel file .env}
+      MARIADB_ROOT_PASSWORD: ${SOCIALTOSITE_DB_ROOT_PASSWORD:?Imposta SOCIALTOSITE_DB_ROOT_PASSWORD nel file .env}
+    volumes:
+      - db_data:/var/lib/mysql
+      - ./db/schema.sql:/docker-entrypoint-initdb.d/001-schema.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "mariadb-admin ping -h localhost -u root -p\"$$MARIADB_ROOT_PASSWORD\" --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+volumes:
+  db_data:
+  media_data:

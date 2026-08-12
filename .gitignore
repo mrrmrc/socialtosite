@@ -24,3 +24,5 @@ temp_*.html
 
 # Chiavi dei servizi AI: vivono solo sul server, mai nel repo.
 config/keys.php
+config/gcp-credentials.json
+secrets/

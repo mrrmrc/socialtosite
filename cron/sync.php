@@ -16,7 +16,10 @@ if (php_sapi_name() !== 'cli' && ($_SERVER['REMOTE_ADDR'] ?? '') !== '127.0.0.1'
 }
 
 register_shutdown_function(function (): void {
-    if (file_exists(__DIR__ . '/../config/gcp-credentials.json')) {
+    $gcpCredentialsPath = defined('GCP_CREDENTIALS_PATH')
+        ? GCP_CREDENTIALS_PATH
+        : __DIR__ . '/../config/gcp-credentials.json';
+    if (file_exists($gcpCredentialsPath)) {
         echo "[" . date('Y-m-d H:i:s') . "] Aggiornamento Google Search Console...\n";
         require __DIR__ . '/../api/cron/fetch_seo.php';
     } else {
