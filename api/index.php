@@ -1147,9 +1147,8 @@ if ($action === 'check-social-url' && $method === 'POST') {
     $url = trim($b['url'] ?? '');
     $platform = trim($b['platform'] ?? '') ?: detectSocialPlatform($url);
     $sinceDate = trim($b['since_date'] ?? '');
+    $sinceDate = ($sinceDate && preg_match('/^\d{4}-\d{2}-\d{2}$/', $sinceDate)) ? $sinceDate : null;
     $maxPosts = isset($b['max_posts']) && $b['max_posts'] !== '' ? (int)$b['max_posts'] : 20;
-    
-    if ($sinceDate && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $sinceDate)) $sinceDate = null;
     
     if (!$platform) jsonError('Piattaforma non riconosciuta');
     if (!filter_var($url, FILTER_VALIDATE_URL)) jsonError('Link social non valido');
@@ -1193,7 +1192,7 @@ if ($action === 'social-source-create' && $method === 'POST') {
     }
 
     $sinceDate = trim($b['since_date'] ?? '');
-    if ($sinceDate && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $sinceDate)) $sinceDate = null;
+    $sinceDate = ($sinceDate && preg_match('/^\d{4}-\d{2}-\d{2}$/', $sinceDate)) ? $sinceDate : null;
 
     $topic = 'Profilo/canale ' . $platform . ' indicato dall\'utente';
     if ($label) $topic .= ': ' . $label;
@@ -1220,10 +1219,10 @@ if ($action === 'social-source-upsert' && $method === 'POST') {
     $url = trim($b['url'] ?? '');
     $label = trim($b['label'] ?? '');
     $sinceDate = trim($b['since_date'] ?? '');
+    $sinceDate = ($sinceDate && preg_match('/^\d{4}-\d{2}-\d{2}$/', $sinceDate)) ? $sinceDate : null;
     $autoPublish = (int)($b['auto_publish'] ?? 1);
     $autoSync = !array_key_exists('auto_sync', $b) || !empty($b['auto_sync']) ? 1 : 0;
     $maxPosts = isset($b['max_posts']) && $b['max_posts'] !== '' ? (int)$b['max_posts'] : null;
-    if ($sinceDate && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $sinceDate)) $sinceDate = null;
 
     if (!in_array($platform, ['instagram', 'facebook', 'tiktok', 'youtube', 'website'], true)) {
         jsonError('Piattaforma non supportata: ' . $platform);
@@ -1296,10 +1295,10 @@ if ($action === 'social-connection-update' && $method === 'POST') {
     $b = body();
     $platform = trim($b['platform'] ?? '');
     $sinceDate = trim($b['since_date'] ?? '');
+    $sinceDate = ($sinceDate && preg_match('/^\d{4}-\d{2}-\d{2}$/', $sinceDate)) ? $sinceDate : null;
     $autoPublish = (int)($b['auto_publish'] ?? 1);
     $autoSync = !array_key_exists('auto_sync', $b) || !empty($b['auto_sync']) ? 1 : 0;
     $maxPosts = isset($b['max_posts']) && $b['max_posts'] !== '' ? (int)$b['max_posts'] : null;
-    if ($sinceDate && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $sinceDate)) $sinceDate = null;
     
     if (!in_array($platform, ['instagram', 'instagram_login', 'facebook', 'tiktok', 'youtube'], true)) {
         jsonError('Piattaforma non supportata');
