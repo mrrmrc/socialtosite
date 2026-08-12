@@ -583,26 +583,37 @@ class Sync {
         );
         $results = [];
         foreach ($connections as $conn) {
-            $token  = Crypto::decrypt($conn['access_token']);
-            $connSinceDate = !empty($conn['since_date']) ? $conn['since_date'] : $sinceDate;
-            $autoPublish = (int)($conn['auto_publish'] ?? 1);
-            $limit = !empty($conn['max_posts']) ? (int)$conn['max_posts'] : $maxPosts;
-            $result = match($conn['platform']) {
-                'instagram' => self::instagram($userId, $token, $limit, $connSinceDate, $autoPublish),
-                'instagram_login' => self::instagram_login_direct($userId, $token, $limit, $connSinceDate, $autoPublish),
-                'tiktok'    => self::tiktok($userId, $token, $limit, $connSinceDate, $autoPublish),
-                'youtube'   => self::youtube($userId, $token, $limit, $connSinceDate, $autoPublish),
-                'facebook'  => self::facebook($userId, $token, $limit, $connSinceDate, $autoPublish),
-                default     => null,
-            };
-            if (!$result) continue;
-            $results[] = $result;
-            DB::execute('INSERT INTO sync_log (user_id, platform, status, posts_found, posts_new, error)
-                         VALUES (?,?,?,?,?,?)', [
-                $userId, $conn['platform'],
-                $result['error'] ? 'error' : 'ok',
-                $result['found'], $result['new'], $result['error'],
-            ]);
+            try {
+                $token  = Crypto::decrypt($conn['access_token']);
+                $connSinceDate = !empty($conn['since_date']) ? $conn['since_date'] : $sinceDate;
+                $autoPublish = (int)($conn['auto_publish'] ?? 1);
+                $limit = !empty($conn['max_posts']) ? (int)$conn['max_posts'] : $maxPosts;
+                $result = match($conn['platform']) {
+                    'instagram' => self::instagram($userId, $token, $limit, $connSinceDate, $autoPublish),
+                    'instagram_login' => self::instagram_login_direct($userId, $token, $limit, $connSinceDate, $autoPublish),
+                    'tiktok'    => self::tiktok($userId, $token, $limit, $connSinceDate, $autoPublish),
+                    'youtube'   => self::youtube($userId, $token, $limit, $connSinceDate, $autoPublish),
+                    'facebook'  => self::facebook($userId, $token, $limit, $connSinceDate, $autoPublish),
+                    default     => null,
+                };
+                if (!$result) continue;
+                $results[] = $result;
+                DB::execute('INSERT INTO sync_log (user_id, platform, status, posts_found, posts_new, error)
+                             VALUES (?,?,?,?,?,?)', [
+                    $userId, $conn['platform'],
+                    $result['error'] ? 'error' : 'ok',
+                    $result['found'], $result['new'], $result['error'],
+                ]);
+            } catch (Throwable $e) {
+                // Un token scaduto o cifrato con una vecchia chiave non deve
+                // impedire il controllo delle altre connessioni e fonti URL.
+                $error = mb_substr($e->getMessage(), 0, 2000);
+                $results[] = ['platform' => $conn['platform'], 'new' => 0, 'found' => 0, 'error' => $error];
+                DB::execute('INSERT INTO sync_log (user_id, platform, status, posts_found, posts_new, error)
+                             VALUES (?,?,?,?,?,?)', [
+                    $userId, $conn['platform'], 'error', 0, 0, $error,
+                ]);
+            }
         }
         $totalNew = 0;
         foreach ($results as $res) {

@@ -32,6 +32,10 @@ docker compose ps
 docker compose logs --tail=100 app
 ```
 
+Il container `cron` controlla all'avvio e poi periodicamente soltanto i profili
+con sincronizzazione automatica attiva. L'intervallo predefinito è di sei ore;
+può essere modificato nel file `.env` con `SYNC_INTERVAL_SECONDS` (minimo 300).
+
 L'app risponderà su `http://213.32.22.252:8081`. Se il firewall del VPS blocca
 la porta, abilita temporaneamente TCP `8081` dal pannello. La prima
 registrazione su un database nuovo diventa amministratore.

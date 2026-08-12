@@ -1947,6 +1947,7 @@ const [importMsg, setImportMsg] = useState(null);
         { id: 'sources', icon: '◉', label: 'Canali', hint: 'Contenuti acquisiti' },
         { id: 'seo', section: 'network', icon: '◎', label: 'Visibilità', hint: 'Presenza e Google' },
         { id: 'account', icon: '⚙', label: 'Impostazioni', hint: 'Profilo, aspetto e account' },
+        { id: 'services', icon: '↗', label: 'Servizi opzionali', hint: 'Interventi su richiesta' },
       ],
     },
     ...(user?.role === 'admin' ? [{
@@ -2020,13 +2021,12 @@ const [importMsg, setImportMsg] = useState(null);
   );
   const renderAccountHub = () => (
     <div className="settings-hub">
-      <section className="settings-hub-intro"><span>Configurazione</span><h2>Le impostazioni, senza riempire il menu</h2><p>Qui trovi le attività che si fanno ogni tanto. Il lavoro quotidiano resta nelle sei voci principali.</p></section>
+      <section className="settings-hub-intro"><span>Configurazione</span><h2>Le impostazioni, in un unico posto</h2><p>Qui trovi profilo dell'attività, identità del sito e sicurezza dell'account.</p></section>
       <div className="settings-hub-grid">
         {[
           ['Profilo attività','Obiettivi, pubblico, servizi e territorio','strategy','✓'],
           ['Identità del sito','Logo, contenuti e anteprima del sito pubblico','experience','◇'],
           ['Sicurezza','Password e sessioni del tuo account','security','⌾'],
-          ['Servizi opzionali','Interventi professionali su richiesta','services','↗'],
         ].map(([title,description,target,icon]) => <button key={target} onClick={() => setTab(target)}><span>{icon}</span><div><strong>{title}</strong><small>{description}</small></div><i>→</i></button>)}
       </div>
     </div>
@@ -2256,7 +2256,7 @@ const [importMsg, setImportMsg] = useState(null);
               <div className="card">
                 <h3 style={{ marginBottom: '1rem' }}>Sincronizzazione dei canali</h3>
                 <p style={{ fontSize: '14px', color: 'var(--text-muted)', marginBottom: '1rem' }}>
-                  Ogni canale può aggiornarsi automaticamente ogni 6 ore oppure restare manuale. Puoi deciderlo nella sezione Canali.
+                  Un controllo periodico aggiorna i canali abilitati e ignora quelli impostati come manuali. Puoi decidere per ogni profilo nella sezione Canali.
                 </p>
                 <div style={{ padding: '12px', background: 'var(--gray-light)', borderRadius: '8px', fontSize: '13px', display: 'flex', justifyContent: 'space-between' }}>
                   <span style={{ fontWeight: 600 }}>Ultimo sync:</span>
@@ -2480,7 +2480,7 @@ const [importMsg, setImportMsg] = useState(null);
                                   {channel.type === 'oauth' ? '🔗 Connesso con account' : '🔍 Fonte tramite indirizzo'}
                                 </span>
                                 <span style={{ background: (channel.auto_sync ?? 1) === 1 ? 'var(--teal-light)' : 'var(--gray-light)', color: (channel.auto_sync ?? 1) === 1 ? '#0F6E56' : 'var(--text-muted)', padding: '1px 7px', borderRadius: '10px', fontWeight: 600 }}>
-                                  {(channel.auto_sync ?? 1) === 1 ? 'Auto ogni 6 ore' : 'Solo manuale'}
+                                  {(channel.auto_sync ?? 1) === 1 ? 'Controllo periodico attivo' : 'Solo manuale'}
                                 </span>
                               </div>
                             </div>
@@ -4247,7 +4247,7 @@ const [importMsg, setImportMsg] = useState(null);
             <div className="glass-modal" style={{ marginBottom: '1.5rem', padding: '1.5rem' }}>
               <h3 style={{ marginBottom: '0.5rem', color: 'var(--primary)' }}>Sincronizzazione configurabile</h3>
               <p style={{ fontSize: '14px', color: 'var(--text-muted)', marginBottom: '0.75rem', fontWeight: 500 }}>
-                I canali abilitati si aggiornano ogni 6 ore; quelli disabilitati restano disponibili per la sincronizzazione manuale.
+                Il timer controlla periodicamente solo i canali abilitati; quelli disabilitati restano disponibili per la sincronizzazione manuale.
               </p>
               {site?.last_sync && (
                 <p style={{ fontSize: '14px', color: 'var(--primary-dark)', fontWeight: 700 }}>

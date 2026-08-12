@@ -30,6 +30,7 @@ x-app-environment: &app-environment
   OPENCLAW_API_KEY: ${OPENCLAW_API_KEY:-}
   GSC_PROPERTY: ${GSC_PROPERTY:-}
   GCP_CREDENTIALS_PATH: /var/www/html/secrets/gcp-credentials.json
+  SYNC_INTERVAL_SECONDS: ${SYNC_INTERVAL_SECONDS:-21600}
 
 services:
   app:
