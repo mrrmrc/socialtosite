@@ -1892,6 +1892,55 @@ if ($action === 'ingest-url' && $method === 'POST') {
     json($res);
 }
 
+// Chat contestuale di LIA. I messaggi restano nel browser: al modello vengono
+// inviati solo gli ultimi turni e i dati operativi dell'account corrente.
+if ($action === 'lia-chat' && $method === 'POST') {
+    try {
+        require_once __DIR__ . '/services/ai.php';
+        $b = body();
+        $incoming = is_array($b['messages'] ?? null) ? $b['messages'] : [];
+        $messages = [];
+        foreach (array_slice($incoming, -12) as $message) {
+            if (!is_array($message)) continue;
+            $role = ($message['role'] ?? '') === 'assistant' ? 'assistant' : 'user';
+            $text = trim(strip_tags((string)($message['text'] ?? '')));
+            if ($text === '') continue;
+            $messages[] = ['role' => $role, 'text' => mb_substr($text, 0, 1200)];
+        }
+        if (!$messages || end($messages)['role'] !== 'user') jsonError('Scrivi una domanda per LIA', 422);
+
+        $site = DB::fetch('SELECT title, profile_summary, role_mission, content_strategy FROM sites WHERE user_id=? LIMIT 1', [$userId]) ?: [];
+        $counts = DB::fetch(
+            "SELECT COUNT(*) acquired,
+                    SUM(CASE WHEN seo_score >= 0 THEN 1 ELSE 0 END) ready,
+                    SUM(CASE WHEN published = 1 THEN 1 ELSE 0 END) published,
+                    SUM(CASE WHEN seo_score < 0 AND processing_status <> 'processing' THEN 1 ELSE 0 END) pending,
+                    SUM(CASE WHEN processing_status = 'processing' THEN 1 ELSE 0 END) processing
+               FROM posts WHERE user_id=?",
+            [$userId]
+        ) ?: [];
+        $sourceCount = DB::fetch(
+            'SELECT (SELECT COUNT(*) FROM social_sources WHERE user_id=? AND active=1) + (SELECT COUNT(*) FROM social_connections WHERE user_id=? AND active=1) sources',
+            [$userId, $userId]
+        );
+        $recentRows = DB::fetchAll(
+            "SELECT COALESCE(NULLIF(edited_title, ''), generated_title) title FROM posts
+              WHERE user_id=? AND COALESCE(NULLIF(edited_title, ''), generated_title) IS NOT NULL
+              ORDER BY imported_at DESC, id DESC LIMIT 8",
+            [$userId]
+        );
+        $facts = array_merge($counts, [
+            'sources' => (int)($sourceCount['sources'] ?? 0),
+            'recent_titles' => array_column($recentRows, 'title'),
+        ]);
+        $reply = AI::liaReply($me, $site, $facts, $messages);
+        json(['ok' => true, 'reply' => $reply]);
+    } catch (Throwable $e) {
+        if (class_exists('Logger')) Logger::warn('lia', 'Risposta LIA non riuscita', ['user_id' => $userId, 'error' => $e->getMessage()]);
+        jsonError('LIA non riesce a rispondere in questo momento. Riprova tra poco.', 502);
+    }
+}
+
 // Nasconde in modo persistente una proposta editoriale per l'utente corrente.
 if ($action === 'dismiss-content-idea' && $method === 'POST') {
     ensureSiteSchemaUpgrades();
