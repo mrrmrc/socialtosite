@@ -2102,6 +2102,25 @@ const [importMsg, setImportMsg] = useState(null);
               {group.items.map(item => (
                 <button key={`${item.id}-${item.section || ''}`} className={`nav-item ${isNavigationActive(item) ? 'is-active' : ''}`} onClick={() => selectNavigation(item)}>
                   <span className="nav-icon">{item.icon}</span>
+                  <span className="nav-copy"><strong>{item.label}</strong><small>{item.hint}</small></span>
+                </button>
+              ))}
+            </div>
+          ))}
+          <div style={{ marginTop: 'auto', padding: '16px 12px' }}>
+             <a href="/" target="_blank" rel="noopener noreferrer" className="nav-item" style={{ background: 'var(--primary)', color: 'white', fontWeight: 'bold', textDecoration: 'none' }}>
+                <span className="nav-icon"><svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg></span>
+                <span className="nav-copy"><strong>Vai al Sito Pubblico</strong></span>
+             </a>
+          </div>
+        </nav>
+        <div className="sidebar-account">
+          <div className="account-summary">
+            <span>{user?.name?.[0]?.toUpperCase() || 'U'}</span>
+            <div><strong>{user?.name || 'Utente'}</strong><small>{user?.email || ''}</small></div>
+          </div>
+          <div className="account-actions">
+            <button onClick={() => selectNavigation({ id: 'settings', section: 'profile' })}>Profilo</button>
             <button onClick={onLogout}>Esci</button>
           </div>
         </div>
