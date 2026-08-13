@@ -1,12 +1,5 @@
 # syntax=docker/dockerfile:1
 
-FROM node:20-bookworm-slim AS frontend-build
-WORKDIR /build/frontend
-COPY frontend/package*.json ./
-RUN npm ci
-COPY frontend/ ./
-RUN npm run build
-
 FROM node:20-bookworm-slim AS scraper-build
 ENV PUPPETEER_SKIP_DOWNLOAD=true
 WORKDIR /build/scraper
@@ -28,8 +21,9 @@ RUN apt-get update \
 
 WORKDIR /var/www/html
 COPY . ./
-COPY --from=frontend-build /build/frontend/dist/ ./
-COPY --from=frontend-build /usr/local/bin/node /usr/local/bin/node
+# Copia la cartella dist (precompilata localmente e iniettata nello zip)
+COPY dist/ ./
+COPY --from=scraper-build /usr/local/bin/node /usr/local/bin/node
 COPY --from=scraper-build /build/scraper/node_modules/ ./scraper/node_modules/
 COPY docker/apache-vhost.conf /etc/apache2/sites-available/000-default.conf
 COPY docker/entrypoint.sh /usr/local/bin/linkseoweb-entrypoint
