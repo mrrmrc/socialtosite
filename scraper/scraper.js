@@ -95,15 +95,18 @@ const limit = Number.isNaN(parsedLimit) ? 0 : parsedLimit; // -1 = profile visua
                 
                 return foundLinks;
             });
-            if (platform === 'facebook' && links.length === 0) {
-                await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight * 0.35));
-                await new Promise(r => setTimeout(r, 1500));
-                const extraLinks = await page.evaluate(() =>
-                    Array.from(document.querySelectorAll('a'))
-                        .map(a => a.href)
-                        .filter(href => href.includes('/posts/') || href.includes('/videos/') || href.includes('/reel/') || href.includes('/watch/?v=') || href.includes('/photos/'))
-                );
-                links.push(...extraLinks);
+            if (platform === 'facebook') {
+                for (let i = 0; i < 3; i++) {
+                    await page.evaluate((scrollIndex) => window.scrollTo(0, document.body.scrollHeight * (0.35 + (scrollIndex * 0.2))), i);
+                    await new Promise(r => setTimeout(r, 1500));
+                    const extraLinks = await page.evaluate(() =>
+                        Array.from(document.querySelectorAll('a'))
+                            .map(a => a.href)
+                            .filter(href => href.includes('/posts/') || href.includes('/videos/') || href.includes('/reel/') || href.includes('/watch/?v=') || href.includes('/photos/'))
+                    );
+                    links.push(...extraLinks);
+                    if (new Set(links).size >= limit && limit > 0) break;
+                }
             }
 
             // Unique
