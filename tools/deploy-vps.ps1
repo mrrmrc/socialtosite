@@ -47,14 +47,17 @@ try {
     $remoteArchive = "/tmp/$archiveName"
     $backupPath = "$RemotePath/backups/pre-deploy-$stamp.sql"
 
-    Write-Host "Creo archivio con git archive..."
-    git archive --format=zip --output=$archivePath HEAD
+    Write-Host "Aggiungo la cartella dist compilata all'indice git in memoria..."
+    git add -f frontend/dist
+    if ($LASTEXITCODE -ne 0) { throw 'Aggiunta di dist all`indice fallita.' }
+
+    $tree = (git write-tree).Trim()
+    Write-Host "Creo archivio con git archive dal tree $tree..."
+    git archive --format=zip --output=$archivePath $tree
     if ($LASTEXITCODE -ne 0) { throw 'Creazione della release non riuscita.' }
 
-    Write-Host "Aggiungo la cartella dist compilata all'archivio..."
-    # Aggiungiamo dist alla root dello zip
-    Compress-Archive -Path "$repoRoot/frontend/dist" -Update -DestinationPath $archivePath
-    if ($LASTEXITCODE -ne 0) { throw 'Aggiunta di dist all`archivio fallita.' }
+    # Rimuoviamo dist dall'indice per non sporcare il repo
+    git reset HEAD frontend/dist
 
     Write-Host "Trasferimento al server..."
     $sshArgs = @('-i', $KeyPath, '-o', 'BatchMode=yes', '-o', 'StrictHostKeyChecking=accept-new')
