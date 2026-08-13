@@ -560,8 +560,8 @@ Restituisci SOLO la nuova memoria aggiornata (testo semplice), nient'altro.";
         return trim(self::gemini([
             ['fileData' => ['fileUri' => $youtubeUrl, 'mimeType' => 'video/mp4']],
             ['text' => "Trascrivi INTEGRALMENTE e VERBATIM, in italiano, TUTTO il parlato di questo video, "
-                     . "dall'inizio alla fine. NON riassumere, NON saltare parti, NON fermarti prima della fine. "
-                     . "Restituisci SOLO il testo della trascrizione, senza timestamp e senza commenti."],
+                     . "dall'inizio alla fine. NON riassumere, NON saltare parti. "
+                     . "Se nel video NON c'è parlato, analizza visivamente il video e descrivi nel dettaglio tutti i concetti mostrati, le scritte a schermo, i diagrammi e il significato di ciò che avviene, fornendo un testo ricco di informazioni strutturate. Restituisci SOLO il testo della trascrizione o descrizione, senza commenti aggiuntivi."],
         ], [
             '_timeout'       => 300,
             'temperature'    => 0,
@@ -577,7 +577,7 @@ Restituisci SOLO la nuova memoria aggiornata (testo semplice), nient'altro.";
         return trim(self::gemini([
             ['inlineData' => ['mimeType' => $mime, 'data' => base64_encode($bytes)]],
             ['text' => "Trascrivi INTEGRALMENTE e VERBATIM, in italiano, tutto il parlato dall'inizio "
-                     . "alla fine. NON riassumere. Solo il testo."],
+                     . "alla fine. NON riassumere. Se nel video NON c'è parlato, analizza visivamente il video e descrivi nel dettaglio tutti i concetti mostrati. Solo il testo della trascrizione o descrizione."],
         ], [
             '_timeout'       => 300,
             'temperature'    => 0,
