@@ -38,7 +38,8 @@ try {
 set -e
 cd '$RemotePath'
 mkdir -p backups
-docker compose exec -T db sh -c 'mariadb-dump -uroot -p"$$MARIADB_ROOT_PASSWORD" "$$MARIADB_DATABASE"' > '$backupPath' || echo "Backup fallito, continuo comunque"
+docker compose exec -T db bash -c 'mariadb-dump -uroot -p$$MARIADB_ROOT_PASSWORD $$MARIADB_DATABASE' > '$backupPath'
+test -s '$backupPath'
 unzip -oq '$remoteArchive' -d '$RemotePath'
 rm -f '$remoteArchive'
 docker compose build app
