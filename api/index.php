@@ -42,6 +42,12 @@ require_once __DIR__ . '/services/visibility.php';
 require_once __DIR__ . '/services/seo_foundation.php';
 require_once __DIR__ . '/services/reachability.php';
 
+function setSyncStatus(int $uid, string $msg): void {
+    $dir = __DIR__ . '/../public/temp';
+    if (!is_dir($dir)) @mkdir($dir, 0775, true);
+    @file_put_contents("$dir/sync_$uid.json", json_encode(['msg' => $msg, 'ts' => time()]));
+}
+
 cors();
 
 $method = $_SERVER['REQUEST_METHOD'];
@@ -330,6 +336,17 @@ function requireAdmin(bool $isAdmin): void {
 function revokeSessions(int $targetUserId): void {
     try { DB::execute('UPDATE users SET token_version = token_version + 1 WHERE id=?', [$targetUserId]); }
     catch (Throwable $e) { if (class_exists('Logger')) Logger::warn('auth', 'Revoca sessioni non riuscita', ['user_id' => $targetUserId, 'error' => $e->getMessage()]); }
+}
+
+if ($action === 'sync-status' && $method === 'GET') {
+    $f = __DIR__ . "/../public/temp/sync_$userId.json";
+    if (file_exists($f)) {
+        $j = json_decode(file_get_contents($f), true);
+        if ($j && time() - ($j['ts'] ?? 0) < 300) {
+            json(['ok' => true, 'msg' => $j['msg'] ?? '']);
+        }
+    }
+    json(['ok' => true, 'msg' => '']);
 }
 
 // ── POST/GET migrate (Admin: allinea lo schema del database) ─────────────

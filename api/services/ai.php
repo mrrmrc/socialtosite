@@ -587,7 +587,8 @@ Restituisci SOLO la nuova memoria aggiornata (testo semplice), nient'altro.";
     }
 
     // ── AGENTE 2 (Armonizzatore): testo grezzo → articolo SEO (Gemini) ─────
-    public static function harmonize(string $rawText, string $platform = '', string $caption = '', string $sourceContext = '', string $agentName = 'content_editor', string $accountType = 'business', string $searchDemand = '', string $length = 'compact'): array {
+    public static function harmonize(string $rawText, string $platform = '', string $caption = '', string $sourceContext = '', string $agentName = 'content_editor', string $accountType = 'business', string $searchDemand = '', string $length = 'compact', int $userId = 0): array {
+        if ($userId > 0 && function_exists('setSyncStatus')) setSyncStatus($userId, "Armonizzazione post da " . ucfirst($platform ?: 'sorgente') . " in corso con IA...");
         $source = $caption
             ? "Didascalia social: \"$caption\"\n\nTrascrizione: \"$rawText\""
             : "Contenuto: \"$rawText\"";

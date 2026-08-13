@@ -65,31 +65,39 @@ const STRATEGY_GOALS = [
   ['events', 'Promuovere eventi'],
 ];
 
-const VISIBILITY_MODULES = [
+const PLATFORM_PLANS = [
   {
-    name: 'Piano editoriale',
-    price: '\u20ac19/mese',
-    description: 'Priorit\u00e0, argomenti e calendario mensile costruiti sul pubblico che vuoi raggiungere.',
-    deliverables: ['Analisi mensile', 'Idee ordinate per impatto', 'Brief pronti per la scrittura'],
+    name: 'Base',
+    price: '€50/anno',
+    description: 'Vetrina automatizzata essenziale.',
+    deliverables: [
+      'Generazione automatica sito vetrina',
+      'Acquisizione da 1 Canale Social',
+      'Fino a 10 articoli elaborati al mese',
+      'Ottimizzazione SEO Base automatica'
+    ],
   },
   {
-    name: 'SEO Boost',
-    price: '\u20ac39/mese',
-    description: 'Interventi sulle opportunit\u00e0 Google che i soli contenuti social non riescono a coprire.',
-    deliverables: ['Query e pagine da migliorare', 'Titoli e testi ottimizzati', 'Collegamenti interni'],
+    name: 'Pro',
+    price: '€150/anno',
+    description: 'Il piano ideale per crescere senza sforzo.',
+    deliverables: [
+      'Acquisizione fino a 5 Canali Social',
+      'Elaborazione fino a 50 articoli/mese',
+      'Motore AI (Topical Authority e Idee)',
+      'Design Avanzato personalizzabile'
+    ],
     featured: true,
   },
   {
-    name: 'Visibilit\u00e0 locale',
-    price: '\u20ac49/mese',
-    description: 'Pagine dedicate a territorio, servizi e intenzioni di ricerca locali.',
-    deliverables: ['Analisi geografica', 'Pagine locali', 'Call to action mirate'],
-  },
-  {
-    name: 'Content Growth',
-    price: '\u20ac69/mese',
-    description: 'Produzione continuativa di nuovi contenuti SEO coerenti con strategia e obiettivi.',
-    deliverables: ['Nuovi articoli', 'Copertura dei temi mancanti', 'Aggiornamento dei contenuti'],
+    name: 'Agency',
+    price: '€500/anno',
+    description: 'Gestione per agenzie e multi-cliente.',
+    deliverables: [
+      'Dashboard gestione clienti',
+      'Assegnazione piani Base/Pro ai clienti',
+      'Pacchetto licenze incluso'
+    ],
   },
 ];
 
@@ -546,6 +554,23 @@ const [importMsg, setImportMsg] = useState(null);
   }
 
   useEffect(() => { loadData(); loadDrafts(); }, []);
+
+  useEffect(() => {
+    let intervalId;
+    if (syncing || scanning || importing || harmonizingId > 0) {
+      intervalId = setInterval(async () => {
+        try {
+          const res = await apiFetch('/api/index.php?action=sync-status', {}, token);
+          if (res && res.ok && res.msg) {
+            setSyncMsg(prev => ({ ok: prev?.ok ?? true, text: res.msg, loading: prev?.loading ?? true }));
+          }
+        } catch (err) {}
+      }, 1500);
+    }
+    return () => {
+      if (intervalId) clearInterval(intervalId);
+    };
+  }, [syncing, scanning, importing, harmonizingId, token]);
 
   async function loadData() {
     try {
@@ -1941,21 +1966,21 @@ const [importMsg, setImportMsg] = useState(null);
     {
       label: 'Menu',
       items: [
-        { id: 'overview', icon: '⌂', label: 'Panoramica', hint: 'Cosa succede oggi' },
-        { id: 'seo', section: 'ideas', icon: '✦', label: 'Crea', hint: 'Idee, AI e social' },
-        { id: 'site', icon: '▤', label: 'Articoli', hint: 'Bozze e pubblicati' },
-        { id: 'sources', icon: '◉', label: 'Canali', hint: 'Contenuti acquisiti' },
-        { id: 'seo', section: 'network', icon: '◎', label: 'Visibilità', hint: 'Presenza e Google' },
-        { id: 'account', icon: '⚙', label: 'Impostazioni', hint: 'Profilo, aspetto e account' },
-        { id: 'services', icon: '↗', label: 'Servizi opzionali', hint: 'Interventi su richiesta' },
+        { id: 'overview', icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>, label: 'Panoramica', hint: 'Cosa succede oggi' },
+        { id: 'seo', section: 'ideas', icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>, label: 'Crea', hint: 'Idee, AI e social' },
+        { id: 'site', icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>, label: 'Articoli', hint: 'Bozze e pubblicati' },
+        { id: 'sources', icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line></svg>, label: 'Canali', hint: 'Contenuti acquisiti' },
+        { id: 'seo', section: 'network', icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>, label: 'Visibilità', hint: 'Presenza e Google' },
+        { id: 'account', icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>, label: 'Impostazioni', hint: 'Profilo, aspetto e account' },
+        { id: 'services', icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>, label: 'Piani e Upgrade', hint: 'Gestisci automazioni' },
       ],
     },
     ...(user?.role === 'admin' ? [{
       label: 'Amministrazione',
       items: [
-        { id: 'admin', icon: '♙', label: 'Utenti', hint: 'Account e accessi' },
-        { id: 'general', icon: '⚙', label: 'Sistema', hint: 'Agenti e impostazioni' },
-        { id: 'settings', icon: '◈', label: 'Design avanzato', hint: 'Strumenti legacy' },
+        { id: 'admin', icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>, label: 'Utenti', hint: 'Account e accessi' },
+        { id: 'general', icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg>, label: 'Sistema', hint: 'Agenti e impostazioni' },
+        { id: 'settings', icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"></path></svg>, label: 'Design avanzato', hint: 'Strumenti legacy' },
       ],
     }] : []),
   ];
@@ -1972,7 +1997,7 @@ const [importMsg, setImportMsg] = useState(null);
     general: ['Impostazioni di sistema', 'Configura agenti, automazioni e comportamento della piattaforma.'],
     security: ['Password e sicurezza', 'Proteggi il tuo account e gestisci le sessioni attive.'],
     account: ['Impostazioni', 'Tutto ciò che configuri meno spesso, raccolto in un unico posto.'],
-    services: ['Servizi opzionali', 'Richiedi attività aggiuntive senza confonderle con il lavoro quotidiano.'],
+    services: ['Piani e Upgrade', 'Gestisci il tuo piano e le funzionalità automatiche.'],
     admin: ['Utenti', 'Gestisci account, accessi e configurazioni dei clienti.'],
   };
   const seoMeta = visibilitySection === 'ideas'
@@ -2003,20 +2028,20 @@ const [importMsg, setImportMsg] = useState(null);
   const renderVisibilityServices = () => (
     <div className="services-page">
       <section className="services-intro">
-        <div><span>Supporto su richiesta</span><h2>Interventi aggiuntivi, separati dalla dashboard</h2><p>La piattaforma continua a funzionare senza acquisti. Qui trovi soltanto attività professionali opzionali, con contenuto e costo dichiarati.</p></div>
-        <div className="services-badge">Nessun vincolo</div>
+        <div><span>Piani e Upgrade</span><h2>Gestisci le automazioni del tuo spazio digitale</h2><p>Le funzionalità di acquisizione social, ottimizzazione AI e gestione clienti sono regolate dal tuo piano annuale.</p></div>
+        <div className="services-badge">Zero intervento umano</div>
       </section>
       <div className="services-grid">
-        {VISIBILITY_MODULES.map(module => (
+        {typeof PLATFORM_PLANS !== 'undefined' && PLATFORM_PLANS.map(module => (
           <article key={module.name} className={`service-card ${module.featured ? 'is-featured' : ''}`}>
             {module.featured && <span className="service-featured">Consigliato</span>}
             <h3>{module.name}</h3><strong>{module.price}</strong><p>{module.description}</p>
             <div>{module.deliverables.map(item => <span key={item}>✓ {item}</span>)}</div>
-            <a href={`mailto:support@ideesitiweb.it?subject=${encodeURIComponent(`Richiesta modulo ${module.name} - ${user?.slug || ''}`)}`} className={`btn ${module.featured ? 'btn-primary' : 'btn-outline'}`}>Richiedi informazioni</a>
+            <a href={`mailto:support@ideesitiweb.it?subject=${encodeURIComponent(`Richiesta passaggio al piano ${module.name} - ${user?.slug || ''}`)}`} className={`btn ${module.featured ? 'btn-primary' : 'btn-outline'}`}>Richiedi Upgrade</a>
           </article>
         ))}
       </div>
-      <p className="services-note">I prezzi non includono eventuali budget pubblicitari. Non vengono garantiti posizionamenti o risultati commerciali.</p>
+      <p className="services-note">Tutti i piani si intendono con fatturazione annuale. Non sono previsti costi nascosti o orari per gli interventi manuali: l'intero processo è automatizzato.</p>
     </div>
   );
   const renderAccountHub = () => (
@@ -2077,17 +2102,6 @@ const [importMsg, setImportMsg] = useState(null);
               {group.items.map(item => (
                 <button key={`${item.id}-${item.section || ''}`} className={`nav-item ${isNavigationActive(item) ? 'is-active' : ''}`} onClick={() => selectNavigation(item)}>
                   <span className="nav-icon">{item.icon}</span>
-                  <span className="nav-copy"><strong>{item.label}</strong><small>{item.hint}</small></span>
-                </button>
-              ))}
-            </div>
-          ))}
-        </nav>
-        <div className="sidebar-account">
-          <div className="account-summary"><span>{String(user?.email || 'U').charAt(0).toUpperCase()}</span><div><strong>{user?.name || 'Il tuo account'}</strong><small>{user.email}</small></div></div>
-          <div className="account-actions">
-            <button onClick={() => selectNavigation({ id: 'security' })}>Sicurezza</button>
-            <button onClick={toggleTheme}>{theme === 'dark' ? 'Tema chiaro' : 'Tema scuro'}</button>
             <button onClick={onLogout}>Esci</button>
           </div>
         </div>

@@ -376,7 +376,7 @@ class Ingest {
         // briefing è vuoto e il comportamento resta identico a prima.
         $searchDemand = VisibilityAnalytics::demandBriefing($userId, $post['slug'] ?? null);
 
-        $seo = AI::harmonize($raw, $post['platform'], $post['raw_content'] ?? '', $sourceContext, $agentName, $accountType, $searchDemand, $length);
+        $seo = AI::harmonize($raw, $post['platform'], $post['raw_content'] ?? '', $sourceContext, $agentName, $accountType, $searchDemand, $length, $userId);
 
         DB::execute('
             UPDATE posts SET
@@ -596,6 +596,8 @@ class Ingest {
                     'sinceDate_skipped' => !$hasExistingPosts ? 'si (DB vuoto)' : 'no',
                 ]);
                 
+                if (function_exists('setSyncStatus')) setSyncStatus($userId, "Ricerca post su " . ucfirst($source['platform']) . "...");
+                
                 $items = AI::sourceItems($source['platform'], $source['url'], $limit, $effectiveSinceDate);
                 $report['found'] += count($items);
                 
@@ -603,6 +605,8 @@ class Ingest {
                     'platform' => $source['platform'],
                     'count'    => count($items),
                 ]);
+                
+                if (function_exists('setSyncStatus')) setSyncStatus($userId, "Trovati " . count($items) . " post su " . ucfirst($source['platform']) . ", inizio acquisizione...");
                 
                 foreach ($items as $item) {
                     $sourceUrl = $item['url'] ?? '';

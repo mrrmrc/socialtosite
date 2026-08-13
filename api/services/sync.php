@@ -577,12 +577,14 @@ class Sync {
 
     // ── Sync completo utente ───────────────────────────────────────────────
     public static function syncUser(int $userId, int $maxPosts = 20, ?string $sinceDate = null, bool $automatic = false): array {
+        if (function_exists('setSyncStatus')) setSyncStatus($userId, "Inizio sincronizzazione canali collegati...");
         self::ensureAutoSyncSchema();
         $connections = DB::fetchAll(
             'SELECT * FROM social_connections WHERE user_id=? AND active=1' . ($automatic ? ' AND auto_sync=1' : ''), [$userId]
         );
         $results = [];
         foreach ($connections as $conn) {
+            if (function_exists('setSyncStatus')) setSyncStatus($userId, "Scansione " . ucfirst($conn['platform']) . " in corso...");
             try {
                 $token  = Crypto::decrypt($conn['access_token']);
                 $connSinceDate = !empty($conn['since_date']) ? $conn['since_date'] : $sinceDate;
@@ -626,6 +628,7 @@ class Sync {
         $site = DB::fetch('SELECT profile_summary, role_mission, content_strategy FROM sites WHERE user_id=?', [$userId]);
         
         foreach ($sources as $src) {
+            if (function_exists('setSyncStatus')) setSyncStatus($userId, "Analisi sorgente " . ucfirst($src['platform']) . " in corso...");
             try {
                 $res = Ingest::scanSources($userId, $maxPosts, $site['profile_summary'] ?? '', $site['role_mission'] ?? '', $site['content_strategy'] ?? '', $src['id']);
                 
@@ -666,9 +669,11 @@ class Sync {
 
         // Ping Google Sitemap se ci sono nuovi contenuti
         if ($totalNew > 0) {
+            if (function_exists('setSyncStatus')) setSyncStatus($userId, "Avviso motori di ricerca dei nuovi contenuti...");
             self::pingGoogle($userId);
         }
 
+        if (function_exists('setSyncStatus')) setSyncStatus($userId, "Sincronizzazione completata.");
         return $results;
     }
 
