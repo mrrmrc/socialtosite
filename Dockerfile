@@ -22,7 +22,7 @@ RUN apt-get update \
 WORKDIR /var/www/html
 COPY . ./
 # Copia la cartella dist (precompilata localmente e iniettata nello zip)
-COPY dist/ ./
+COPY frontend/dist/ ./
 COPY --from=scraper-build /usr/local/bin/node /usr/local/bin/node
 COPY --from=scraper-build /build/scraper/node_modules/ ./scraper/node_modules/
 COPY docker/apache-vhost.conf /etc/apache2/sites-available/000-default.conf
