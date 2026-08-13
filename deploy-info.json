@@ -1,6 +1,6 @@
 {
-  "deployed_at": "2026-08-13 13:00:00",
-  "deployed_day": "giovedi",
-  "timezone": "Europe/Rome",
-  "release": "v1.3.2"
+    "release":  "v1.4.0",
+    "timezone":  "Europe/Rome",
+    "deployed_day":  "giovedì",
+    "deployed_at":  "2026-08-13 16:33:26"
 }
