@@ -1,163 +1,41 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { ProSiteBuilder } from './ProSiteBuilder';
 
 const PLAN_ORDER = { base: 0, professional: 1, agency: 2 };
+export function normalizePlan(value) { const raw=String(value||'').trim().toLowerCase(); if(raw==='agency')return'agency'; if(raw==='professional'||raw==='pro')return'professional'; return'base'; }
+export function hasPlan(user, minimum='base') { return (PLAN_ORDER[normalizePlan(user?.plan)]??0)>=(PLAN_ORDER[normalizePlan(minimum)]??0); }
 
-export function normalizePlan(value) {
-  const raw = String(value || '').trim().toLowerCase();
-  if (raw === 'agency') return 'agency';
-  if (raw === 'professional' || raw === 'pro') return 'professional';
-  return 'base';
+function installCompactMenuStyle(){
+ if(document.getElementById('linkseoweb-plan-ui-style'))return;
+ const style=document.createElement('style'); style.id='linkseoweb-plan-ui-style'; style.textContent=`
+ .desktop-sidebar{overflow:hidden!important}.sidebar-navigation{overflow-y:visible!important;scrollbar-width:none!important;min-height:0!important}.sidebar-navigation::-webkit-scrollbar{display:none!important}.sidebar-navigation .nav-section{margin-bottom:4px!important}.sidebar-navigation .nav-group{margin:4px 10px 3px!important;font-size:10px!important}.sidebar-navigation .nav-item{min-height:40px!important;padding-top:6px!important;padding-bottom:6px!important}.sidebar-navigation .nav-copy small{font-size:10px!important;line-height:1.15!important}.sidebar-navigation .nav-copy strong{font-size:12px!important}.sidebar-navigation>div[style*="margin-top: auto"]{margin-top:4px!important;padding:4px 12px!important}.professional-builder-nav-entry .nav-icon,.statistics-nav-entry .nav-icon{font-size:18px}.professional-plan-select{width:100%;padding:7px;font-size:12px;border:1px solid var(--border-strong);border-radius:var(--radius-sm);background:var(--surface);color:var(--text)}
+ .stats-overlay{position:fixed;inset:0;z-index:10050;background:rgba(10,8,25,.72);backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;padding:20px}.stats-workspace{width:min(1180px,100%);max-height:92vh;overflow:auto;background:var(--bg,#f7f7fb);color:var(--text,#181529);border-radius:24px;border:1px solid var(--border,#ddd);box-shadow:0 30px 100px rgba(0,0,0,.35)}.stats-head{padding:24px 28px;background:linear-gradient(135deg,#17122e,#352969);color:#fff;display:flex;justify-content:space-between;gap:20px;align-items:flex-start}.stats-head h2{margin:5px 0;font-size:30px}.stats-head p{margin:0;color:#d8d2e8;max-width:720px}.stats-close{border:1px solid rgba(255,255,255,.25);background:rgba(255,255,255,.1);color:#fff;width:40px;height:40px;border-radius:50%;font-size:20px;cursor:pointer}.stats-body{padding:24px;display:grid;gap:20px}.stats-phase{background:var(--surface,#fff);border:1px solid var(--border,#ddd);border-radius:18px;padding:20px}.stats-phase-row{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:15px}.stats-phase-step{padding:12px;border-radius:12px;background:var(--gray-light,#eee);font-size:12px;font-weight:800}.stats-phase-step.done{background:var(--teal-light,#dff7ee);color:var(--teal,#08765d)}.stats-phase-step.active{background:var(--primary-light,#eee9ff);color:var(--primary,#6547df);box-shadow:inset 0 0 0 2px currentColor}.stats-kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}.stats-kpi{background:var(--surface,#fff);border:1px solid var(--border,#ddd);border-radius:16px;padding:18px}.stats-kpi strong{display:block;font-size:30px;line-height:1;margin-bottom:8px}.stats-kpi span{font-size:12px;color:var(--text-muted,#777)}.stats-columns{display:grid;grid-template-columns:1fr 1fr;gap:16px}.stats-card{background:var(--surface,#fff);border:1px solid var(--border,#ddd);border-radius:18px;padding:20px}.stats-card h3{margin:0 0 5px}.stats-card>p{margin:0 0 16px;color:var(--text-muted,#777);font-size:13px}.stats-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;padding:11px 0;border-top:1px solid var(--border,#eee);align-items:center}.stats-row:first-of-type{border-top:0}.stats-row b{font-size:13px;overflow-wrap:anywhere}.stats-row small{display:block;color:var(--text-muted,#777);margin-top:3px}.stats-value{text-align:right;font-weight:900}.stats-empty{padding:18px;border-radius:12px;background:var(--gray-light,#eee);color:var(--text-muted,#777);font-size:13px}.stats-actions{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}.stats-action{padding:15px;border-radius:14px;background:var(--bg,#f7f7fb);border:1px solid var(--border,#ddd)}.stats-action strong{display:block;margin-bottom:5px}.stats-action small{color:var(--text-muted,#777);line-height:1.45}.stats-note{font-size:12px;color:var(--text-muted,#777);line-height:1.5}@media(max-width:760px){.stats-kpis,.stats-phase-row,.stats-actions{grid-template-columns:1fr 1fr}.stats-columns{grid-template-columns:1fr}.stats-workspace{max-height:96vh;border-radius:18px}.stats-head,.stats-body{padding:18px}}`;
+ document.head.appendChild(style);
 }
-
-export function hasPlan(user, minimum = 'base') {
-  const current = normalizePlan(user?.plan);
-  const required = normalizePlan(minimum);
-  return (PLAN_ORDER[current] ?? 0) >= (PLAN_ORDER[required] ?? 0);
+function replacePublicSiteLabels(root){root.querySelectorAll('a,button').forEach(node=>{const label=(node.textContent||'').replace(/\s+/g,' ').trim();if(/vai al sito pubblico|apri il sito pubblico|controlla il sito|vedi il sito pubblico/i.test(label)){node.textContent="Vai all'HUB LinkSeoWeb";if(node.tagName==='A'){node.setAttribute('href','/scopri');node.setAttribute('target','_blank');node.setAttribute('rel','noopener noreferrer');}}});}
+function addMenuEntry(root,className,label,hint,icon,onClick,beforeLabel='Impostazioni'){if(root.querySelector('.'+className))return;const before=[...root.querySelectorAll('.sidebar-navigation .nav-item')].find(n=>new RegExp(beforeLabel,'i').test(n.textContent||''));if(!before)return;const b=document.createElement('button');b.type='button';b.className=`nav-item ${className}`;b.innerHTML=`<span class="nav-icon">${icon}</span><span class="nav-copy"><strong>${label}</strong><small>${hint}</small></span>`;b.addEventListener('click',onClick);before.insertAdjacentElement('beforebegin',b);}
+function addProfessionalBuilderMenu(root,enabled,openBuilder){const existing=root.querySelector('.professional-builder-nav-entry');if(!enabled){existing?.remove();return;}if(existing)return;const settings=[...root.querySelectorAll('.sidebar-navigation .nav-item')].find(n=>/Impostazioni/i.test(n.textContent||''));if(!settings)return;const b=document.createElement('button');b.type='button';b.className='nav-item professional-builder-nav-entry';b.innerHTML='<span class="nav-icon">🎨</span><span class="nav-copy"><strong>Builder grafico</strong><small>Personalizza il tuo sito</small></span>';b.addEventListener('click',openBuilder);settings.insertAdjacentElement('afterend',b);}
+function addProfessionalSettingsCard(root,enabled,openBuilder,slug){const grid=root.querySelector('.settings-hub-grid'),existing=root.querySelector('.professional-settings-builder');if(!grid||!enabled){existing?.remove();return;}if(existing)return;const b=document.createElement('button');b.type='button';b.className='professional-settings-builder';b.innerHTML=`<span>🎨</span><div><strong>Modifica grafica del sito</strong><small>Temi, colori, font e layout${slug?` · /${slug}`:''}</small></div><i>→</i>`;b.addEventListener('click',openBuilder);grid.appendChild(b);}
+function normalizeAdminPlanControls(root){root.querySelectorAll('input[type="text"]').forEach(input=>{if(input.dataset.professionalPlanSource==='1')return;const container=input.parentElement,roleSelect=container?.querySelector('select');if(!roleSelect)return;const opts=[...roleSelect.options].map(o=>o.value);if(!opts.includes('user')||!opts.includes('admin'))return;const currentRaw=String(input.value||'').trim().toLowerCase(),normalized=normalizePlan(currentRaw);input.dataset.professionalPlanSource='1';input.style.display='none';const select=document.createElement('select');select.className='professional-plan-select';[['base','Base'],['professional','Professional'],['agency','Agency']].forEach(([v,l])=>{const o=document.createElement('option');o.value=v;o.textContent=l;select.appendChild(o)});select.value=normalized;const persist=value=>{input.value=value;input.dispatchEvent(new Event('input',{bubbles:true}));input.dispatchEvent(new Event('change',{bubbles:true}));input.dispatchEvent(new FocusEvent('focusout',{bubbles:true}))};select.addEventListener('change',e=>persist(e.target.value));input.insertAdjacentElement('afterend',select);if(currentRaw!==normalized)setTimeout(()=>persist(normalized),0);});}
+function applyBaseDesignGate(root,enabled){const labels=['Rigenera Proposte Layout','Genera Proposte Layout','Apri Studio','Design avanzato','Personalizza design','Builder grafico'];root.querySelectorAll('button').forEach(button=>{if(button.classList.contains('professional-builder-nav-entry')||button.classList.contains('professional-settings-builder'))return;const label=(button.textContent||'').trim(),matches=labels.some(x=>label.toLowerCase().includes(x.toLowerCase()));if(!matches)return;if(enabled){if(button.dataset.planGate==='professional'){button.disabled=false;button.removeAttribute('title');delete button.dataset.planGate}return;}button.disabled=true;button.dataset.planGate='professional';button.title='Disponibile con il piano Professional';if(!/PROFESSIONAL/i.test(label))button.textContent=`${label} · PROFESSIONAL`;});}
+const n=v=>Number(v||0).toLocaleString('it-IT');
+function StatisticsWorkspace({open,onClose,token}){
+ const [payload,setPayload]=useState(null),[error,setError]=useState('');
+ useEffect(()=>{if(!open||!token)return;setError('');fetch('/api/index.php?action=site',{headers:{Authorization:`Bearer ${token}`},cache:'no-store'}).then(async r=>{const j=await r.json();if(!r.ok||j?.error)throw new Error(j?.error||'Statistiche non disponibili');return j}).then(setPayload).catch(e=>setError(e.message));},[open,token]);
+ if(!open)return null;const v=payload?.visibility||{},posts=payload?.posts||[],published=posts.filter(p=>Number(p.published)===1),visible=Number(v.google_visible_pages||0),impressions=Number(v.impressions||0),tracking=!!v.tracking_started;const phase=impressions>0||visible>0?'growth':tracking||published.length>0?'discovery':'activation';const topPages=v.top_pages||[],topQueries=v.top_queries||[];const actions=[['Telefono',v.event_counts?.call_click],['WhatsApp',v.event_counts?.whatsapp_click],['Indicazioni',v.event_counts?.directions_click],['Prenotazioni',v.event_counts?.booking_click],['Social',v.event_counts?.social_click],['Contenuti aperti',v.event_counts?.path_content_click]];
+ const nextAction=published.length<5?'Pubblica almeno 5 contenuti: dai a Google e all’Hub più pagine utili da scoprire.':visible===0?'Continua a pubblicare e distribuire: Google non mostra ancora pagine, ma sito, Hub e tracking sono già operativi.':topQueries.length?'Lavora sulla query con più impression e pochi clic: è il segnale più vicino a una crescita misurabile.':'Mantieni il ritmo editoriale mentre raccogliamo i primi segnali di ricerca.';
+ return <div className="stats-overlay" onMouseDown={e=>{if(e.target===e.currentTarget)onClose()}}><section className="stats-workspace"><header className="stats-head"><div><small>STATISTICHE E CRESCITA</small><h2>Quello che sta succedendo davvero</h2><p>Separiamo i risultati immediati di LinkSeoWeb dai tempi di Google: così non devi aspettare l’indicizzazione per capire se il sistema sta lavorando.</p></div><button className="stats-close" onClick={onClose}>×</button></header><div className="stats-body">{error?<div className="stats-empty">{error}</div>:!payload?<div className="stats-empty">Caricamento dati reali…</div>:<>
+ <section className="stats-phase"><strong>Percorso di crescita · {phase==='activation'?'Attivazione':phase==='discovery'?'Scoperta':'Crescita'}</strong><div className="stats-phase-row"><div className={`stats-phase-step ${phase!=='activation'?'done':'active'}`}>1 · Attivazione<br/><small>Sito, contenuti, Hub, tracking</small></div><div className={`stats-phase-step ${phase==='growth'?'done':phase==='discovery'?'active':''}`}>2 · Scoperta<br/><small>Prime visite e pagine rilevate</small></div><div className={`stats-phase-step ${phase==='growth'?'active':''}`}>3 · Crescita<br/><small>Impression, clic, query e ranking</small></div></div></section>
+ <div className="stats-kpis"><div className="stats-kpi"><strong>{n(v.unique_visitors)}</strong><span>Visitatori unici · 30 gg</span></div><div className="stats-kpi"><strong>{n(v.impressions)}</strong><span>Impression Google · 30 gg</span></div><div className="stats-kpi"><strong>{n(v.clicks)}</strong><span>Clic da Google · 30 gg</span></div><div className="stats-kpi"><strong>{n(v.actions)}</strong><span>Azioni verso l’attività · 30 gg</span></div></div>
+ <div className="stats-columns"><section className="stats-card"><h3>Contenuti e pagine che funzionano</h3><p>Ordinati sui dati Google disponibili: impression, clic, CTR e posizione.</p>{topPages.length?topPages.map((p,i)=><div className="stats-row" key={p.page_url||i}><div><b>{p.page_url}</b><small>{n(p.impressions)} impression · CTR {Number(p.ctr||0).toFixed(1)}% · posizione {Number(p.position||0).toFixed(1)}</small></div><div className="stats-value">{n(p.clicks)}<small>clic</small></div></div>):<div className="stats-empty">Google non ha ancora restituito dati per singola pagina. Nel frattempo il tracking LinkSeoWeb continua a raccogliere visite e interazioni.</div>}</section>
+ <section className="stats-card"><h3>Come ti stanno cercando</h3><p>Le query reali diventano indicazioni editoriali, non semplici numeri.</p>{topQueries.length?topQueries.map((q,i)=><div className="stats-row" key={q.query_text||i}><div><b>{q.query_text}</b><small>posizione {Number(q.position||0).toFixed(1)} · CTR {Number(q.ctr||0).toFixed(1)}%</small></div><div className="stats-value">{n(q.impressions)}<small>impression</small></div></div>):<div className="stats-empty">Nessuna query ancora disponibile. È normale nella fase iniziale: non mostriamo zeri come se fossero un fallimento.</div>}</section></div>
+ <section className="stats-card"><h3>Interazioni immediate</h3><p>Questi segnali non dipendono dai tempi di indicizzazione di Google.</p><div className="stats-actions">{actions.map(([label,value])=><div className="stats-action" key={label}><strong>{n(value)}</strong><small>{label}</small></div>)}</div></section>
+ <section className="stats-card"><h3>Cosa fare adesso</h3><div className="stats-action"><strong>Missione consigliata</strong><small>{nextAction}</small></div><p className="stats-note" style={{marginTop:12}}>Pagine pubblicate: {n(v.published_pages||published.length+1)} · pagine già visibili su Google: {n(v.google_visible_pages)} · tracking attivo dal: {v.tracking_started?new Date(v.tracking_started).toLocaleDateString('it-IT'):'in attivazione'}.</p></section>
+ </>}</div></section></div>
 }
-
-function installCompactMenuStyle() {
-  if (document.getElementById('linkseoweb-plan-ui-style')) return;
-  const style = document.createElement('style');
-  style.id = 'linkseoweb-plan-ui-style';
-  style.textContent = `
-    .desktop-sidebar { overflow: hidden !important; }
-    .sidebar-navigation { overflow-y: visible !important; scrollbar-width: none !important; min-height: 0 !important; }
-    .sidebar-navigation::-webkit-scrollbar { display: none !important; }
-    .sidebar-navigation .nav-section { margin-bottom: 4px !important; }
-    .sidebar-navigation .nav-group { margin: 4px 10px 3px !important; font-size: 10px !important; }
-    .sidebar-navigation .nav-item { min-height: 40px !important; padding-top: 6px !important; padding-bottom: 6px !important; }
-    .sidebar-navigation .nav-copy small { font-size: 10px !important; line-height: 1.15 !important; }
-    .sidebar-navigation .nav-copy strong { font-size: 12px !important; }
-    .sidebar-navigation > div[style*="margin-top: auto"] { margin-top: 4px !important; padding: 4px 12px !important; }
-    .professional-builder-nav-entry .nav-icon { font-size: 18px; }
-    .professional-plan-select { width: 100%; padding: 7px; font-size: 12px; border: 1px solid var(--border-strong); border-radius: var(--radius-sm); background: var(--surface); color: var(--text); }
-  `;
-  document.head.appendChild(style);
-}
-
-function replacePublicSiteLabels(root) {
-  root.querySelectorAll('a,button').forEach(node => {
-    const label = (node.textContent || '').replace(/\s+/g, ' ').trim();
-    if (/vai al sito pubblico|apri il sito pubblico|controlla il sito|vedi il sito pubblico/i.test(label)) {
-      node.textContent = "Vai all'HUB LinkSeoWeb";
-      if (node.tagName === 'A') {
-        node.setAttribute('href', '/scopri');
-        node.setAttribute('target', '_blank');
-        node.setAttribute('rel', 'noopener noreferrer');
-      }
-    }
-  });
-}
-
-function addProfessionalBuilderMenu(root, enabled, openBuilder) {
-  const existing = root.querySelector('.professional-builder-nav-entry');
-  if (!enabled) { existing?.remove(); return; }
-  if (existing) return;
-  const settingsButton = [...root.querySelectorAll('.sidebar-navigation .nav-item')].find(node => /Impostazioni/i.test(node.textContent || ''));
-  if (!settingsButton) return;
-  const button = document.createElement('button');
-  button.type = 'button';
-  button.className = 'nav-item professional-builder-nav-entry';
-  button.innerHTML = '<span class="nav-icon">🎨</span><span class="nav-copy"><strong>Builder grafico</strong><small>Personalizza il tuo sito</small></span>';
-  button.addEventListener('click', openBuilder);
-  settingsButton.insertAdjacentElement('afterend', button);
-}
-
-function addProfessionalSettingsCard(root, enabled, openBuilder, slug) {
-  const grid = root.querySelector('.settings-hub-grid');
-  const existing = root.querySelector('.professional-settings-builder');
-  if (!grid || !enabled) { existing?.remove(); return; }
-  if (existing) return;
-  const button = document.createElement('button');
-  button.type = 'button';
-  button.className = 'professional-settings-builder';
-  button.innerHTML = `<span>🎨</span><div><strong>Modifica grafica del sito</strong><small>Temi, colori, font e layout${slug ? ` · /${slug}` : ''}</small></div><i>→</i>`;
-  button.addEventListener('click', openBuilder);
-  grid.appendChild(button);
-}
-
-function normalizeAdminPlanControls(root) {
-  root.querySelectorAll('input[type="text"]').forEach(input => {
-    if (input.dataset.professionalPlanSource === '1') return;
-    const container = input.parentElement;
-    if (!container) return;
-    const roleSelect = container.querySelector('select');
-    if (!roleSelect) return;
-    const roleOptions = [...roleSelect.options].map(option => option.value);
-    if (!roleOptions.includes('user') || !roleOptions.includes('admin')) return;
-    const currentRaw = String(input.value || '').trim().toLowerCase();
-    const normalized = normalizePlan(currentRaw);
-    input.dataset.professionalPlanSource = '1';
-    input.style.display = 'none';
-    const select = document.createElement('select');
-    select.className = 'professional-plan-select';
-    select.setAttribute('aria-label', 'Piano utente');
-    [['base','Base'],['professional','Professional'],['agency','Agency']].forEach(([value, label]) => {
-      const option = document.createElement('option'); option.value = value; option.textContent = label; select.appendChild(option);
-    });
-    select.value = normalized;
-    const persist = value => {
-      input.value = value;
-      input.dispatchEvent(new Event('input', { bubbles: true }));
-      input.dispatchEvent(new Event('change', { bubbles: true }));
-      input.dispatchEvent(new FocusEvent('focusout', { bubbles: true }));
-    };
-    select.addEventListener('change', event => persist(event.target.value));
-    input.insertAdjacentElement('afterend', select);
-    if (currentRaw !== normalized) window.setTimeout(() => persist(normalized), 0);
-  });
-}
-
-function applyBaseDesignGate(root, enabled) {
-  const advancedLabels = ['Rigenera Proposte Layout','Genera Proposte Layout','Apri Studio','Design avanzato','Personalizza design','Builder grafico'];
-  root.querySelectorAll('button').forEach(button => {
-    if (button.classList.contains('professional-builder-nav-entry') || button.classList.contains('professional-settings-builder')) return;
-    const label = (button.textContent || '').trim();
-    const matches = advancedLabels.some(item => label.toLowerCase().includes(item.toLowerCase()));
-    if (!matches) return;
-    if (enabled) {
-      if (button.dataset.planGate === 'professional') { button.disabled = false; button.removeAttribute('title'); delete button.dataset.planGate; }
-      return;
-    }
-    button.disabled = true;
-    button.dataset.planGate = 'professional';
-    button.title = 'Disponibile con il piano Professional';
-    if (!/PROFESSIONAL/i.test(label)) button.textContent = `${label} · PROFESSIONAL`;
-  });
-}
-
-export function PlanExperience({ user }) {
-  const [resolvedUser, setResolvedUser] = useState(user || null);
-  const advancedDesign = hasPlan(resolvedUser, 'professional');
-  const [builderOpen, setBuilderOpen] = useState(false);
-
-  useEffect(() => {
-    setResolvedUser(user || null);
-    const token = localStorage.getItem('sts_token');
-    if (!token) return;
-    fetch('/api/current_plan.php', { headers: { Authorization: `Bearer ${token}` }, cache: 'no-store' })
-      .then(r => r.ok ? r.json() : Promise.reject(new Error('plan-sync-failed')))
-      .then(data => { if (!data?.user) return; setResolvedUser(data.user); localStorage.setItem('sts_user', JSON.stringify(data.user)); })
-      .catch(() => {});
-  }, [user?.id, user?.plan]);
-
-  useEffect(() => {
-    installCompactMenuStyle();
-    const openBuilder = () => setBuilderOpen(true);
-    const enhance = () => {
-      replacePublicSiteLabels(document);
-      normalizeAdminPlanControls(document);
-      addProfessionalBuilderMenu(document, advancedDesign, openBuilder);
-      addProfessionalSettingsCard(document, advancedDesign, openBuilder, resolvedUser?.slug || '');
-      applyBaseDesignGate(document, advancedDesign);
-    };
-    enhance();
-    const observer = new MutationObserver(enhance);
-    observer.observe(document.body, { subtree: true, childList: true });
-    return () => observer.disconnect();
-  }, [advancedDesign, resolvedUser?.slug]);
-
-  if (!resolvedUser) return null;
-  return <ProSiteBuilder user={resolvedUser} open={builderOpen && advancedDesign} onClose={() => setBuilderOpen(false)} />;
+export function PlanExperience({user}){
+ const[resolvedUser,setResolvedUser]=useState(user||null),[builderOpen,setBuilderOpen]=useState(false),[statsOpen,setStatsOpen]=useState(false);const advancedDesign=hasPlan(resolvedUser,'professional'),token=typeof window!=='undefined'?localStorage.getItem('sts_token'):'';
+ useEffect(()=>{setResolvedUser(user||null);if(!token)return;fetch('/api/current_plan.php',{headers:{Authorization:`Bearer ${token}`},cache:'no-store'}).then(r=>r.ok?r.json():Promise.reject()).then(data=>{if(!data?.user)return;setResolvedUser(data.user);localStorage.setItem('sts_user',JSON.stringify(data.user))}).catch(()=>{});},[user?.id,user?.plan,token]);
+ useEffect(()=>{installCompactMenuStyle();const openBuilder=()=>setBuilderOpen(true),openStats=()=>setStatsOpen(true);const enhance=()=>{replacePublicSiteLabels(document);normalizeAdminPlanControls(document);addMenuEntry(document,'statistics-nav-entry','Statistiche','Clic, visite e crescita','▥',openStats,'Visibilità');addProfessionalBuilderMenu(document,advancedDesign,openBuilder);addProfessionalSettingsCard(document,advancedDesign,openBuilder,resolvedUser?.slug||'');applyBaseDesignGate(document,advancedDesign)};enhance();const observer=new MutationObserver(enhance);observer.observe(document.body,{subtree:true,childList:true});return()=>observer.disconnect();},[advancedDesign,resolvedUser?.slug]);
+ if(!resolvedUser)return null;return <><StatisticsWorkspace open={statsOpen} onClose={()=>setStatsOpen(false)} token={token}/><ProSiteBuilder user={resolvedUser} open={builderOpen&&advancedDesign} onClose={()=>setBuilderOpen(false)}/></>;
 }
