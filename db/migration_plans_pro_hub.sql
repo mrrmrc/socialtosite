@@ -1,5 +1,5 @@
 -- LinkSeoWeb — normalizzazione piani commerciali
--- Piani supportati: base, pro, agency
+-- Piani supportati: base, professional, agency
 
 ALTER TABLE users
   MODIFY COLUMN plan VARCHAR(20) NOT NULL DEFAULT 'base';
@@ -11,17 +11,21 @@ UPDATE users
     OR LOWER(TRIM(plan)) IN ('free', 'starter');
 
 UPDATE users
+   SET plan = 'professional'
+ WHERE LOWER(TRIM(plan)) = 'pro';
+
+UPDATE users
    SET plan = LOWER(TRIM(plan))
- WHERE LOWER(TRIM(plan)) IN ('base', 'pro', 'agency');
+ WHERE LOWER(TRIM(plan)) IN ('base', 'professional', 'agency');
 
 -- Qualunque valore legacy/non riconosciuto torna al piano base.
 UPDATE users
    SET plan = 'base'
- WHERE LOWER(TRIM(plan)) NOT IN ('base', 'pro', 'agency');
+ WHERE LOWER(TRIM(plan)) NOT IN ('base', 'professional', 'agency');
 
--- Utente pilota della versione Pro.
+-- Utente pilota della versione Professional.
 UPDATE users
-   SET plan = 'pro'
+   SET plan = 'professional'
  WHERE LOWER(TRIM(name)) = LOWER('Maurizio Bottino');
 
 -- Indici utili per Hub e amministrazione con molte utenze.
