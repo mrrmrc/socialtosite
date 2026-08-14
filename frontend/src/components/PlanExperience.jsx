@@ -52,16 +52,10 @@ function replacePublicSiteLabels(root) {
 
 function addProfessionalBuilderMenu(root, enabled, openBuilder) {
   const existing = root.querySelector('.professional-builder-nav-entry');
-  if (!enabled) {
-    existing?.remove();
-    return;
-  }
+  if (!enabled) { existing?.remove(); return; }
   if (existing) return;
-
-  const settingsButton = [...root.querySelectorAll('.sidebar-navigation .nav-item')]
-    .find(node => /Impostazioni/i.test(node.textContent || ''));
+  const settingsButton = [...root.querySelectorAll('.sidebar-navigation .nav-item')].find(node => /Impostazioni/i.test(node.textContent || ''));
   if (!settingsButton) return;
-
   const button = document.createElement('button');
   button.type = 'button';
   button.className = 'nav-item professional-builder-nav-entry';
@@ -73,12 +67,8 @@ function addProfessionalBuilderMenu(root, enabled, openBuilder) {
 function addProfessionalSettingsCard(root, enabled, openBuilder, slug) {
   const grid = root.querySelector('.settings-hub-grid');
   const existing = root.querySelector('.professional-settings-builder');
-  if (!grid || !enabled) {
-    existing?.remove();
-    return;
-  }
+  if (!grid || !enabled) { existing?.remove(); return; }
   if (existing) return;
-
   const button = document.createElement('button');
   button.type = 'button';
   button.className = 'professional-settings-builder';
@@ -96,36 +86,26 @@ function normalizeAdminPlanControls(root) {
     if (!roleSelect) return;
     const roleOptions = [...roleSelect.options].map(option => option.value);
     if (!roleOptions.includes('user') || !roleOptions.includes('admin')) return;
-
     const currentRaw = String(input.value || '').trim().toLowerCase();
     const normalized = normalizePlan(currentRaw);
     input.dataset.professionalPlanSource = '1';
     input.style.display = 'none';
-
     const select = document.createElement('select');
     select.className = 'professional-plan-select';
     select.setAttribute('aria-label', 'Piano utente');
     [['base','Base'],['professional','Professional'],['agency','Agency']].forEach(([value, label]) => {
-      const option = document.createElement('option');
-      option.value = value;
-      option.textContent = label;
-      select.appendChild(option);
+      const option = document.createElement('option'); option.value = value; option.textContent = label; select.appendChild(option);
     });
     select.value = normalized;
-
     const persist = value => {
       input.value = value;
       input.dispatchEvent(new Event('input', { bubbles: true }));
       input.dispatchEvent(new Event('change', { bubbles: true }));
       input.dispatchEvent(new FocusEvent('focusout', { bubbles: true }));
     };
-
     select.addEventListener('change', event => persist(event.target.value));
     input.insertAdjacentElement('afterend', select);
-
-    if (currentRaw !== normalized) {
-      window.setTimeout(() => persist(normalized), 0);
-    }
+    if (currentRaw !== normalized) window.setTimeout(() => persist(normalized), 0);
   });
 }
 
@@ -137,11 +117,7 @@ function applyBaseDesignGate(root, enabled) {
     const matches = advancedLabels.some(item => label.toLowerCase().includes(item.toLowerCase()));
     if (!matches) return;
     if (enabled) {
-      if (button.dataset.planGate === 'professional') {
-        button.disabled = false;
-        button.removeAttribute('title');
-        delete button.dataset.planGate;
-      }
+      if (button.dataset.planGate === 'professional') { button.disabled = false; button.removeAttribute('title'); delete button.dataset.planGate; }
       return;
     }
     button.disabled = true;
@@ -153,7 +129,6 @@ function applyBaseDesignGate(root, enabled) {
 
 export function PlanExperience({ user }) {
   const [resolvedUser, setResolvedUser] = useState(user || null);
-  const plan = useMemo(() => normalizePlan(resolvedUser?.plan), [resolvedUser?.plan]);
   const advancedDesign = hasPlan(resolvedUser, 'professional');
   const [builderOpen, setBuilderOpen] = useState(false);
 
@@ -161,16 +136,9 @@ export function PlanExperience({ user }) {
     setResolvedUser(user || null);
     const token = localStorage.getItem('sts_token');
     if (!token) return;
-    fetch('/api/current_plan.php', {
-      headers: { Authorization: `Bearer ${token}` },
-      cache: 'no-store',
-    })
+    fetch('/api/current_plan.php', { headers: { Authorization: `Bearer ${token}` }, cache: 'no-store' })
       .then(r => r.ok ? r.json() : Promise.reject(new Error('plan-sync-failed')))
-      .then(data => {
-        if (!data?.user) return;
-        setResolvedUser(data.user);
-        localStorage.setItem('sts_user', JSON.stringify(data.user));
-      })
+      .then(data => { if (!data?.user) return; setResolvedUser(data.user); localStorage.setItem('sts_user', JSON.stringify(data.user)); })
       .catch(() => {});
   }, [user?.id, user?.plan]);
 
@@ -191,25 +159,5 @@ export function PlanExperience({ user }) {
   }, [advancedDesign, resolvedUser?.slug]);
 
   if (!resolvedUser) return null;
-
-  const labels = {
-    base: { title: 'BASE', subtitle: 'Sito standard' },
-    professional: { title: 'PROFESSIONAL', subtitle: 'Builder grafico attivo' },
-    agency: { title: 'AGENCY', subtitle: 'Gestione avanzata' },
-  };
-  const meta = labels[plan];
-
-  return (
-    <>
-      <ProSiteBuilder user={resolvedUser} open={builderOpen && advancedDesign} onClose={() => setBuilderOpen(false)} />
-      <div
-        title={`Piano ${meta.title}: ${meta.subtitle}`}
-        style={{position:'fixed',right:18,bottom:18,zIndex:1000,display:'flex',alignItems:'center',gap:8,padding:'8px 11px',borderRadius:999,background:'rgba(15,23,42,.92)',color:'#fff',boxShadow:'0 10px 30px rgba(15,23,42,.2)',fontSize:11,fontWeight:800,letterSpacing:'.04em',backdropFilter:'blur(10px)'}}
-      >
-        <span style={{ opacity: .65 }}>PIANO</span>
-        <strong>{meta.title}</strong>
-        {advancedDesign && <span style={{ opacity: .7 }}>· DESIGN</span>}
-      </div>
-    </>
-  );
+  return <ProSiteBuilder user={resolvedUser} open={builderOpen && advancedDesign} onClose={() => setBuilderOpen(false)} />;
 }
