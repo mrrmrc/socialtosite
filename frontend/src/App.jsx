@@ -5,6 +5,7 @@ import { AuthScreen } from './screens/AuthScreen';
 import { ConnectScreen } from './screens/ConnectScreen';
 import { GeneratingScreen } from './screens/GeneratingScreen';
 import { DashboardScreen } from './screens/DashboardScreen';
+import { PlanExperience } from './components/PlanExperience';
 
 function AppContent() {
   const navigate = useNavigate();
@@ -85,6 +86,8 @@ function AppContent() {
         <Route path="/dashboard/*" element={token ? <DashboardScreen token={token} user={user} onLogout={logout} /> : <Navigate to="/login" />} />
         <Route path="*" element={<Navigate to={token ? "/dashboard" : "/login"} replace />} />
       </Routes>
+
+      {token && user && <PlanExperience user={user} />}
       
       <footer style={{
         textAlign: 'center', padding: '12px 20px', fontSize: '11px',
@@ -99,6 +102,10 @@ function AppContent() {
           <span style={{ opacity: 0.6 }}>LinkSeoWeb</span>
         </span>
         <span style={{ opacity: 0.3 }}>·</span>
+        {user?.plan && <>
+          <span>Piano: <strong style={{ color: 'var(--primary)', textTransform: 'uppercase' }}>{user.plan}</strong></span>
+          <span style={{ opacity: 0.3 }}>·</span>
+        </>}
         {deployInfo ? (
           <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
             <span style={{ opacity: 0.5 }}>🚀</span>
