@@ -82,7 +82,7 @@ function addProfessionalSettingsCard(root, enabled, openBuilder, slug) {
   const button = document.createElement('button');
   button.type = 'button';
   button.className = 'professional-settings-builder';
-  button.innerHTML = `<span>🎨</span><div><strong>Builder grafico Professional</strong><small>Temi, colori, font e layout del sito${slug ? ` /${slug}` : ''}</small></div><i>→</i>`;
+  button.innerHTML = `<span>🎨</span><div><strong>Modifica grafica del sito</strong><small>Temi, colori, font e layout${slug ? ` · /${slug}` : ''}</small></div><i>→</i>`;
   button.addEventListener('click', openBuilder);
   grid.appendChild(button);
 }
@@ -152,9 +152,27 @@ function applyBaseDesignGate(root, enabled) {
 }
 
 export function PlanExperience({ user }) {
-  const plan = useMemo(() => normalizePlan(user?.plan), [user?.plan]);
-  const advancedDesign = hasPlan(user, 'professional');
+  const [resolvedUser, setResolvedUser] = useState(user || null);
+  const plan = useMemo(() => normalizePlan(resolvedUser?.plan), [resolvedUser?.plan]);
+  const advancedDesign = hasPlan(resolvedUser, 'professional');
   const [builderOpen, setBuilderOpen] = useState(false);
+
+  useEffect(() => {
+    setResolvedUser(user || null);
+    const token = localStorage.getItem('sts_token');
+    if (!token) return;
+    fetch('/api/current_plan.php', {
+      headers: { Authorization: `Bearer ${token}` },
+      cache: 'no-store',
+    })
+      .then(r => r.ok ? r.json() : Promise.reject(new Error('plan-sync-failed')))
+      .then(data => {
+        if (!data?.user) return;
+        setResolvedUser(data.user);
+        localStorage.setItem('sts_user', JSON.stringify(data.user));
+      })
+      .catch(() => {});
+  }, [user?.id, user?.plan]);
 
   useEffect(() => {
     installCompactMenuStyle();
@@ -163,16 +181,16 @@ export function PlanExperience({ user }) {
       replacePublicSiteLabels(document);
       normalizeAdminPlanControls(document);
       addProfessionalBuilderMenu(document, advancedDesign, openBuilder);
-      addProfessionalSettingsCard(document, advancedDesign, openBuilder, user?.slug || '');
+      addProfessionalSettingsCard(document, advancedDesign, openBuilder, resolvedUser?.slug || '');
       applyBaseDesignGate(document, advancedDesign);
     };
     enhance();
     const observer = new MutationObserver(enhance);
     observer.observe(document.body, { subtree: true, childList: true });
     return () => observer.disconnect();
-  }, [advancedDesign, user?.slug]);
+  }, [advancedDesign, resolvedUser?.slug]);
 
-  if (!user) return null;
+  if (!resolvedUser) return null;
 
   const labels = {
     base: { title: 'BASE', subtitle: 'Sito standard' },
@@ -183,7 +201,7 @@ export function PlanExperience({ user }) {
 
   return (
     <>
-      <ProSiteBuilder user={user} open={builderOpen && advancedDesign} onClose={() => setBuilderOpen(false)} />
+      <ProSiteBuilder user={resolvedUser} open={builderOpen && advancedDesign} onClose={() => setBuilderOpen(false)} />
       <div
         title={`Piano ${meta.title}: ${meta.subtitle}`}
         style={{position:'fixed',right:18,bottom:18,zIndex:1000,display:'flex',alignItems:'center',gap:8,padding:'8px 11px',borderRadius:999,background:'rgba(15,23,42,.92)',color:'#fff',boxShadow:'0 10px 30px rgba(15,23,42,.2)',fontSize:11,fontWeight:800,letterSpacing:'.04em',backdropFilter:'blur(10px)'}}
