@@ -65,31 +65,39 @@ const STRATEGY_GOALS = [
   ['events', 'Promuovere eventi'],
 ];
 
-const VISIBILITY_MODULES = [
+const PLATFORM_PLANS = [
   {
-    name: 'Piano editoriale',
-    price: '\u20ac19/mese',
-    description: 'Priorit\u00e0, argomenti e calendario mensile costruiti sul pubblico che vuoi raggiungere.',
-    deliverables: ['Analisi mensile', 'Idee ordinate per impatto', 'Brief pronti per la scrittura'],
+    name: 'Base',
+    price: '€50/anno',
+    description: 'Vetrina automatizzata essenziale.',
+    deliverables: [
+      'Generazione automatica sito vetrina',
+      'Acquisizione da 1 Canale Social',
+      'Fino a 10 articoli elaborati al mese',
+      'Ottimizzazione SEO Base automatica'
+    ],
   },
   {
-    name: 'SEO Boost',
-    price: '\u20ac39/mese',
-    description: 'Interventi sulle opportunit\u00e0 Google che i soli contenuti social non riescono a coprire.',
-    deliverables: ['Query e pagine da migliorare', 'Titoli e testi ottimizzati', 'Collegamenti interni'],
+    name: 'Pro',
+    price: '€150/anno',
+    description: 'Il piano ideale per crescere senza sforzo.',
+    deliverables: [
+      'Acquisizione fino a 5 Canali Social',
+      'Elaborazione fino a 50 articoli/mese',
+      'Motore AI (Topical Authority e Idee)',
+      'Design Avanzato personalizzabile'
+    ],
     featured: true,
   },
   {
-    name: 'Visibilit\u00e0 locale',
-    price: '\u20ac49/mese',
-    description: 'Pagine dedicate a territorio, servizi e intenzioni di ricerca locali.',
-    deliverables: ['Analisi geografica', 'Pagine locali', 'Call to action mirate'],
-  },
-  {
-    name: 'Content Growth',
-    price: '\u20ac69/mese',
-    description: 'Produzione continuativa di nuovi contenuti SEO coerenti con strategia e obiettivi.',
-    deliverables: ['Nuovi articoli', 'Copertura dei temi mancanti', 'Aggiornamento dei contenuti'],
+    name: 'Agency',
+    price: '€500/anno',
+    description: 'Gestione per agenzie e multi-cliente.',
+    deliverables: [
+      'Dashboard gestione clienti',
+      'Assegnazione piani Base/Pro ai clienti',
+      'Pacchetto licenze incluso'
+    ],
   },
 ];
 
@@ -390,7 +398,7 @@ function SiteMapGraph({ posts, siteUrl, siteTitle, foundationPages = [] }) {
   const short = value => String(value || 'Articolo').replace(/\s+/g, ' ').slice(0, 24);
   return (
     <div style={{ overflowX: 'auto', paddingBottom: '0.5rem' }}>
-      <svg viewBox="0 0 860 445" role="img" aria-label="Grafo dei collegamenti dal dominio AllSocialToWeb allo Spazio Vivo, ai temi e ai suoi contenuti" style={{ width: '100%', minWidth: '690px', height: 'auto', display: 'block' }}>
+      <svg viewBox="0 0 860 445" role="img" aria-label="Grafo dei collegamenti dal dominio LinkSeoWeb allo Spazio Vivo, ai temi e ai suoi contenuti" style={{ width: '100%', minWidth: '690px', height: 'auto', display: 'block' }}>
         <defs>
           <linearGradient id="graphRoot" x1="0" x2="1"><stop stopColor="#6366f1"/><stop offset="1" stopColor="#06b6d4"/></linearGradient>
           <filter id="graphShadow"><feDropShadow dx="0" dy="5" stdDeviation="7" floodOpacity="0.13"/></filter>
@@ -399,7 +407,7 @@ function SiteMapGraph({ posts, siteUrl, siteTitle, foundationPages = [] }) {
         {graphLabels.length === 0 && visiblePosts.length > 0 && <path d="M430 224 L430 312" stroke="var(--border-strong)" strokeWidth="2" />}
         {topicPositions.map(topic => <path key={topic.label} d={`M430 224 C430 250 ${topic.x} 242 ${topic.x} 276`} fill="none" stroke="var(--primary)" strokeOpacity=".55" strokeWidth="2" />)}
         {positions.slice(0, visiblePosts.length).map(([x], index) => { const postTags=visiblePosts[index]?.tags || []; const parent=foundationPages.length ? topicPositions[index % Math.max(topicPositions.length, 1)] : topicPositions.find(topic => postTags.includes(topic.label)); const fromX=parent?.x || 430; return <path key={index} d={`M${fromX} 312 C${fromX} 334 ${x} 326 ${x} 350`} fill="none" stroke="var(--border-strong)" strokeWidth="2" />; })}
-        <g filter="url(#graphShadow)"><rect x="310" y="22" width="240" height="60" rx="18" fill="url(#graphRoot)"/><text x="430" y="48" textAnchor="middle" fill="#fff" fontSize="15" fontWeight="800">ALLSOCIALTOWEB.COM</text><text x="430" y="67" textAnchor="middle" fill="rgba(255,255,255,.82)" fontSize="11">Hub pubblico /scopri</text></g>
+        <g filter="url(#graphShadow)"><rect x="310" y="22" width="240" height="60" rx="18" fill="url(#graphRoot)"/><text x="430" y="48" textAnchor="middle" fill="#fff" fontSize="15" fontWeight="800">LINKSEOWEB</text><text x="430" y="67" textAnchor="middle" fill="rgba(255,255,255,.82)" fontSize="11">Hub pubblico /scopri</text></g>
         <g filter="url(#graphShadow)"><rect x="285" y="142" width="290" height="82" rx="20" fill="var(--surface)" stroke="var(--primary)" strokeWidth="2"/><text x="430" y="174" textAnchor="middle" fill="var(--text)" fontSize="17" fontWeight="800">{short(siteTitle || 'Spazio Vivo')}</text><text x="430" y="198" textAnchor="middle" fill="var(--text-muted)" fontSize="12">{siteUrl.replace(window.location.origin, '')}</text></g>
         {topicPositions.map(topic => <g key={topic.label}><rect x={topic.x-58} y="276" width="116" height="36" rx="18" fill="var(--primary-light)" stroke="var(--primary)"/><text x={topic.x} y="299" textAnchor="middle" fill="var(--primary)" fontSize="10" fontWeight="800">{short(topic.label).slice(0,19)}</text></g>)}
         {visiblePosts.map((post, index) => { const [x,y]=positions[index]; return <g key={post.id}><rect x={x-56} y={y-15} width="112" height="58" rx="14" fill="var(--bg)" stroke="var(--border-strong)"/><text x={x} y={y+7} textAnchor="middle" fill="var(--text)" fontSize="10" fontWeight="700"><tspan x={x}>{short(post.generated_title).slice(0,16)}</tspan><tspan x={x} dy="14">{short(post.generated_title).slice(16,32)}</tspan></text></g> })}
@@ -546,6 +554,23 @@ const [importMsg, setImportMsg] = useState(null);
   }
 
   useEffect(() => { loadData(); loadDrafts(); }, []);
+
+  useEffect(() => {
+    let intervalId;
+    if (syncing || scanning || importing || harmonizingId > 0) {
+      intervalId = setInterval(async () => {
+        try {
+          const res = await apiFetch('/api/index.php?action=sync-status', {}, token);
+          if (res && res.ok && res.msg) {
+            setSyncMsg(prev => ({ ok: prev?.ok ?? true, text: res.msg, loading: prev?.loading ?? true }));
+          }
+        } catch (err) {}
+      }, 1500);
+    }
+    return () => {
+      if (intervalId) clearInterval(intervalId);
+    };
+  }, [syncing, scanning, importing, harmonizingId, token]);
 
   async function loadData() {
     try {
@@ -1941,20 +1966,21 @@ const [importMsg, setImportMsg] = useState(null);
     {
       label: 'Menu',
       items: [
-        { id: 'overview', icon: '⌂', label: 'Panoramica', hint: 'Cosa succede oggi' },
-        { id: 'seo', section: 'ideas', icon: '✦', label: 'Crea', hint: 'Idee, AI e social' },
-        { id: 'site', icon: '▤', label: 'Articoli', hint: 'Bozze e pubblicati' },
-        { id: 'sources', icon: '◉', label: 'Canali', hint: 'Contenuti acquisiti' },
-        { id: 'seo', section: 'network', icon: '◎', label: 'Visibilità', hint: 'Presenza e Google' },
-        { id: 'account', icon: '⚙', label: 'Impostazioni', hint: 'Profilo, aspetto e account' },
+        { id: 'overview', icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>, label: 'Panoramica', hint: 'Cosa succede oggi' },
+        { id: 'seo', section: 'ideas', icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>, label: 'Crea', hint: 'Idee, AI e social' },
+        { id: 'site', icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>, label: 'Articoli', hint: 'Bozze e pubblicati' },
+        { id: 'sources', icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line></svg>, label: 'Canali', hint: 'Contenuti acquisiti' },
+        { id: 'seo', section: 'network', icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>, label: 'Visibilità', hint: 'Presenza e Google' },
+        { id: 'account', icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>, label: 'Impostazioni', hint: 'Profilo, aspetto e account' },
+        { id: 'services', icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>, label: 'Piani e Upgrade', hint: 'Gestisci automazioni' },
       ],
     },
     ...(user?.role === 'admin' ? [{
       label: 'Amministrazione',
       items: [
-        { id: 'admin', icon: '♙', label: 'Utenti', hint: 'Account e accessi' },
-        { id: 'general', icon: '⚙', label: 'Sistema', hint: 'Agenti e impostazioni' },
-        { id: 'settings', icon: '◈', label: 'Design avanzato', hint: 'Strumenti legacy' },
+        { id: 'admin', icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>, label: 'Utenti', hint: 'Account e accessi' },
+        { id: 'general', icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg>, label: 'Sistema', hint: 'Agenti e impostazioni' },
+        { id: 'settings', icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"></path></svg>, label: 'Design avanzato', hint: 'Strumenti legacy' },
       ],
     }] : []),
   ];
@@ -1971,7 +1997,7 @@ const [importMsg, setImportMsg] = useState(null);
     general: ['Impostazioni di sistema', 'Configura agenti, automazioni e comportamento della piattaforma.'],
     security: ['Password e sicurezza', 'Proteggi il tuo account e gestisci le sessioni attive.'],
     account: ['Impostazioni', 'Tutto ciò che configuri meno spesso, raccolto in un unico posto.'],
-    services: ['Servizi opzionali', 'Richiedi attività aggiuntive senza confonderle con il lavoro quotidiano.'],
+    services: ['Piani e Upgrade', 'Gestisci il tuo piano e le funzionalità automatiche.'],
     admin: ['Utenti', 'Gestisci account, accessi e configurazioni dei clienti.'],
   };
   const seoMeta = visibilitySection === 'ideas'
@@ -2002,31 +2028,30 @@ const [importMsg, setImportMsg] = useState(null);
   const renderVisibilityServices = () => (
     <div className="services-page">
       <section className="services-intro">
-        <div><span>Supporto su richiesta</span><h2>Interventi aggiuntivi, separati dalla dashboard</h2><p>La piattaforma continua a funzionare senza acquisti. Qui trovi soltanto attività professionali opzionali, con contenuto e costo dichiarati.</p></div>
-        <div className="services-badge">Nessun vincolo</div>
+        <div><span>Piani e Upgrade</span><h2>Gestisci le automazioni del tuo spazio digitale</h2><p>Le funzionalità di acquisizione social, ottimizzazione AI e gestione clienti sono regolate dal tuo piano annuale.</p></div>
+        <div className="services-badge">Zero intervento umano</div>
       </section>
       <div className="services-grid">
-        {VISIBILITY_MODULES.map(module => (
+        {typeof PLATFORM_PLANS !== 'undefined' && PLATFORM_PLANS.map(module => (
           <article key={module.name} className={`service-card ${module.featured ? 'is-featured' : ''}`}>
             {module.featured && <span className="service-featured">Consigliato</span>}
             <h3>{module.name}</h3><strong>{module.price}</strong><p>{module.description}</p>
             <div>{module.deliverables.map(item => <span key={item}>✓ {item}</span>)}</div>
-            <a href={`mailto:support@ideesitiweb.it?subject=${encodeURIComponent(`Richiesta modulo ${module.name} - ${user?.slug || ''}`)}`} className={`btn ${module.featured ? 'btn-primary' : 'btn-outline'}`}>Richiedi informazioni</a>
+            <a href={`mailto:support@ideesitiweb.it?subject=${encodeURIComponent(`Richiesta passaggio al piano ${module.name} - ${user?.slug || ''}`)}`} className={`btn ${module.featured ? 'btn-primary' : 'btn-outline'}`}>Richiedi Upgrade</a>
           </article>
         ))}
       </div>
-      <p className="services-note">I prezzi non includono eventuali budget pubblicitari. Non vengono garantiti posizionamenti o risultati commerciali.</p>
+      <p className="services-note">Tutti i piani si intendono con fatturazione annuale. Non sono previsti costi nascosti o orari per gli interventi manuali: l'intero processo è automatizzato.</p>
     </div>
   );
   const renderAccountHub = () => (
     <div className="settings-hub">
-      <section className="settings-hub-intro"><span>Configurazione</span><h2>Le impostazioni, senza riempire il menu</h2><p>Qui trovi le attività che si fanno ogni tanto. Il lavoro quotidiano resta nelle sei voci principali.</p></section>
+      <section className="settings-hub-intro"><span>Configurazione</span><h2>Le impostazioni, in un unico posto</h2><p>Qui trovi profilo dell'attività, identità del sito e sicurezza dell'account.</p></section>
       <div className="settings-hub-grid">
         {[
           ['Profilo attività','Obiettivi, pubblico, servizi e territorio','strategy','✓'],
           ['Identità del sito','Logo, contenuti e anteprima del sito pubblico','experience','◇'],
           ['Sicurezza','Password e sessioni del tuo account','security','⌾'],
-          ['Servizi opzionali','Interventi professionali su richiesta','services','↗'],
         ].map(([title,description,target,icon]) => <button key={target} onClick={() => setTab(target)}><span>{icon}</span><div><strong>{title}</strong><small>{description}</small></div><i>→</i></button>)}
       </div>
     </div>
@@ -2063,8 +2088,8 @@ const [importMsg, setImportMsg] = useState(null);
       )}
       <aside className="desktop-sidebar" style={{ visibility: studioWorkspaceOpen ? 'hidden' : 'visible', pointerEvents: studioWorkspaceOpen ? 'none' : 'auto' }}>
         <div className="sidebar-brand">
-          <img src="/logo-cropped.png" alt="allsocialtoweb.com" />
-          <span>Area di lavoro</span>
+          <img src="/logo-cropped.png?v=2" alt="LinkSeoWeb" />
+          <div><strong>LinkSeoWeb</strong><span>Area di lavoro</span></div>
         </div>
         <button className="sidebar-create" onClick={() => selectNavigation({ id: 'seo', section: 'ideas' })}>
           <span>＋</span><div><strong>Nuovo contenuto</strong><small>Parti da un’idea</small></div>
@@ -2082,12 +2107,20 @@ const [importMsg, setImportMsg] = useState(null);
               ))}
             </div>
           ))}
+          <div style={{ marginTop: 'auto', padding: '16px 12px' }}>
+             <a href="/" target="_blank" rel="noopener noreferrer" className="nav-item" style={{ background: 'var(--primary)', color: 'white', fontWeight: 'bold', textDecoration: 'none' }}>
+                <span className="nav-icon"><svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg></span>
+                <span className="nav-copy"><strong>Vai al Sito Pubblico</strong></span>
+             </a>
+          </div>
         </nav>
         <div className="sidebar-account">
-          <div className="account-summary"><span>{String(user?.email || 'U').charAt(0).toUpperCase()}</span><div><strong>{user?.name || 'Il tuo account'}</strong><small>{user.email}</small></div></div>
+          <div className="account-summary">
+            <span>{user?.name?.[0]?.toUpperCase() || 'U'}</span>
+            <div><strong>{user?.name || 'Utente'}</strong><small>{user?.email || ''}</small></div>
+          </div>
           <div className="account-actions">
-            <button onClick={() => selectNavigation({ id: 'security' })}>Sicurezza</button>
-            <button onClick={toggleTheme}>{theme === 'dark' ? 'Tema chiaro' : 'Tema scuro'}</button>
+            <button onClick={() => selectNavigation({ id: 'settings', section: 'profile' })}>Profilo</button>
             <button onClick={onLogout}>Esci</button>
           </div>
         </div>
@@ -2095,7 +2128,7 @@ const [importMsg, setImportMsg] = useState(null);
 
       <div className="dashboard-main" style={studioWorkspaceOpen ? { marginLeft: 0 } : undefined}>
         <div className="mobile-top-header">
-          <img src="/logo-cropped.png" alt="allsocialtoweb.com" />
+          <div className="mobile-brand"><img src="/logo-cropped.png?v=2" alt="" /><strong>LinkSeoWeb</strong></div>
           <button className="mobile-menu-trigger" onClick={() => setMobileMenuOpen(true)} aria-label="Apri menu">☰</button>
         </div>
 
@@ -2256,7 +2289,7 @@ const [importMsg, setImportMsg] = useState(null);
               <div className="card">
                 <h3 style={{ marginBottom: '1rem' }}>Sincronizzazione dei canali</h3>
                 <p style={{ fontSize: '14px', color: 'var(--text-muted)', marginBottom: '1rem' }}>
-                  Ogni canale può aggiornarsi automaticamente ogni 6 ore oppure restare manuale. Puoi deciderlo nella sezione Canali.
+                  Un controllo periodico aggiorna i canali abilitati e ignora quelli impostati come manuali. Puoi decidere per ogni profilo nella sezione Canali.
                 </p>
                 <div style={{ padding: '12px', background: 'var(--gray-light)', borderRadius: '8px', fontSize: '13px', display: 'flex', justifyContent: 'space-between' }}>
                   <span style={{ fontWeight: 600 }}>Ultimo sync:</span>
@@ -2480,7 +2513,7 @@ const [importMsg, setImportMsg] = useState(null);
                                   {channel.type === 'oauth' ? '🔗 Connesso con account' : '🔍 Fonte tramite indirizzo'}
                                 </span>
                                 <span style={{ background: (channel.auto_sync ?? 1) === 1 ? 'var(--teal-light)' : 'var(--gray-light)', color: (channel.auto_sync ?? 1) === 1 ? '#0F6E56' : 'var(--text-muted)', padding: '1px 7px', borderRadius: '10px', fontWeight: 600 }}>
-                                  {(channel.auto_sync ?? 1) === 1 ? 'Auto ogni 6 ore' : 'Solo manuale'}
+                                  {(channel.auto_sync ?? 1) === 1 ? 'Controllo periodico attivo' : 'Solo manuale'}
                                 </span>
                               </div>
                             </div>
@@ -2920,7 +2953,7 @@ const [importMsg, setImportMsg] = useState(null);
                 <div className="google-progress-heading"><div><span>Monitoraggio automatico incluso</span><h3>Google: copertura delle pagine</h3></div><small>{reachability.google?.has_evidence ? 'Dati Google aggiornati automaticamente' : 'Raccolta dati in corso'}</small></div>
                 <div className="google-progress-grid">
                   {[
-                    ['Monitoraggio', 100, 'Gestito centralmente da AllSocialToWeb: non devi configurare nulla'],
+                    ['Monitoraggio', 100, 'Gestito centralmente da LinkSeoWeb: non devi configurare nulla'],
                     ['Pagine rilevate', reachability.google?.presence_percent || 0, `${reachability.google?.visible_pages || 0} su ${reachability.google?.published_pages || 0} pagine con segnali Google`],
                   ].map(([label, value, detail]) => <div className="google-progress-card" key={label}><div><strong>{value}%</strong><span>{label}</span></div><div className="progress-track"><span style={{ width: `${value}%` }} /></div><p>{detail}</p></div>)}
                 </div>
@@ -2958,7 +2991,7 @@ const [importMsg, setImportMsg] = useState(null);
               <section className="glass-modal" style={{ marginBottom: '1.25rem', padding: 'clamp(1.25rem, 3vw, 2rem)', color: '#fff', background: 'radial-gradient(circle at 88% 8%, rgba(243,92,118,.34), transparent 27%), linear-gradient(135deg,#151A2D,#292359 68%,#48257A)', border: 'none', overflow: 'hidden' }}>
                 <div className="reachability-hero-grid" style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) auto', alignItems: 'center', gap: '1.5rem' }}>
                   <div>
-                    <div style={{ color: '#D9CEFF', fontSize: '12px', fontWeight: 850, letterSpacing: '.1em', textTransform: 'uppercase' }}>AllSocialToWeb · controllo continuo</div>
+                    <div style={{ color: '#D9CEFF', fontSize: '12px', fontWeight: 850, letterSpacing: '.1em', textTransform: 'uppercase' }}>LinkSeoWeb · controllo continuo</div>
                     <h2 style={{ margin: '.45rem 0 .65rem', color: '#fff', fontSize: 'clamp(25px,4vw,40px)', letterSpacing: '-.04em' }}>Network della Reperibilità</h2>
                     <p style={{ maxWidth: '720px', margin: 0, color: 'rgba(255,255,255,.76)', lineHeight: 1.65 }}>Unisce Spazio Vivo, sito ufficiale, social e motori di ricerca. Verifica ciò che è pubblicato, collegato, rilevato e capace di generare un’azione.</p>
                     <span style={{ display: 'inline-flex', marginTop: '.85rem', padding: '.4rem .7rem', borderRadius: '999px', background: 'rgba(255,255,255,.11)', border: '1px solid rgba(255,255,255,.2)', color: '#fff', fontSize: '11px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.06em' }}>Fase attuale · {reachability.stage || 'configurazione'}</span>
@@ -3012,7 +3045,7 @@ const [importMsg, setImportMsg] = useState(null);
                   <button className="btn btn-primary" onClick={saveReachabilityNetwork} disabled={savingReachability} style={{ width: '100%', justifyContent: 'center' }}>{savingReachability ? 'Aggiornamento…' : 'Aggiorna il Network'}</button>
                 </section>
               </div>
-              <div style={{ marginTop: '1rem', padding: '1rem 1.15rem', borderRadius: '14px', background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text-muted)', fontSize: '12px', lineHeight: 1.55 }}><strong style={{ color: 'var(--text)' }}>Garanzia operativa:</strong> AllSocialToWeb può garantire pubblicazione, accessibilità, collegamenti, segnali tecnici e monitoraggio. L’indicizzazione e la posizione finale restano decisioni dei motori di ricerca.</div>
+              <div style={{ marginTop: '1rem', padding: '1rem 1.15rem', borderRadius: '14px', background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text-muted)', fontSize: '12px', lineHeight: 1.55 }}><strong style={{ color: 'var(--text)' }}>Garanzia operativa:</strong> LinkSeoWeb può garantire pubblicazione, accessibilità, collegamenti, segnali tecnici e monitoraggio. L’indicizzazione e la posizione finale restano decisioni dei motori di ricerca.</div>
             </>}
 
             {visibilitySection === 'overview' && <div className="data-workspace">
@@ -3030,7 +3063,7 @@ const [importMsg, setImportMsg] = useState(null);
 
               <section className="metric-grid">
                 {[
-                  { value: networkPublishedPages, label: 'Pagine pubbliche nella rete', source: 'Database AllSocialToWeb', tone: 'violet' },
+                  { value: networkPublishedPages, label: 'Pagine pubbliche nella rete', source: 'Database LinkSeoWeb', tone: 'violet' },
                   { value: reachability.google?.has_evidence ? (reachability.google?.visible_pages || visibility.visible_pages || 0) : '—', label: 'Pagine rilevate da Google', source: reachability.google?.has_evidence ? 'Monitoraggio automatico' : 'Raccolta dati in corso', tone: 'blue' },
                   { value: reachability.google?.has_evidence ? Number(visibility.impressions || 0).toLocaleString('it-IT') : '—', label: 'Visualizzazioni su Google · 30 gg', source: reachability.google?.has_evidence ? 'Monitoraggio automatico' : 'Dato non ancora disponibile', tone: 'amber' },
                   { value: Number(visibility.unique_visitors || 0).toLocaleString('it-IT'), label: 'Visitatori dello Spazio · 30 gg', source: 'Analytics interno', tone: 'teal' },
@@ -3084,7 +3117,7 @@ const [importMsg, setImportMsg] = useState(null);
               <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap', alignItems: 'flex-start' }}>
                 <div>
                   <h3 style={{ margin: '0 0 0.45rem', color: 'var(--primary)' }}>🌐 La rete sta distribuendo i tuoi contenuti</h3>
-                  <p style={{ margin: 0, fontSize: '14px', color: 'var(--text-muted)', lineHeight: 1.65, maxWidth: '700px' }}>Il tuo Spazio Vivo e i suoi contenuti sono collegati dall’hub pubblico di AllSocialToWeb. Ogni nuovo contenuto entra automaticamente nella rete, senza configurazioni da parte tua.</p>
+                  <p style={{ margin: 0, fontSize: '14px', color: 'var(--text-muted)', lineHeight: 1.65, maxWidth: '700px' }}>Il tuo Spazio Vivo e i suoi contenuti sono collegati dall’hub pubblico di LinkSeoWeb. Ogni nuovo contenuto entra automaticamente nella rete, senza configurazioni da parte tua.</p>
                 </div>
                 <span style={{ padding: '9px 13px', borderRadius: '999px', background: 'var(--teal-light)', color: 'var(--teal)', fontSize: '12px', fontWeight: 800 }}>Attivo</span>
               </div>
@@ -4247,7 +4280,7 @@ const [importMsg, setImportMsg] = useState(null);
             <div className="glass-modal" style={{ marginBottom: '1.5rem', padding: '1.5rem' }}>
               <h3 style={{ marginBottom: '0.5rem', color: 'var(--primary)' }}>Sincronizzazione configurabile</h3>
               <p style={{ fontSize: '14px', color: 'var(--text-muted)', marginBottom: '0.75rem', fontWeight: 500 }}>
-                I canali abilitati si aggiornano ogni 6 ore; quelli disabilitati restano disponibili per la sincronizzazione manuale.
+                Il timer controlla periodicamente solo i canali abilitati; quelli disabilitati restano disponibili per la sincronizzazione manuale.
               </p>
               {site?.last_sync && (
                 <p style={{ fontSize: '14px', color: 'var(--primary-dark)', fontWeight: 700 }}>

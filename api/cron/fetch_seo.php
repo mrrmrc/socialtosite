@@ -129,7 +129,9 @@ function chooseGscProperty(array $properties, string $publicUrl): string {
 
 try {
     VisibilityAnalytics::ensureSchema();
-    $credentialsPath = __DIR__ . '/../../config/gcp-credentials.json';
+    $credentialsPath = defined('GCP_CREDENTIALS_PATH')
+        ? GCP_CREDENTIALS_PATH
+        : __DIR__ . '/../../config/gcp-credentials.json';
     if (!file_exists($credentialsPath)) {
         Logger::warn('seo', "File credenziali Google (gcp-credentials.json) non trovato. Skipping SEO fetch.");
         echo "GCP Credentials non configurate.\n";
@@ -143,7 +145,7 @@ try {
     $targetDate = date('Y-m-d', strtotime('-2 days'));
 
     $sites = DB::fetchAll("SELECT s.user_id, s.custom_domain, u.slug FROM sites s JOIN users u ON u.id=s.user_id WHERE u.slug IS NOT NULL AND u.slug<>''");
-    $basePlatformUrl = defined('BASE_URL') ? rtrim(BASE_URL, '/') : 'https://allsocialtoweb.com';
+    $basePlatformUrl = defined('BASE_URL') ? rtrim(BASE_URL, '/') : 'http://localhost';
     $baseProperty = defined('GSC_PROPERTY') ? GSC_PROPERTY : chooseGscProperty($availableProperties, $basePlatformUrl);
 
     foreach ($sites as $site) {

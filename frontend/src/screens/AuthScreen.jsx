@@ -33,8 +33,8 @@ export function AuthScreen({ onAuth }) {
 
       <div style={{ width: '100%', maxWidth: '420px', position: 'relative', zIndex: 1 }}>
         <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
-          <div style={{ width: 52, height: 52, borderRadius: '16px', background: 'var(--gradient)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '24px', margin: '0 auto 16px', boxShadow: 'var(--shadow-colored)' }}>✦</div>
-          <div style={{ fontSize: '26px', fontWeight: 800, letterSpacing: '-0.5px', marginBottom: '6px' }}>Social<span className="gradient-text">ToSite</span></div>
+          <img src="/logo.png?v=2" alt="" style={{ width: 78, height: 78, objectFit: 'contain', margin: '0 auto 10px', display: 'block', filter: 'drop-shadow(0 12px 20px rgba(99,102,241,.2))' }} />
+          <div style={{ fontSize: '26px', fontWeight: 800, letterSpacing: '-0.5px', marginBottom: '6px' }}>LinkSeo<span className="gradient-text">Web</span></div>
         </div>
 
         <div style={{ background: 'var(--surface)', borderRadius: 'var(--radius-xl)', padding: '32px', boxShadow: 'var(--shadow-lg)', border: '1px solid var(--border)' }}>

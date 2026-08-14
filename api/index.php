@@ -42,6 +42,12 @@ require_once __DIR__ . '/services/visibility.php';
 require_once __DIR__ . '/services/seo_foundation.php';
 require_once __DIR__ . '/services/reachability.php';
 
+function setSyncStatus(int $uid, string $msg): void {
+    $dir = __DIR__ . '/../public/temp';
+    if (!is_dir($dir)) @mkdir($dir, 0775, true);
+    @file_put_contents("$dir/sync_$uid.json", json_encode(['msg' => $msg, 'ts' => time()]));
+}
+
 cors();
 
 $method = $_SERVER['REQUEST_METHOD'];
@@ -330,6 +336,17 @@ function requireAdmin(bool $isAdmin): void {
 function revokeSessions(int $targetUserId): void {
     try { DB::execute('UPDATE users SET token_version = token_version + 1 WHERE id=?', [$targetUserId]); }
     catch (Throwable $e) { if (class_exists('Logger')) Logger::warn('auth', 'Revoca sessioni non riuscita', ['user_id' => $targetUserId, 'error' => $e->getMessage()]); }
+}
+
+if ($action === 'sync-status' && $method === 'GET') {
+    $f = __DIR__ . "/../public/temp/sync_$userId.json";
+    if (file_exists($f)) {
+        $j = json_decode(file_get_contents($f), true);
+        if ($j && time() - ($j['ts'] ?? 0) < 300) {
+            json(['ok' => true, 'msg' => $j['msg'] ?? '']);
+        }
+    }
+    json(['ok' => true, 'msg' => '']);
 }
 
 // ── POST/GET migrate (Admin: allinea lo schema del database) ─────────────
@@ -1147,8 +1164,9 @@ if ($action === 'check-social-url' && $method === 'POST') {
     $url = trim($b['url'] ?? '');
     $platform = trim($b['platform'] ?? '') ?: detectSocialPlatform($url);
     $sinceDate = trim($b['since_date'] ?? '');
-    $sinceDate = ($sinceDate && preg_match('/^\d{4}-\d{2}-\d{2}$/', $sinceDate)) ? $sinceDate : null;
     $maxPosts = isset($b['max_posts']) && $b['max_posts'] !== '' ? (int)$b['max_posts'] : 20;
+    
+    if ($sinceDate && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $sinceDate)) $sinceDate = null;
     
     if (!$platform) jsonError('Piattaforma non riconosciuta');
     if (!filter_var($url, FILTER_VALIDATE_URL)) jsonError('Link social non valido');
@@ -1192,7 +1210,7 @@ if ($action === 'social-source-create' && $method === 'POST') {
     }
 
     $sinceDate = trim($b['since_date'] ?? '');
-    $sinceDate = ($sinceDate && preg_match('/^\d{4}-\d{2}-\d{2}$/', $sinceDate)) ? $sinceDate : null;
+    if ($sinceDate && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $sinceDate)) $sinceDate = null;
 
     $topic = 'Profilo/canale ' . $platform . ' indicato dall\'utente';
     if ($label) $topic .= ': ' . $label;
@@ -1219,10 +1237,10 @@ if ($action === 'social-source-upsert' && $method === 'POST') {
     $url = trim($b['url'] ?? '');
     $label = trim($b['label'] ?? '');
     $sinceDate = trim($b['since_date'] ?? '');
-    $sinceDate = ($sinceDate && preg_match('/^\d{4}-\d{2}-\d{2}$/', $sinceDate)) ? $sinceDate : null;
     $autoPublish = (int)($b['auto_publish'] ?? 1);
     $autoSync = !array_key_exists('auto_sync', $b) || !empty($b['auto_sync']) ? 1 : 0;
     $maxPosts = isset($b['max_posts']) && $b['max_posts'] !== '' ? (int)$b['max_posts'] : null;
+    if ($sinceDate && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $sinceDate)) $sinceDate = null;
 
     if (!in_array($platform, ['instagram', 'facebook', 'tiktok', 'youtube', 'website'], true)) {
         jsonError('Piattaforma non supportata: ' . $platform);
@@ -1295,10 +1313,10 @@ if ($action === 'social-connection-update' && $method === 'POST') {
     $b = body();
     $platform = trim($b['platform'] ?? '');
     $sinceDate = trim($b['since_date'] ?? '');
-    $sinceDate = ($sinceDate && preg_match('/^\d{4}-\d{2}-\d{2}$/', $sinceDate)) ? $sinceDate : null;
     $autoPublish = (int)($b['auto_publish'] ?? 1);
     $autoSync = !array_key_exists('auto_sync', $b) || !empty($b['auto_sync']) ? 1 : 0;
     $maxPosts = isset($b['max_posts']) && $b['max_posts'] !== '' ? (int)$b['max_posts'] : null;
+    if ($sinceDate && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $sinceDate)) $sinceDate = null;
     
     if (!in_array($platform, ['instagram', 'instagram_login', 'facebook', 'tiktok', 'youtube'], true)) {
         jsonError('Piattaforma non supportata');
@@ -1889,6 +1907,55 @@ if ($action === 'ingest-url' && $method === 'POST') {
     $b   = body();
     $res = Ingest::url($userId, $b['url'] ?? '');
     json($res);
+}
+
+// Chat contestuale di LIA. I messaggi restano nel browser: al modello vengono
+// inviati solo gli ultimi turni e i dati operativi dell'account corrente.
+if ($action === 'lia-chat' && $method === 'POST') {
+    try {
+        require_once __DIR__ . '/services/ai.php';
+        $b = body();
+        $incoming = is_array($b['messages'] ?? null) ? $b['messages'] : [];
+        $messages = [];
+        foreach (array_slice($incoming, -12) as $message) {
+            if (!is_array($message)) continue;
+            $role = ($message['role'] ?? '') === 'assistant' ? 'assistant' : 'user';
+            $text = trim(strip_tags((string)($message['text'] ?? '')));
+            if ($text === '') continue;
+            $messages[] = ['role' => $role, 'text' => mb_substr($text, 0, 1200)];
+        }
+        if (!$messages || end($messages)['role'] !== 'user') jsonError('Scrivi una domanda per LIA', 422);
+
+        $site = DB::fetch('SELECT title, profile_summary, role_mission, content_strategy FROM sites WHERE user_id=? LIMIT 1', [$userId]) ?: [];
+        $counts = DB::fetch(
+            "SELECT COUNT(*) acquired,
+                    SUM(CASE WHEN seo_score >= 0 THEN 1 ELSE 0 END) ready,
+                    SUM(CASE WHEN published = 1 THEN 1 ELSE 0 END) published,
+                    SUM(CASE WHEN seo_score < 0 AND processing_status <> 'processing' THEN 1 ELSE 0 END) pending,
+                    SUM(CASE WHEN processing_status = 'processing' THEN 1 ELSE 0 END) processing
+               FROM posts WHERE user_id=?",
+            [$userId]
+        ) ?: [];
+        $sourceCount = DB::fetch(
+            'SELECT (SELECT COUNT(*) FROM social_sources WHERE user_id=? AND active=1) + (SELECT COUNT(*) FROM social_connections WHERE user_id=? AND active=1) sources',
+            [$userId, $userId]
+        );
+        $recentRows = DB::fetchAll(
+            "SELECT COALESCE(NULLIF(edited_title, ''), generated_title) title FROM posts
+              WHERE user_id=? AND COALESCE(NULLIF(edited_title, ''), generated_title) IS NOT NULL
+              ORDER BY imported_at DESC, id DESC LIMIT 8",
+            [$userId]
+        );
+        $facts = array_merge($counts, [
+            'sources' => (int)($sourceCount['sources'] ?? 0),
+            'recent_titles' => array_column($recentRows, 'title'),
+        ]);
+        $reply = AI::liaReply($me, $site, $facts, $messages);
+        json(['ok' => true, 'reply' => $reply]);
+    } catch (Throwable $e) {
+        if (class_exists('Logger')) Logger::warn('lia', 'Risposta LIA non riuscita', ['user_id' => $userId, 'error' => $e->getMessage()]);
+        jsonError('LIA non riesce a rispondere in questo momento. Riprova tra poco.', 502);
+    }
 }
 
 // Nasconde in modo persistente una proposta editoriale per l'utente corrente.

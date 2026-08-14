@@ -95,8 +95,8 @@ function AppContent() {
         position: 'relative', zIndex: 10,
       }}>
         <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-          <img src="/logo-cropped.png" alt="AllSocialToWeb" style={{ height: '28px', opacity: 0.9, display: 'block' }} />
-          <span style={{ opacity: 0.6 }}>allsocialtoweb.com</span>
+          <img src="/logo-cropped.png?v=2" alt="LinkSeoWeb" style={{ height: '28px', opacity: 0.9, display: 'block' }} />
+          <span style={{ opacity: 0.6 }}>LinkSeoWeb</span>
         </span>
         <span style={{ opacity: 0.3 }}>·</span>
         {deployInfo ? (

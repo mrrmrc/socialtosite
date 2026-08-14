@@ -1,4 +1,4 @@
--- SocialToSite — Schema MySQL
+-- LinkSeoWeb — Schema MySQL
 -- Esegui questo file una volta sul tuo hosting via phpMyAdmin
 
 CREATE TABLE IF NOT EXISTS users (
@@ -9,6 +9,7 @@ CREATE TABLE IF NOT EXISTS users (
   slug       VARCHAR(100) UNIQUE,
   role       VARCHAR(20) DEFAULT 'user',
   plan       VARCHAR(20) DEFAULT 'free',
+  token_version INT NOT NULL DEFAULT 0,
   created_at DATETIME DEFAULT NOW()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
@@ -58,6 +59,9 @@ CREATE TABLE IF NOT EXISTS posts (
   generated_title   VARCHAR(255),
   generated_body    LONGTEXT,
   generated_excerpt TEXT,
+  edited_title      VARCHAR(255),
+  edited_body       LONGTEXT,
+  edited_excerpt    TEXT,
   tags              TEXT,
   meta_description  VARCHAR(255),
   media_url         TEXT,
@@ -136,6 +140,16 @@ CREATE TABLE IF NOT EXISTS agent_prompts (
   id             INT AUTO_INCREMENT PRIMARY KEY,
   agent_name     VARCHAR(50) UNIQUE NOT NULL,
   instructions   TEXT NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS login_attempts (
+  id           BIGINT AUTO_INCREMENT PRIMARY KEY,
+  email        VARCHAR(255) NOT NULL,
+  ip           VARCHAR(45) NOT NULL,
+  succeeded    TINYINT NOT NULL DEFAULT 0,
+  attempted_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_login_attempts_email_time (email, attempted_at),
+  INDEX idx_login_attempts_ip_time (ip, attempted_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS seo_analytics (

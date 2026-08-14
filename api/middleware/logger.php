@@ -1,5 +1,5 @@
 <?php
-// api/middleware/logger.php — Logger centralizzato del backend SocialToSite
+// api/middleware/logger.php — Logger centralizzato del backend LinkSeoWeb
 // Scrive log su file JSON Lines (JSONL) con rotazione automatica.
 // Accessibile via ?action=logs (admin) o ?action=logs-clear (admin).
 

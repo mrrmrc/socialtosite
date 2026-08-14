@@ -142,7 +142,7 @@ class Sync {
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_HTTPHEADER     => $headers,
             CURLOPT_TIMEOUT        => 30,
-            CURLOPT_USERAGENT      => 'SocialToSite/1.0',
+            CURLOPT_USERAGENT      => 'LinkSeoWeb/1.0',
         ]);
         $res = curl_exec($ch);
         curl_close($ch);
@@ -577,32 +577,45 @@ class Sync {
 
     // ── Sync completo utente ───────────────────────────────────────────────
     public static function syncUser(int $userId, int $maxPosts = 20, ?string $sinceDate = null, bool $automatic = false): array {
+        if (function_exists('setSyncStatus')) setSyncStatus($userId, "Inizio sincronizzazione canali collegati...");
         self::ensureAutoSyncSchema();
         $connections = DB::fetchAll(
             'SELECT * FROM social_connections WHERE user_id=? AND active=1' . ($automatic ? ' AND auto_sync=1' : ''), [$userId]
         );
         $results = [];
         foreach ($connections as $conn) {
-            $token  = Crypto::decrypt($conn['access_token']);
-            $connSinceDate = !empty($conn['since_date']) ? $conn['since_date'] : $sinceDate;
-            $autoPublish = (int)($conn['auto_publish'] ?? 1);
-            $limit = !empty($conn['max_posts']) ? (int)$conn['max_posts'] : $maxPosts;
-            $result = match($conn['platform']) {
-                'instagram' => self::instagram($userId, $token, $limit, $connSinceDate, $autoPublish),
-                'instagram_login' => self::instagram_login_direct($userId, $token, $limit, $connSinceDate, $autoPublish),
-                'tiktok'    => self::tiktok($userId, $token, $limit, $connSinceDate, $autoPublish),
-                'youtube'   => self::youtube($userId, $token, $limit, $connSinceDate, $autoPublish),
-                'facebook'  => self::facebook($userId, $token, $limit, $connSinceDate, $autoPublish),
-                default     => null,
-            };
-            if (!$result) continue;
-            $results[] = $result;
-            DB::execute('INSERT INTO sync_log (user_id, platform, status, posts_found, posts_new, error)
-                         VALUES (?,?,?,?,?,?)', [
-                $userId, $conn['platform'],
-                $result['error'] ? 'error' : 'ok',
-                $result['found'], $result['new'], $result['error'],
-            ]);
+            if (function_exists('setSyncStatus')) setSyncStatus($userId, "Scansione " . ucfirst($conn['platform']) . " in corso...");
+            try {
+                $token  = Crypto::decrypt($conn['access_token']);
+                $connSinceDate = !empty($conn['since_date']) ? $conn['since_date'] : $sinceDate;
+                $autoPublish = (int)($conn['auto_publish'] ?? 1);
+                $limit = !empty($conn['max_posts']) ? (int)$conn['max_posts'] : $maxPosts;
+                $result = match($conn['platform']) {
+                    'instagram' => self::instagram($userId, $token, $limit, $connSinceDate, $autoPublish),
+                    'instagram_login' => self::instagram_login_direct($userId, $token, $limit, $connSinceDate, $autoPublish),
+                    'tiktok'    => self::tiktok($userId, $token, $limit, $connSinceDate, $autoPublish),
+                    'youtube'   => self::youtube($userId, $token, $limit, $connSinceDate, $autoPublish),
+                    'facebook'  => self::facebook($userId, $token, $limit, $connSinceDate, $autoPublish),
+                    default     => null,
+                };
+                if (!$result) continue;
+                $results[] = $result;
+                DB::execute('INSERT INTO sync_log (user_id, platform, status, posts_found, posts_new, error)
+                             VALUES (?,?,?,?,?,?)', [
+                    $userId, $conn['platform'],
+                    $result['error'] ? 'error' : 'ok',
+                    $result['found'], $result['new'], $result['error'],
+                ]);
+            } catch (Throwable $e) {
+                // Un token scaduto o cifrato con una vecchia chiave non deve
+                // impedire il controllo delle altre connessioni e fonti URL.
+                $error = mb_substr($e->getMessage(), 0, 2000);
+                $results[] = ['platform' => $conn['platform'], 'new' => 0, 'found' => 0, 'error' => $error];
+                DB::execute('INSERT INTO sync_log (user_id, platform, status, posts_found, posts_new, error)
+                             VALUES (?,?,?,?,?,?)', [
+                    $userId, $conn['platform'], 'error', 0, 0, $error,
+                ]);
+            }
         }
         $totalNew = 0;
         foreach ($results as $res) {
@@ -615,6 +628,7 @@ class Sync {
         $site = DB::fetch('SELECT profile_summary, role_mission, content_strategy FROM sites WHERE user_id=?', [$userId]);
         
         foreach ($sources as $src) {
+            if (function_exists('setSyncStatus')) setSyncStatus($userId, "Analisi sorgente " . ucfirst($src['platform']) . " in corso...");
             try {
                 $res = Ingest::scanSources($userId, $maxPosts, $site['profile_summary'] ?? '', $site['role_mission'] ?? '', $site['content_strategy'] ?? '', $src['id']);
                 
@@ -655,9 +669,11 @@ class Sync {
 
         // Ping Google Sitemap se ci sono nuovi contenuti
         if ($totalNew > 0) {
+            if (function_exists('setSyncStatus')) setSyncStatus($userId, "Avviso motori di ricerca dei nuovi contenuti...");
             self::pingGoogle($userId);
         }
 
+        if (function_exists('setSyncStatus')) setSyncStatus($userId, "Sincronizzazione completata.");
         return $results;
     }
 
