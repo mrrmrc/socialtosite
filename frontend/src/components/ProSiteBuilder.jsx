@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { SITE_LAYOUTS } from '../utils/siteLayouts';
 import { apiFetch } from '../utils/api';
 
@@ -12,6 +12,34 @@ const DEFAULT_STYLE = {
   layout_recipe: { hero:'product', nav:'solid', cards:'product', density:'balanced' },
   base_models:['tech-clarity'], custom_css:''
 };
+
+const HERO_CHOICES = [
+  { id:'product', icon:'▤', title:'Pulita e professionale', desc:'Titolo chiaro, messaggio diretto e call to action.' },
+  { id:'split', icon:'◫', title:'Testo + immagine', desc:'Presentazione divisa in due parti, molto leggibile.' },
+  { id:'editorial', icon:'T', title:'Editoriale', desc:'Più elegante, con il testo al centro della scena.' },
+  { id:'immersive', icon:'▣', title:'Immagine protagonista', desc:'Testata ampia e scenografica.' },
+  { id:'human', icon:'☺', title:'Profilo personale', desc:'Ideale per professionisti e personal brand.' },
+];
+
+const NAV_CHOICES = [
+  { id:'floating', icon:'☰', title:'Essenziale', desc:'Leggera e discreta. È la scelta che consiglio nella maggior parte dei siti personali.', recommended:true },
+  { id:'solid', icon:'▬', title:'Classica', desc:'Barra ben visibile, utile se hai molte sezioni da raggiungere.' },
+  { id:'transparent', icon:'▱', title:'Sopra la testata', desc:'Il menu si integra con l’immagine o con la testata iniziale.' },
+];
+
+const CONTENT_CHOICES = [
+  { id:'editorial', icon:'▥', title:'Magazine', desc:'Un contenuto guida gli altri. Ottimo se pubblichi articoli e approfondimenti.' },
+  { id:'product', icon:'▦', title:'Griglia ordinata', desc:'Tutti i contenuti hanno lo stesso peso e sono facili da scorrere.' },
+  { id:'cinematic', icon:'▣', title:'Foto grandi', desc:'Più impatto visivo, ideale se immagini e video sono importanti.' },
+  { id:'soft', icon:'▤', title:'Raccolta morbida', desc:'Card leggere e ariose, adatte a un sito personale.' },
+  { id:'bold', icon:'▧', title:'Compatta', desc:'Mostra più contenuti nello stesso spazio.' },
+];
+
+const DENSITY_CHOICES = [
+  { id:'compact', title:'Compatto', desc:'Più informazioni subito' },
+  { id:'balanced', title:'Equilibrato', desc:'La scelta più versatile' },
+  { id:'airy', title:'Arioso', desc:'Più spazio e respiro' },
+];
 
 function normalize(raw, fallback='tech-clarity') {
   const preset = SITE_LAYOUTS.find(x => x.id === fallback) || SITE_LAYOUTS[0];
@@ -35,12 +63,40 @@ function encodePreview(data) {
   } catch { return ''; }
 }
 
+function ChoiceCard({ active, icon, title, desc, badge, onClick }) {
+  return (
+    <button type="button" onClick={onClick} style={{
+      width:'100%', textAlign:'left', display:'grid', gridTemplateColumns:'44px 1fr', gap:12,
+      padding:13, borderRadius:14, cursor:'pointer', color:'#fff',
+      border:active ? '2px solid #6ea0ff' : '1px solid rgba(255,255,255,.12)',
+      background:active ? 'linear-gradient(135deg, rgba(37,99,235,.30), rgba(37,99,235,.12))' : '#101a2c',
+      boxShadow:active ? '0 0 0 3px rgba(37,99,235,.13)' : 'none'
+    }}>
+      <span style={{width:44,height:44,borderRadius:11,display:'grid',placeItems:'center',background:'rgba(255,255,255,.07)',fontSize:20}}>{icon}</span>
+      <span>
+        <span style={{display:'flex',alignItems:'center',gap:7,flexWrap:'wrap'}}>
+          <strong style={{fontSize:14}}>{title}</strong>
+          {badge && <em style={{fontStyle:'normal',fontSize:9,fontWeight:800,letterSpacing:'.05em',padding:'3px 6px',borderRadius:999,background:'#2563eb'}}>CONSIGLIATO</em>}
+        </span>
+        <small style={{display:'block',opacity:.62,fontSize:11,lineHeight:1.4,marginTop:4}}>{desc}</small>
+      </span>
+    </button>
+  );
+}
+
+function SectionTitle({ children, help }) {
+  return <div style={{marginBottom:12}}><h3 style={{margin:'0 0 5px',fontSize:17}}>{children}</h3><p style={{margin:0,opacity:.58,fontSize:12,lineHeight:1.5}}>{help}</p></div>;
+}
+
 export function ProSiteBuilder({ user, open, onClose }) {
   const [site, setSite] = useState(null);
   const [style, setStyle] = useState(DEFAULT_STYLE);
   const [section, setSection] = useState('themes');
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
+  const [previewTick, setPreviewTick] = useState(0);
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const debounceRef = useRef(null);
   const token = typeof window !== 'undefined' ? localStorage.getItem('sts_token') : '';
 
   useEffect(() => {
@@ -54,11 +110,19 @@ export function ProSiteBuilder({ user, open, onClose }) {
     }).catch(err => setMessage(err.message));
   }, [open, token]);
 
+  useEffect(() => {
+    if (!open) return;
+    setPreviewLoading(true);
+    clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => setPreviewTick(x => x + 1), 120);
+    return () => clearTimeout(debounceRef.current);
+  }, [style, open]);
+
   const siteUrl = useMemo(() => `${window.location.origin}/${user?.slug || site?.slug || ''}`.replace(/\/$/, ''), [user?.slug, site?.slug]);
-  const previewUrl = useMemo(() => `${siteUrl}?studio_preview=1&preview_data=${encodePreview(style)}`, [siteUrl, style]);
+  const previewUrl = useMemo(() => `${siteUrl}?studio_preview=1&preview_data=${encodePreview(style)}&v=${previewTick}`, [siteUrl, style, previewTick]);
 
   const setNested = (group, key, value) => setStyle(prev => ({ ...prev, [group]: { ...prev[group], [key]: value } }));
-  const applyTheme = preset => setStyle(normalize({ ...preset, custom_css: style.custom_css || '' }, preset.id));
+  const applyTheme = preset => setStyle(prev => normalize({ ...preset, custom_css: prev.custom_css || '' }, preset.id));
 
   async function save() {
     setSaving(true); setMessage('');
@@ -73,35 +137,101 @@ export function ProSiteBuilder({ user, open, onClose }) {
           site_ai_data: style
         })
       }, token);
-      setMessage(`Design salvato e applicato a ${siteUrl}.`);
+      setMessage('✓ Modifiche pubblicate sul tuo sito.');
     } catch (e) { setMessage(e.message); }
     setSaving(false);
   }
 
   if (!open) return null;
-  const nav = [['themes','Temi'],['colors','Colori'],['type','Tipografia'],['layout','Layout'],['effects','Stile UI'],['css','CSS']];
+
+  const nav = [
+    ['themes','1. Stile'],
+    ['header','2. Testata'],
+    ['menu','3. Menu'],
+    ['content','4. Contenuti'],
+    ['colors','5. Colori'],
+    ['advanced','Avanzate'],
+  ];
 
   return (
-    <div style={{position:'fixed',inset:0,zIndex:30000,background:'#07101d',color:'#fff',display:'grid',gridTemplateRows:'64px 1fr'}}>
-      <header style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'0 18px',borderBottom:'1px solid rgba(255,255,255,.1)',background:'#0b1424'}}>
-        <div><strong style={{fontSize:19}}>Builder grafico PROFESSIONAL</strong><span style={{marginLeft:10,opacity:.55,fontSize:12}}>Stai modificando {siteUrl || 'il tuo sito'} · anteprima live</span></div>
-        <div style={{display:'flex',gap:8}}><button onClick={save} disabled={saving} style={primaryBtn}>{saving?'Salvataggio…':'Salva e pubblica'}</button><button onClick={onClose} style={ghostBtn}>Chiudi</button></div>
+    <div style={{position:'fixed',inset:0,zIndex:30000,background:'#07101d',color:'#fff',display:'grid',gridTemplateRows:'68px 1fr'}}>
+      <header style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'0 18px',borderBottom:'1px solid rgba(255,255,255,.1)',background:'#0b1424',gap:14}}>
+        <div>
+          <strong style={{fontSize:19}}>Studio del sito</strong>
+          <span style={{marginLeft:10,opacity:.55,fontSize:12}}>Le modifiche compaiono subito nell’anteprima. Salva solo quando ti convincono.</span>
+        </div>
+        <div style={{display:'flex',gap:8,alignItems:'center'}}>
+          <a href={siteUrl} target="_blank" rel="noreferrer" style={{...ghostBtn,textDecoration:'none'}}>Apri sito attuale</a>
+          <button onClick={save} disabled={saving} style={primaryBtn}>{saving?'Pubblicazione…':'Salva e pubblica'}</button>
+          <button onClick={onClose} style={ghostBtn}>Chiudi</button>
+        </div>
       </header>
-      <div style={{display:'grid',gridTemplateColumns:'380px 1fr',minHeight:0}}>
+
+      <div style={{display:'grid',gridTemplateColumns:'410px minmax(0,1fr)',minHeight:0}}>
         <aside style={{overflowY:'auto',padding:16,borderRight:'1px solid rgba(255,255,255,.1)',background:'#0b1424'}}>
-          <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:6,marginBottom:18}}>{nav.map(([id,label])=><button key={id} onClick={()=>setSection(id)} style={{...tabBtn,...(section===id?activeTab:{})}}>{label}</button>)}</div>
-          {section==='themes' && <div style={stack}>{SITE_LAYOUTS.map(p=><button key={p.id} onClick={()=>applyTheme(p)} style={{...cardBtn,borderColor:style.design_archetype===p.id?'#5b8cff':'rgba(255,255,255,.12)'}}><span style={{fontSize:26}}>{p.emoji}</span><div><strong>{p.name}</strong><small style={small}>{p.desc}</small><div style={{display:'flex',gap:5,marginTop:8}}>{p.colors.map(c=><i key={c} style={{width:17,height:17,borderRadius:99,background:c,border:'1px solid rgba(255,255,255,.25)'}} />)}</div></div></button>)}</div>}
-          {section==='colors' && <div style={stack}>{[['background','Sfondo'],['surface','Superficie'],['text','Testo'],['text_muted','Testo secondario'],['primary','Primario'],['secondary','Secondario']].map(([k,l])=><label key={k} style={field}><span>{l}</span><div style={{display:'flex',gap:8}}><input type="color" value={style.color_palette[k] || '#000000'} onChange={e=>setNested('color_palette',k,e.target.value)} /><input value={style.color_palette[k] || ''} onChange={e=>setNested('color_palette',k,e.target.value)} style={input}/></div></label>)}</div>}
-          {section==='type' && <div style={stack}><Select label="Font titoli" value={style.font_heading} onChange={v=>setStyle(p=>({...p,font_heading:v}))} options={FONTS}/><Select label="Font testo" value={style.font_body} onChange={v=>setStyle(p=>({...p,font_body:v}))} options={FONTS}/></div>}
-          {section==='layout' && <div style={stack}><Select label="Hero" value={style.layout_recipe.hero} onChange={v=>setNested('layout_recipe','hero',v)} options={['product','editorial','split','immersive','human']}/><Select label="Navigazione" value={style.layout_recipe.nav} onChange={v=>setNested('layout_recipe','nav',v)} options={['solid','transparent','floating']}/><Select label="Card" value={style.layout_recipe.cards} onChange={v=>setNested('layout_recipe','cards',v)} options={['product','editorial','bold','cinematic','soft']}/><Select label="Densità" value={style.layout_recipe.density} onChange={v=>setNested('layout_recipe','density',v)} options={['compact','balanced','airy']}/></div>}
-          {section==='effects' && <div style={stack}><label style={field}><span>Raggio bordi</span><input value={style.ui_style.radius} onChange={e=>setNested('ui_style','radius',e.target.value)} style={input}/></label><label style={field}><span>Ombra card</span><input value={style.ui_style.card_shadow} onChange={e=>setNested('ui_style','card_shadow',e.target.value)} style={input}/></label><label style={{...field,display:'flex',alignItems:'center',justifyContent:'space-between'}}><span>Glassmorphism</span><input type="checkbox" checked={!!style.ui_style.glassmorphism} onChange={e=>setNested('ui_style','glassmorphism',e.target.checked)}/></label></div>}
-          {section==='css' && <label style={field}><span>CSS personalizzato</span><textarea value={style.custom_css} onChange={e=>setStyle(p=>({...p,custom_css:e.target.value}))} placeholder="/* CSS personalizzato */" style={{...input,minHeight:320,fontFamily:'monospace',resize:'vertical'}}/></label>}
-          {message && <div style={{marginTop:14,padding:10,borderRadius:10,background:'rgba(91,140,255,.12)',fontSize:13}}>{message}</div>}
-          <button onClick={()=>setStyle(DEFAULT_STYLE)} style={{...ghostBtn,width:'100%',marginTop:14}}>Ripristina impostazioni builder</button>
+          <div style={{padding:'12px 13px',borderRadius:13,background:'rgba(37,99,235,.12)',border:'1px solid rgba(96,165,250,.18)',marginBottom:14,fontSize:12,lineHeight:1.5,color:'#dbeafe'}}>
+            <strong>Non serve conoscere il web design.</strong><br/>Scegli ciò che ti piace. Ogni opzione modifica direttamente la pagina che vedi a destra.
+          </div>
+
+          <div style={{display:'grid',gridTemplateColumns:'repeat(2,1fr)',gap:6,marginBottom:18}}>
+            {nav.map(([id,label]) => <button key={id} onClick={()=>setSection(id)} style={{...tabBtn,...(section===id?activeTab:{})}}>{label}</button>)}
+          </div>
+
+          {section==='themes' && <>
+            <SectionTitle help="Un tema cambia insieme colori, carattere, testata, menu e stile dei contenuti. Poi puoi personalizzarlo nei passaggi successivi.">Scegli da dove partire</SectionTitle>
+            <div style={stack}>{SITE_LAYOUTS.map(p => <button key={p.id} onClick={()=>applyTheme(p)} style={{...themeBtn,borderColor:style.design_archetype===p.id?'#6ea0ff':'rgba(255,255,255,.12)'}}>
+              <span style={{fontSize:28}}>{p.emoji}</span>
+              <span><strong>{p.name}</strong><small style={small}>{p.desc}</small><span style={{display:'flex',gap:5,marginTop:8}}>{p.colors.map(c=><i key={c} style={{width:18,height:18,borderRadius:99,background:c,border:'1px solid rgba(255,255,255,.25)'}} />)}</span></span>
+            </button>)}</div>
+          </>}
+
+          {section==='header' && <>
+            <SectionTitle help="È la prima cosa che una persona vede entrando nel sito. Scegli il modo in cui vuoi presentarti.">Come vuoi aprire il sito?</SectionTitle>
+            <div style={stack}>{HERO_CHOICES.map(x=><ChoiceCard key={x.id} {...x} active={style.layout_recipe.hero===x.id} onClick={()=>setNested('layout_recipe','hero',x.id)}/>)}</div>
+          </>}
+
+          {section==='menu' && <>
+            <SectionTitle help="Per un sito personale il menu deve aiutare, non rubare spazio. Se hai poche sezioni, la versione essenziale è normalmente più coerente.">Come vuoi mostrare il menu?</SectionTitle>
+            <div style={stack}>{NAV_CHOICES.map(x=><ChoiceCard key={x.id} {...x} badge={x.recommended} active={style.layout_recipe.nav===x.id} onClick={()=>setNested('layout_recipe','nav',x.id)}/>)}</div>
+            <div style={{marginTop:12,padding:12,borderRadius:12,background:'rgba(245,158,11,.09)',border:'1px solid rgba(245,158,11,.18)',fontSize:11,lineHeight:1.45,color:'#fde68a'}}>
+              <strong>Nota editoriale:</strong> una barra molto evidente ha senso solo se offre destinazioni realmente utili. Su un profilo professionale conviene privilegiare identità, messaggio e contenuti.
+            </div>
+          </>}
+
+          {section==='content' && <>
+            <SectionTitle help="Cambia il modo in cui articoli, aggiornamenti e contenuti vengono presentati graficamente.">Come vuoi mostrare i contenuti?</SectionTitle>
+            <div style={stack}>{CONTENT_CHOICES.map(x=><ChoiceCard key={x.id} {...x} active={style.layout_recipe.cards===x.id} onClick={()=>setNested('layout_recipe','cards',x.id)}/>)}</div>
+            <div style={{marginTop:16}}><SectionTitle help="Regola quanto spazio lasci tra gli elementi.">Quanto deve essere ariosa la pagina?</SectionTitle>
+              <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:7}}>{DENSITY_CHOICES.map(x=><button key={x.id} onClick={()=>setNested('layout_recipe','density',x.id)} style={{...miniChoice,...(style.layout_recipe.density===x.id?miniChoiceActive:{})}}><strong>{x.title}</strong><small>{x.desc}</small></button>)}</div>
+            </div>
+          </>}
+
+          {section==='colors' && <>
+            <SectionTitle help="Usa i selettori visivi: non devi conoscere codici o valori tecnici.">Colori del sito</SectionTitle>
+            <div style={stack}>{[['background','Sfondo'],['surface','Riquadri'],['text','Testo'],['text_muted','Testo secondario'],['primary','Colore principale'],['secondary','Colore di supporto']].map(([k,l])=><label key={k} style={colorField}><span>{l}</span><span style={{display:'flex',alignItems:'center',gap:9}}><input aria-label={l} type="color" value={style.color_palette[k] || '#000000'} onChange={e=>setNested('color_palette',k,e.target.value)} style={{width:48,height:40,border:0,borderRadius:8,background:'transparent'}}/><span style={{fontSize:11,opacity:.48}}>{style.color_palette[k]}</span></span></label>)}</div>
+            <div style={{marginTop:18}}><SectionTitle help="Puoi lasciare tranquillamente quelli scelti dal tema.">Carattere del testo</SectionTitle><div style={stack}><Select label="Titoli" value={style.font_heading} onChange={v=>setStyle(p=>({...p,font_heading:v}))} options={FONTS}/><Select label="Testo" value={style.font_body} onChange={v=>setStyle(p=>({...p,font_body:v}))} options={FONTS}/></div></div>
+          </>}
+
+          {section==='advanced' && <>
+            <SectionTitle help="Questa sezione è facoltativa. Puoi ignorarla completamente se non sai cosa modificare.">Opzioni avanzate</SectionTitle>
+            <div style={stack}>
+              <label style={field}><span>Arrotondamento dei riquadri</span><input value={style.ui_style.radius} onChange={e=>setNested('ui_style','radius',e.target.value)} style={input}/></label>
+              <label style={field}><span>Ombra dei riquadri</span><input value={style.ui_style.card_shadow} onChange={e=>setNested('ui_style','card_shadow',e.target.value)} style={input}/></label>
+              <label style={{...field,display:'flex',alignItems:'center',justifyContent:'space-between'}}><span>Effetto vetro</span><input type="checkbox" checked={!!style.ui_style.glassmorphism} onChange={e=>setNested('ui_style','glassmorphism',e.target.checked)}/></label>
+              <label style={field}><span>CSS personalizzato</span><textarea value={style.custom_css} onChange={e=>setStyle(p=>({...p,custom_css:e.target.value}))} placeholder="Solo per utenti esperti" style={{...input,minHeight:180,fontFamily:'monospace',resize:'vertical'}}/></label>
+            </div>
+            <button onClick={()=>setStyle(DEFAULT_STYLE)} style={{...ghostBtn,width:'100%',marginTop:14}}>Ripristina il design predefinito</button>
+          </>}
+
+          {message && <div style={{marginTop:14,padding:11,borderRadius:10,background:'rgba(91,140,255,.12)',fontSize:13}}>{message}</div>}
         </aside>
+
         <main style={{position:'relative',minWidth:0,background:'#111827',padding:18}}>
-          <div style={{position:'absolute',top:25,right:28,zIndex:2,display:'flex',gap:8}}><a href={siteUrl} target="_blank" rel="noreferrer" style={{...ghostBtn,textDecoration:'none'}}>Apri sito</a></div>
-          <iframe title="Anteprima builder" src={previewUrl} style={{width:'100%',height:'100%',border:0,borderRadius:18,background:'#fff',boxShadow:'0 30px 80px rgba(0,0,0,.45)'}} />
+          <div style={{position:'absolute',left:31,top:29,zIndex:3,display:'flex',alignItems:'center',gap:8,padding:'7px 10px',borderRadius:999,background:'rgba(15,23,42,.86)',fontSize:11,boxShadow:'0 6px 20px rgba(0,0,0,.25)'}}>
+            <span style={{width:7,height:7,borderRadius:99,background:previewLoading?'#f59e0b':'#22c55e'}} />
+            {previewLoading?'Aggiorno anteprima…':'Anteprima live'}
+          </div>
+          <iframe onLoad={()=>setPreviewLoading(false)} title="Anteprima live del sito" src={previewUrl} style={{width:'100%',height:'100%',border:0,borderRadius:18,background:'#fff',boxShadow:'0 30px 80px rgba(0,0,0,.45)'}} />
         </main>
       </div>
     </div>
@@ -109,12 +239,15 @@ export function ProSiteBuilder({ user, open, onClose }) {
 }
 
 function Select({label,value,onChange,options}) { return <label style={field}><span>{label}</span><select value={value} onChange={e=>onChange(e.target.value)} style={input}>{options.map(x=><option key={x}>{x}</option>)}</select></label>; }
-const stack={display:'grid',gap:10};
+const stack={display:'grid',gap:9};
 const small={display:'block',opacity:.58,fontSize:11,lineHeight:1.35,marginTop:3};
 const field={display:'grid',gap:6,fontSize:12,fontWeight:700};
+const colorField={display:'flex',alignItems:'center',justifyContent:'space-between',gap:10,padding:'10px 12px',borderRadius:11,background:'#101a2c',border:'1px solid rgba(255,255,255,.1)',fontSize:12,fontWeight:700};
 const input={width:'100%',padding:'10px 11px',borderRadius:9,border:'1px solid rgba(255,255,255,.14)',background:'#111c2e',color:'#fff'};
-const tabBtn={padding:'8px 6px',borderRadius:8,border:'1px solid rgba(255,255,255,.1)',background:'#101a2c',color:'#cbd5e1',fontSize:11,cursor:'pointer'};
+const tabBtn={padding:'9px 8px',borderRadius:9,border:'1px solid rgba(255,255,255,.1)',background:'#101a2c',color:'#cbd5e1',fontSize:11,fontWeight:700,cursor:'pointer'};
 const activeTab={background:'#2563eb',color:'#fff',borderColor:'#2563eb'};
-const cardBtn={width:'100%',display:'grid',gridTemplateColumns:'36px 1fr',gap:10,textAlign:'left',padding:12,borderRadius:12,border:'1px solid rgba(255,255,255,.12)',background:'#101a2c',color:'#fff',cursor:'pointer'};
-const primaryBtn={padding:'9px 14px',border:0,borderRadius:9,background:'#2563eb',color:'#fff',fontWeight:800,cursor:'pointer'};
-const ghostBtn={padding:'9px 14px',border:'1px solid rgba(255,255,255,.16)',borderRadius:9,background:'transparent',color:'#fff',fontWeight:700,cursor:'pointer'};
+const themeBtn={width:'100%',display:'grid',gridTemplateColumns:'40px 1fr',gap:11,textAlign:'left',padding:13,borderRadius:13,border:'1px solid rgba(255,255,255,.12)',background:'#101a2c',color:'#fff',cursor:'pointer'};
+const miniChoice={padding:'11px 7px',borderRadius:10,border:'1px solid rgba(255,255,255,.11)',background:'#101a2c',color:'#fff',cursor:'pointer',display:'grid',gap:3,textAlign:'center',fontSize:11};
+const miniChoiceActive={border:'2px solid #6ea0ff',background:'rgba(37,99,235,.24)'};
+const primaryBtn={padding:'10px 15px',border:0,borderRadius:9,background:'#2563eb',color:'#fff',fontWeight:800,cursor:'pointer'};
+const ghostBtn={padding:'9px 13px',border:'1px solid rgba(255,255,255,.16)',borderRadius:9,background:'transparent',color:'#fff',fontWeight:700,cursor:'pointer'};
