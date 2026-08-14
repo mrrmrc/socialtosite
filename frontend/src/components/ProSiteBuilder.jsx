@@ -73,7 +73,7 @@ export function ProSiteBuilder({ user, open, onClose }) {
           site_ai_data: style
         })
       }, token);
-      setMessage('Design salvato e applicato al sito.');
+      setMessage(`Design salvato e applicato a ${siteUrl}.`);
     } catch (e) { setMessage(e.message); }
     setSaving(false);
   }
@@ -84,7 +84,7 @@ export function ProSiteBuilder({ user, open, onClose }) {
   return (
     <div style={{position:'fixed',inset:0,zIndex:30000,background:'#07101d',color:'#fff',display:'grid',gridTemplateRows:'64px 1fr'}}>
       <header style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'0 18px',borderBottom:'1px solid rgba(255,255,255,.1)',background:'#0b1424'}}>
-        <div><strong style={{fontSize:19}}>Builder grafico PRO</strong><span style={{marginLeft:10,opacity:.55,fontSize:12}}>Anteprima live + salvataggio reale</span></div>
+        <div><strong style={{fontSize:19}}>Builder grafico PROFESSIONAL</strong><span style={{marginLeft:10,opacity:.55,fontSize:12}}>Stai modificando {siteUrl || 'il tuo sito'} · anteprima live</span></div>
         <div style={{display:'flex',gap:8}}><button onClick={save} disabled={saving} style={primaryBtn}>{saving?'Salvataggio…':'Salva e pubblica'}</button><button onClick={onClose} style={ghostBtn}>Chiudi</button></div>
       </header>
       <div style={{display:'grid',gridTemplateColumns:'380px 1fr',minHeight:0}}>
