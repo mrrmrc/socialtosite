@@ -106,22 +106,22 @@ final class ContentIdeaFormatter {
 
         return [
             [
-                'title' => "Guida essenziale: {$subject}",
-                'reason' => $offer !== '' ? "Spiega in modo semplice l’offerta confermata: {$offer}." : 'Offre un punto di partenza chiaro alle persone che stanno cercando informazioni.',
-                'type' => 'Guida', 'priority' => 'Alta', 'source' => $profileSource, 'source_url' => '', 'freshness' => 'Evergreen',
-                'social_angle' => 'Tre indicazioni pratiche in formato breve, con rimando alla guida completa.',
+                'title' => "Il nostro approccio a {$subject}: dietro le quinte",
+                'reason' => $offer !== '' ? "Spiega in modo reale l’offerta confermata: {$offer}." : 'Offre una prospettiva interna alle persone che stanno cercando informazioni.',
+                'type' => 'Storia', 'priority' => 'Alta', 'source' => $profileSource, 'source_url' => '', 'freshness' => 'Evergreen',
+                'social_angle' => 'Un dettaglio del dietro le quinte in formato breve, con rimando all\'articolo completo.',
             ],
             [
-                'title' => "Le domande più frequenti su {$subject}",
-                'reason' => $audience !== '' ? "Risponde ai dubbi del pubblico dichiarato: {$audience}." : 'Riduce i dubbi iniziali con risposte immediate e comprensibili.',
+                'title' => "I dubbi più frequenti su {$subject}: le nostre risposte",
+                'reason' => $audience !== '' ? "Risponde ai dubbi del pubblico dichiarato: {$audience}." : 'Riduce i dubbi iniziali con risposte immediate basate sull\'esperienza.',
                 'type' => 'Domanda cliente', 'priority' => 'Alta', 'source' => $profileSource, 'source_url' => '', 'freshness' => 'Evergreen',
-                'social_angle' => 'Una domanda per schermata o paragrafo, chiusa da una risposta sintetica.',
+                'social_angle' => 'Una domanda frequente, chiusa da una risposta sintetica che svela competenza.',
             ],
             [
-                'title' => "Cosa valutare quando cerchi {$subject}",
-                'reason' => 'Aiuta il pubblico a scegliere con criteri concreti senza promesse o informazioni inventate.',
-                'type' => 'Guida', 'priority' => 'Media', 'source' => $profileSource, 'source_url' => '', 'freshness' => 'Evergreen',
-                'social_angle' => 'Checklist breve di criteri utili da salvare e condividere.',
+                'title' => "Perché abbiamo scelto di puntare su {$subject}",
+                'reason' => 'Sottolinea l\'unicità del brand con criteri concreti senza promesse o informazioni inventate.',
+                'type' => 'Offerta', 'priority' => 'Media', 'source' => $profileSource, 'source_url' => '', 'freshness' => 'Evergreen',
+                'social_angle' => 'Un punto di vista forte e distintivo da condividere.',
             ],
         ];
     }

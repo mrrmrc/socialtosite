@@ -39,23 +39,64 @@ $slug   = $_GET['slug']   ?? '';
 $action = $_GET['action'] ?? 'site';
 $view   = $_GET['view']   ?? '';
 
-if (!$slug) { http_response_code(404); echo '<h1>Sito non trovato</h1>'; exit; }
+$cacheFile = __DIR__ . '/temp/cache_' . md5($slug) . '.json';
+$cacheValid = false;
+$cacheData = [];
+if (file_exists($cacheFile) && filemtime($cacheFile) > time() - 3600) {
+    $cacheData = json_decode(file_get_contents($cacheFile), true);
+    if (is_array($cacheData) && !empty($cacheData['user'])) {
+        $cacheValid = true;
+    }
+}
 
-$user = DB::fetch('SELECT * FROM users WHERE slug=?', [$slug]);
-if (!$user) { http_response_code(404); echo '<h1>Sito non trovato</h1>'; exit; }
+if ($cacheValid) {
+    $user = $cacheData['user'];
+    $site = $cacheData['site'];
+    $sources = $cacheData['sources'];
+    $posts = $cacheData['posts'];
+} else {
+    $user = DB::fetch('SELECT * FROM users WHERE slug=?', [$slug]);
+    if (!$user) { http_response_code(404); echo '<h1>Sito non trovato</h1>'; exit; }
+    
+    $site  = DB::fetch('SELECT * FROM sites WHERE user_id=?', [$user['id']]);
+    if (!$site) $site = []; 
+    
+    $sources = DB::fetchAll(
+        'SELECT platform, label, url, topic_summary FROM social_sources WHERE user_id=? AND active=1 ORDER BY platform, id DESC',
+        [$user['id']]
+    );
+    
+    $posts = DB::fetchAll(
+        'SELECT * FROM posts WHERE user_id=? AND published=1 ORDER BY featured DESC, published_at DESC',
+        [$user['id']]
+    );
+    foreach ($posts as &$p) {
+        $decoded = json_decode($p['tags'] ?? '[]', true);
+        if (!is_array($decoded)) {
+            $decoded = is_string($p['tags']) ? explode(',', $p['tags']) : [];
+        }
+        $p['tags'] = array_filter(array_map('trim', $decoded));
+    }
+    unset($p);
+    
+    // Save cache
+    $dir = __DIR__ . '/temp';
+    if (!is_dir($dir)) @mkdir($dir, 0775, true);
+    @file_put_contents($cacheFile, json_encode([
+        'user' => $user,
+        'site' => $site,
+        'sources' => $sources,
+        'posts' => $posts
+    ]));
+}
 
-$site  = DB::fetch('SELECT * FROM sites WHERE user_id=?', [$user['id']]);
-if (!$site) $site = []; // Fallback sicuro: evita crash su array access
 $allowedLivingModes = ['pulse', 'stories', 'constellation', 'timeline', 'compass', 'mixer', 'cinema', 'answers', 'atlas', 'adaptive'];
 $livingSpaceMode = strtolower(trim((string)($site['living_space_mode'] ?? 'pulse')));
 if (!in_array($livingSpaceMode, $allowedLivingModes, true)) $livingSpaceMode = 'pulse';
 $livingModeNames = ['pulse'=>'Pulse Wall','stories'=>'Storie','constellation'=>'Costellazione','timeline'=>'Memoria','compass'=>'Bussola','mixer'=>'Mixer','cinema'=>'Cinema','answers'=>'Risposte','atlas'=>'Atlante','adaptive'=>'Adesso'];
 $livingModeName = $livingModeNames[$livingSpaceMode] ?? 'Spazio Vivo';
 $reachabilityProfile = ReachabilityNetwork::normalize(ReachabilityNetwork::decode($site['reachability_profile'] ?? null));
-$sources = DB::fetchAll(
-    'SELECT platform, label, url, topic_summary FROM social_sources WHERE user_id=? AND active=1 ORDER BY platform, id DESC',
-    [$user['id']]
-);
+
 $officialSiteUrl = trim((string)($reachabilityProfile['official_site_url'] ?? ''));
 if ($officialSiteUrl === '') {
     foreach ($sources as $source) {
@@ -66,18 +107,6 @@ if ($officialSiteUrl === '') {
     }
 }
 $businessProfileUrl = trim((string)($reachabilityProfile['business_profile_url'] ?? ''));
-$posts = DB::fetchAll(
-    'SELECT * FROM posts WHERE user_id=? AND published=1 ORDER BY featured DESC, published_at DESC',
-    [$user['id']]
-);
-foreach ($posts as &$p) {
-    $decoded = json_decode($p['tags'] ?? '[]', true);
-    if (!is_array($decoded)) {
-        $decoded = is_string($p['tags']) ? explode(',', $p['tags']) : [];
-    }
-    $p['tags'] = array_filter(array_map('trim', $decoded));
-}
-unset($p);
 
 $allPosts = $posts;
 $chronologicalPosts = $allPosts;

@@ -605,7 +605,7 @@ Restituisci SOLO la nuova memoria aggiornata (testo semplice), nient'altro.";
             . "Il tuo compito è trasformare il seguente contenuto" . ($platform ? " (estratto da $platform)" : '') . " in un articolo professionale per il suo sito web.\n\n"
             . "REGOLE FONDAMENTALI (PENA IL FALLIMENTO DEL TASK):\n"
             . "1. ADERENZA AL FATTO: Basati ESCLUSIVAMENTE sulle informazioni fornite nel Contenuto. NON inventare dettagli, NON aggiungere tendenze, challenge, fenomeni virali o notizie esterne se non esplicitamente menzionate nella Trascrizione/Didascalia.\n"
-            . "2. RISPETTO DELLA PROFILAZIONE: Adatta il tono di voce e lo stile esattamente come indicato nel 'Contesto dei canali/profili dell'utente' (Target, Strategia, Tono). Se il contesto richiede un tono specifico, usalo.\n"
+            . "2. RADICAMENTO NEL PROFILO (CRITICO): L'articolo DEVE nascere profondamente dal profilo fornito nel 'Contesto dei canali/profili dell'utente' (Memoria RAG, Tono, Competenze, Pubblico). Non limitarti a 'usare un tono'. Devi estrarre competenze, storia o dettagli da questa memoria (se presenti) per sostanziare il testo, in modo che l'articolo non sembri generato da un'IA generica, ma scritto da una persona con quello specifico storico.\n"
             . "3. PRESERVAZIONE: Se il contenuto originale contiene umorismo, sarcasmo, barzellette o sketch comici, PRESERVA ASSOLUTAMENTE LA COMICITA'. Non trasformare una barzelletta in un testo accademico.\n"
             . "4. " . $typePrompt . "\n"
             . "5. INTENZIONE DI RICERCA: se ti vengono fornite le ricerche reali (sezione 'DOMANDA DI RICERCA REALE'), "
@@ -636,6 +636,10 @@ Restituisci SOLO la nuova memoria aggiornata (testo semplice), nient'altro.";
             $promptTemplate
         );
         $lengthRules = [
+            'instagram_800' => 'Scrivi circa 800 parole. Usa paragrafi snelli e accattivanti, adatti a chi legge da mobile, ma scendi nel dettaglio per mantenere l\'attenzione e approfondire l\'argomento.',
+            'facebook_1000' => 'Scrivi circa 1000 parole. Mantieni un ritmo conversazionale ed empatico, suddividendo in sezioni leggibili per tenere l\'utente interessato su un post lungo.',
+            'youtube_1200' => 'Scrivi circa 1200 parole, esplorando l\'argomento a fondo come un saggio o un approfondimento strutturato, suddiviso in capitoli logicamente separati.',
+            'website_800' => 'Scrivi circa 800 parole. Struttura come un classico articolo blog SEO, completo ed esaustivo, con H2 e H3 ben definiti, senza dilungarti inutilmente.',
             'brief' => 'Scrivi fra 90 e 140 parole. Un titolo, un’apertura diretta e massimo 2 sezioni. Nessuna introduzione generica.',
             'compact' => 'Scrivi fra 180 e 280 parole. Massimo 3 sezioni brevi, paragrafi di 2-4 frasi. Vai subito al punto.',
             'standard' => 'Scrivi fra 320 e 450 parole. Massimo 4 sezioni, senza ripetizioni o introduzioni generiche.',
@@ -2275,17 +2279,21 @@ Testi da analizzare:
                 'published_at' => $post['published_at'] ?? null,
             ];
         }
-        $today = date('Y-m-d');
-        $prompt = "Sei un caporedattore italiano. Genera ESATTAMENTE 3 idee editoriali concrete per questa attivita.\n"
+        $ragKnowledge = trim($site['rag_knowledge'] ?? '');
+        $brandVoice = trim($site['brand_voice_profile'] ?? '');
+        
+        $prompt = "Sei un caporedattore italiano. Genera ESATTAMENTE 3 idee editoriali concrete, uniche e non banali per questa attività.\n"
             . "Data di oggi: {$today}.\n"
             . "ATTIVITA: " . json_encode(['tipo'=>$activity,'offerta'=>$offer,'territorio'=>$area,'profilo'=>$site['profile_summary'] ?? ''], JSON_UNESCAPED_UNICODE) . "\n"
             . "STRATEGIA CONFERMATA: " . json_encode($declared, JSON_UNESCAPED_UNICODE) . "\n"
+            . "MEMORIA STORICA (RAG): " . ($ragKnowledge ?: 'Nessun dato') . "\n"
+            . "BRAND VOICE: " . ($brandVoice ?: 'Nessun dato') . "\n"
             . "CONTENUTI GIA PUBBLICATI: " . json_encode($recent, JSON_UNESCAPED_UNICODE) . "\n"
             . "DOMANDE GOOGLE REALI: " . ($searchDemand ?: 'nessun dato disponibile') . "\n"
             . "SEGNALI DI ATTUALITA (titoli da verificare, non fatti acquisiti): " . json_encode($signals, JSON_UNESCAPED_UNICODE) . "\n\n"
-            . "Regole: evita doppioni; almeno 2 idee devono essere legate all'attualita SOLO se i segnali sono pertinenti; le altre devono derivare da attivita, pubblico, territorio e domanda reale. "
-            . "Non inventare eventi, date, prezzi o notizie. Se usi un segnale recente, conserva source_url e spiega il collegamento. Ogni idea deve poter diventare sia articolo sia post social. "
-            . "Rispondi SOLO con JSON valido: {\"ideas\":[{\"title\":\"titolo\",\"reason\":\"perche e utile ora\",\"type\":\"Attualita|Guida|Domanda cliente|Storia|Offerta\",\"priority\":\"Alta|Media\",\"source\":\"origine comprensibile\",\"source_url\":\"https://... oppure stringa vuota\",\"freshness\":\"Attuale|Evergreen\",\"social_angle\":\"taglio breve per il social\"}]}";
+            . "Regole (PENA FALLIMENTO): evita doppioni con i contenuti già pubblicati. LE IDEE NON DEVONO ESSERE GENERICHE. VIETATO proporre titoli come 'Guida essenziale a...', 'Tutto quello che devi sapere su...', 'I segreti di...'. L'idea DEVE emergere in maniera univoca dalla MEMORIA STORICA, dalla BRAND VOICE e dalle ATTIVITA'. Se l'idea andrebbe bene anche per un concorrente qualsiasi, scartala. "
+            . "Non inventare eventi, date, prezzi o notizie. Se usi un segnale recente, conserva source_url e spiega il collegamento.\n"
+            . "Rispondi SOLO con JSON valido: {\"ideas\":[{\"title\":\"titolo specifico e utile\",\"reason\":\"perche e utile ora basandosi sul RAG\",\"type\":\"Attualita|Guida|Domanda cliente|Storia|Offerta\",\"priority\":\"Alta|Media\",\"source\":\"origine comprensibile\",\"source_url\":\"https://... oppure stringa vuota\",\"freshness\":\"Attuale|Evergreen\",\"social_angle\":\"taglio breve per il social\"}]}";
 
         $fallbacks = ContentIdeaFormatter::fallbacks($site, $declared, $reachability);
         $candidates = [];

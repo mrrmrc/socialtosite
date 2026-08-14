@@ -758,6 +758,11 @@ if ($action === 'spazio-vivo-mode' && $method === 'POST') {
     );
     $savedMode = DB::fetch('SELECT living_space_mode, living_space_mode_updated_at FROM sites WHERE user_id=? LIMIT 1', [$userId]);
     if (($savedMode['living_space_mode'] ?? '') !== $selectedMode) jsonError('La modalità non è stata salvata. Riprova.', 500);
+    $userSlug = DB::fetch('SELECT slug FROM users WHERE id=?', [$userId]);
+    if ($userSlug && $userSlug['slug']) {
+        $cacheFile = __DIR__ . '/../public/temp/cache_' . md5($userSlug['slug']) . '.json';
+        if (file_exists($cacheFile)) @unlink($cacheFile);
+    }
     json(['ok' => true, 'mode' => $savedMode['living_space_mode'], 'updated_at' => $savedMode['living_space_mode_updated_at']]);
 }
 

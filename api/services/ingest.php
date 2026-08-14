@@ -179,8 +179,7 @@ class Ingest {
         $mediaType  = $prefetched['media_type'] ?? 'text';
 
         if ($platform === 'youtube') {
-            // Trascrizione posticipata all'elaborazione in background
-            $transcript = '';
+            $transcript = AI::transcribeYouTube($url);
             $mediaUrl   = $url;
             $mediaType  = 'video';
         } elseif ($platform === 'website') {
@@ -234,7 +233,32 @@ class Ingest {
             }
         }
 
+        // Trascrizione video sincrona per mp4
+        if ($mediaType === 'video' && !$transcript && $mediaUrl && strpos($mediaUrl, 'http') === 0 && $platform !== 'youtube') {
+            $transcript = AI::transcribeFile($mediaUrl, 'video/mp4');
+        }
+
         $raw = $transcript ?: $caption;
+
+        // Scraping degli URL nel testo
+        if ($raw) {
+            preg_match_all('/https?:\/\/[^\s]+/', $raw, $matches);
+            $urlsToScrape = array_unique($matches[0] ?? []);
+            foreach ($urlsToScrape as $scrapedUrl) {
+                // Avoid recursive loops or scraping the same post URL
+                if (strpos($scrapedUrl, $url) !== false) continue;
+                $ch = curl_init($scrapedUrl);
+                curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER => true, CURLOPT_FOLLOWLOCATION => true, CURLOPT_USERAGENT => 'Mozilla/5.0', CURLOPT_TIMEOUT => 10]);
+                $html = curl_exec($ch);
+                curl_close($ch);
+                if ($html) {
+                    $text = strip_tags(preg_replace('/<(script|style)[^>]*>.*?<\/\1>/is', '', $html));
+                    $text = preg_replace('/\s+/', ' ', $text);
+                    $raw .= "\n\n[Contenuto della pagina linkata $scrapedUrl]:\n" . mb_substr($text, 0, 3000);
+                }
+            }
+        }
+
         if (!$raw && !$mediaUrl) {
             Logger::warn('ingest', 'Nessun testo o media estratto', ['platform' => $platform, 'url' => $url]);
             throw new Exception('Nessun testo estratto e nessun media trovato.');
@@ -376,7 +400,18 @@ class Ingest {
         // briefing è vuoto e il comportamento resta identico a prima.
         $searchDemand = VisibilityAnalytics::demandBriefing($userId, $post['slug'] ?? null);
 
-        $seo = AI::harmonize($raw, $post['platform'], $post['raw_content'] ?? '', $sourceContext, $agentName, $accountType, $searchDemand, $length, $userId);
+        $platform = $post['platform'] ?? 'website';
+        if ($length === 'compact') {
+            $length = match($platform) {
+                'instagram' => 'instagram_800',
+                'facebook' => 'facebook_1000',
+                'youtube' => 'youtube_1200',
+                'website' => 'website_800',
+                default => 'compact'
+            };
+        }
+
+        $seo = AI::harmonize($raw, $platform, $post['raw_content'] ?? '', $sourceContext, $agentName, $accountType, $searchDemand, $length, $userId);
 
         DB::execute('
             UPDATE posts SET
