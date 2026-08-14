@@ -21,7 +21,7 @@ RewriteRule ^scopri/sitemap\.xml$ public/discover.php?action=sitemap [L,QSA]
 RewriteRule ^scopri/tema/([^/]+)/?$ public/discover.php?topic=$1 [L,QSA]
 RewriteRule ^scopri/?$ public/discover.php [L,QSA]
 
-# Sitemap, Feed, e llms.txt
+# Sitemap, Feed, e llms.txt restano sul renderer storico: preserviamo SEO/feed.
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteCond %{REQUEST_URI} !^/(api|cron|db|frontend|public|node_modules|assets|login|dashboard|connect|generating|scopri) [NC]
@@ -37,21 +37,22 @@ RewriteCond %{REQUEST_FILENAME} !-d
 RewriteCond %{REQUEST_URI} !^/(api|cron|db|frontend|public|node_modules|assets|login|dashboard|connect|generating|scopri) [NC]
 RewriteRule ^([^/]+)/llms\.txt$ public/site.php?slug=$1&action=llms [L,QSA]
 
-# Pagina pubblica:  /<slug>  e  /<slug>/<post-slug>
+# Pagine pubbliche: il router Professional decide in base al piano.
+# Base -> renderer storico; Professional/Agency -> renderer personalizzabile.
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteCond %{REQUEST_URI} !^/(api|cron|db|frontend|public|node_modules|assets|login|dashboard|connect|generating|scopri) [NC]
-RewriteRule ^([^/]+)/categoria/([^/]+)/?$ public/site.php?slug=$1&tag=$2 [L,QSA]
+RewriteRule ^([^/]+)/categoria/([^/]+)/?$ public/site-professional.php?slug=$1&tag=$2 [L,QSA]
 
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteCond %{REQUEST_URI} !^/(api|cron|db|frontend|public|node_modules|assets|login|dashboard|connect|generating|scopri) [NC]
-RewriteRule ^([^/]+)/?$ public/site.php?slug=$1 [L,QSA]
+RewriteRule ^([^/]+)/?$ public/site-professional.php?slug=$1 [L,QSA]
 
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteCond %{REQUEST_URI} !^/(api|cron|db|frontend|public|node_modules|assets|login|dashboard|connect|generating|scopri) [NC]
-RewriteRule ^([^/]+)/([^/]+)/?$ public/site.php?slug=$1&post=$2 [L,QSA]
+RewriteRule ^([^/]+)/([^/]+)/?$ public/site-professional.php?slug=$1&post=$2 [L,QSA]
 
 # ── Sicurezza: blocca accesso diretto a file sensibili ─────────────────────
 <FilesMatch "(?i)(config\.php|keys\.php|.*\.env|.*\.sql|.*\.example\.php)$">
