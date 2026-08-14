@@ -1,0 +1,3 @@
+Deploy requested 2026-08-14 16:28 Europe/Rome
+Fixes: Professional media URL preservation, strict chronological ordering, remove floating plan badge.
+AI article length control already passes explicit length presets to backend; next UI refinement will expose character targets alongside word ranges.
