@@ -142,6 +142,16 @@ class Ingest {
         if (!filter_var($url, FILTER_VALIDATE_URL)) {
             throw new Exception('Link non valido');
         }
+
+        $userPlan = DB::fetch('SELECT plan FROM users WHERE id=?', [$userId])['plan'] ?? 'free';
+        if ($userPlan === 'base') {
+            $monthStart = date('Y-m-01 00:00:00');
+            $postsThisMonth = DB::fetch('SELECT COUNT(*) as c FROM posts WHERE user_id=? AND imported_at >= ?', [$userId, $monthStart])['c'] ?? 0;
+            if ($postsThisMonth >= 10) {
+                throw new Exception('Hai raggiunto il limite di 10 articoli mensili per il piano Base. Effettua l\'upgrade per continuare.');
+            }
+        }
+
         $platform = self::platform($url);
         if (!$platform) {
             throw new Exception('Piattaforma non riconosciuta');

@@ -95,6 +95,7 @@ function ensurePostMediaSchema(): void {
         'media_display_width'=>'TINYINT UNSIGNED NULL',
         'media_alignment'=>"VARCHAR(20) NOT NULL DEFAULT 'center'",
         'noindex'=>'TINYINT NOT NULL DEFAULT 0',
+        'external_social_use'=>'TINYINT NOT NULL DEFAULT 0',
     ];
     $existing = [];
     try { foreach (DB::fetchAll('SHOW COLUMNS FROM posts') as $column) $existing[$column['Field']] = true; } catch (Throwable $e) { return; }
@@ -302,11 +303,11 @@ if ($action === 'openclaw-webhook' && $method === 'POST') {
 $me = JWT::require();
 $userId = (int)($me['id'] ?? 0);
 try {
-    $dbMe = DB::fetch('SELECT id, email, name, slug, role, token_version FROM users WHERE id=?', [$userId]);
+    $dbMe = DB::fetch('SELECT id, email, name, slug, role, plan, token_version FROM users WHERE id=?', [$userId]);
 } catch (Throwable $e) {
     // Colonna non ancora presente: la migrazione auth_hardening non è stata
     // applicata. Si prosegue senza revoca, come prima.
-    $dbMe = DB::fetch('SELECT id, email, name, slug, role FROM users WHERE id=?', [$userId]);
+    $dbMe = DB::fetch('SELECT id, email, name, slug, role, plan FROM users WHERE id=?', [$userId]);
 }
 if (!$dbMe) {
     // Utente cancellato ma token ancora in circolazione.
@@ -324,6 +325,7 @@ $me = array_merge($me, [
     'name' => $dbMe['name'],
     'slug' => $dbMe['slug'],
     'role' => $dbMe['role'] ?? ($me['role'] ?? 'user'),
+    'plan' => $dbMe['plan'] ?? 'free',
 ]);
 $isAdmin = ($me['role'] ?? 'user') === 'admin';
 
@@ -1256,6 +1258,14 @@ if ($action === 'social-source-upsert' && $method === 'POST') {
     if (!filter_var($url, FILTER_VALIDATE_URL)) jsonError('Link social non valido');
 
     $existing = DB::fetch('SELECT id FROM social_sources WHERE user_id=? AND platform=? LIMIT 1', [$userId, $platform]);
+
+    if (!$existing && ($me['plan'] ?? 'free') === 'base') {
+        $sourceCount = DB::fetch('SELECT COUNT(*) as c FROM social_sources WHERE user_id=? AND active=1', [$userId])['c'] ?? 0;
+        if ($sourceCount >= 1) {
+            jsonError('Il piano Base permette un solo canale social. Effettua l\'upgrade per aggiungerne altri.');
+        }
+    }
+
     $customTopic = trim($b['topic_summary'] ?? '');
     if ($customTopic) {
         $topic = $customTopic;
@@ -2067,12 +2077,21 @@ if ($action === 'create-idea-draft' && $method === 'POST') {
         . '<h2>Il punto di partenza</h2><p>Questo contenuto nasce da <strong>' . $safeSource . '</strong> ed è classificato come <strong>' . $safePriority . '</strong>. Deve rispondere con chiarezza al tema “' . $safeTitle . '” usando esempi e informazioni realmente disponibili.</p>'
         . '<h2>Scaletta da sviluppare</h2><ul><li>Aprire con il bisogno o la domanda concreta del pubblico.</li><li>Spiegare il tema con un linguaggio semplice e specifico.</li><li>Aggiungere prove, esempi o dettagli riconducibili all’attività.</li><li>Concludere con un prossimo passo chiaro, senza promesse non verificabili.</li></ul>'
         . '<h2>Nota editoriale</h2><p>Tipologia: ' . $safeType . '. La versione AI completa viene elaborata in background; puoi già modificare questa struttura.</p>';
+    if (($me['plan'] ?? 'free') === 'base') {
+        $monthStart = date('Y-m-01 00:00:00');
+        $postsThisMonth = DB::fetch('SELECT COUNT(*) as c FROM posts WHERE user_id=? AND imported_at >= ?', [$userId, $monthStart])['c'] ?? 0;
+        if ($postsThisMonth >= 10) {
+            jsonError('Hai raggiunto il limite di 10 articoli mensili per il piano Base. Effettua l\'upgrade per continuare.');
+        }
+    }
+
+    $isExternal = !empty($b['is_external']) ? 1 : 0;
     $draftSlug = slugify($ideaTitle . '-' . substr($platformPostId, -6));
     $metaDescription = function_exists('mb_substr') ? mb_substr($draftExcerpt, 0, 155, 'UTF-8') : substr($draftExcerpt, 0, 155);
     $postId = DB::insert(
-        'INSERT INTO posts (user_id, platform, platform_post_id, raw_content, generated_title, generated_body, generated_excerpt, tags, meta_description, slug, published_at, imported_at, content_hash, seo_score, published)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW(), ?, 10, 0)',
-        [$userId, 'editorial_idea', $platformPostId, $brief, $ideaTitle, $draftBody, $draftExcerpt, json_encode([$ideaType], JSON_UNESCAPED_UNICODE), $metaDescription, $draftSlug, $contentHash]
+        'INSERT INTO posts (user_id, platform, platform_post_id, raw_content, generated_title, generated_body, generated_excerpt, tags, meta_description, slug, published_at, imported_at, content_hash, seo_score, published, external_social_use)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW(), ?, 10, 0, ?)',
+        [$userId, 'editorial_idea', $platformPostId, $brief, $ideaTitle, $draftBody, $draftExcerpt, json_encode([$ideaType], JSON_UNESCAPED_UNICODE), $metaDescription, $draftSlug, $contentHash, $isExternal]
     );
 
     $aiStatus = $ideaMode === 'manual' ? 'skipped' : 'pending';
