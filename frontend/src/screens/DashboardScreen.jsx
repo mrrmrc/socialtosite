@@ -2254,7 +2254,7 @@ const [importMsg, setImportMsg] = useState(null);
               </div>
             </div>
 
-            </>}
+            </>)}
 
             {tab === 'strategy' && <GuidedStrategy
               understanding={activeUnderstanding}
@@ -2353,7 +2353,7 @@ const [importMsg, setImportMsg] = useState(null);
                 </div>
               </div>
             </div>
-            </>)}
+            </>}
           </div>
         )}
 
