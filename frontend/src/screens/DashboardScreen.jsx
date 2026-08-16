@@ -419,7 +419,7 @@ function SiteMapGraph({ posts, siteUrl, siteTitle, foundationPages = [] }) {
 }
 
 export function DashboardScreen({ token, user, onLogout }) {
-  const [tab, setTab] = useState('overview');
+  const [tab, setTab] = useState(user?.role === 'admin' ? 'admin' : 'overview');
   const [visibilitySection, setVisibilitySection] = useState('network');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [dashboardFilter, setDashboardFilter] = useState('all');
@@ -1962,7 +1962,16 @@ const [importMsg, setImportMsg] = useState(null);
   const networkPublishedPages = (visibility.published_pages ?? (publishedPosts.length + 1)) + (seoFoundation.pages || []).length + (publishedPosts.length ? 1 : 0) + (sources.length ? 1 : 0);
   const sourceByPlatform = sources.reduce((acc, source) => ({ ...acc, [source.platform]: source }), {});
   const connByPlatform = connections.reduce((acc, c) => ({ ...acc, [c.platform]: c }), {});
-  const navigationGroups = [
+  const navigationGroups = user?.role === 'admin' ? [
+    {
+      label: 'Amministrazione',
+      items: [
+        { id: 'admin', icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>, label: 'Utenti', hint: 'Account e accessi' },
+        { id: 'general', icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg>, label: 'Sistema', hint: 'Agenti e impostazioni' },
+        { id: 'settings', icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"></path></svg>, label: 'Design avanzato', hint: 'Strumenti legacy' },
+      ],
+    }
+  ] : [
     {
       label: 'Menu',
       items: [
@@ -1975,15 +1984,7 @@ const [importMsg, setImportMsg] = useState(null);
         { id: 'account', icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>, label: 'Impostazioni', hint: 'Profilo, aspetto e account' },
         { id: 'services', icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>, label: 'Piani e Upgrade', hint: 'Gestisci automazioni' },
       ],
-    },
-    ...(user?.role === 'admin' ? [{
-      label: 'Amministrazione',
-      items: [
-        { id: 'admin', icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>, label: 'Utenti', hint: 'Account e accessi' },
-        { id: 'general', icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg>, label: 'Sistema', hint: 'Agenti e impostazioni' },
-        { id: 'settings', icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"></path></svg>, label: 'Design avanzato', hint: 'Strumenti legacy' },
-      ],
-    }] : []),
+    }
   ];
   const flatNavigation = navigationGroups.flatMap(group => group.items.map(item => ({ ...item, group: group.label })));
   const isNavigationActive = item => tab === item.id && (!item.section || visibilitySection === item.section);
@@ -2015,7 +2016,9 @@ const [importMsg, setImportMsg] = useState(null);
     setMobileMenuOpen(false);
     window.setTimeout(() => document.getElementById('visual-identity')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 80);
   };
-  const renderSiteCommandPanel = compact => (
+  const renderSiteCommandPanel = compact => {
+    if (user?.role === 'admin') return null;
+    return (
     <section className={`site-command-panel ${compact ? 'is-mobile' : ''}`} aria-label="Comandi del sito">
       <span className="site-command-kicker">Il tuo sito</span>
       {sidebarTitleEditing ? (
@@ -2025,7 +2028,8 @@ const [importMsg, setImportMsg] = useState(null);
       )}
       <button className="site-command-identity" onClick={openSiteIdentity}>Logo, immagine e identità →</button>
     </section>
-  );
+    );
+  };
   const renderVisibilityServices = () => (
     <div className="services-page">
       <section className="services-intro">
@@ -2092,9 +2096,11 @@ const [importMsg, setImportMsg] = useState(null);
           <img src="/logo-cropped.png?v=2" alt="LinkSeoWeb" />
           <div><strong>LinkSeoWeb</strong><span>Area di lavoro</span></div>
         </div>
-        <button className="sidebar-create" onClick={() => selectNavigation({ id: 'seo', section: 'ideas' })}>
-          <span>＋</span><div><strong>Nuovo contenuto</strong><small>Parti da un’idea</small></div>
-        </button>
+        {user?.role !== 'admin' && (
+          <button className="sidebar-create" onClick={() => selectNavigation({ id: 'seo', section: 'ideas' })}>
+            <span>＋</span><div><strong>Nuovo contenuto</strong><small>Parti da un’idea</small></div>
+          </button>
+        )}
         {renderSiteCommandPanel(false)}
         <nav className="sidebar-navigation" aria-label="Navigazione principale">
           {navigationGroups.map(group => (
