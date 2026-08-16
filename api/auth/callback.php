@@ -46,6 +46,15 @@ try {
 
     $accessToken = $refreshToken = $expiresAt = $handle = $platformUid = '';
 
+    $userPlan = DB::fetch('SELECT plan FROM users WHERE id=?', [$userId])['plan'] ?? 'base';
+    if (strtolower($userPlan) === 'base') {
+        $activeConnectionsCount = (int) (DB::fetch('SELECT COUNT(*) as c FROM social_connections WHERE user_id=? AND active=1', [$userId])['c'] ?? 0);
+        if ($activeConnectionsCount >= 2) {
+             header('Location: ' . BASE_URL . '/?error=oauth_denied&reason=plan_limit_reached');
+             exit;
+        }
+    }
+
     switch ($platform) {
 
         case 'instagram':

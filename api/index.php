@@ -76,6 +76,7 @@ function ensureSiteSchemaUpgrades(): void {
         'search_visible'=>'TINYINT NOT NULL DEFAULT 1',
         'dismissed_content_ideas'=>'LONGTEXT NULL',
         'living_space_mode_updated_at'=>'DATETIME NULL',
+        'user_agent_prompt'=>'LONGTEXT NULL',
     ];
     $existing = [];
     try {
@@ -663,6 +664,7 @@ if ($action === 'me' && $method === 'GET') {
             'name' => $me['name'] ?? '',
             'slug' => $me['slug'] ?? '',
             'role' => $me['role'] ?? 'user',
+            'plan' => $me['plan'] ?? 'base',
         ],
     ]);
 }
@@ -1620,6 +1622,27 @@ if ($action === 'post-update' && $method === 'POST') {
     if (empty($fields)) json(['ok' => true]);
     $params[] = $id; $params[] = $userId;
     DB::execute('UPDATE posts SET ' . implode(',', $fields) . ' WHERE id=? AND user_id=?', $params);
+
+    if (array_key_exists('edited_body', $b) && ($b['published'] ?? 0) == 1) {
+        $userPlan = DB::fetch('SELECT plan FROM users WHERE id=?', [$userId])['plan'] ?? 'base';
+        if (strtolower($userPlan) === 'base') {
+            $texts = array_column(DB::fetchAll('SELECT edited_body FROM posts WHERE user_id=? AND published=1 ORDER BY id DESC LIMIT 5', [$userId]), 'edited_body');
+            if (count($texts) > 0) {
+                try {
+                    require_once __DIR__ . '/services/ai.php';
+                    $voiceProfileJson = AI::generateBrandVoiceProfile($texts);
+                    $voiceData = json_decode($voiceProfileJson, true);
+                    if ($voiceData && isset($voiceData['custom_instructions'])) {
+                        $instructions = "Tono: " . ($voiceData['tone'] ?? 'Neutro') . "\n";
+                        $instructions .= "Stile vocabolario: " . implode(', ', $voiceData['vocabulary_traits'] ?? []) . "\n";
+                        $instructions .= "Regole speciali: " . $voiceData['custom_instructions'];
+                        DB::execute('UPDATE sites SET user_agent_prompt=? WHERE user_id=?', [$instructions, $userId]);
+                    }
+                } catch (Throwable $e) { error_log('Errore update brand voice: ' . $e->getMessage()); }
+            }
+        }
+    }
+
     json(['ok' => true]);
 }
 

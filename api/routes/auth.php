@@ -48,7 +48,7 @@ if ($method === 'POST' && $path === 'login') {
     ]);
     json(['token' => $token, 'user' => [
         'id' => $user['id'], 'email' => $user['email'],
-        'name' => $user['name'], 'slug' => $user['slug'], 'role' => $role
+        'name' => $user['name'], 'slug' => $user['slug'], 'role' => $role, 'plan' => $user['plan'] ?? 'base'
     ]]);
 }
 

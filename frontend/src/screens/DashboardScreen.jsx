@@ -2163,7 +2163,45 @@ const [importMsg, setImportMsg] = useState(null);
         )}
         {(tab === 'overview' || tab === 'strategy') && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
-            {tab === 'overview' && <>
+            {tab === 'overview' && (user?.plan?.toLowerCase() === 'base' ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+                <section className="card" style={{ padding: '3rem 2rem', textAlign: 'center', background: 'var(--primary)', color: 'white', borderRadius: '16px' }}>
+                  <h2 style={{ fontSize: '28px', marginBottom: '1rem' }}>Benvenuto nel tuo sito vetrina!</h2>
+                  <p style={{ fontSize: '16px', opacity: 0.9, maxWidth: '600px', margin: '0 auto 2rem auto', lineHeight: 1.6 }}>
+                    Usa i pulsanti qui sotto per gestire i tuoi articoli o aggiungere nuove idee. L'intelligenza artificiale penserà a scrivere i testi e organizzarli per te.
+                  </p>
+                  <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', flexWrap: 'wrap' }}>
+                    <button className="btn" style={{ background: 'white', color: 'var(--primary)', padding: '14px 24px', fontSize: '16px', fontWeight: 'bold' }} onClick={() => selectNavigation({ id: 'seo', section: 'ideas' })}>
+                      💡 Crea un nuovo articolo
+                    </button>
+                    <button className="btn" style={{ background: 'rgba(255,255,255,0.2)', color: 'white', border: '1px solid rgba(255,255,255,0.4)', padding: '14px 24px', fontSize: '16px', fontWeight: 'bold' }} onClick={() => selectNavigation({ id: 'site' })}>
+                      📄 I tuoi articoli ({posts.length})
+                    </button>
+                    <button className="btn" style={{ background: 'rgba(255,255,255,0.2)', color: 'white', border: '1px solid rgba(255,255,255,0.4)', padding: '14px 24px', fontSize: '16px', fontWeight: 'bold' }} onClick={() => selectNavigation({ id: 'sources' })}>
+                      📡 Canali Social ({sources.length + connections.filter(c => c.active).length}/2)
+                    </button>
+                  </div>
+                </section>
+                <div className="card" style={{ padding: '2rem' }}>
+                  <h3 style={{ marginBottom: '1.5rem', fontSize: '20px' }}>Ultimi articoli</h3>
+                  {posts.length === 0 ? (
+                    <p style={{ color: 'var(--text-muted)' }}>Non hai ancora creato articoli. Inizia cliccando su "Crea un nuovo articolo".</p>
+                  ) : (
+                    <div style={{ display: 'grid', gap: '1rem' }}>
+                      {posts.slice(0, 3).map(post => (
+                        <div key={post.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem', border: '1px solid var(--border)', borderRadius: '8px' }}>
+                          <div>
+                            <strong style={{ display: 'block', fontSize: '16px', marginBottom: '4px' }}>{post.title || 'Articolo senza titolo'}</strong>
+                            <span style={{ fontSize: '13px', color: 'var(--text-muted)' }}>{Number(post.published) === 1 ? '✅ Pubblicato' : '📝 In bozza'}</span>
+                          </div>
+                          <button className="btn btn-outline" onClick={() => selectNavigation({ id: 'site' })}>Gestisci</button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            ) : <>
             <section className="trust-simulator-card">
               <div className="trust-simulator-copy"><span className="section-eyebrow">Prova verificabile</span><h2>Guarda cosa può accadere, usando i tuoi dati</h2><p>Nessuna promessa di traffico o vendite: questa simulazione mostra soltanto ciò che il sistema ha già acquisito, preparato e pubblicato.</p><div><button className="btn btn-primary" onClick={() => selectNavigation({ id: 'site' })}>Controlla gli articoli</button><a className="btn btn-outline" href={siteUrl} target="_blank" rel="noopener">Controlla il sito ↗</a></div></div>
               <div className="trust-simulator-steps">
@@ -2315,7 +2353,7 @@ const [importMsg, setImportMsg] = useState(null);
                 </div>
               </div>
             </div>
-            </>}
+            </>)}
           </div>
         )}
 

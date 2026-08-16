@@ -367,6 +367,9 @@ class Ingest {
             if (!empty($source['topic_summary'])) $sourceContext .= ' — ' . $source['topic_summary'];
             $sourceContext .= "\n";
         }
+        if (!empty($site['user_agent_prompt'])) {
+            $sourceContext .= "\nISTRUZIONI PERSONALIZZATE DELL'UTENTE (Tono di voce e Stile):\n" . trim($site['user_agent_prompt']) . "\n\n";
+        }
 
         $agentName = !empty($site['harmonize_agent']) ? $site['harmonize_agent'] : 'content_editor';
         $accountType = !empty($site['account_type']) ? $site['account_type'] : 'business';

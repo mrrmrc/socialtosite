@@ -27,6 +27,16 @@ if ($error) {
     }
 
     $platform = $state_data['platform'] ?? 'facebook';
+
+    $userPlan = DB::fetch('SELECT plan FROM users WHERE id=?', [$user_id])['plan'] ?? 'base';
+    if (strtolower($userPlan) === 'base') {
+        $activeConnectionsCount = (int) (DB::fetch('SELECT COUNT(*) as c FROM social_connections WHERE user_id=? AND active=1', [$user_id])['c'] ?? 0);
+        if ($activeConnectionsCount >= 2) {
+             echo "<h1>Limite del piano raggiunto</h1><p>Il tuo piano Base consente massimo 2 canali collegati.</p>";
+             echo "<script>setTimeout(() => { window.location.href = '/'; }, 4000);</script>";
+             exit;
+        }
+    }
     
 if ($code) {
     $redirect_uri = BASE_URL . '/api/auth/oauth_callback.php';
