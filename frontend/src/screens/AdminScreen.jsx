@@ -526,7 +526,11 @@ export function AdminScreen({ token, currentUser, adminPrompts, updatePrompt }) 
                         <option value="user">Utente</option>
                         <option value="admin">Admin</option>
                       </select>
-                      <input type="text" defaultValue={u.plan || 'free'} onBlur={e => updateUser(u.id, { plan: e.target.value })} style={{ padding: '7px', fontSize: '12px' }} />
+                      <select value={u.plan || 'base'} onChange={e => updateUser(u.id, { plan: e.target.value })} style={{ padding: '7px', border: '1px solid var(--border-strong)', borderRadius: 'var(--radius-sm)', background: 'var(--surface)', fontSize: '12px' }}>
+                        <option value="base">Base</option>
+                        <option value="professional">Professional</option>
+                        <option value="agency">Agency</option>
+                      </select>
                     </div>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                       <button className="btn btn-outline" onClick={() => impersonateUser(u.id)} disabled={u.id === currentUser.id} style={{ color: 'var(--purple)', borderColor: 'var(--purple-light)', padding: '6px', fontSize: '12px' }}>
