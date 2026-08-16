@@ -49,7 +49,7 @@ export function AdminScreen({ token, currentUser, adminPrompts, updatePrompt }) 
   const [selectedControlUserId, setSelectedControlUserId] = useState('');
   const [editorialRoom, setEditorialRoom] = useState(null);
   const [controlRoomFilter, setControlRoomFilter] = useState('');
-  const [form, setForm] = useState({ name: '', email: '', password: '', role: 'user' });
+  const [form, setForm] = useState({ name: '', email: '', password: '', profile: 'base' });
   const [passwordDrafts, setPasswordDrafts] = useState({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -161,24 +161,31 @@ export function AdminScreen({ token, currentUser, adminPrompts, updatePrompt }) 
     }
   }
 
-  async function createUser(e) {
+  const createUser = async e => {
     e.preventDefault();
     setLoading(true);
     setError('');
     try {
-      await apiFetch('/api/index.php?action=admin-create-user', {
-        method: 'POST',
-        body: JSON.stringify(form),
+      const payload = {
+        name: form.name,
+        email: form.email,
+        password: form.password,
+        role: form.profile === 'admin' ? 'admin' : 'user',
+        plan: form.profile === 'admin' ? 'agency' : form.profile,
+      };
+      await apiFetch('/api/index.php?action=admin-create-user', { 
+        method: 'POST', 
+        body: JSON.stringify(payload) 
       }, token);
-      setForm({ name: '', email: '', password: '', role: 'user' });
+      setForm({ name: '', email: '', password: '', profile: 'base' });
       await loadUsers();
     } catch (e) {
       setError(e.message);
     }
     setLoading(false);
-  }
+  };
 
-  async function updateUser(id, patch) {
+  const updateUser = async (id, patch) => {
     setError('');
     setNotice('');
     try {
@@ -187,13 +194,22 @@ export function AdminScreen({ token, currentUser, adminPrompts, updatePrompt }) 
         body: JSON.stringify({ id, ...patch }),
       }, token);
       await loadUsers();
+      setNotice('Utente aggiornato.');
       if (adminTab === 'control-room' && String(id) === String(selectedControlUserId)) {
         await loadEditorialRoom(String(id));
       }
     } catch (e) {
       setError(e.message);
     }
-  }
+  };
+
+  const updateProfile = (id, profile) => {
+    const data = {
+      role: profile === 'admin' ? 'admin' : 'user',
+      plan: profile === 'admin' ? 'agency' : profile
+    };
+    updateUser(id, data);
+  };
 
   async function resetUserPassword(id) {
     const newPassword = passwordDrafts[id] || '';
@@ -493,10 +509,12 @@ export function AdminScreen({ token, currentUser, adminPrompts, updatePrompt }) 
                 <input type="password" value={form.password} onChange={e => setForm({ ...form, password: e.target.value })} required />
               </div>
               <div className="form-group" style={{ marginBottom: 0 }}>
-                <label className="label">Ruolo</label>
-                <select value={form.role} onChange={e => setForm({ ...form, role: e.target.value })} style={{ width: '100%', padding: '10px 14px', border: '1px solid var(--border-strong)', borderRadius: 'var(--radius-sm)', background: 'var(--surface)' }}>
-                  <option value="user">Utente</option>
-                  <option value="admin">Admin</option>
+                <label className="label">Profilo</label>
+                <select value={form.profile} onChange={e => setForm({ ...form, profile: e.target.value })} style={{ width: '100%', padding: '10px 14px', border: '1px solid var(--border-strong)', borderRadius: 'var(--radius-sm)', background: 'var(--surface)' }}>
+                  <option value="base">Base</option>
+                  <option value="professional">Professional</option>
+                  <option value="agency">Agency</option>
+                  <option value="admin">Amministratore</option>
                 </select>
               </div>
               <button className="btn btn-primary" disabled={loading} style={{ gridColumn: '1 / -1', justifyContent: 'center' }}>
@@ -522,14 +540,11 @@ export function AdminScreen({ token, currentUser, adminPrompts, updatePrompt }) 
                       <div>{u.connections_count} app connesse</div>
                     </div>
                     <div style={{ display: 'grid', gap: '6px' }}>
-                      <select value={u.role || 'user'} onChange={e => updateUser(u.id, { role: e.target.value })} style={{ padding: '7px', border: '1px solid var(--border-strong)', borderRadius: 'var(--radius-sm)', background: 'var(--surface)' }}>
-                        <option value="user">Utente</option>
-                        <option value="admin">Admin</option>
-                      </select>
-                      <select value={u.plan || 'base'} onChange={e => updateUser(u.id, { plan: e.target.value })} style={{ padding: '7px', border: '1px solid var(--border-strong)', borderRadius: 'var(--radius-sm)', background: 'var(--surface)', fontSize: '12px' }}>
+                      <select value={u.role === 'admin' ? 'admin' : (u.plan || 'base')} onChange={e => updateProfile(u.id, e.target.value)} style={{ padding: '7px', border: '1px solid var(--border-strong)', borderRadius: 'var(--radius-sm)', background: 'var(--surface)' }}>
                         <option value="base">Base</option>
                         <option value="professional">Professional</option>
                         <option value="agency">Agency</option>
+                        <option value="admin">Amministratore</option>
                       </select>
                     </div>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>

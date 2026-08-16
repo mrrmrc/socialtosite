@@ -1004,12 +1004,13 @@ if ($action === 'admin-create-user' && $method === 'POST') {
     if (DB::fetch('SELECT id FROM users WHERE email=?', [$email])) jsonError('Email gia registrata', 409);
 
     $slug = uniqueUserSlug($name ?: explode('@', $email)[0]);
+    $plan = in_array($b['plan'] ?? '', ['base', 'professional', 'agency']) ? $b['plan'] : 'base';
     $userId = DB::insert(
-        'INSERT INTO users (email, password, name, slug, role) VALUES (?,?,?,?,?)',
-        [$email, password_hash($password, PASSWORD_BCRYPT), $name, $slug, $role]
+        'INSERT INTO users (email, password, name, slug, role, plan) VALUES (?,?,?,?,?,?)',
+        [$email, password_hash($password, PASSWORD_BCRYPT), $name, $slug, $role, $plan]
     );
     DB::execute('INSERT INTO sites (user_id, title) VALUES (?,?)', [$userId, $name ?: $email]);
-    json(['ok' => true, 'user' => ['id' => $userId, 'email' => $email, 'name' => $name, 'slug' => $slug, 'role' => $role]], 201);
+    json(['ok' => true, 'user' => ['id' => $userId, 'email' => $email, 'name' => $name, 'slug' => $slug, 'role' => $role, 'plan' => $plan]], 201);
 }
 
 if ($action === 'admin-update-user' && $method === 'POST') {
