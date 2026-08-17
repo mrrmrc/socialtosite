@@ -597,6 +597,7 @@ if ($action === 'purge-all-posts' && $method === 'POST') {
 
 if ($action === 'admin-monitoring' && $method === 'GET') {
     requireAdmin($isAdmin);
+    ensureAdminSchema();
     
     // Aggregato token totali per utente
     $usagePerUser = DB::fetchAll('
