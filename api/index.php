@@ -119,6 +119,31 @@ function ensureSocialSyncSchema(): void {
     }
 }
 
+function ensureAdminSchema(): void {
+    static $done = false;
+    if ($done) return;
+    $done = true;
+    try {
+        DB::execute('CREATE TABLE IF NOT EXISTS api_usage_logs (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            user_id INT NULL,
+            provider VARCHAR(50) NOT NULL,
+            action VARCHAR(50) NULL,
+            tokens_used INT DEFAULT 0,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4');
+    } catch (Throwable $e) {}
+    try {
+        DB::execute('CREATE TABLE IF NOT EXISTS cron_logs (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            job_name VARCHAR(100) NOT NULL,
+            status VARCHAR(20) NOT NULL,
+            details TEXT NULL,
+            run_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4');
+    } catch (Throwable $e) {}
+}
+
 function decodeJsonObject($value): array {
     if (is_array($value)) return $value;
     if (!is_string($value) || trim($value) === '') return [];
@@ -355,6 +380,7 @@ if ($action === 'sync-status' && $method === 'GET') {
 // sul database di produzione.
 if ($action === 'migrate') {
     requireAdmin($isAdmin);
+    ensureAdminSchema();
     VisibilityAnalytics::ensureSchema();
     SeoFoundation::ensureSchema();
     try { DB::execute('ALTER TABLE social_sources ADD COLUMN since_date DATE NULL'); } catch (Throwable $e) {}
@@ -567,6 +593,34 @@ if ($action === 'purge-all-posts' && $method === 'POST') {
         DB::execute('DELETE FROM posts WHERE 1=1');
         json(['ok' => true, 'deleted' => $count, 'scope' => 'all']);
     }
+}
+
+if ($action === 'admin-monitoring' && $method === 'GET') {
+    requireAdmin($isAdmin);
+    
+    // Aggregato token totali per utente
+    $usagePerUser = DB::fetchAll('
+        SELECT u.name, u.email, a.user_id, SUM(a.tokens_used) as total_tokens 
+        FROM api_usage_logs a
+        LEFT JOIN users u ON a.user_id = u.id
+        GROUP BY a.user_id, u.name, u.email
+        ORDER BY total_tokens DESC
+    ');
+    
+    $globalUsage = DB::fetch('SELECT SUM(tokens_used) as total FROM api_usage_logs');
+    
+    $cronLogs = DB::fetchAll('
+        SELECT * FROM cron_logs 
+        ORDER BY run_at DESC 
+        LIMIT 50
+    ');
+    
+    json([
+        'ok' => true,
+        'api_usage_per_user' => $usagePerUser,
+        'global_usage' => $globalUsage['total'] ?? 0,
+        'cron_logs' => $cronLogs
+    ]);
 }
 
 // Logo del brand: usato solo quando i canali social non restituiscono una foto profilo valida

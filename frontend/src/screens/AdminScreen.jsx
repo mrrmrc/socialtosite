@@ -55,13 +55,24 @@ export function AdminScreen({ token, currentUser, adminPrompts, updatePrompt }) 
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [contentMix, setContentMix] = useState(null);
+  const [monitoringData, setMonitoringData] = useState(null);
 
   useEffect(() => {
     if (adminTab === 'users' || adminTab === 'control-room') loadUsers();
     if (adminTab === 'logs') loadLogs();
     if (adminTab === 'processes') loadProcesses();
     if (adminTab === 'content-mix') loadContentMix();
+    if (adminTab === 'monitoring') loadMonitoring();
   }, [adminTab]);
+
+  async function loadMonitoring() {
+    try {
+      const data = await apiFetch('/api/index.php?action=admin-monitoring', {}, token);
+      setMonitoringData(data);
+    } catch (e) {
+      setError(e.message);
+    }
+  }
 
   useEffect(() => {
     if (adminTab !== 'control-room') return;
@@ -435,10 +446,74 @@ export function AdminScreen({ token, currentUser, adminPrompts, updatePrompt }) 
         <button className={`btn ${adminTab === 'processes' ? 'btn-primary' : 'btn-outline'}`} onClick={() => setAdminTab('processes')}>Processi Attivi</button>
         <button className={`btn ${adminTab === 'content-mix' ? 'btn-primary' : 'btn-outline'}`} onClick={() => setAdminTab('content-mix')}>Di cosa sono fatti i contenuti</button>
         <button className={`btn ${adminTab === 'logs' ? 'btn-primary' : 'btn-outline'}`} onClick={() => setAdminTab('logs')}>Log di Sistema</button>
+        <button className={`btn ${adminTab === 'monitoring' ? 'btn-primary' : 'btn-outline'}`} onClick={() => setAdminTab('monitoring')}>Monitoraggio</button>
       </div>
 
       {error && <div style={{ background: 'var(--red-light)', color: 'var(--red)', padding: '10px 14px', borderRadius: 'var(--radius-sm)', marginBottom: '1rem', fontSize: '13px' }}>{error}</div>}
       {notice && <div style={{ background: 'var(--teal-light)', color: '#0F6E56', padding: '10px 14px', borderRadius: 'var(--radius-sm)', marginBottom: '1rem', fontSize: '13px', fontWeight: 700 }}>{notice}</div>}
+
+      {adminTab === 'monitoring' && (
+        <div className="card">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+            <h3 style={{ margin: 0 }}>Monitoraggio Sistema (API & Cron)</h3>
+            <button className="btn btn-outline" onClick={loadMonitoring}>Aggiorna Dati</button>
+          </div>
+          
+          {!monitoringData ? (
+            <div style={{ color: 'var(--text-muted)' }}>Caricamento...</div>
+          ) : (
+            <div style={{ display: 'grid', gap: '2rem' }}>
+              <div>
+                <h4 style={{ marginBottom: '1rem' }}>Utilizzo Token AI (Totale: {monitoringData.global_usage || 0})</h4>
+                <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', overflow: 'hidden' }}>
+                  <table style={{ width: '100%', textAlign: 'left', borderCollapse: 'collapse', fontSize: '13px' }}>
+                    <thead style={{ background: 'rgba(255,255,255,0.03)' }}>
+                      <tr>
+                        <th style={{ padding: '10px 14px', borderBottom: '1px solid var(--border-strong)' }}>Utente</th>
+                        <th style={{ padding: '10px 14px', borderBottom: '1px solid var(--border-strong)' }}>Token Consumati</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(monitoringData.api_usage_per_user || []).length === 0 ? (
+                        <tr><td colSpan="2" style={{ padding: '10px 14px', color: 'var(--text-muted)' }}>Nessun dato di utilizzo</td></tr>
+                      ) : (
+                        monitoringData.api_usage_per_user.map((u, i) => (
+                          <tr key={i} style={{ borderBottom: '1px solid var(--border)' }}>
+                            <td style={{ padding: '10px 14px' }}>{u.name || u.email || 'Sistema (Background)'}</td>
+                            <td style={{ padding: '10px 14px', fontWeight: 600 }}>{u.total_tokens}</td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <div>
+                <h4 style={{ marginBottom: '1rem' }}>Esecuzioni Cron Recenti</h4>
+                <div style={{ display: 'grid', gap: '0.5rem' }}>
+                  {(monitoringData.cron_logs || []).length === 0 ? (
+                    <div style={{ color: 'var(--text-muted)', fontSize: '13px' }}>Nessun cron eseguito di recente.</div>
+                  ) : (
+                    monitoringData.cron_logs.map(log => (
+                      <div key={log.id} style={{ ...PANEL_STYLE, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div>
+                          <div style={{ fontWeight: 600, fontSize: '14px', marginBottom: '4px' }}>{log.job_name}</div>
+                          <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{log.details || 'Nessun dettaglio'}</div>
+                        </div>
+                        <div style={{ textAlign: 'right' }}>
+                          <span className={`badge ${log.status === 'success' ? 'badge-green' : 'badge-red'}`}>{log.status}</span>
+                          <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px' }}>{log.run_at}</div>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {adminTab === 'content-mix' && (
         <div className="card">

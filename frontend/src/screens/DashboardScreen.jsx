@@ -5,7 +5,6 @@ import { QuillEditor } from '../components/QuillEditor';
 import { AdminScreen } from './AdminScreen';
 import { SpazioVivoLab } from '../components/SpazioVivoLab';
 import { ProductGuide } from '../components/ProductGuide';
-
 const STUDIO_DEFAULTS = {
   font_heading: 'Outfit',
   font_body: 'Inter',
@@ -2063,6 +2062,7 @@ const [importMsg, setImportMsg] = useState(null);
       </div>
     </div>
   );
+
   return (
     <div className="dashboard-shell" style={{ overflow: studioWorkspaceOpen ? 'hidden' : 'visible' }}>
       {acquisitionModal && (

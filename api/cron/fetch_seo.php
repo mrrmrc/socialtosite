@@ -216,9 +216,25 @@ try {
         ]);
     }
     
+    try {
+        DB::execute('INSERT INTO cron_logs (job_name, status, details) VALUES (?, ?, ?)', [
+            'fetch_seo',
+            'success',
+            'Sync completata per ' . count($sites) . ' siti'
+        ]);
+    } catch (Throwable $dbErr) {}
+    
     echo "Sync completata.\n";
 
 } catch (Exception $e) {
     Logger::error('seo', 'Cron Error', ['error' => $e->getMessage()]);
+    try {
+        DB::execute('INSERT INTO cron_logs (job_name, status, details) VALUES (?, ?, ?)', [
+            'fetch_seo',
+            'failed',
+            $e->getMessage()
+        ]);
+    } catch (Throwable $dbErr) {}
+    
     echo "Errore: " . $e->getMessage() . "\n";
 }

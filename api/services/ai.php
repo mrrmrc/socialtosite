@@ -456,6 +456,25 @@ class AI {
             $msg = $data['error']['message'] ?? $res;
             throw new Exception("Gemini ($code): $msg");
         }
+        
+        $tokensUsed = $data['usageMetadata']['totalTokenCount'] ?? 0;
+        if ($tokensUsed === 0) {
+            $inputLen = strlen(json_encode($parts));
+            $outputLen = strlen($data['candidates'][0]['content']['parts'][0]['text'] ?? '');
+            $tokensUsed = (int)(($inputLen + $outputLen) / 4);
+        }
+        
+        global $userId;
+        $uid = isset($userId) ? $userId : null;
+        try {
+            DB::execute('INSERT INTO api_usage_logs (user_id, provider, action, tokens_used) VALUES (?, ?, ?, ?)', [
+                $uid,
+                'gemini',
+                'generateContent',
+                $tokensUsed
+            ]);
+        } catch (Throwable $e) {}
+        
         return $data['candidates'][0]['content']['parts'][0]['text'] ?? '';
     }
 

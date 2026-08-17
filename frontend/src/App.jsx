@@ -5,6 +5,7 @@ import { AuthScreen } from './screens/AuthScreen';
 import { ConnectScreen } from './screens/ConnectScreen';
 import { GeneratingScreen } from './screens/GeneratingScreen';
 import { DashboardScreen } from './screens/DashboardScreen';
+import { BasicUserScreen } from './screens/BasicUserScreen';
 import { PlanExperience } from './components/PlanExperience';
 
 function AppContent() {
@@ -83,7 +84,7 @@ function AppContent() {
         <Route path="/login" element={token ? <Navigate to="/dashboard" /> : <AuthScreen onAuth={handleAuth} />} />
         <Route path="/connect" element={token ? <ConnectScreen token={token} onDone={() => navigate('/generating')} /> : <Navigate to="/login" />} />
         <Route path="/generating" element={token ? <GeneratingScreen token={token} user={user} onDone={() => navigate('/dashboard')} /> : <Navigate to="/login" />} />
-        <Route path="/dashboard/*" element={token ? <DashboardScreen token={token} user={user} onLogout={logout} /> : <Navigate to="/login" />} />
+        <Route path="/dashboard/*" element={token ? (user?.role === 'admin' ? <DashboardScreen token={token} user={user} onLogout={logout} /> : <BasicUserScreen token={token} user={user} onLogout={logout} />) : <Navigate to="/login" />} />
         <Route path="*" element={<Navigate to={token ? "/dashboard" : "/login"} replace />} />
       </Routes>
 
