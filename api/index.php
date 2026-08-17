@@ -1294,7 +1294,7 @@ if ($action === 'social-source-upsert' && $method === 'POST') {
     $platform = trim($b['platform'] ?? '');
     $url = trim($b['url'] ?? '');
     $label = trim($b['label'] ?? '');
-    $sinceDate = trim($b['since_date'] ?? '');
+    $sinceDate = trim($b['since_date'] ?? '') ?: null;
     $autoPublish = (int)($b['auto_publish'] ?? 1);
     $autoSync = !array_key_exists('auto_sync', $b) || !empty($b['auto_sync']) ? 1 : 0;
     $maxPosts = isset($b['max_posts']) && $b['max_posts'] !== '' ? (int)$b['max_posts'] : null;
