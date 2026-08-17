@@ -116,13 +116,14 @@ export function BasicUserScreen({ user, token, onLogout }) {
           justify-content: center;
         }
         .lia-core {
-          width: 60px;
-          height: 60px;
-          background: linear-gradient(135deg, #6366f1, #a855f7);
+          width: 64px;
+          height: 64px;
+          background: url('/lia-avatar.png') center/cover;
           border-radius: 50%;
           box-shadow: 0 0 30px rgba(99, 102, 241, 0.8);
           z-index: 3;
           animation: pulse-core 3s infinite alternate ease-in-out;
+          border: 2px solid rgba(168, 85, 247, 0.6);
         }
         .lia-ring-1, .lia-ring-2 {
           position: absolute;
