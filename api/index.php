@@ -407,6 +407,7 @@ if ($action === 'migrate') {
     try { DB::execute('ALTER TABLE sites ADD COLUMN site_understanding LONGTEXT NULL'); } catch (Throwable $e) {}
     try { DB::execute('ALTER TABLE sites ADD COLUMN site_understanding_corrections LONGTEXT NULL'); } catch (Throwable $e) {}
     try { DB::execute('ALTER TABLE sites ADD COLUMN dismissed_content_ideas LONGTEXT NULL'); } catch (Throwable $e) {}
+    try { DB::execute('ALTER TABLE sites ADD COLUMN design_prompt LONGTEXT NULL'); } catch (Throwable $e) {}
     try { DB::execute('ALTER TABLE posts ADD COLUMN featured TINYINT DEFAULT 0'); } catch (Throwable $e) {}
     try { DB::execute('ALTER TABLE posts ADD COLUMN edited_title VARCHAR(255) NULL'); } catch (Throwable $e) {}
     try { DB::execute('ALTER TABLE posts ADD COLUMN edited_body LONGTEXT NULL'); } catch (Throwable $e) {}
@@ -1797,8 +1798,15 @@ if ($action === 'refresh-understanding' && $method === 'POST') {
         $site['site_understanding_corrections'] ?? null
     );
     DB::execute('UPDATE sites SET site_understanding=? WHERE user_id=?', [json_encode($understanding, JSON_UNESCAPED_UNICODE), $userId]);
+    
+    // Genera anche il prompt di design basato sul nuovo understanding
+    $designPrompt = AI::generateDesignPrompt($site, $understanding);
+    if (!empty($designPrompt)) {
+        DB::execute('UPDATE sites SET design_prompt=? WHERE user_id=?', [$designPrompt, $userId]);
+    }
+
     $foundation = SeoFoundation::rebuild($userId, true);
-    json(['ok' => true, 'understanding' => $understanding, 'seo_foundation' => $foundation]);
+    json(['ok' => true, 'understanding' => $understanding, 'seo_foundation' => $foundation, 'design_prompt' => $designPrompt]);
 }
 
 if ($action === 'rebuild-seo-foundation' && $method === 'POST') {

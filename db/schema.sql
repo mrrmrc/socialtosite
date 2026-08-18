@@ -131,6 +131,7 @@ CREATE TABLE IF NOT EXISTS sites (
   reachability_profile LONGTEXT,
   reachability_updated_at DATETIME,
   gsc_verification VARCHAR(255),
+  design_prompt LONGTEXT,
   last_sync     DATETIME,
   created_at    DATETIME DEFAULT NOW(),
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE

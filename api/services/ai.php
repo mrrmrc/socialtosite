@@ -2439,5 +2439,35 @@ Testi da analizzare:
         if (!is_array($result)) throw new RuntimeException('Fondazione SEO AI non valida');
         return $result;
     }
+
+    public static function generateDesignPrompt(array $site, array $understanding = []): string {
+        $profileSummary = trim($site['profile_summary'] ?? $site['bio'] ?? '');
+        $roleMission = trim($site['role_mission'] ?? '');
+        
+        $prompt = "Sei un Direttore Creativo esperto in UI/UX Design e architettura dell'informazione.\n"
+            . "Il tuo compito è generare un 'Design Prompt' estremamente dettagliato, descrittivo e visivo per il sito web di questo business. Questo prompt verrà successivamente passato a uno sviluppatore frontend o a un AI di UI design (es. Google Stitch) per costruire fisicamente il sito.\n\n"
+            . "PROFILO DEL BUSINESS:\n$profileSummary\n\n"
+            . "MISSIONE/RUOLO:\n$roleMission\n\n"
+            . self::buildUnderstandingBrief($understanding)
+            . "\nCrea un prompt testuale ricco che descriva nel dettaglio:\n"
+            . "- La 'Vibe' generale e l'impatto emotivo (es. minimal, lussuoso, giocoso, corporate, organico).\n"
+            . "- La Palette Colori ideale (descrivi i colori, es. 'Sfondo crema caldo con accenti verde foresta e testo antracite').\n"
+            . "- La Tipografia (stili, accoppiamenti font, gerarchia visiva).\n"
+            . "- Il Layout e la Struttura (come dovrebbero essere organizzate le sezioni, disposizione degli elementi, uso dello spazio bianco).\n"
+            . "- Elementi visivi chiave (fotografia, illustrazioni, forme, icone, animazioni suggerite).\n\n"
+            . "NON generare codice o JSON. Rispondi SOLO con il testo descrittivo del prompt, formattato in paragrafi chiari e ispirazionali, pronto per essere letto da un designer umano o da un sistema AI di generazione interfacce.";
+
+        try {
+            $text = self::gemini([['text' => $prompt]], [
+                'responseMimeType' => 'text/plain',
+                'maxOutputTokens' => 1500,
+                'temperature' => 0.7,
+            ]);
+            return trim($text);
+        } catch (Throwable $e) {
+            if (class_exists('Logger')) Logger::warn('ai', 'Generazione Design Prompt fallita', ['error' => $e->getMessage()]);
+            return '';
+        }
+    }
 }
 
