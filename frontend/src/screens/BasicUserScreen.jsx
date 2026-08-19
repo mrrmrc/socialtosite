@@ -6,6 +6,7 @@ export function BasicUserScreen({ user, token, onLogout }) {
   const [animating, setAnimating] = useState(false);
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
   const site = data?.site;
   const sources = data?.sources || [];
@@ -25,11 +26,13 @@ export function BasicUserScreen({ user, token, onLogout }) {
 
   async function loadData(silent = false) {
     if (!silent) setLoading(true);
+    if (!silent) setError('');
     try {
       const d = await apiFetch('/api/index.php?action=site', {}, token);
       setData(d);
     } catch (e) {
       console.error(e);
+      if (!silent) setError('Non riesco a caricare il tuo sito. Controlla la connessione e riprova.');
     } finally {
       setLoading(false);
     }
@@ -71,156 +74,117 @@ export function BasicUserScreen({ user, token, onLogout }) {
           display: flex;
           align-items: center;
           justify-content: center;
-          background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
-          color: #fff;
+          background: #f2f5f9;
+          color: #172033;
           font-family: 'Outfit', 'Inter', sans-serif;
-          padding: 2rem;
+          padding: 32px 20px;
           position: relative;
           overflow: hidden;
         }
         .lia-background-glow {
-          position: absolute;
-          top: 50%;
-          left: 50%;
-          transform: translate(-50%, -50%);
-          width: 800px;
-          height: 800px;
-          background: radial-gradient(circle, rgba(99,102,241,0.15) 0%, rgba(0,0,0,0) 70%);
-          pointer-events: none;
-          z-index: 0;
+          display: none;
         }
         .lia-card {
           position: relative;
           z-index: 10;
-          background: rgba(15, 23, 42, 0.6);
-          backdrop-filter: blur(24px);
-          -webkit-backdrop-filter: blur(24px);
-          border: 1px solid rgba(255, 255, 255, 0.1);
-          border-radius: 32px;
-          padding: 3rem;
-          max-width: 600px;
+          background: #fff;
+          border: 2px solid #dce3ec;
+          border-radius: 24px;
+          padding: 48px;
+          max-width: 720px;
           width: 100%;
-          box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+          box-shadow: 0 18px 50px rgba(23, 32, 51, 0.12);
           text-align: center;
-          transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+          transition: opacity 0.25s ease, transform 0.25s ease;
           opacity: ${animating ? 0 : 1};
-          transform: translateY(${animating ? '20px' : '0'});
+          transform: translateY(${animating ? '10px' : '0'});
         }
         .lia-avatar {
-          position: relative;
-          width: 120px;
-          height: 120px;
-          margin: 0 auto 2rem;
+          width: 104px;
+          height: 104px;
+          margin: 0 auto 28px;
           display: flex;
           align-items: center;
           justify-content: center;
+          border-radius: 24px;
+          background: #f4f1ff;
+          border: 2px solid #ded7ff;
         }
         .lia-core {
-          width: 64px;
-          height: 64px;
-          background: url('/lia-avatar.png') center/cover;
-          border-radius: 50%;
-          box-shadow: 0 0 30px rgba(99, 102, 241, 0.8);
-          z-index: 3;
-          animation: pulse-core 3s infinite alternate ease-in-out;
-          border: 2px solid rgba(168, 85, 247, 0.6);
-        }
-        .lia-ring-1, .lia-ring-2 {
-          position: absolute;
-          border-radius: 50%;
-          border: 2px solid rgba(168, 85, 247, 0.4);
+          width: 76px;
+          height: 76px;
+          background: #fff url('/logo-cropped.png?v=2') center/contain no-repeat;
+          border-radius: 18px;
           z-index: 2;
         }
-        .lia-ring-1 {
-          width: 90px;
-          height: 90px;
-          animation: spin-slow 8s linear infinite;
-          border-top-color: transparent;
-          border-bottom-color: transparent;
-        }
-        .lia-ring-2 {
-          width: 120px;
-          height: 120px;
-          border: 1px solid rgba(99, 102, 241, 0.3);
-          animation: spin-slow-reverse 12s linear infinite;
-          border-left-color: transparent;
-          border-right-color: transparent;
+        .lia-ring-1, .lia-ring-2 {
+          display: none;
         }
         .lia-sparkles {
           position: absolute;
-          top: -10px;
-          right: -10px;
-          font-size: 24px;
-          z-index: 4;
-          animation: float 3s ease-in-out infinite;
-        }
-        @keyframes pulse-core {
-          0% { transform: scale(0.95); box-shadow: 0 0 20px rgba(99, 102, 241, 0.6); }
-          100% { transform: scale(1.05); box-shadow: 0 0 40px rgba(168, 85, 247, 0.9); }
-        }
-        @keyframes spin-slow {
-          0% { transform: rotate(0deg); }
-          100% { transform: rotate(360deg); }
-        }
-        @keyframes spin-slow-reverse {
-          0% { transform: rotate(360deg); }
-          100% { transform: rotate(0deg); }
-        }
-        @keyframes float {
-          0% { transform: translateY(0px); }
-          50% { transform: translateY(-10px); }
-          100% { transform: translateY(0px); }
+          width: 1px;
+          height: 1px;
+          overflow: hidden;
+          clip: rect(0 0 0 0);
         }
         .lia-title {
-          font-size: 2rem;
+          font-size: clamp(30px, 5vw, 40px);
+          line-height: 1.15;
           font-weight: 800;
-          margin-bottom: 1rem;
-          background: linear-gradient(135deg, #fff, #cbd5e1);
-          -webkit-background-clip: text;
-          -webkit-text-fill-color: transparent;
+          margin: 0 0 20px;
+          color: #172033;
         }
         .lia-text {
-          font-size: 1.1rem;
+          font-size: clamp(19px, 2.5vw, 22px);
           line-height: 1.6;
-          color: #94a3b8;
-          margin-bottom: 2rem;
+          color: #46536a;
+          margin: 0 auto 32px;
+          max-width: 590px;
         }
         .lia-button {
-          background: linear-gradient(135deg, #4f46e5, #7c3aed);
+          min-height: 64px;
+          background: #5638c7;
           color: white;
-          border: none;
-          padding: 1rem 2rem;
-          font-size: 1.1rem;
-          font-weight: 700;
-          border-radius: 999px;
+          border: 2px solid #5638c7;
+          padding: 16px 28px;
+          font-size: 20px;
+          font-weight: 800;
+          border-radius: 14px;
           cursor: pointer;
-          transition: all 0.3s ease;
-          box-shadow: 0 10px 20px -10px rgba(99, 102, 241, 0.6);
+          transition: background 0.2s ease, transform 0.2s ease;
           display: inline-flex;
           align-items: center;
+          justify-content: center;
           gap: 10px;
+          width: min(100%, 420px);
         }
         .lia-button:hover {
-          transform: translateY(-2px);
-          box-shadow: 0 15px 25px -10px rgba(99, 102, 241, 0.8);
+          background: #4125a8;
+          border-color: #4125a8;
         }
+        .lia-button:focus-visible { outline: 4px solid #f3b900; outline-offset: 4px; }
         .lia-button-secondary {
-          background: rgba(255, 255, 255, 0.05);
-          color: #e2e8f0;
-          border: 1px solid rgba(255, 255, 255, 0.1);
-          margin-top: 1rem;
+          min-height: 52px;
+          background: #fff;
+          color: #344158;
+          border-color: #aeb8c7;
+          font-size: 17px;
+          margin-top: 8px;
         }
         .lia-button-secondary:hover {
-          background: rgba(255, 255, 255, 0.1);
-          box-shadow: none;
+          background: #eef2f7;
+          border-color: #778399;
         }
         .lia-actions {
           display: flex;
           flex-direction: column;
           align-items: center;
           justify-content: center;
-          gap: 0.5rem;
+          gap: 10px;
         }
+        .lia-error { color: #9c1c1c; background: #fff1f1; border: 2px solid #efb0b0; border-radius: 14px; padding: 16px; font-size: 19px; line-height: 1.5; margin: 0 0 24px; }
+        @media (max-width: 600px) { .lia-container { padding: 16px; } .lia-card { padding: 32px 20px; border-radius: 18px; } }
+        @media (prefers-reduced-motion: reduce) { .lia-card, .lia-button { transition: none; } }
       `}</style>
 
       <div className="lia-background-glow"></div>
@@ -228,11 +192,22 @@ export function BasicUserScreen({ user, token, onLogout }) {
       <div className="lia-card">
         {renderLiaAvatar()}
 
-        {loading && step === 0 && (
+        {loading && step === 0 && !error && (
           <h1 className="lia-title">Un momento...</h1>
         )}
 
-        {!loading && step === 1 && (
+        {!loading && error && (
+          <>
+            <h1 className="lia-title">Serve un nuovo tentativo</h1>
+            <p className="lia-error" role="alert">{error}</p>
+            <div className="lia-actions">
+              <button className="lia-button" onClick={() => loadData()}>Riprova</button>
+              <button className="lia-button lia-button-secondary" onClick={onLogout}>Esci</button>
+            </div>
+          </>
+        )}
+
+        {!loading && !error && step === 1 && (
           <>
             <h1 className="lia-title">Benvenuto {user?.name || ''}! Sono LIA.</h1>
             <p className="lia-text">
@@ -249,7 +224,7 @@ export function BasicUserScreen({ user, token, onLogout }) {
           </>
         )}
 
-        {!loading && step === 2 && (
+        {!loading && !error && step === 2 && (
           <>
             <h1 className="lia-title">Sto analizzando i tuoi contenuti</h1>
             <p className="lia-text">
@@ -263,7 +238,7 @@ export function BasicUserScreen({ user, token, onLogout }) {
           </>
         )}
 
-        {!loading && step === 3 && (
+        {!loading && !error && step === 3 && (
           <>
             <h1 className="lia-title">Il tuo sito è pronto!</h1>
             <p className="lia-text">
@@ -271,7 +246,7 @@ export function BasicUserScreen({ user, token, onLogout }) {
             </p>
             <div className="lia-actions">
               <button className="lia-button" onClick={() => window.open(`/${user?.slug}`, '_blank')}>
-                Vedi il tuo Sito 🌐
+                Apri il mio sito
               </button>
               <button className="lia-button lia-button-secondary" onClick={onLogout}>
                 Esci
