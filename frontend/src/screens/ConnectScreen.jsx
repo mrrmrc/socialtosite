@@ -71,10 +71,6 @@ export function ConnectScreen({ token, onDone }) {
     setAddLoading(false);
   }
 
-  async function connectOAuth(platform) {
-    window.location.href = `/api/auth/oauth_redirect.php?platform=${platform}&token=${localStorage.getItem('sts_token') || ''}`;
-  }
-
   async function removeChannel(channel) {
     if (!window.confirm(`Sei sicuro di voler rimuovere "${channel.label || channel.platform}"?`)) return;
     if (channel.type === 'scraping') {
@@ -86,7 +82,7 @@ export function ConnectScreen({ token, onDone }) {
   }
 
   const allChannels = [];
-  connections.filter(c => c.active).forEach(c => {
+  connections.filter(c => c.active && !['facebook', 'instagram', 'instagram_login'].includes(c.platform)).forEach(c => {
     allChannels.push({
       key: 'oauth_' + c.platform,
       type: 'oauth',
@@ -97,7 +93,7 @@ export function ConnectScreen({ token, onDone }) {
     });
   });
   sources.forEach(s => {
-    const hasOAuth = connections.some(c => c.active && (c.platform === s.platform || (c.platform === 'instagram_login' && s.platform === 'instagram')));
+    const hasOAuth = connections.some(c => c.active && !['facebook', 'instagram', 'instagram_login'].includes(c.platform) && c.platform === s.platform);
     allChannels.push({
       key: 'src_' + s.id,
       type: 'scraping',
@@ -112,8 +108,6 @@ export function ConnectScreen({ token, onDone }) {
 
   const connectedCount = allChannels.length;
   const detectedPlatform = detectPlatformFromUrl(addUrl);
-  const connByPlatform = connections.reduce((acc, c) => ({ ...acc, [c.platform]: c }), {});
-
   return (
     <div style={{ minHeight: '100vh', padding: '2rem 1rem', display: 'flex', flexDirection: 'column', alignItems: 'center', background: 'var(--bg)' }}>
       
@@ -123,7 +117,7 @@ export function ConnectScreen({ token, onDone }) {
           Iniziamo! Aggiungi i tuoi Social
         </h1>
         <p style={{ color: 'var(--text-muted)', fontSize: '18px', fontWeight: 500, lineHeight: 1.5 }}>
-          Incolla i link dei tuoi profili (Instagram, TikTok, YouTube). Noi ci occuperemo di trasformare i tuoi video e post in un vero sito web, in modo del tutto automatico.
+          Incolla i link dei tuoi profili (Instagram, Facebook, TikTok, YouTube). Per Facebook e Instagram leggiamo direttamente i contenuti pubblici tramite Apify: non serve collegare un account Meta.
         </p>
       </div>
 

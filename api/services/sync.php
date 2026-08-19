@@ -19,98 +19,77 @@ class Sync {
             } catch (Throwable $e) {}
         }
     }
-    private static function buildFacebookPageTopic(array $page): string {
-        $parts = array_filter([
-            trim((string)($page['name'] ?? '')),
-            trim((string)($page['category'] ?? '')),
-            trim((string)($page['about'] ?? '')),
-            trim((string)($page['location']['street'] ?? '')),
-            trim((string)($page['location']['city'] ?? '')),
-            trim((string)($page['phone'] ?? '')),
-            trim((string)($page['emails'][0] ?? '')),
-            trim((string)($page['website'] ?? '')),
-        ]);
-        return implode(' | ', array_unique($parts));
+
+    private static function isLegacyMetaConnection(array $connection): bool {
+        return in_array((string)($connection['platform'] ?? ''), ['facebook', 'instagram', 'instagram_login'], true);
     }
 
-    private static function syncFacebookPageIdentity(int $userId, string $token): void {
-        $pages = self::get('https://graph.facebook.com/v18.0/me/accounts', '', [
-            'access_token' => $token,
-        ]);
-        $page = $pages['data'][0] ?? null;
-        if (!$page || empty($page['id'])) return;
+    /**
+     * Converte una vecchia connessione Meta in una sorgente URL pubblica.
+     * Il token viene conservato nel record storico ma disattivato e non viene
+     * mai decifrato o inviato alle Graph API durante la sincronizzazione.
+     */
+    private static function migrateLegacyMetaConnection(int $userId, array $connection): void {
+        $rawPlatform = (string)($connection['platform'] ?? '');
+        $platform = $rawPlatform === 'instagram_login' ? 'instagram' : $rawPlatform;
+        if (!in_array($platform, ['facebook', 'instagram'], true)) return;
 
-        $pageId = (string)$page['id'];
-        $details = self::get("https://graph.facebook.com/v18.0/$pageId", '', [
-            'fields' => 'id,name,about,category,emails,phone,website,link,location,cover,picture.width(512).height(512)',
-            'access_token' => $token,
-        ]);
+        $existing = DB::fetch(
+            'SELECT id, url FROM social_sources WHERE user_id=? AND platform=? LIMIT 1',
+            [$userId, $platform]
+        );
+        $handle = trim((string)($connection['handle'] ?? ''));
+        $platformUid = trim((string)($connection['platform_uid'] ?? ''));
+        $url = trim((string)($existing['url'] ?? ''));
 
-        $pageName = trim((string)($details['name'] ?? $page['name'] ?? ''));
-        $pageUrl = trim((string)($details['link'] ?? ''));
-        if ($pageUrl === '') {
-            $pageUrl = 'https://www.facebook.com/' . rawurlencode($pageId);
+        if ($url === '' && filter_var($handle, FILTER_VALIDATE_URL)) {
+            $url = $handle;
+        } elseif ($url === '' && $platform === 'instagram') {
+            $username = ltrim($handle, '@');
+            if (preg_match('/^[A-Za-z0-9._]+$/', $username)) {
+                $url = 'https://www.instagram.com/' . rawurlencode($username) . '/';
+            }
+        } elseif ($url === '' && $platform === 'facebook') {
+            // I vecchi callback salvavano talvolta il nome visualizzato e
+            // talvolta l'ID della Pagina: l'ID e' il riferimento piu' stabile.
+            if ($platformUid !== '' && preg_match('/^[A-Za-z0-9._-]+$/', $platformUid)) {
+                $url = 'https://www.facebook.com/' . rawurlencode($platformUid) . '/';
+            } elseif (preg_match('/^[A-Za-z0-9._-]+$/', $handle)) {
+                $url = 'https://www.facebook.com/' . rawurlencode($handle) . '/';
+            }
         }
 
-        $logoUrl = trim((string)($details['picture']['data']['url'] ?? ''));
-        $coverUrl = trim((string)($details['cover']['source'] ?? ''));
-        $description = trim((string)($details['about'] ?? ''));
-        $footerParts = array_filter([
-            trim((string)($details['location']['street'] ?? '')),
-            trim((string)($details['location']['city'] ?? '')),
-            trim((string)($details['phone'] ?? '')),
-            trim((string)($details['emails'][0] ?? '')),
-            trim((string)($details['website'] ?? '')),
-        ]);
-        $footerText = implode(' | ', array_unique($footerParts));
-        $topicSummary = self::buildFacebookPageTopic($details);
+        if ($url === '') {
+            throw new Exception('La vecchia connessione ' . ucfirst($platform) . ' non contiene un URL pubblico utilizzabile. Reinserisci il link completo del profilo: l\'acquisizione ora usa Apify, non Meta Graph API.');
+        }
 
-        $source = DB::fetch('SELECT id FROM social_sources WHERE user_id=? AND platform=? LIMIT 1', [$userId, 'facebook']);
-        if ($source) {
+        $label = $handle !== '' ? $handle : ucfirst($platform);
+        $sinceDate = !empty($connection['since_date']) ? $connection['since_date'] : null;
+        $autoPublish = (int)($connection['auto_publish'] ?? 1);
+        $autoSync = (int)($connection['auto_sync'] ?? 1);
+        $maxPosts = !empty($connection['max_posts']) ? (int)$connection['max_posts'] : null;
+        $topic = 'Profilo ' . ucfirst($platform) . ' migrato alla pipeline pubblica Apify';
+
+        if ($existing) {
             DB::execute(
                 'UPDATE social_sources
-                    SET label=?, url=?, topic_summary=?, active=1
+                    SET label=?, url=?, topic_summary=?, since_date=?, auto_publish=?, auto_sync=?, max_posts=?, active=1
                   WHERE id=? AND user_id=?',
-                [$pageName ?: 'Facebook', $pageUrl, $topicSummary, $source['id'], $userId]
+                [$label, $url, $topic, $sinceDate, $autoPublish, $autoSync, $maxPosts, $existing['id'], $userId]
             );
         } else {
             DB::insert(
-                'INSERT INTO social_sources (user_id, platform, label, url, topic_summary, active)
-                 VALUES (?,?,?,?,?,1)',
-                [$userId, 'facebook', $pageName ?: 'Facebook', $pageUrl, $topicSummary]
+                'INSERT INTO social_sources (user_id, platform, label, url, topic_summary, active, since_date, auto_publish, auto_sync, max_posts)
+                 VALUES (?,?,?,?,?,1,?,?,?,?)',
+                [$userId, $platform, $label, $url, $topic, $sinceDate, $autoPublish, $autoSync, $maxPosts]
             );
         }
 
-        $site = DB::fetch('SELECT title, profile_summary, bio, footer_text, logo_url, cover_url FROM sites WHERE user_id=?', [$userId]) ?: [];
-
-        $currentSiteTitle = trim((string)($site['title'] ?? ''));
-        $replaceableSiteTitles = ['', 'Sito Personale', 'Il mio sito'];
-        $canImportSiteTitle = in_array($currentSiteTitle, $replaceableSiteTitles, true) || filter_var($currentSiteTitle, FILTER_VALIDATE_EMAIL);
-        if ($pageName !== '' && $canImportSiteTitle) {
-            DB::execute('UPDATE sites SET title=? WHERE user_id=?', [$pageName, $userId]);
-        }
-        if ($description !== '' && empty($site['profile_summary']) && empty($site['bio'])) {
-            DB::execute('UPDATE sites SET profile_summary=?, bio=COALESCE(NULLIF(bio, \'\'), ?) WHERE user_id=?', [$description, $description, $userId]);
-        }
-        if ($footerText !== '') {
-            DB::execute('UPDATE sites SET footer_text=? WHERE user_id=?', [$footerText, $userId]);
-        }
-
-        require_once __DIR__ . '/ingest.php';
-        if ($logoUrl !== '') {
-            $savedLogo = Ingest::saveMedia($logoUrl, 'facebook', 'oauth_page_logo_' . $pageId, 'jpg');
-            if ($savedLogo && !empty($savedLogo['url'])) {
-                DB::execute('UPDATE sites SET logo_url=? WHERE user_id=?', [$savedLogo['url'], $userId]);
-            }
-        }
-        if ($coverUrl !== '') {
-            $savedCover = Ingest::saveMedia($coverUrl, 'facebook', 'oauth_page_cover_' . $pageId, 'jpg');
-            if ($savedCover && !empty($savedCover['url'])) {
-                DB::execute('UPDATE sites SET cover_url=? WHERE user_id=?', [$savedCover['url'], $userId]);
-            }
-        }
+        DB::execute(
+            'UPDATE social_connections SET active=0 WHERE user_id=? AND platform=?',
+            [$userId, $rawPlatform]
+        );
     }
-
     private static function isLocalMediaUrl(string $url): bool {
         return $url !== '' && strpos($url, '/public/media/') !== false;
     }
@@ -302,122 +281,6 @@ class Sync {
         return self::upsert($userId, $platform, $postId, $seo, $autoPublish);
     }
 
-    // ── Instagram ──────────────────────────────────────────────────────────
-    public static function instagram(int $userId, string $token, int $maxPosts = 20, ?string $sinceDate = null, int $autoPublish = 1): array {
-        // Rilevamento automatico del tipo di token (IG Basic vs FB Graph)
-        if (str_starts_with($token, 'IGQ')) {
-            return self::instagram_personal($userId, $token, $maxPosts, $sinceDate, $autoPublish);
-        } else {
-            return self::instagram_business($userId, $token, $maxPosts, $sinceDate, $autoPublish);
-        }
-    }
-
-    public static function instagram_personal(int $userId, string $token, int $maxPosts = 20, ?string $sinceDate = null, int $autoPublish = 1): array {
-        $log = ['platform' => 'instagram', 'found' => 0, 'new' => 0, 'error' => null];
-        try {
-            $url = "https://graph.instagram.com/me/media";
-            $params = ['fields' => 'id,caption,media_type,media_url,thumbnail_url,timestamp', 'limit' => min(50, $maxPosts), 'access_token' => $token];
-
-            while ($url && $log['found'] < $maxPosts) {
-                $data = self::get($url, '', $params);
-                if (isset($data['error'])) throw new Exception("Errore API IG: " . $data['error']['message']);
-
-                $posts = $data['data'] ?? [];
-                if (empty($posts)) break;
-                
-                foreach ($posts as $p) {
-                    if ($log['found'] >= $maxPosts) break;
-                    $ts = date('Y-m-d H:i:s', strtotime($p['timestamp'] ?? 'now'));
-                    if ($sinceDate && strtotime($ts) < strtotime($sinceDate)) { $url = null; break; }
-
-                    $mediaUrl = $p['media_url'] ?? $p['thumbnail_url'] ?? '';
-                    $mediaType = $p['media_type'] ?? 'IMAGE';
-                    $text = trim($p['caption'] ?? '');
-                    if (!$text && !$mediaUrl) continue;
-                    
-                    $new = self::process($userId, 'instagram', $p['id'], $text, $mediaUrl, $mediaType, $ts, $autoPublish);
-                    if ($new) $log['new']++;
-                    $log['found']++;
-                }
-                if ($url && isset($data['paging']['next'])) { $url = $data['paging']['next']; $params = []; } 
-                else { break; }
-            }
-        } catch (Exception $e) { $log['error'] = $e->getMessage(); }
-        return $log;
-    }
-
-    public static function instagram_login_direct(int $userId, string $token, int $maxPosts = 20, ?string $sinceDate = null, int $autoPublish = 1): array {
-        $log = ['platform' => 'instagram', 'found' => 0, 'new' => 0, 'error' => null];
-        try {
-            $url = "https://graph.instagram.com/v20.0/me/media";
-            $params = ['fields' => 'id,caption,media_type,media_url,thumbnail_url,timestamp', 'limit' => min(50, $maxPosts), 'access_token' => $token];
-
-            while ($url && $log['found'] < $maxPosts) {
-                $data = self::get($url, '', $params);
-                if (isset($data['error'])) throw new Exception("Errore API IG Login Diretto: " . $data['error']['message']);
-
-                $posts = $data['data'] ?? [];
-                if (empty($posts)) break;
-                
-                foreach ($posts as $p) {
-                    if ($log['found'] >= $maxPosts) break;
-                    $ts = date('Y-m-d H:i:s', strtotime($p['timestamp'] ?? 'now'));
-                    if ($sinceDate && strtotime($ts) < strtotime($sinceDate)) { $url = null; break; }
-
-                    $mediaUrl = $p['media_url'] ?? $p['thumbnail_url'] ?? '';
-                    $mediaType = $p['media_type'] ?? 'IMAGE';
-                    $text = trim($p['caption'] ?? '');
-                    if (!$text && !$mediaUrl) continue;
-                    
-                    $new = self::process($userId, 'instagram', $p['id'], $text, $mediaUrl, $mediaType, $ts, $autoPublish);
-                    if ($new) $log['new']++;
-                    $log['found']++;
-                }
-                if ($url && isset($data['paging']['next'])) { $url = $data['paging']['next']; $params = []; } 
-                else { break; }
-            }
-        } catch (Exception $e) { $log['error'] = $e->getMessage(); }
-        return $log;
-    }
-
-    public static function instagram_business(int $userId, string $token, int $maxPosts = 20, ?string $sinceDate = null, int $autoPublish = 1): array {
-        $log = ['platform' => 'instagram', 'found' => 0, 'new' => 0, 'error' => null];
-        try {
-            $profile = self::get('https://graph.facebook.com/v18.0/me', '', ['fields' => 'instagram_business_account', 'access_token' => $token]);
-            $igId = $profile['instagram_business_account']['id'] ?? null;
-            if (!$igId) throw new Exception('Nessun account Instagram Business associato a questa Pagina Facebook.');
-
-            $url = "https://graph.facebook.com/v18.0/$igId/media";
-            $params = ['fields' => 'id,caption,media_type,media_url,thumbnail_url,timestamp', 'limit' => min(50, $maxPosts), 'access_token' => $token];
-
-            while ($url && $log['found'] < $maxPosts) {
-                $data = self::get($url, '', $params);
-                if (isset($data['error'])) throw new Exception("Errore API IG Graph: " . $data['error']['message']);
-
-                $posts = $data['data'] ?? [];
-                if (empty($posts)) break;
-                
-                foreach ($posts as $p) {
-                    if ($log['found'] >= $maxPosts) break;
-                    $ts = date('Y-m-d H:i:s', strtotime($p['timestamp'] ?? 'now'));
-                    if ($sinceDate && strtotime($ts) < strtotime($sinceDate)) { $url = null; break; }
-
-                    $mediaUrl = $p['media_url'] ?? $p['thumbnail_url'] ?? '';
-                    $mediaType = $p['media_type'] ?? 'IMAGE';
-                    $text = trim($p['caption'] ?? '');
-                    if (!$text && !$mediaUrl) continue;
-                    
-                    $new = self::process($userId, 'instagram', $p['id'], $text, $mediaUrl, $mediaType, $ts, $autoPublish);
-                    if ($new) $log['new']++;
-                    $log['found']++;
-                }
-                if ($url && isset($data['paging']['next'])) { $url = $data['paging']['next']; $params = []; } 
-                else { break; }
-            }
-        } catch (Exception $e) { $log['error'] = $e->getMessage(); }
-        return $log;
-    }
-
     // ── TikTok ─────────────────────────────────────────────────────────────
     public static function tiktok(int $userId, string $token, int $maxPosts = 20, ?string $sinceDate = null, int $autoPublish = 1): array {
         $log = ['platform' => 'tiktok', 'found' => 0, 'new' => 0, 'error' => null];
@@ -519,62 +382,6 @@ class Sync {
         return $log;
     }
 
-    // ── Facebook ───────────────────────────────────────────────────────────
-    public static function facebook(int $userId, string $token, int $maxPosts = 20, ?string $sinceDate = null, int $autoPublish = 1): array {
-        $log = ['platform' => 'facebook', 'found' => 0, 'new' => 0, 'error' => null];
-        try {
-            self::syncFacebookPageIdentity($userId, $token);
-            // Cerchiamo i post dal feed del profilo personale dell'utente
-            $url = "https://graph.facebook.com/v18.0/me/feed";
-            $params = [
-                'fields'       => 'id,message,story,created_time,full_picture',
-                'limit'        => min(50, $maxPosts),
-                'access_token' => $token,
-            ];
-
-            while ($url && $log['found'] < $maxPosts) {
-                $data = self::get($url, '', $params);
-                
-                if (isset($data['error'])) {
-                    throw new Exception("Errore API FB: " . $data['error']['message']);
-                }
-
-                $posts = $data['data'] ?? [];
-                if (empty($posts)) break;
-                
-                foreach ($posts as $p) {
-                    if ($log['found'] >= $maxPosts) break;
-                    
-                    $ts = $p['created_time'] ?? date('Y-m-d H:i:s');
-                    if ($sinceDate && strtotime($ts) < strtotime($sinceDate)) {
-                        $url = null;
-                        break;
-                    }
-
-                    $mediaUrl = $p['full_picture'] ?? '';
-                    $mediaType = $mediaUrl ? 'IMAGE' : 'text';
-                    $text = trim($p['message'] ?? $p['story'] ?? '');
-                    
-                    if (!$text && !$mediaUrl) continue; // Salta i post vuoti
-                    
-                    $new = self::process($userId, 'facebook', $p['id'],
-                        $text,
-                        $mediaUrl, $mediaType, $ts, $autoPublish);
-                    if ($new) $log['new']++;
-                    $log['found']++;
-                }
-
-                if ($url && isset($data['paging']['next'])) {
-                    $url = $data['paging']['next'];
-                    $params = [];
-                } else {
-                    break;
-                }
-            }
-        } catch (Exception $e) { $log['error'] = $e->getMessage(); }
-        return $log;
-    }
-
     // ── Sync completo utente ───────────────────────────────────────────────
     public static function syncUser(int $userId, int $maxPosts = 20, ?string $sinceDate = null, bool $automatic = false): array {
         if (function_exists('setSyncStatus')) setSyncStatus($userId, "Inizio sincronizzazione canali collegati...");
@@ -584,6 +391,21 @@ class Sync {
         );
         $results = [];
         foreach ($connections as $conn) {
+            // Facebook e Instagram non usano piu' token Meta/Graph API.
+            // Le connessioni storiche vengono trasformate una volta in URL
+            // pubblici e saranno lette dal ciclo social_sources tramite Apify.
+            if (self::isLegacyMetaConnection($conn)) {
+                try {
+                    self::migrateLegacyMetaConnection($userId, $conn);
+                } catch (Throwable $e) {
+                    $error = mb_substr($e->getMessage(), 0, 2000);
+                    $platform = $conn['platform'] === 'instagram_login' ? 'instagram' : $conn['platform'];
+                    $results[] = ['platform' => $platform, 'new' => 0, 'found' => 0, 'error' => $error];
+                    DB::execute('INSERT INTO sync_log (user_id, platform, status, posts_found, posts_new, error)
+                                 VALUES (?,?,?,?,?,?)', [$userId, $platform, 'error', 0, 0, $error]);
+                }
+                continue;
+            }
             if (function_exists('setSyncStatus')) setSyncStatus($userId, "Scansione " . ucfirst($conn['platform']) . " in corso...");
             try {
                 $token  = Crypto::decrypt($conn['access_token']);
@@ -591,11 +413,8 @@ class Sync {
                 $autoPublish = (int)($conn['auto_publish'] ?? 1);
                 $limit = !empty($conn['max_posts']) ? (int)$conn['max_posts'] : $maxPosts;
                 $result = match($conn['platform']) {
-                    'instagram' => self::instagram($userId, $token, $limit, $connSinceDate, $autoPublish),
-                    'instagram_login' => self::instagram_login_direct($userId, $token, $limit, $connSinceDate, $autoPublish),
                     'tiktok'    => self::tiktok($userId, $token, $limit, $connSinceDate, $autoPublish),
                     'youtube'   => self::youtube($userId, $token, $limit, $connSinceDate, $autoPublish),
-                    'facebook'  => self::facebook($userId, $token, $limit, $connSinceDate, $autoPublish),
                     default     => null,
                 };
                 if (!$result) continue;

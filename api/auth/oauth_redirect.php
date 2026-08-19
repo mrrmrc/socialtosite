@@ -4,7 +4,13 @@ require_once __DIR__ . '/../../config/keys.php';
 
 $platform = $_GET['platform'] ?? '';
 
-if ($platform === 'facebook' || $platform === 'instagram' || $platform === 'instagram_personal' || $platform === 'instagram_login' || $platform === 'youtube' || $platform === 'tiktok') {
+if (in_array($platform, ['facebook', 'instagram', 'instagram_personal', 'instagram_login'], true)) {
+    http_response_code(410);
+    echo "Facebook e Instagram non usano piu' Meta Graph API. Torna all'applicazione e incolla il link pubblico del profilo: i contenuti saranno acquisiti tramite Apify.";
+    exit;
+}
+
+if ($platform === 'youtube' || $platform === 'tiktok') {
     // JWT Decoder
     require_once __DIR__ . '/../middleware/jwt.php';
     $token = $_GET['token'] ?? '';
@@ -26,16 +32,7 @@ if ($platform === 'facebook' || $platform === 'instagram' || $platform === 'inst
 
     $redirect_uri = BASE_URL . '/api/auth/oauth_callback.php';
     
-    if ($platform === 'instagram_login') {
-        $auth_url = "https://www.instagram.com/oauth/authorize?" . http_build_query([
-            'client_id' => IG_LOGIN_APP_ID,
-            'redirect_uri' => $redirect_uri,
-            'scope' => 'instagram_business_basic',
-            'response_type' => 'code',
-            'state' => $state,
-            'enable_fb_login' => 'false'
-        ]);
-    } elseif ($platform === 'youtube') {
+    if ($platform === 'youtube') {
         $auth_url = 'https://accounts.google.com/o/oauth2/v2/auth?' . http_build_query([
             'client_id'     => GOOGLE_CLIENT_ID,
             'redirect_uri'  => GOOGLE_REDIRECT_URI,
@@ -51,14 +48,6 @@ if ($platform === 'facebook' || $platform === 'instagram' || $platform === 'inst
             'scope'         => 'user.info.basic,video.list',
             'response_type' => 'code',
             'state'         => $state,
-        ]);
-    } else {
-        $scopes = ['email', 'public_profile', 'user_posts', 'user_photos', 'user_videos']; 
-        $auth_url = "https://www.facebook.com/v18.0/dialog/oauth?" . http_build_query([
-            'client_id' => FB_APP_ID,
-            'redirect_uri' => $redirect_uri,
-            'state' => $state,
-            'scope' => implode(',', $scopes)
         ]);
     }
 

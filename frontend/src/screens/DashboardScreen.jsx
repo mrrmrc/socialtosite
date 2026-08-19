@@ -2008,7 +2008,7 @@ const [importMsg, setImportMsg] = useState(null);
   const sources = data?.sources || [];
   const visibility = data?.visibility || {};
   const reachability = data?.reachability || { score: 0, stage: 'configurazione', checks: [] };
-  const activeChannelCount = sources.length + connections.filter(connection => connection.active).length;
+  const activeChannelCount = sources.length + connections.filter(connection => connection.active && !['facebook', 'instagram', 'instagram_login'].includes(connection.platform)).length;
 
   useEffect(() => {
     if (!isBasePlan || !data || baseAutoSyncStarted.current) return;
@@ -2456,7 +2456,7 @@ const [importMsg, setImportMsg] = useState(null);
           const allChannels = [];
 
           // Canali OAuth
-          connections.filter(c => c.active).forEach(c => {
+          connections.filter(c => c.active && !['facebook', 'instagram', 'instagram_login'].includes(c.platform)).forEach(c => {
             allChannels.push({
               key: 'oauth_' + c.platform,
               type: 'oauth',
@@ -2480,7 +2480,7 @@ const [importMsg, setImportMsg] = useState(null);
           // Sorgenti URL scraping
           sources.forEach(s => {
             // Evita duplicati se c'è già un OAuth per la stessa piattaforma
-            const hasOAuth = connections.some(c => c.active && (c.platform === s.platform || (c.platform === 'instagram_login' && s.platform === 'instagram')));
+            const hasOAuth = connections.some(c => c.active && !['facebook', 'instagram', 'instagram_login'].includes(c.platform) && c.platform === s.platform);
             allChannels.push({
               key: 'src_' + s.id,
               type: 'scraping',
@@ -2565,13 +2565,13 @@ const [importMsg, setImportMsg] = useState(null);
                   </div>
                 )}
 
-                {/* Connessioni OAuth avanzate (YouTube, Facebook) */}
+                {/* Connessione ufficiale mantenuta soltanto per YouTube. */}
                 <div style={{ marginTop: '1.5rem', paddingTop: '1rem', borderTop: '1px solid var(--border)' }}>
                   <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                    Oppure collega tramite accesso ufficiale (più affidabile per YouTube e Facebook)
+                    Per YouTube puoi anche usare l'accesso ufficiale. Facebook e Instagram funzionano tramite link pubblico e Apify.
                   </div>
                   <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-                    {['youtube', 'facebook'].map(platform => {
+                    {['youtube'].map(platform => {
                       const conn = connByPlatform[platform];
                       const isConnected = !!conn && conn.active;
                       return (

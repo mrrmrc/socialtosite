@@ -10,6 +10,11 @@ $code     = $_GET['code']     ?? '';
 $state    = $_GET['state']    ?? '';
 $error    = $_GET['error']    ?? '';
 
+if (in_array($platform, ['facebook', 'instagram', 'instagram_login'], true)) {
+    http_response_code(410);
+    exit('Facebook e Instagram non usano piu\' OAuth/Graph API. Aggiungi il link pubblico del profilo nell\'applicazione.');
+}
+
 if ($error) {
     header('Location: ' . BASE_URL . '/?error=oauth_denied&platform=' . $platform);
     exit;
@@ -56,30 +61,6 @@ try {
     }
 
     switch ($platform) {
-
-        case 'instagram':
-        case 'facebook':
-            $redirectUri = META_REDIRECT_URI;
-            if ($platform === 'facebook') $redirectUri = str_replace('instagram', 'facebook', META_REDIRECT_URI);
-            $tokens = curlPost('https://graph.facebook.com/v18.0/oauth/access_token', [
-                'client_id'     => META_APP_ID,
-                'client_secret' => META_APP_SECRET,
-                'redirect_uri'  => $redirectUri,
-                'code'          => $code,
-            ]);
-            $accessToken = $tokens['access_token'] ?? '';
-            if ($platform === 'instagram') {
-                $profile     = curlGet('https://graph.facebook.com/v18.0/me',
-                    ['fields' => 'id,name,instagram_business_account', 'access_token' => $accessToken]);
-                $handle      = $profile['name'] ?? '';
-                $platformUid = $profile['instagram_business_account']['id'] ?? $profile['id'] ?? '';
-            } else {
-                $pages       = curlGet('https://graph.facebook.com/v18.0/me/accounts',
-                    ['access_token' => $accessToken]);
-                $handle      = $pages['data'][0]['name'] ?? '';
-                $platformUid = $pages['data'][0]['id']   ?? '';
-            }
-            break;
 
         case 'tiktok':
             $ch = curl_init('https://open.tiktokapis.com/v2/oauth/token/');

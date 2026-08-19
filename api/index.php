@@ -1440,20 +1440,11 @@ if ($action === 'repair-media' && $method === 'POST') {
 
 if ($action === 'social-auth-url' && $method === 'GET') {
     $platform = $_GET['platform'] ?? '';
+    if (in_array($platform, ['facebook', 'instagram', 'instagram_login'], true)) {
+        jsonError('Facebook e Instagram non richiedono piu\' Meta Graph API: aggiungi il link pubblico del profilo, che verra\' acquisito tramite Apify.');
+    }
     $state    = base64_encode(json_encode(['userId' => $userId, 'platform' => $platform]));
     $urls = [
-        'instagram' => 'https://www.facebook.com/v18.0/dialog/oauth?' . http_build_query([
-            'client_id'     => META_APP_ID,
-            'redirect_uri'  => META_REDIRECT_URI,
-            'scope'         => 'instagram_basic,instagram_content_publish,pages_show_list',
-            'response_type' => 'code', 'state' => $state,
-        ]),
-        'facebook' => 'https://www.facebook.com/v18.0/dialog/oauth?' . http_build_query([
-            'client_id'     => META_APP_ID,
-            'redirect_uri'  => str_replace('instagram', 'facebook', META_REDIRECT_URI),
-            'scope'         => 'pages_read_engagement,pages_show_list',
-            'response_type' => 'code', 'state' => $state,
-        ]),
         'tiktok' => 'https://www.tiktok.com/v2/auth/authorize/?' . http_build_query([
             'client_key'    => TIKTOK_CLIENT_KEY,
             'redirect_uri'  => TIKTOK_REDIRECT_URI,

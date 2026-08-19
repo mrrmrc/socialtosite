@@ -993,6 +993,80 @@ Restituisci SOLO la nuova memoria aggiornata (testo semplice), nient'altro.";
         return 'https://www.facebook.com/' . rawurlencode((string)$segments[0]) . '/';
     }
 
+    private static function canonicalInstagramProfileUrl(string $url): string {
+        $url = trim(html_entity_decode($url, ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+        if ($url === '') return '';
+        if (!preg_match('~^https?://~i', $url)) {
+            $url = 'https://www.instagram.com/' . ltrim($url, '@/');
+        }
+        $parts = parse_url($url);
+        $segments = array_values(array_filter(explode('/', trim((string)($parts['path'] ?? ''), '/'))));
+        $username = (string)($segments[0] ?? '');
+        if ($username === '' || in_array(strtolower($username), ['p', 'reel', 'reels', 'tv', 'explore', 'stories'], true)) return '';
+        if (!preg_match('/^[A-Za-z0-9._]+$/', $username)) return '';
+        return 'https://www.instagram.com/' . rawurlencode($username) . '/';
+    }
+
+    private static function instagramPostCandidates(array $items, string $profileUrl, ?string $sinceDate = null): array {
+        $profileNormalized = rtrim((string)strtok(self::canonicalInstagramProfileUrl($profileUrl), '?'), '/');
+        $flat = [];
+        foreach ($items as $item) {
+            if (!is_array($item)) continue;
+            $nestedFound = false;
+            foreach (['latestPosts', 'posts', 'reels', 'items', 'timelinePosts'] as $key) {
+                if (empty($item[$key]) || !is_array($item[$key])) continue;
+                $nestedFound = true;
+                foreach ($item[$key] as $nested) {
+                    if (is_array($nested)) $flat[] = $nested;
+                }
+            }
+            if (!$nestedFound) $flat[] = $item;
+        }
+
+        $out = [];
+        $seen = [];
+        $sinceTimestamp = $sinceDate ? strtotime($sinceDate) : 0;
+        foreach ($flat as $item) {
+            if (!is_array($item) || !empty($item['errorReason'])) continue;
+            $postUrl = self::findSourceUrl($item);
+            $shortCode = trim((string)($item['shortCode'] ?? $item['shortcode'] ?? $item['code'] ?? ''));
+            $normalized = rtrim((string)strtok($postUrl, '?'), '/');
+            $isInstagramPostUrl = preg_match('~instagram\.com/(?:p|reel|reels|tv)/[^/?#]+~i', $postUrl) === 1;
+            // Alcuni dataset espongono prima displayUrl (CDN immagine) e solo
+            // dopo shortCode: in quel caso il permalink va ricostruito.
+            if ((!$isInstagramPostUrl || $normalized === $profileNormalized) && $shortCode !== '') {
+                $postUrl = 'https://www.instagram.com/p/' . rawurlencode($shortCode) . '/';
+                $normalized = rtrim($postUrl, '/');
+                $isInstagramPostUrl = true;
+            }
+            if ($postUrl === '' || $normalized === $profileNormalized ||
+                !$isInstagramPostUrl || isset($seen[$normalized])) {
+                continue;
+            }
+
+            $timestamp = $item['timestamp'] ?? $item['takenAtTimestamp'] ?? $item['takenAt'] ?? $item['takenAtIso'] ?? '';
+            if ($sinceTimestamp > 0 && $timestamp !== '') {
+                $postTimestamp = is_numeric($timestamp) ? (int)$timestamp : strtotime((string)$timestamp);
+                if ($postTimestamp > 20000000000) $postTimestamp = (int)floor($postTimestamp / 1000);
+                if ($postTimestamp > 0 && $postTimestamp < $sinceTimestamp) continue;
+            }
+
+            $caption = $item['caption'] ?? $item['text'] ?? $item['description'] ?? $item['alt'] ?? '';
+            if (is_array($caption)) $caption = $caption['text'] ?? '';
+            $mediaUrl = $item['videoUrl'] ?? $item['video_url'] ?? $item['displayUrl'] ?? $item['imageUrl'] ?? $item['thumbnailUrl'] ?? '';
+            if ($mediaUrl === '') $mediaUrl = self::findMediaUrl($item) ?: self::findImageUrl($item);
+
+            $seen[$normalized] = true;
+            $out[] = [
+                'url' => $postUrl,
+                'caption' => is_string($caption) ? $caption : '',
+                'media_url' => is_string($mediaUrl) ? $mediaUrl : '',
+                'media_type' => (!empty($item['videoUrl']) || !empty($item['video_url']) || preg_match('/\.(mp4|mov|webm)(?:\?|$)/i', (string)$mediaUrl)) ? 'video' : 'image',
+            ];
+        }
+        return $out;
+    }
+
     private static function facebookPostCandidates(array $items, string $profileUrl): array {
         $profileNormalized = rtrim((string)strtok(self::canonicalFacebookProfileUrl($profileUrl), '?'), '/');
         $username = trim((string)parse_url($profileNormalized, PHP_URL_PATH), '/');
@@ -1234,93 +1308,55 @@ Restituisci SOLO la nuova memoria aggiornata (testo semplice), nient'altro.";
             throw new Exception('Piattaforma non gestita per la scansione');
         }
 
-        // Se è Instagram, usiamo Apify preferibilmente
+        $instagramProviderErrors = [];
+
+        // Instagram: Apify e' il percorso primario. Proviamo actor con motori
+        // differenti e accettiamo il risultato solo se contiene URL di post.
         if ($platform === 'instagram') {
-            try {
-                Logger::info('apify', 'sourceItems Instagram start', ['url' => $url, 'limit' => $limit, 'sinceDate' => $sinceDate]);
-                $actorId = 'apify/instagram-profile-scraper';
-                // Estrai username dall'url (gestisce URL con o senza trailing slash e query string)
-                $username = '';
-                if (preg_match('~(?:instagram\.com/)([A-Za-z0-9_.]+)~i', $url, $m)) {
-                    $username = rtrim($m[1], '/');
-                }
-                if (!$username) {
-                    Logger::error('apify', 'URL Instagram non valido', ['url' => $url]);
-                    throw new Exception('URL Instagram non valido: impossibile estrarre username.');
-                }
-                
-                // Recuperiamo molti più post di quanti ne servono per poi filtrare per data lato PHP.
-                $fetchLimit = max($limit * 3, 30);
-                
-                $input = [
-                    'usernames'    => [$username],
+            $canonicalUrl = self::canonicalInstagramProfileUrl($url);
+            if ($canonicalUrl === '') throw new Exception('URL Instagram non valido: inserisci il link completo del profilo pubblico.');
+            $username = trim((string)parse_url($canonicalUrl, PHP_URL_PATH), '/');
+            $fetchLimit = max($limit > 0 ? $limit * 3 : 30, 30);
+            $providers = [
+                ['actor' => 'apify/instagram-profile-scraper', 'timeout' => 75, 'input' => [
+                    'usernames' => [$username],
                     'resultsLimit' => $fetchLimit,
-                ];
-                
-                $dataset = self::apifyRun($actorId, $input);
-                if (empty($dataset)) {
-                    Logger::warn('apify', 'Dataset Instagram vuoto (profilo privato?)', ['username' => $username]);
-                    return []; // Profilo privato o zero post: non è un errore
+                ]],
+                ['actor' => 'apify/instagram-scraper', 'timeout' => 90, 'input' => [
+                    'directUrls' => [$canonicalUrl],
+                    'resultsType' => 'posts',
+                    'resultsLimit' => $fetchLimit,
+                    'skipPinnedPosts' => false,
+                ]],
+                ['actor' => 'scraper-engine/instagram-api-scraper', 'timeout' => 75, 'input' => [
+                    'directUrls' => [$canonicalUrl],
+                    'resultsType' => 'posts',
+                    'resultsLimit' => $fetchLimit,
+                    'addParentData' => true,
+                ]],
+            ];
+
+            Logger::info('apify', 'sourceItems Instagram start', ['url' => $canonicalUrl, 'limit' => $limit, 'sinceDate' => $sinceDate]);
+            foreach ($providers as $provider) {
+                try {
+                    $dataset = self::apifyRun($provider['actor'], $provider['input'], $provider['timeout']);
+                    $candidates = self::instagramPostCandidates($dataset, $canonicalUrl, $sinceDate);
+                    Logger::info('apify', 'Instagram actor result', [
+                        'actor' => $provider['actor'],
+                        'dataset_items' => count($dataset),
+                        'valid_posts' => count($candidates),
+                    ]);
+                    if (!empty($candidates)) return array_slice($candidates, 0, $limit > 0 ? $limit : null);
+                    $instagramProviderErrors[] = $provider['actor'] . ': nessun post pubblico valido';
+                } catch (Throwable $e) {
+                    $instagramProviderErrors[] = $provider['actor'] . ': ' . $e->getMessage();
+                    Logger::warn('apify', 'Instagram actor fallito', ['actor' => $provider['actor'], 'url' => $canonicalUrl, 'error' => $e->getMessage()]);
                 }
-                
-                $out = [];
-                $skippedByDate = 0;
-                
-                $postsData = [];
-                foreach ($dataset as $it) {
-                    if (isset($it['latestPosts'])) {
-                        foreach ($it['latestPosts'] as $p) {
-                            $postsData[] = $p;
-                        }
-                    } else {
-                        $postsData[] = $it; // Fallback se fosse array di post diretti
-                    }
-                }
-                
-                foreach ($postsData as $item) {
-                    // Apify instagram-profile-scraper usa 'url' o 'shortCode' per il link del post
-                    $postUrl = $item['url'] ?? '';
-                    if (!$postUrl && !empty($item['shortCode'])) {
-                        $postUrl = 'https://www.instagram.com/p/' . $item['shortCode'] . '/';
-                    }
-                    if (!$postUrl || preg_match('~/p/$~', $postUrl) || $postUrl === $url) continue; // Evita di ingurgitare la home del profilo
-                    
-                    // Filtraggio per data: controlla sia 'timestamp' che 'takenAtTimestamp'
-                    if ($sinceDate) {
-                        $ts = $item['timestamp'] ?? $item['takenAtTimestamp'] ?? '';
-                        if ($ts) {
-                            $postTime = is_numeric($ts) ? (int)$ts : strtotime($ts);
-                            if ($postTime > 0 && $postTime < strtotime($sinceDate)) {
-                                $skippedByDate++;
-                                continue;
-                            }
-                        }
-                    }
-                    
-                    $caption   = $item['caption'] ?? $item['alt'] ?? '';
-                    $mediaUrl  = $item['videoUrl'] ?? $item['displayUrl'] ?? $item['thumbnailUrl'] ?? '';
-                    $mediaType = !empty($item['videoUrl']) ? 'video' : 'image';
-                    
-                    $out[] = [
-                        'url'        => $postUrl,
-                        'caption'    => $caption,
-                        'media_url'  => $mediaUrl,
-                        'media_type' => $mediaType,
-                    ];
-                    if ($limit > 0 && count($out) >= $limit) break;
-                }
-                Logger::info('apify', 'sourceItems Instagram result', [
-                    'username'       => $username,
-                    'fetched'        => count($dataset),
-                    'returned'       => count($out),
-                    'skipped_date'   => $skippedByDate,
-                    'sinceDate'      => $sinceDate,
-                ]);
-                return $out;
-            } catch (Throwable $e) {
-                Logger::warn('apify', 'Instagram Apify fallito, fallback a nodeScrape', ['error' => $e->getMessage()]);
-                // Lascia procedere verso il codice generico (nodeScrape) qui sotto
             }
+            Logger::warn('apify', 'Tutti gli actor Instagram senza risultati, provo fallback locale', [
+                'url' => $canonicalUrl,
+                'errors' => array_slice($instagramProviderErrors, 0, 3),
+            ]);
         }
 
         // Usa lo scraper locale Node.js (se disponibile) per Tiktok e Facebook, altrimenti usa Apify
@@ -1411,7 +1447,7 @@ Restituisci SOLO la nuova memoria aggiornata (testo semplice), nient'altro.";
                         'url' => $canonicalUrl,
                         'provider_errors' => array_slice($providerErrors, 0, 3),
                     ]);
-                    throw new Exception('Il profilo Facebook esiste, ma Facebook non ha reso disponibili i post ai canali di acquisizione pubblica. Collega Facebook con autorizzazione per una lettura affidabile.');
+                    throw new Exception('Facebook non ha restituito post pubblici. Verifica che il profilo sia visibile senza login e reinserisci il link completo; non e\' richiesta alcuna connessione Meta.');
                 }
             } elseif ($platform === 'tiktok') {
                 // Per TikTok possiamo provare tiktok-scraper
@@ -1423,6 +1459,12 @@ Restituisci SOLO la nuova memoria aggiornata (testo semplice), nient'altro.";
                     'resultsPerPage' => $limit ?: 20,
                 ]);
                 $items = $dataset;
+            } elseif ($platform === 'instagram') {
+                Logger::error('instagram', 'Tutti i provider di acquisizione hanno restituito zero post', [
+                    'url' => $url,
+                    'provider_errors' => array_slice($instagramProviderErrors, 0, 3),
+                ]);
+                throw new Exception('Instagram non ha restituito post pubblici. Verifica che il profilo sia pubblico e reinserisci il link completo; non e\' richiesta alcuna connessione Meta.');
             } else {
                  throw new Exception("Impossibile recuperare contenuti da questa sorgente con gli scraper disponibili.");
             }
