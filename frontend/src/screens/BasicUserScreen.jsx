@@ -1,12 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import { apiFetch } from '../utils/api';
 
-export function BasicUserScreen({ user, token, onLogout }) {
+const LOADING_MESSAGES = [
+  'Controllo i canali collegati…',
+  'Raccolgo testi e immagini…',
+  'Preparo il tuo spazio di lavoro…',
+];
+
+export function BasicUserScreen({ user, token, onLogout, onEnterDashboard }) {
   const [step, setStep] = useState(0);
-  const [animating, setAnimating] = useState(false);
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [loadingMessageIndex, setLoadingMessageIndex] = useState(0);
 
   const site = data?.site;
   const sources = data?.sources || [];
@@ -23,6 +29,14 @@ export function BasicUserScreen({ user, token, onLogout }) {
     }, 5000);
     return () => clearInterval(interval);
   }, [token]);
+
+  useEffect(() => {
+    if (!loading && step !== 2) return undefined;
+    const interval = setInterval(() => {
+      setLoadingMessageIndex(current => (current + 1) % LOADING_MESSAGES.length);
+    }, 1800);
+    return () => clearInterval(interval);
+  }, [loading, step]);
 
   async function loadData(silent = false) {
     if (!silent) setLoading(true);
@@ -48,14 +62,6 @@ export function BasicUserScreen({ user, token, onLogout }) {
       setStep(3); // Ready
     }
   }, [isConnected, hasPosts, loading]);
-
-  const handleNextStep = (nextStep) => {
-    setAnimating(true);
-    setTimeout(() => {
-      setStep(nextStep);
-      setAnimating(false);
-    }, 400);
-  };
 
   const renderLiaAvatar = () => (
     <div className="lia-avatar">
@@ -96,8 +102,6 @@ export function BasicUserScreen({ user, token, onLogout }) {
           box-shadow: 0 18px 50px rgba(23, 32, 51, 0.12);
           text-align: center;
           transition: opacity 0.25s ease, transform 0.25s ease;
-          opacity: ${animating ? 0 : 1};
-          transform: translateY(${animating ? '10px' : '0'});
         }
         .lia-avatar {
           width: 104px;
@@ -109,6 +113,7 @@ export function BasicUserScreen({ user, token, onLogout }) {
           border-radius: 24px;
           background: #f4f1ff;
           border: 2px solid #ded7ff;
+          animation: lia-breathe 1.8s ease-in-out infinite;
         }
         .lia-core {
           width: 76px;
@@ -182,9 +187,44 @@ export function BasicUserScreen({ user, token, onLogout }) {
           justify-content: center;
           gap: 10px;
         }
+        .lia-progress {
+          width: min(100%, 470px);
+          height: 12px;
+          margin: 0 auto 16px;
+          border-radius: 999px;
+          background: #e4e9f1;
+          overflow: hidden;
+        }
+        .lia-progress span {
+          display: block;
+          width: 42%;
+          height: 100%;
+          border-radius: inherit;
+          background: linear-gradient(90deg, #5638c7, #19a8bd);
+          animation: lia-progress 1.8s ease-in-out infinite;
+        }
+        .lia-status {
+          min-height: 28px;
+          margin: 0 0 28px;
+          color: #344158;
+          font-size: 18px;
+          font-weight: 700;
+        }
+        .lia-exit {
+          margin-top: 6px;
+          border: 0;
+          background: transparent;
+          color: #5b6575;
+          text-decoration: underline;
+          font: inherit;
+          cursor: pointer;
+          padding: 10px 18px;
+        }
+        @keyframes lia-breathe { 50% { transform: scale(1.04); box-shadow: 0 8px 24px rgba(86,56,199,.16); } }
+        @keyframes lia-progress { 0% { transform: translateX(-110%); } 100% { transform: translateX(240%); } }
         .lia-error { color: #9c1c1c; background: #fff1f1; border: 2px solid #efb0b0; border-radius: 14px; padding: 16px; font-size: 19px; line-height: 1.5; margin: 0 0 24px; }
         @media (max-width: 600px) { .lia-container { padding: 16px; } .lia-card { padding: 32px 20px; border-radius: 18px; } }
-        @media (prefers-reduced-motion: reduce) { .lia-card, .lia-button { transition: none; } }
+        @media (prefers-reduced-motion: reduce) { .lia-card, .lia-button { transition: none; } .lia-avatar, .lia-progress span { animation: none; } .lia-progress span { width: 70%; } }
       `}</style>
 
       <div className="lia-background-glow"></div>
@@ -193,7 +233,13 @@ export function BasicUserScreen({ user, token, onLogout }) {
         {renderLiaAvatar()}
 
         {loading && step === 0 && !error && (
-          <h1 className="lia-title">Un momento...</h1>
+          <>
+            <h1 className="lia-title">Sto preparando il tuo spazio</h1>
+            <p className="lia-text">Puoi iniziare a orientarti mentre LinkSeoWeb controlla i tuoi contenuti.</p>
+            <div className="lia-progress" aria-hidden="true"><span /></div>
+            <p className="lia-status" role="status">{LOADING_MESSAGES[loadingMessageIndex]}</p>
+            <button className="lia-button" onClick={onEnterDashboard}>Entra subito nel pannello</button>
+          </>
         )}
 
         {!loading && error && (
@@ -217,9 +263,10 @@ export function BasicUserScreen({ user, token, onLogout }) {
               <button className="lia-button" onClick={() => window.location.href = '/connect'}>
                 Collega il tuo canale 🔗
               </button>
-              <button className="lia-button lia-button-secondary" onClick={onLogout}>
-                Esci
+              <button className="lia-button lia-button-secondary" onClick={onEnterDashboard}>
+                Entra nel pannello
               </button>
+              <button className="lia-exit" onClick={onLogout}>Esci</button>
             </div>
           </>
         )}
@@ -228,12 +275,13 @@ export function BasicUserScreen({ user, token, onLogout }) {
           <>
             <h1 className="lia-title">Sto analizzando i tuoi contenuti</h1>
             <p className="lia-text">
-              Ho visto i tuoi canali! Sto analizzando il tuo tono di voce, gli argomenti e le foto. L'operazione può richiedere qualche minuto, ma puoi anche chiudere questa pagina: il sito sarà pronto al tuo ritorno.
+              Ho visto i tuoi canali. L’analisi continua in automatico, ma il pannello è già disponibile: puoi entrare senza aspettare.
             </p>
+            <div className="lia-progress" aria-hidden="true"><span /></div>
+            <p className="lia-status" role="status">{LOADING_MESSAGES[loadingMessageIndex]}</p>
             <div className="lia-actions">
-              <button className="lia-button lia-button-secondary" onClick={onLogout}>
-                Esci e torna più tardi
-              </button>
+              <button className="lia-button" onClick={onEnterDashboard}>Entra nel pannello</button>
+              <button className="lia-exit" onClick={onLogout}>Esci e torna più tardi</button>
             </div>
           </>
         )}
@@ -245,12 +293,13 @@ export function BasicUserScreen({ user, token, onLogout }) {
               Ho creato e ottimizzato il tuo sito web in base ai tuoi contenuti social. Da questo momento in poi, ogni volta che pubblicherai sui social, io aggiornerò automaticamente il sito.
             </p>
             <div className="lia-actions">
-              <button className="lia-button" onClick={() => window.open(`/${user?.slug}`, '_blank')}>
+              <button className="lia-button" onClick={onEnterDashboard}>
+                Entra nel pannello
+              </button>
+              <button className="lia-button lia-button-secondary" onClick={() => window.open(`/${user?.slug}`, '_blank')}>
                 Apri il mio sito
               </button>
-              <button className="lia-button lia-button-secondary" onClick={onLogout}>
-                Esci
-              </button>
+              <button className="lia-exit" onClick={onLogout}>Esci</button>
             </div>
           </>
         )}

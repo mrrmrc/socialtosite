@@ -88,10 +88,14 @@ function AppContent() {
         <Route path="/connect" element={token ? <ConnectScreen token={token} onDone={() => navigate('/generating')} /> : <Navigate to="/login" />} />
         <Route path="/generating" element={token ? <GeneratingScreen token={token} user={user} onDone={() => navigate('/dashboard')} /> : <Navigate to="/login" />} />
         <Route
+          path="/dashboard/manage/*"
+          element={token ? <DashboardScreen token={token} user={user} onLogout={logout} /> : <Navigate to="/login" />}
+        />
+        <Route
           path="/dashboard/*"
           element={token ? (
             usesBasicExperience
-              ? <BasicUserScreen token={token} user={user} onLogout={logout} />
+              ? <BasicUserScreen token={token} user={user} onLogout={logout} onEnterDashboard={() => navigate('/dashboard/manage')} />
               : <DashboardScreen token={token} user={user} onLogout={logout} />
           ) : <Navigate to="/login" />}
         />

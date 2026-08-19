@@ -425,6 +425,8 @@ export function DashboardScreen({ token, user, onLogout }) {
   const [data, setData] = useState(null);
   const [adminSeoStats, setAdminSeoStats] = useState([]);
   const isAdmin = user?.role === 'admin';
+  const normalizedUserPlan = String(user?.plan || '').trim().toLowerCase();
+  const isBasePlan = !['professional', 'pro', 'agency'].includes(normalizedUserPlan);
 
   const [viewMode, setViewMode] = useState('grid');
   const [selectedPosts, setSelectedPosts] = useState([]);
@@ -1978,7 +1980,7 @@ const [importMsg, setImportMsg] = useState(null);
         { id: 'seo', section: 'ideas', icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>, label: 'Crea', hint: 'Idee, AI e social' },
         { id: 'site', icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>, label: 'Articoli', hint: 'Bozze e pubblicati' },
         { id: 'sources', icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line></svg>, label: 'Canali', hint: 'Contenuti acquisiti' },
-        ...(user?.plan?.toLowerCase() === 'base' ? [] : [
+        ...(isBasePlan ? [] : [
           { id: 'stats', icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 20V10M12 20V4M6 20v-6"></path></svg>, label: 'Statistiche', hint: 'Clic, visite e crescita' },
           { id: 'seo', section: 'network', icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>, label: 'Visibilità', hint: 'Presenza e Google' }
         ]),
@@ -2163,7 +2165,7 @@ const [importMsg, setImportMsg] = useState(null);
         )}
         {(tab === 'overview' || tab === 'strategy') && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
-            {tab === 'overview' && (user?.plan?.toLowerCase() === 'base' ? (
+            {tab === 'overview' && (isBasePlan ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
                 <section className="card" style={{ padding: '3rem 2rem', textAlign: 'center', background: 'var(--primary)', color: 'white', borderRadius: '16px' }}>
                   <h2 style={{ fontSize: '28px', marginBottom: '1rem' }}>Benvenuto nel tuo sito vetrina!</h2>
