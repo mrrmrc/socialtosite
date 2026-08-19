@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useDeferredValue } from 'react';
+import React, { useState, useEffect, useDeferredValue, useRef } from 'react';
 import { apiFetch, SOCIAL, SITE_LAYOUTS, detectPlatformFromUrl, PLATFORM_DESCRIPTIONS } from '../utils/api';
 import { SocialIcon } from '../components/SocialIcon';
 import { QuillEditor } from '../components/QuillEditor';
@@ -427,6 +427,8 @@ export function DashboardScreen({ token, user, onLogout }) {
   const isAdmin = user?.role === 'admin';
   const normalizedUserPlan = String(user?.plan || '').trim().toLowerCase();
   const isBasePlan = !['professional', 'pro', 'agency'].includes(normalizedUserPlan);
+  const baseAutoSyncStarted = useRef(false);
+  const [baseAcquisition, setBaseAcquisition] = useState({ status: 'idle', message: '' });
 
   const [viewMode, setViewMode] = useState('grid');
   const [selectedPosts, setSelectedPosts] = useState([]);
@@ -845,6 +847,61 @@ const [importMsg, setImportMsg] = useState(null);
       setAcquisitionModal({ status: 'error', title: 'Aggiornamento non completato', text: e.message });
     }
     setSyncing(false);
+  }
+
+  // Il piano Base deve mostrare un risultato reale il prima possibile. Al
+  // primo ingresso scarichiamo pochi contenuti, li rendiamo subito visibili e
+  // completiamo in parallelo soltanto il primo piccolo gruppo.
+  async function acquireBaseContent(automatic = false) {
+    if (syncing) return;
+    setSyncing(true);
+    setBaseAcquisition({ status: 'working', message: 'Cerco gli ultimi contenuti del tuo social…' });
+    try {
+      const sync = await apiFetch('/api/index.php?action=sync', {
+        method: 'POST',
+        body: JSON.stringify({ limit: 6 }),
+      }, token);
+      const results = Array.isArray(sync?.results) ? sync.results : [];
+      const errors = results.filter(result => result?.error).map(result => result.error);
+      const found = results.reduce((total, result) => total + Number(result?.found || 0), 0);
+      const imported = results.reduce((total, result) => total + Number(result?.new || 0), 0);
+
+      // Questa lettura fa comparire subito i post grezzi: l'utente non deve
+      // aspettare la riscrittura AI per avere la prova dell'acquisizione.
+      await loadData();
+      const queue = await apiFetch('/api/index.php?action=pending-posts', {}, token);
+      const firstBatch = (Array.isArray(queue) ? queue : []).slice(0, 6);
+
+      if (firstBatch.length) {
+        setBaseAcquisition({
+          status: 'working',
+          message: `Trovati ${Math.max(found, imported, firstBatch.length)} contenuti. Preparo i primi articoli…`,
+        });
+        for (let index = 0; index < firstBatch.length; index += 2) {
+          const batch = firstBatch.slice(index, index + 2);
+          await Promise.all(batch.map(post => apiFetch('/api/index.php?action=process-pending', {
+            method: 'POST',
+            body: JSON.stringify({ id: post.id }),
+          }, token).catch(() => null)));
+          await loadData();
+        }
+      }
+
+      const fresh = await loadData();
+      const total = fresh?.posts?.length || 0;
+      if (total > 0) {
+        setBaseAcquisition({ status: 'success', message: `${total} contenuti acquisiti. Il tuo spazio è pronto da esplorare.` });
+      } else if (errors.length) {
+        setBaseAcquisition({ status: 'error', message: `Il canale è collegato, ma non ha restituito contenuti: ${errors[0]}` });
+      } else {
+        setBaseAcquisition({ status: 'empty', message: 'Il canale non ha restituito contenuti pubblici. Controlla il collegamento o prova ad aggiornarlo.' });
+      }
+    } catch (error) {
+      setBaseAcquisition({ status: 'error', message: error.message || 'Non sono riuscito a leggere il canale.' });
+      if (!automatic) setSyncMsg({ ok: false, text: error.message });
+    } finally {
+      setSyncing(false);
+    }
   }
 
   async function togglePublishPost(id, currentStatus) {
@@ -1951,6 +2008,15 @@ const [importMsg, setImportMsg] = useState(null);
   const sources = data?.sources || [];
   const visibility = data?.visibility || {};
   const reachability = data?.reachability || { score: 0, stage: 'configurazione', checks: [] };
+  const activeChannelCount = sources.length + connections.filter(connection => connection.active).length;
+
+  useEffect(() => {
+    if (!isBasePlan || !data || baseAutoSyncStarted.current) return;
+    if (activeChannelCount > 0 && posts.length === 0) {
+      baseAutoSyncStarted.current = true;
+      acquireBaseContent(true);
+    }
+  }, [isBasePlan, data, activeChannelCount, posts.length]);
   let seoFoundation = {};
   try { seoFoundation = typeof site?.seo_foundation === 'string' ? JSON.parse(site.seo_foundation) : (site?.seo_foundation || {}); } catch (_) { seoFoundation = {}; }
   const dismissedIdeaKeySet = new Set(dismissedIdeaKeys);
@@ -1989,7 +2055,13 @@ const [importMsg, setImportMsg] = useState(null);
       ],
     }
   ];
-  const flatNavigation = navigationGroups.flatMap(group => group.items.map(item => ({ ...item, group: group.label })));
+  const visibleNavigationGroups = isBasePlan && user?.role !== 'admin'
+    ? navigationGroups.map(group => ({
+        ...group,
+        items: group.items.filter(item => ['overview', 'site', 'sources', 'account'].includes(item.id)),
+      }))
+    : navigationGroups;
+  const flatNavigation = visibleNavigationGroups.flatMap(group => group.items.map(item => ({ ...item, group: group.label })));
   const isNavigationActive = item => tab === item.id && (!item.section || visibilitySection === item.section);
   const activeNavigation = flatNavigation.find(isNavigationActive);
   const pageMeta = {
@@ -2098,16 +2170,16 @@ const [importMsg, setImportMsg] = useState(null);
       <aside className="desktop-sidebar" style={{ visibility: studioWorkspaceOpen ? 'hidden' : 'visible', pointerEvents: studioWorkspaceOpen ? 'none' : 'auto' }}>
         <div className="sidebar-brand">
           <img src="/logo-cropped.png?v=2" alt="LinkSeoWeb" />
-          <div><strong>LinkSeoWeb</strong><span>Area di lavoro</span></div>
+          <div><strong>LinkSeoWeb</strong><span>{isBasePlan ? 'Il tuo sito' : 'Area di lavoro'}</span></div>
         </div>
-        {user?.role !== 'admin' && (
+        {user?.role !== 'admin' && !isBasePlan && (
           <button className="sidebar-create" onClick={() => selectNavigation({ id: 'seo', section: 'ideas' })}>
             <span>＋</span><div><strong>Nuovo contenuto</strong><small>Parti da un’idea</small></div>
           </button>
         )}
-        {renderSiteCommandPanel(false)}
+        {!isBasePlan && renderSiteCommandPanel(false)}
         <nav className="sidebar-navigation" aria-label="Navigazione principale">
-          {navigationGroups.map(group => (
+          {visibleNavigationGroups.map(group => (
             <div className="nav-section" key={group.label}>
               <div className="nav-group">{group.label}</div>
               {group.items.map(item => (
@@ -2151,7 +2223,11 @@ const [importMsg, setImportMsg] = useState(null);
               <p>{pageSubtitle}</p>
             </div>
             <div className="page-actions">
-              <button className="btn btn-primary" onClick={syncNow} disabled={syncing}>{syncing ? '⟳ Aggiornamento…' : '↻ Aggiorna i canali'}</button>
+              {(!isBasePlan || activeChannelCount > 0) && (
+                <button className="btn btn-primary" onClick={isBasePlan ? () => acquireBaseContent(false) : syncNow} disabled={syncing}>
+                  {syncing ? '⟳ Sto cercando…' : isBasePlan ? '↻ Aggiorna contenuti' : '↻ Aggiorna i canali'}
+                </button>
+              )}
             </div>
           </header>
         {syncMsg && (
@@ -2166,42 +2242,57 @@ const [importMsg, setImportMsg] = useState(null);
         {(tab === 'overview' || tab === 'strategy') && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
             {tab === 'overview' && (isBasePlan ? (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
-                <section className="card" style={{ padding: '3rem 2rem', textAlign: 'center', background: 'var(--primary)', color: 'white', borderRadius: '16px' }}>
-                  <h2 style={{ fontSize: '28px', marginBottom: '1rem' }}>Benvenuto nel tuo sito vetrina!</h2>
-                  <p style={{ fontSize: '16px', opacity: 0.9, maxWidth: '600px', margin: '0 auto 2rem auto', lineHeight: 1.6 }}>
-                    Usa i pulsanti qui sotto per gestire i tuoi articoli o aggiungere nuove idee. L'intelligenza artificiale penserà a scrivere i testi e organizzarli per te.
-                  </p>
-                  <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', flexWrap: 'wrap' }}>
-                    <button className="btn" style={{ background: 'white', color: 'var(--primary)', padding: '14px 24px', fontSize: '16px', fontWeight: 'bold' }} onClick={() => selectNavigation({ id: 'seo', section: 'ideas' })}>
-                      💡 Crea un nuovo articolo
-                    </button>
-                    <button className="btn" style={{ background: 'rgba(255,255,255,0.2)', color: 'white', border: '1px solid rgba(255,255,255,0.4)', padding: '14px 24px', fontSize: '16px', fontWeight: 'bold' }} onClick={() => selectNavigation({ id: 'site' })}>
-                      📄 I tuoi articoli ({posts.length})
-                    </button>
-                    <button className="btn" style={{ background: 'rgba(255,255,255,0.2)', color: 'white', border: '1px solid rgba(255,255,255,0.4)', padding: '14px 24px', fontSize: '16px', fontWeight: 'bold' }} onClick={() => selectNavigation({ id: 'sources' })}>
-                      📡 Canali Social ({sources.length + connections.filter(c => c.active).length}/2)
-                    </button>
+              <div className="base-home">
+                <section className={`base-start-card is-${baseAcquisition.status}`}>
+                  <div className="base-start-icon" aria-hidden="true">
+                    {syncing ? <span className="acquisition-spinner" /> : posts.length > 0 ? '✓' : activeChannelCount > 0 ? '↻' : '1'}
+                  </div>
+                  <div className="base-start-copy">
+                    <span className="section-eyebrow">Il tuo prossimo passo</span>
+                    <h2>{posts.length > 0 ? `Ho acquisito ${posts.length} contenuti` : activeChannelCount > 0 ? 'Sto leggendo il tuo social' : 'Collega il tuo primo social'}</h2>
+                    <p>
+                      {baseAcquisition.message || (posts.length > 0
+                        ? 'I contenuti trovati sono qui sotto. Puoi controllarli oppure aprire subito il tuo sito.'
+                        : activeChannelCount > 0
+                          ? 'L’acquisizione parte automaticamente. I primi contenuti compariranno qui appena trovati.'
+                          : 'Incolla il link del tuo profilo: al resto pensiamo noi.')}
+                    </p>
+                    <div className="base-start-actions">
+                      {activeChannelCount === 0 ? (
+                        <button className="btn btn-primary" onClick={() => { window.location.href = '/connect'; }}>Collega il social</button>
+                      ) : posts.length > 0 ? (
+                        <button className="btn btn-primary" onClick={() => selectNavigation({ id: 'site' })}>Guarda i contenuti</button>
+                      ) : (
+                        <button className="btn btn-primary" onClick={() => acquireBaseContent(false)} disabled={syncing}>{syncing ? 'Sto acquisendo…' : 'Riprova ora'}</button>
+                      )}
+                      <a className="btn btn-outline" href={siteUrl} target="_blank" rel="noopener">Apri il sito ↗</a>
+                    </div>
                   </div>
                 </section>
-                <div className="card" style={{ padding: '2rem' }}>
-                  <h3 style={{ marginBottom: '1.5rem', fontSize: '20px' }}>Ultimi articoli</h3>
+
+                <section className="base-summary" aria-label="Stato del sito">
+                  <button onClick={() => selectNavigation({ id: 'sources' })}><strong>{activeChannelCount}</strong><span>Social collegato</span></button>
+                  <button onClick={() => selectNavigation({ id: 'site' })}><strong>{posts.length}</strong><span>Contenuti acquisiti</span></button>
+                  <a href={siteUrl} target="_blank" rel="noopener"><strong>{publishedPosts.length}</strong><span>Online sul sito</span></a>
+                </section>
+
+                <section className="base-content-list">
+                  <div className="base-section-heading"><div><span className="section-eyebrow">Dai tuoi social</span><h3>Contenuti trovati</h3></div>{posts.length > 0 && <button onClick={() => selectNavigation({ id: 'site' })}>Vedi tutti →</button>}</div>
                   {posts.length === 0 ? (
-                    <p style={{ color: 'var(--text-muted)' }}>Non hai ancora creato articoli. Inizia cliccando su "Crea un nuovo articolo".</p>
+                    <div className="base-empty-content">
+                      {syncing ? <><span className="base-pulse" /><strong>Acquisizione in corso</strong><p>Non devi fare nulla. Questa schermata si aggiorna da sola.</p></> : <><strong>Non vedo ancora contenuti</strong><p>{activeChannelCount ? 'Premi “Riprova ora” oppure controlla il canale collegato.' : 'Collega un social per iniziare.'}</p></>}
+                    </div>
                   ) : (
-                    <div style={{ display: 'grid', gap: '1rem' }}>
-                      {posts.slice(0, 3).map(post => (
-                        <div key={post.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem', border: '1px solid var(--border)', borderRadius: '8px' }}>
-                          <div>
-                            <strong style={{ display: 'block', fontSize: '16px', marginBottom: '4px' }}>{post.title || 'Articolo senza titolo'}</strong>
-                            <span style={{ fontSize: '13px', color: 'var(--text-muted)' }}>{Number(post.published) === 1 ? '✅ Pubblicato' : '📝 In bozza'}</span>
-                          </div>
-                          <button className="btn btn-outline" onClick={() => selectNavigation({ id: 'site' })}>Gestisci</button>
-                        </div>
+                    <div className="base-content-grid">
+                      {posts.slice(0, 6).map(post => (
+                        <button key={post.id} className="base-content-card" onClick={() => selectNavigation({ id: 'site' })}>
+                          {post.media_url && <img src={post.media_url} alt="" />}
+                          <div><span>{post.platform || 'social'} · {Number(post.seo_score) < 0 ? 'in preparazione' : Number(post.published) === 1 ? 'online' : 'bozza'}</span><strong>{post.edited_title || post.generated_title || String(post.raw_content || '').slice(0, 90) || 'Contenuto acquisito'}</strong></div>
+                        </button>
                       ))}
                     </div>
                   )}
-                </div>
+                </section>
               </div>
             ) : <>
             <section className="trust-simulator-card">
@@ -2332,7 +2423,7 @@ const [importMsg, setImportMsg] = useState(null);
               </div>
             </div>}
 
-            {tab === 'overview' && <>
+            {tab === 'overview' && !isBasePlan && <>
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.5rem' }}>
               <div className="card">
@@ -4475,8 +4566,8 @@ const [importMsg, setImportMsg] = useState(null);
           <aside className="mobile-menu-panel" onClick={event => event.stopPropagation()}>
             <div className="mobile-menu-heading"><div><span>Menu</span><strong>{user?.name || user?.email}</strong></div><button onClick={() => setMobileMenuOpen(false)} aria-label="Chiudi menu">×</button></div>
             <nav aria-label="Menu mobile">
-              {renderSiteCommandPanel(true)}
-              {navigationGroups.map(group => (
+              {!isBasePlan && renderSiteCommandPanel(true)}
+              {visibleNavigationGroups.map(group => (
                 <div className="nav-section" key={group.label}>
                   <div className="nav-group">{group.label}</div>
                   {group.items.map(item => (

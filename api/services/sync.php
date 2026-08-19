@@ -642,8 +642,15 @@ class Sync {
                     $userId, $src['platform'], 'ok', $imported + $duplicate, $imported, null
                 ]);
             } catch (Throwable $e) {
+                $error = mb_substr($e->getMessage(), 0, 2000);
+                $results[] = [
+                    'platform' => $src['platform'],
+                    'new' => 0,
+                    'found' => 0,
+                    'error' => $error,
+                ];
                 DB::execute('INSERT INTO sync_log (user_id, platform, status, posts_found, posts_new, error) VALUES (?,?,?,?,?,?)', [
-                    $userId, $src['platform'], 'error', 0, 0, $e->getMessage()
+                    $userId, $src['platform'], 'error', 0, 0, $error
                 ]);
             }
         }
