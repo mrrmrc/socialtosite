@@ -820,19 +820,20 @@ Restituisci SOLO la nuova memoria aggiornata (testo semplice), nient'altro.";
         return is_array($result) ? $result : [];
     }
 
-    private static function apifyRun(string $actorId, array $input): array {
+    private static function apifyRun(string $actorId, array $input, int $timeoutSeconds = 180): array {
         if (!defined('APIFY_TOKEN') || !APIFY_TOKEN) {
             Logger::error('apify', 'APIFY_TOKEN mancante');
             throw new Exception('APIFY_TOKEN mancante in config/keys.php');
         }
         $actorIdSafe = str_replace('/', '~', $actorId);
+        $timeoutSeconds = max(30, min(300, $timeoutSeconds));
         // Aggiungiamo timeoutSecs e memoryMbytes all'input per contenere i tempi dell'actor
         $input = array_merge([
-            'timeoutSecs'  => 180,
+            'timeoutSecs'  => $timeoutSeconds,
             'memoryMbytes' => 512,
         ], $input);
         $url = "https://api.apify.com/v2/acts/$actorIdSafe/run-sync-get-dataset-items?token=" . APIFY_TOKEN
-             . "&timeout=180&memory=512";
+             . "&timeout={$timeoutSeconds}&memory=512";
         
         Logger::info('apify', "Avvio actor Apify", ['actor' => $actorId, 'input_keys' => array_keys($input)]);
         $startTime = microtime(true);
@@ -843,7 +844,7 @@ Restituisci SOLO la nuova memoria aggiornata (testo semplice), nient'altro.";
             CURLOPT_POST           => true,
             CURLOPT_HTTPHEADER     => ['Content-Type: application/json'],
             CURLOPT_POSTFIELDS     => json_encode($input, JSON_UNESCAPED_UNICODE),
-            CURLOPT_TIMEOUT        => 300, // 5 min: Apify può richiedere fino a 3 min
+            CURLOPT_TIMEOUT        => $timeoutSeconds + 30,
             CURLOPT_SSL_VERIFYPEER => true,
             CURLOPT_SSL_VERIFYHOST => 2,
         ]);
@@ -930,7 +931,7 @@ Restituisci SOLO la nuova memoria aggiornata (testo semplice), nient'altro.";
             return preg_match('~^https?://~', $node) ? $node : '';
         }
         if (is_array($node)) {
-            foreach (['url','postUrl','webVideoUrl','videoWebUrl','shortCodeUrl','permalink','link'] as $k) {
+            foreach (['url','postUrl','topLevelUrl','postLink','permalink_url','webVideoUrl','videoWebUrl','shortCodeUrl','permalink','link'] as $k) {
                 if (!empty($node[$k]) && is_string($node[$k]) && preg_match('~^https?://~', $node[$k])) {
                     return $node[$k];
                 }
@@ -973,6 +974,45 @@ Restituisci SOLO la nuova memoria aggiornata (testo semplice), nient'altro.";
         }
 
         return !empty($flat) ? $flat : $items;
+    }
+
+    private static function canonicalFacebookProfileUrl(string $url): string {
+        $url = trim(html_entity_decode($url, ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+        if ($url === '') return '';
+        if (!preg_match('~^https?://~i', $url)) $url = 'https://www.facebook.com/' . ltrim($url, '/');
+        $parts = parse_url($url);
+        $path = '/' . trim((string)($parts['path'] ?? ''), '/');
+        if ($path === '/') return '';
+
+        // L'actor vuole il profilo, non una sua scheda (/posts, /videos, ecc.).
+        $segments = array_values(array_filter(explode('/', trim($path, '/'))));
+        if (($segments[0] ?? '') === 'profile.php') {
+            parse_str((string)($parts['query'] ?? ''), $query);
+            return !empty($query['id']) ? 'https://www.facebook.com/profile.php?id=' . rawurlencode((string)$query['id']) : '';
+        }
+        return 'https://www.facebook.com/' . rawurlencode((string)$segments[0]) . '/';
+    }
+
+    private static function facebookPostCandidates(array $items, string $profileUrl): array {
+        $profileNormalized = rtrim((string)strtok(self::canonicalFacebookProfileUrl($profileUrl), '?'), '/');
+        $username = trim((string)parse_url($profileNormalized, PHP_URL_PATH), '/');
+        $flat = self::flattenSourceDataset('facebook', $items, $profileUrl);
+        $out = [];
+        $seen = [];
+
+        foreach ($flat as $item) {
+            if (!is_array($item)) continue;
+            $candidateUrl = self::findSourceUrl($item);
+            if (($candidateUrl === '' || rtrim((string)strtok($candidateUrl, '?'), '/') === $profileNormalized) && !empty($item['postId']) && $username !== '') {
+                $candidateUrl = 'https://www.facebook.com/' . rawurlencode($username) . '/posts/' . rawurlencode((string)$item['postId']);
+                $item['url'] = $candidateUrl;
+            }
+            $normalized = rtrim((string)strtok($candidateUrl, '?'), '/');
+            if ($normalized === '' || $normalized === $profileNormalized || isset($seen[$normalized])) continue;
+            $seen[$normalized] = true;
+            $out[] = $item;
+        }
+        return $out;
     }
 
     private static function fetchHtml(string $url): string {
@@ -1294,32 +1334,84 @@ Restituisci SOLO la nuova memoria aggiornata (testo semplice), nient'altro.";
             }
         }
 
+        $facebookCanonicalUrl = '';
+        if ($platform === 'facebook') {
+            $facebookCanonicalUrl = self::canonicalFacebookProfileUrl($url);
+            if ($facebookCanonicalUrl === '') throw new Exception('URL Facebook non valido: impossibile riconoscere il profilo.');
+            // Conta soltanto URL di post reali: una risposta contenente la sola
+            // scheda profilo non deve impedire l'esecuzione dei fallback.
+            $items = self::facebookPostCandidates($items, $facebookCanonicalUrl);
+        }
+
         if (empty($items) || (defined('APIFY_TOKEN') && APIFY_TOKEN !== '' && count($items) < min(4, $limit))) {
             // Fallback ad Apify se shell_exec non e' disponibile o bloccato da login wall
             if ($platform === 'facebook') {
+                $canonicalUrl = $facebookCanonicalUrl;
+                $providerErrors = [];
                 $postInput = [
-                    'startUrls' => [['url' => $url]],
+                    'startUrls' => [['url' => $canonicalUrl]],
                     'resultsLimit' => $limit ?: 20,
                 ];
                 if ($sinceDate) {
                     $postInput['onlyPostsNewerThan'] = $sinceDate;
                 }
 
-                try {
-                    $dataset = self::apifyRun('apify/facebook-posts-scraper', $postInput);
-                    $items = $dataset;
-                } catch (Throwable $e) {
-                    Logger::warn('apify', 'Facebook posts actor fallito, provo pages actor', ['url' => $url, 'error' => $e->getMessage()]);
-                    $dataset = self::apifyRun('apify/facebook-pages-scraper', [
-                        'startUrls' => [['url' => $url]],
-                        'resultsLimit' => $limit ?: 20,
-                    ]);
-                    $items = self::flattenSourceDataset($platform, $dataset, $url);
+                // 1) Actor ufficiale per post. Un dataset vuoto o composto solo
+                // dal profilo non e' un successo: proseguiamo con gli altri
+                // provider invece di restituire erroneamente "zero post".
+                if (count($items) < min(2, max(1, $limit))) {
+                    try {
+                        $dataset = self::apifyRun('apify/facebook-posts-scraper', $postInput, 90);
+                        $items = array_merge($items, self::facebookPostCandidates($dataset, $canonicalUrl));
+                    } catch (Throwable $e) {
+                        $providerErrors[] = 'posts: ' . $e->getMessage();
+                        Logger::warn('apify', 'Facebook posts actor fallito', ['url' => $canonicalUrl, 'error' => $e->getMessage()]);
+                    }
+                }
+
+                // 2) Il pages actor a volte include latestPosts/pagePosts anche
+                // quando il posts actor non riesce a risolvere un profilo
+                // professionale personale come /twoemme/.
+                if (count($items) < min(2, max(1, $limit))) {
+                    try {
+                        $dataset = self::apifyRun('apify/facebook-pages-scraper', [
+                            'startUrls' => [['url' => $canonicalUrl]],
+                            'resultsLimit' => $limit ?: 20,
+                        ], 60);
+                        $items = array_merge($items, self::facebookPostCandidates($dataset, $canonicalUrl));
+                    } catch (Throwable $e) {
+                        $providerErrors[] = 'pages: ' . $e->getMessage();
+                        Logger::warn('apify', 'Facebook pages actor fallito', ['url' => $canonicalUrl, 'error' => $e->getMessage()]);
+                    }
+                }
+
+                // 3) Provider indipendente: usa un motore differente e copre i
+                // profili che Facebook serve solo con una fingerprint browser.
+                if (empty($items)) {
+                    try {
+                        $dataset = self::apifyRun('scraper-engine/facebook-posts-scraper', [
+                            'inputUrl' => $canonicalUrl,
+                            'maxPosts' => $limit ?: 20,
+                        ], 60);
+                        $items = array_merge($items, self::facebookPostCandidates($dataset, $canonicalUrl));
+                    } catch (Throwable $e) {
+                        $providerErrors[] = 'alternate: ' . $e->getMessage();
+                        Logger::warn('apify', 'Facebook actor alternativo fallito', ['url' => $canonicalUrl, 'error' => $e->getMessage()]);
+                    }
+                }
+
+                // 4) Ultima rete di sicurezza senza provider esterni.
+                if (empty($items)) {
+                    Logger::warn('apify', 'Facebook provider vuoti, provo fallback HTML', ['url' => $canonicalUrl, 'limit' => $limit]);
+                    $items = self::facebookPostCandidates(self::facebookHtmlFallbackItems($canonicalUrl, $limit ?: 20), $canonicalUrl);
                 }
 
                 if (empty($items)) {
-                    Logger::warn('apify', 'Facebook dataset vuoto, provo fallback HTML', ['url' => $url, 'limit' => $limit]);
-                    $items = self::facebookHtmlFallbackItems($url, $limit ?: 20);
+                    Logger::error('facebook', 'Tutti i provider di acquisizione hanno restituito zero post', [
+                        'url' => $canonicalUrl,
+                        'provider_errors' => array_slice($providerErrors, 0, 3),
+                    ]);
+                    throw new Exception('Il profilo Facebook esiste, ma Facebook non ha reso disponibili i post ai canali di acquisizione pubblica. Collega Facebook con autorizzazione per una lettura affidabile.');
                 }
             } elseif ($platform === 'tiktok') {
                 // Per TikTok possiamo provare tiktok-scraper
@@ -1337,6 +1429,7 @@ Restituisci SOLO la nuova memoria aggiornata (testo semplice), nient'altro.";
         }
 
         $out = [];
+        $seenOutputUrls = [];
         foreach ($items as $item) {
             $sourceUrl = self::findSourceUrl($item);
             if (!$sourceUrl && !empty($item['url'])) $sourceUrl = $item['url'];
@@ -1348,6 +1441,9 @@ Restituisci SOLO la nuova memoria aggiornata (testo semplice), nient'altro.";
                     continue;
                 }
             }
+            $sourceKey = rtrim((string)strtok($sourceUrl, '?'), '/');
+            if ($sourceKey === '' || isset($seenOutputUrls[$sourceKey])) continue;
+            $seenOutputUrls[$sourceKey] = true;
             
             $caption = '';
             foreach (['text','caption','message','description','video_description','story'] as $k) {

@@ -634,12 +634,14 @@ class Sync {
                 
                 $imported = $res['imported'] ?? 0;
                 $duplicate = $res['duplicate'] ?? 0;
+                $scanErrors = array_values(array_filter($res['errors'] ?? []));
+                $scanError = $scanErrors ? mb_substr(implode(' | ', $scanErrors), 0, 2000) : null;
                 $totalNew += $imported;
-                
-                $results[] = ['platform' => $src['platform'], 'new' => $imported, 'found' => $imported + $duplicate, 'error' => null];
-                
+
+                $results[] = ['platform' => $src['platform'], 'new' => $imported, 'found' => $imported + $duplicate, 'error' => $scanError];
+
                 DB::execute('INSERT INTO sync_log (user_id, platform, status, posts_found, posts_new, error) VALUES (?,?,?,?,?,?)', [
-                    $userId, $src['platform'], 'ok', $imported + $duplicate, $imported, null
+                    $userId, $src['platform'], $scanError ? ($imported > 0 ? 'partial' : 'error') : 'ok', $imported + $duplicate, $imported, $scanError
                 ]);
             } catch (Throwable $e) {
                 $error = mb_substr($e->getMessage(), 0, 2000);
