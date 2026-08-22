@@ -60,7 +60,7 @@ class Sync {
         }
 
         if ($url === '') {
-            throw new Exception('La vecchia connessione ' . ucfirst($platform) . ' non contiene un URL pubblico utilizzabile. Reinserisci il link completo del profilo: l\'acquisizione ora usa Apify, non Meta Graph API.');
+            throw new Exception('La vecchia connessione ' . ucfirst($platform) . ' non contiene un URL pubblico utilizzabile. Reinserisci il link completo del profilo: l\'acquisizione ora usa SocialCrawl, non Meta Graph API.');
         }
 
         $label = $handle !== '' ? $handle : ucfirst($platform);
@@ -68,7 +68,7 @@ class Sync {
         $autoPublish = (int)($connection['auto_publish'] ?? 1);
         $autoSync = (int)($connection['auto_sync'] ?? 1);
         $maxPosts = !empty($connection['max_posts']) ? (int)$connection['max_posts'] : null;
-        $topic = 'Profilo ' . ucfirst($platform) . ' migrato alla pipeline pubblica Apify';
+        $topic = 'Profilo ' . ucfirst($platform) . ' migrato alla pipeline pubblica SocialCrawl';
 
         if ($existing) {
             DB::execute(
@@ -393,7 +393,7 @@ class Sync {
         foreach ($connections as $conn) {
             // Facebook e Instagram non usano piu' token Meta/Graph API.
             // Le connessioni storiche vengono trasformate una volta in URL
-            // pubblici e saranno lette dal ciclo social_sources tramite Apify.
+            // pubblici e saranno lette dal ciclo social_sources tramite SocialCrawl.
             if (self::isLegacyMetaConnection($conn)) {
                 try {
                     self::migrateLegacyMetaConnection($userId, $conn);

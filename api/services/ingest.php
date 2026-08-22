@@ -203,7 +203,7 @@ class Ingest {
         } else {
             // TikTok / Instagram / Facebook: se non abbiamo i dati dal prefetched, usa Apify
             if (empty($caption) && empty($prefetched['media_url'])) {
-                $r       = AI::apifyResolve($platform, $url);
+                $r       = AI::socialCrawlResolve($platform, $url);
                 $caption = $r['caption'] ?? '';
                 $hasUsableCaption = mb_strlen(trim(strip_tags((string)$caption))) >= 40;
 

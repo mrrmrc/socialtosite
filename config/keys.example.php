@@ -14,7 +14,11 @@ if (!defined('GEMINI_API_KEY')) define('GEMINI_API_KEY', '');
 // Modello Gemini (flash = veloce, economico, gestisce video/YouTube da link).
 if (!defined('GEMINI_MODEL'))   define('GEMINI_MODEL', 'gemini-2.5-flash');
 
-// Apify (per scaricare i media da TikTok/Instagram/Facebook).
+// SocialCrawl: fallback esterno del motore multi-social (sostituisce Apify).
+// Ottieni la chiave su https://www.socialcrawl.dev/dashboard/api
+if (!defined('SOCIALCRAWL_API_KEY')) define('SOCIALCRAWL_API_KEY', '');
+
+// Apify: DEPRECATO — lasciato per retrocompatibilità, non è più usato.
 if (!defined('APIFY_TOKEN'))    define('APIFY_TOKEN', '');
 
 // Meta Graph API (Facebook / IG Aziendale) per OAuth ufficiale.

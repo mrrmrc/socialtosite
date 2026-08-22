@@ -759,7 +759,7 @@ Restituisci SOLO la nuova memoria aggiornata (testo semplice), nient'altro.";
     private static function nodeScrape(string $platform, string $url, int $limit = 0): array {
         if (!function_exists('shell_exec')) {
             Logger::error('scraper', "shell_exec disabilitato", ['platform' => $platform]);
-            throw new Exception("shell_exec disabilitato dal server: impossibile usare lo scraper locale per $platform. Richiede Apify.");
+            throw new Exception("shell_exec disabilitato dal server: impossibile usare lo scraper locale per $platform. Richiede socialcrawl.");
         }
         $scriptPath = realpath(__DIR__ . '/../../scraper/scraper.js');
         if (!$scriptPath) {
@@ -820,34 +820,34 @@ Restituisci SOLO la nuova memoria aggiornata (testo semplice), nient'altro.";
         return is_array($result) ? $result : [];
     }
 
-    private static function apifyRun(string $actorId, array $input, int $timeoutSeconds = 180): array {
-        if (!defined('APIFY_TOKEN') || !APIFY_TOKEN) {
-            Logger::error('apify', 'APIFY_TOKEN mancante');
-            throw new Exception('APIFY_TOKEN mancante in config/keys.php');
+        public static function isSocialCrawlQuotaError(Throwable $e): bool {
+        $msg = mb_strtolower($e->getMessage());
+        return str_contains($msg, '402') || str_contains($msg, 'quota') || str_contains($msg, 'insufficient credit');
+    }
+
+    private static function socialCrawlRequest(string $endpoint, array $payload, int $timeoutSeconds = 90): array {
+        if (!defined('SOCIALCRAWL_API_KEY') || !SOCIALCRAWL_API_KEY) {
+            Logger::error('socialcrawl', 'SOCIALCRAWL_API_KEY mancante');
+            throw new Exception('SOCIALCRAWL_API_KEY mancante in config/keys.php');
         }
-        $actorIdSafe = str_replace('/', '~', $actorId);
-        $timeoutSeconds = max(30, min(300, $timeoutSeconds));
-        // Aggiungiamo timeoutSecs e memoryMbytes all'input per contenere i tempi dell'actor
-        $input = array_merge([
-            'timeoutSecs'  => $timeoutSeconds,
-            'memoryMbytes' => 512,
-        ], $input);
-        $url = "https://api.apify.com/v2/acts/$actorIdSafe/run-sync-get-dataset-items?token=" . APIFY_TOKEN
-             . "&timeout={$timeoutSeconds}&memory=512";
-        
-        Logger::info('apify', "Avvio actor Apify", ['actor' => $actorId, 'input_keys' => array_keys($input)]);
-        $startTime = microtime(true);
+
+        $url = "https://api.socialcrawl.dev" . $endpoint;
         
         $ch = curl_init($url);
         curl_setopt_array($ch, [
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_POST           => true,
-            CURLOPT_HTTPHEADER     => ['Content-Type: application/json'],
-            CURLOPT_POSTFIELDS     => json_encode($input, JSON_UNESCAPED_UNICODE),
-            CURLOPT_TIMEOUT        => $timeoutSeconds + 30,
+            CURLOPT_HTTPHEADER     => [
+                'Content-Type: application/json',
+                'x-api-key: ' . SOCIALCRAWL_API_KEY
+            ],
+            CURLOPT_POSTFIELDS     => json_encode($payload, JSON_UNESCAPED_UNICODE),
+            CURLOPT_TIMEOUT        => $timeoutSeconds,
             CURLOPT_SSL_VERIFYPEER => true,
             CURLOPT_SSL_VERIFYHOST => 2,
         ]);
+        
+        $startTime = microtime(true);
         $res  = curl_exec($ch);
         $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
         $err  = curl_error($ch);
@@ -856,20 +856,18 @@ Restituisci SOLO la nuova memoria aggiornata (testo semplice), nient'altro.";
         $elapsed = round(microtime(true) - $startTime, 2);
 
         if ($res === false) {
-            Logger::error('apify', "Errore di rete curl", ['actor' => $actorId, 'curl_error' => $err, 'elapsed_s' => $elapsed]);
-            throw new Exception("Apify: errore di rete ($err)");
+            Logger::error('socialcrawl', "Errore di rete curl", ['endpoint' => $endpoint, 'curl_error' => $err, 'elapsed_s' => $elapsed]);
+            throw new Exception("SocialCrawl: errore di rete ($err)");
         }
         
         $data = json_decode($res, true);
         if ($code >= 400) {
-            $msg = $data['error']['message'] ?? (is_string($res) ? mb_substr($res, 0, 200) : 'risposta non valida');
-            Logger::error('apify', "HTTP $code dal actor", ['actor' => $actorId, 'code' => $code, 'msg' => $msg, 'elapsed_s' => $elapsed]);
-            throw new Exception("Apify ($code): $msg");
+            $msg = $data['error'] ?? $data['message'] ?? (is_string($res) ? mb_substr($res, 0, 200) : 'risposta non valida');
+            Logger::error('socialcrawl', "HTTP $code", ['endpoint' => $endpoint, 'code' => $code, 'msg' => $msg, 'elapsed_s' => $elapsed]);
+            throw new Exception("SocialCrawl ($code): $msg");
         }
         
-        $count = is_array($data) ? count($data) : 0;
-        Logger::info('apify', "Actor OK", ['actor' => $actorId, 'items' => $count, 'elapsed_s' => $elapsed]);
-        
+        Logger::info('socialcrawl', "Request OK", ['endpoint' => $endpoint, 'elapsed_s' => $elapsed]);
         return is_array($data) ? $data : [];
     }
 
@@ -1310,7 +1308,7 @@ Restituisci SOLO la nuova memoria aggiornata (testo semplice), nient'altro.";
 
         $instagramProviderErrors = [];
 
-        // Instagram: Apify e' il percorso primario. Proviamo actor con motori
+        // Instagram: socialcrawl e' il percorso primario. Proviamo actor con motori
         // differenti e accettiamo il risultato solo se contiene URL di post.
         if ($platform === 'instagram') {
             $canonicalUrl = self::canonicalInstagramProfileUrl($url);
@@ -1318,11 +1316,11 @@ Restituisci SOLO la nuova memoria aggiornata (testo semplice), nient'altro.";
             $username = trim((string)parse_url($canonicalUrl, PHP_URL_PATH), '/');
             $fetchLimit = max($limit > 0 ? $limit * 3 : 30, 30);
             $providers = [
-                ['actor' => 'apify/instagram-profile-scraper', 'timeout' => 75, 'input' => [
+                ['actor' => 'socialcrawl/instagram-profile-scraper', 'timeout' => 75, 'input' => [
                     'usernames' => [$username],
                     'resultsLimit' => $fetchLimit,
                 ]],
-                ['actor' => 'apify/instagram-scraper', 'timeout' => 90, 'input' => [
+                ['actor' => 'socialcrawl/instagram-scraper', 'timeout' => 90, 'input' => [
                     'directUrls' => [$canonicalUrl],
                     'resultsType' => 'posts',
                     'resultsLimit' => $fetchLimit,
@@ -1336,12 +1334,12 @@ Restituisci SOLO la nuova memoria aggiornata (testo semplice), nient'altro.";
                 ]],
             ];
 
-            Logger::info('apify', 'sourceItems Instagram start', ['url' => $canonicalUrl, 'limit' => $limit, 'sinceDate' => $sinceDate]);
+            Logger::info('socialcrawl', 'sourceItems Instagram start', ['url' => $canonicalUrl, 'limit' => $limit, 'sinceDate' => $sinceDate]);
             foreach ($providers as $provider) {
                 try {
-                    $dataset = self::apifyRun($provider['actor'], $provider['input'], $provider['timeout']);
+                    $dataset = self::socialcrawlRun($provider['actor'], $provider['input'], $provider['timeout']);
                     $candidates = self::instagramPostCandidates($dataset, $canonicalUrl, $sinceDate);
-                    Logger::info('apify', 'Instagram actor result', [
+                    Logger::info('socialcrawl', 'Instagram actor result', [
                         'actor' => $provider['actor'],
                         'dataset_items' => count($dataset),
                         'valid_posts' => count($candidates),
@@ -1350,16 +1348,16 @@ Restituisci SOLO la nuova memoria aggiornata (testo semplice), nient'altro.";
                     $instagramProviderErrors[] = $provider['actor'] . ': nessun post pubblico valido';
                 } catch (Throwable $e) {
                     $instagramProviderErrors[] = $provider['actor'] . ': ' . $e->getMessage();
-                    Logger::warn('apify', 'Instagram actor fallito', ['actor' => $provider['actor'], 'url' => $canonicalUrl, 'error' => $e->getMessage()]);
+                    Logger::warn('socialcrawl', 'Instagram actor fallito', ['actor' => $provider['actor'], 'url' => $canonicalUrl, 'error' => $e->getMessage()]);
                 }
             }
-            Logger::warn('apify', 'Tutti gli actor Instagram senza risultati, provo fallback locale', [
+            Logger::warn('socialcrawl', 'Tutti gli actor Instagram senza risultati, provo fallback locale', [
                 'url' => $canonicalUrl,
                 'errors' => array_slice($instagramProviderErrors, 0, 3),
             ]);
         }
 
-        // Usa lo scraper locale Node.js (se disponibile) per Tiktok e Facebook, altrimenti usa Apify
+        // Usa lo scraper locale Node.js (se disponibile) per Tiktok e Facebook, altrimenti usa socialcrawl
         $items = [];
         if (function_exists('shell_exec')) {
             try {
@@ -1379,8 +1377,8 @@ Restituisci SOLO la nuova memoria aggiornata (testo semplice), nient'altro.";
             $items = self::facebookPostCandidates($items, $facebookCanonicalUrl);
         }
 
-        if (empty($items) || (defined('APIFY_TOKEN') && APIFY_TOKEN !== '' && count($items) < min(4, $limit))) {
-            // Fallback ad Apify se shell_exec non e' disponibile o bloccato da login wall
+        if (empty($items) || (defined('socialcrawl_TOKEN') && socialcrawl_TOKEN !== '' && count($items) < min(4, $limit))) {
+            // Fallback ad socialcrawl se shell_exec non e' disponibile o bloccato da login wall
             if ($platform === 'facebook') {
                 $canonicalUrl = $facebookCanonicalUrl;
                 $providerErrors = [];
@@ -1397,11 +1395,11 @@ Restituisci SOLO la nuova memoria aggiornata (testo semplice), nient'altro.";
                 // provider invece di restituire erroneamente "zero post".
                 if (count($items) < min(2, max(1, $limit))) {
                     try {
-                        $dataset = self::apifyRun('apify/facebook-posts-scraper', $postInput, 90);
+                        $dataset = self::socialCrawlRequest('/facebook/posts', $postInput, 90);
                         $items = array_merge($items, self::facebookPostCandidates($dataset, $canonicalUrl));
                     } catch (Throwable $e) {
                         $providerErrors[] = 'posts: ' . $e->getMessage();
-                        Logger::warn('apify', 'Facebook posts actor fallito', ['url' => $canonicalUrl, 'error' => $e->getMessage()]);
+                        Logger::warn('socialcrawl', 'Facebook posts actor fallito', ['url' => $canonicalUrl, 'error' => $e->getMessage()]);
                     }
                 }
 
@@ -1410,14 +1408,14 @@ Restituisci SOLO la nuova memoria aggiornata (testo semplice), nient'altro.";
                 // professionale personale come /twoemme/.
                 if (count($items) < min(2, max(1, $limit))) {
                     try {
-                        $dataset = self::apifyRun('apify/facebook-pages-scraper', [
+                        $dataset = self::socialCrawlRequest('/facebook/profile', [
                             'startUrls' => [['url' => $canonicalUrl]],
                             'resultsLimit' => $limit ?: 20,
                         ], 60);
                         $items = array_merge($items, self::facebookPostCandidates($dataset, $canonicalUrl));
                     } catch (Throwable $e) {
                         $providerErrors[] = 'pages: ' . $e->getMessage();
-                        Logger::warn('apify', 'Facebook pages actor fallito', ['url' => $canonicalUrl, 'error' => $e->getMessage()]);
+                        Logger::warn('socialcrawl', 'Facebook pages actor fallito', ['url' => $canonicalUrl, 'error' => $e->getMessage()]);
                     }
                 }
 
@@ -1425,20 +1423,20 @@ Restituisci SOLO la nuova memoria aggiornata (testo semplice), nient'altro.";
                 // profili che Facebook serve solo con una fingerprint browser.
                 if (empty($items)) {
                     try {
-                        $dataset = self::apifyRun('scraper-engine/facebook-posts-scraper', [
+                        $dataset = self::socialCrawlRequest('/facebook/posts', [
                             'inputUrl' => $canonicalUrl,
                             'maxPosts' => $limit ?: 20,
                         ], 60);
                         $items = array_merge($items, self::facebookPostCandidates($dataset, $canonicalUrl));
                     } catch (Throwable $e) {
                         $providerErrors[] = 'alternate: ' . $e->getMessage();
-                        Logger::warn('apify', 'Facebook actor alternativo fallito', ['url' => $canonicalUrl, 'error' => $e->getMessage()]);
+                        Logger::warn('socialcrawl', 'Facebook actor alternativo fallito', ['url' => $canonicalUrl, 'error' => $e->getMessage()]);
                     }
                 }
 
                 // 4) Ultima rete di sicurezza senza provider esterni.
                 if (empty($items)) {
-                    Logger::warn('apify', 'Facebook provider vuoti, provo fallback HTML', ['url' => $canonicalUrl, 'limit' => $limit]);
+                    Logger::warn('socialcrawl', 'Facebook provider vuoti, provo fallback HTML', ['url' => $canonicalUrl, 'limit' => $limit]);
                     $items = self::facebookPostCandidates(self::facebookHtmlFallbackItems($canonicalUrl, $limit ?: 20), $canonicalUrl);
                 }
 
@@ -1454,7 +1452,7 @@ Restituisci SOLO la nuova memoria aggiornata (testo semplice), nient'altro.";
                 $username = '';
                 if (preg_match('~@([^/?]+)~', $url, $m)) $username = $m[1];
                 if (!$username) throw new Exception("Impossibile estrarre username da URL TikTok");
-                $dataset = self::apifyRun('clockworks/tiktok-profile-scraper', [
+                $dataset = self::socialCrawlRequest('/tiktok/profile', [
                     'profiles' => [$username],
                     'resultsPerPage' => $limit ?: 20,
                 ]);
@@ -1612,7 +1610,7 @@ Restituisci SOLO la nuova memoria aggiornata (testo semplice), nient'altro.";
         return $result;
     }
 
-    // ── AGENTE 1: risolve un link social via Apify → caption + media ───────
+    // ── AGENTE 1: risolve un link social via socialcrawl → caption + media ───────
     public static function editorialEngineBlueprint(array $site, array $sources, array $posts, array $existingDna = [], array $existingMemory = [], array $settings = []): array {
         $sourceLines = [];
         foreach ($sources as $source) {
@@ -1845,7 +1843,7 @@ Restituisci SOLO la nuova memoria aggiornata (testo semplice), nient'altro.";
         ];
     }
 
-    public static function apifyResolve(string $platform, string $url): array {
+    public static function socialCrawlResolve(string $platform, string $url): array {
         if (function_exists('shell_exec')) {
             try {
                 $it = self::nodeScrape($platform, $url, 0);
@@ -1859,7 +1857,7 @@ Restituisci SOLO la nuova memoria aggiornata (testo semplice), nient'altro.";
             } catch (Throwable $e) {}
         }
 
-        // Fallback ad Apify
+        // Fallback ad socialcrawl
         $items = self::sourceItems($platform, $url, 1);
         if (empty($items)) {
             throw new Exception('Lo scraper non ha restituito contenuti validi per questo link');
