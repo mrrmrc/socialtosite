@@ -435,6 +435,12 @@ class AI {
         unset($config['_timeout']);
         $payload = ['contents' => [['parts' => $parts]]];
         if ($config) $payload['generationConfig'] = $config;
+        $payload['safetySettings'] = [
+            ['category' => 'HARM_CATEGORY_HARASSMENT', 'threshold' => 'BLOCK_NONE'],
+            ['category' => 'HARM_CATEGORY_HATE_SPEECH', 'threshold' => 'BLOCK_NONE'],
+            ['category' => 'HARM_CATEGORY_SEXUALLY_EXPLICIT', 'threshold' => 'BLOCK_NONE'],
+            ['category' => 'HARM_CATEGORY_DANGEROUS_CONTENT', 'threshold' => 'BLOCK_NONE'],
+        ];
 
         $ch = curl_init($url);
         curl_setopt_array($ch, [
@@ -868,6 +874,14 @@ Restituisci SOLO la nuova memoria aggiornata (testo semplice), nient'altro.";
         }
         
         Logger::info('socialcrawl', "Request OK", ['endpoint' => $endpoint, 'elapsed_s' => $elapsed]);
+        
+        if (isset($data['data']) && is_array($data['data'])) {
+            $data = $data['data'];
+        }
+        if (isset($data['posts']) && is_array($data['posts'])) {
+            $data = $data['posts'];
+        }
+        
         return is_array($data) ? $data : [];
     }
 
