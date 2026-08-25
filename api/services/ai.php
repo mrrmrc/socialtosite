@@ -1373,7 +1373,14 @@ Restituisci SOLO la nuova memoria aggiornata (testo semplice), nient'altro.";
 
         // Usa lo scraper locale Node.js (se disponibile) per Tiktok e Facebook, altrimenti usa socialcrawl
         $items = [];
-        if (function_exists('shell_exec')) {
+        
+        // Per la fase di discovery (limit > 0) su Facebook e Instagram, nodeScrape estrae solo gli URL senza didascalie,
+        // costringendo poi il sistema a fare N chiamate a socialCrawlResolve per ogni post.
+        // Se abbiamo la chiave SocialCrawl, preferiamo saltare nodeScrape e usare direttamente l'API 
+        // per avere i dati completi (didascalie e media) in un'unica chiamata.
+        $skipNodeDiscovery = ($limit > 0 && in_array($platform, ['facebook', 'instagram']) && defined('SOCIALCRAWL_API_KEY') && SOCIALCRAWL_API_KEY !== '');
+        
+        if (function_exists('shell_exec') && !$skipNodeDiscovery) {
             try {
                 $items = self::nodeScrape($platform, $url, $limit);
             } catch (Throwable $e) {
