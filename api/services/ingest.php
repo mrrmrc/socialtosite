@@ -379,22 +379,32 @@ class Ingest {
         // briefing è vuoto e il comportamento resta identico a prima.
         $searchDemand = VisibilityAnalytics::demandBriefing($userId, $post['slug'] ?? null);
 
+        // IL REVISORE EDITORIALE INTERNO: decide se il post è idoneo
+        $recentPosts = DB::fetchAll('SELECT generated_title, generated_excerpt, raw_content FROM posts WHERE user_id=? AND published=1 ORDER BY published_at DESC LIMIT 10', [$userId]);
+        $decision = AI::contentDecision($raw, $post['platform'], $post['source_url'] ?? '', $sourceContext, $recentPosts);
+        if (empty($decision['publish'])) {
+            $autoPublish = 0;
+            $agentNotes = 'Respinto dal revisore editoriale: ' . ($decision['reason'] ?? 'Non idoneo');
+        } else {
+            $agentNotes = 'Approvato dal revisore editoriale: ' . ($decision['reason'] ?? 'Idoneo');
+        }
+
         $seo = AI::harmonize($raw, $post['platform'], $post['raw_content'] ?? '', $sourceContext, $agentName, $accountType, $searchDemand, $length, $userId);
 
         DB::execute('
             UPDATE posts SET
               generated_title=?, generated_body=?, generated_excerpt=?,
-              tags=?, meta_description=?, seo_score=?, slug=?, published=?,
+              tags=?, meta_description=?, seo_score=?, slug=?, published=?, agent_notes=?,
               processing_status=\'done\', processing_started_at=NULL, processing_error=NULL
             WHERE id=? AND user_id=?
         ', [
             $seo['title'] ?? '', $seo['body'] ?? '', $seo['excerpt'] ?? '',
             json_encode($seo['tags'] ?? []), $seo['meta_description'] ?? '',
             $seo['seo_score'] ?? 0, slugify($seo['title'] ?? (string) $postId),
-            $autoPublish, $postId, $userId,
+            $autoPublish, $agentNotes, $postId, $userId,
         ]);
 
-        return ['id' => $postId, 'seo' => $seo];
+        return ['id' => $postId, 'seo' => $seo, 'decision' => $decision];
     }
 
     public static function recoverAsDraft(int $userId, int $postId, string $error = ''): array {
@@ -583,12 +593,12 @@ class Ingest {
                     }
                 }
 
-                // Se il DB è vuoto, ignoriamo la since_date per garantire l'import completo
+                // Rispettiamo la since_date se è stata configurata dall'utente.
                 $sourceSinceDate = !empty($source['since_date']) ? $source['since_date'] : null;
-                $effectiveSinceDate = $hasExistingPosts ? $sourceSinceDate : null;
+                $effectiveSinceDate = $sourceSinceDate;
                 
                 $autoPublish = (int)($source['auto_publish'] ?? 1);
-                $limit = !empty($source['max_posts']) ? (int)$source['max_posts'] : $limitPerSource;
+                $limit = !empty($source['max_posts']) ? (int)$source['max_posts'] : ($effectiveSinceDate ? 100 : $limitPerSource);
                 
                 Logger::info('scan', 'Scansione sorgente', [
                     'platform'          => $source['platform'],

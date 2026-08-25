@@ -1871,15 +1871,6 @@ Restituisci SOLO la nuova memoria aggiornata (testo semplice), nient'altro.";
             } catch (Throwable $e) {}
         }
 
-        // Fallback ad socialcrawl
-        $items = self::sourceItems($platform, $url, 1);
-        if (empty($items)) {
-            throw new Exception('Lo scraper non ha restituito contenuti validi per questo link');
-        }
-        $item = $items[0];
-        return [
-            'caption' => $item['caption'] ?? '',
-            'video'   => $item['media_type'] === 'video' ? $item['media_url'] : '',
             'image'   => $item['media_type'] === 'image' ? $item['media_url'] : '',
         ];
     }
