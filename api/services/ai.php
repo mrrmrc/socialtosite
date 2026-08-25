@@ -1320,55 +1320,50 @@ Restituisci SOLO la nuova memoria aggiornata (testo semplice), nient'altro.";
             throw new Exception('Piattaforma non gestita per la scansione');
         }
 
-        $instagramProviderErrors = [];
-
-        // Instagram: socialcrawl e' il percorso primario. Proviamo actor con motori
-        // differenti e accettiamo il risultato solo se contiene URL di post.
+        // Instagram: usiamo in modo esclusivo le API dirette di SocialCrawl
         if ($platform === 'instagram') {
             $canonicalUrl = self::canonicalInstagramProfileUrl($url);
             if ($canonicalUrl === '') throw new Exception('URL Instagram non valido: inserisci il link completo del profilo pubblico.');
-            $username = trim((string)parse_url($canonicalUrl, PHP_URL_PATH), '/');
             $fetchLimit = max($limit > 0 ? $limit * 3 : 30, 30);
-            $providers = [
-                ['actor' => 'socialcrawl/instagram-profile-scraper', 'timeout' => 75, 'input' => [
+            
+            $instagramProviderErrors = [];
+            
+            // Tentativo 1: API /instagram/posts
+            try {
+                $dataset = self::socialCrawlRequest('/instagram/posts', [
+                    'inputUrl' => $canonicalUrl,
+                    'maxPosts' => $fetchLimit,
+                ], 90);
+                $candidates = self::instagramPostCandidates($dataset, $canonicalUrl, $sinceDate);
+                if (!empty($candidates)) {
+                    return array_slice($candidates, 0, $limit > 0 ? $limit : null);
+                }
+                $instagramProviderErrors[] = "posts: dataset vuoto o nessun post valido";
+            } catch (Throwable $e) {
+                $instagramProviderErrors[] = "posts: " . $e->getMessage();
+            }
+
+            // Tentativo 2: API /instagram/profile
+            $username = trim((string)parse_url($canonicalUrl, PHP_URL_PATH), '/');
+            try {
+                $dataset = self::socialCrawlRequest('/instagram/profile', [
                     'usernames' => [$username],
                     'resultsLimit' => $fetchLimit,
-                ]],
-                ['actor' => 'socialcrawl/instagram-scraper', 'timeout' => 90, 'input' => [
-                    'directUrls' => [$canonicalUrl],
-                    'resultsType' => 'posts',
-                    'resultsLimit' => $fetchLimit,
-                    'skipPinnedPosts' => false,
-                ]],
-                ['actor' => 'scraper-engine/instagram-api-scraper', 'timeout' => 75, 'input' => [
-                    'directUrls' => [$canonicalUrl],
-                    'resultsType' => 'posts',
-                    'resultsLimit' => $fetchLimit,
-                    'addParentData' => true,
-                ]],
-            ];
-
-            Logger::info('socialcrawl', 'sourceItems Instagram start', ['url' => $canonicalUrl, 'limit' => $limit, 'sinceDate' => $sinceDate]);
-            foreach ($providers as $provider) {
-                try {
-                    $dataset = self::socialcrawlRun($provider['actor'], $provider['input'], $provider['timeout']);
-                    $candidates = self::instagramPostCandidates($dataset, $canonicalUrl, $sinceDate);
-                    Logger::info('socialcrawl', 'Instagram actor result', [
-                        'actor' => $provider['actor'],
-                        'dataset_items' => count($dataset),
-                        'valid_posts' => count($candidates),
-                    ]);
-                    if (!empty($candidates)) return array_slice($candidates, 0, $limit > 0 ? $limit : null);
-                    $instagramProviderErrors[] = $provider['actor'] . ': nessun post pubblico valido';
-                } catch (Throwable $e) {
-                    $instagramProviderErrors[] = $provider['actor'] . ': ' . $e->getMessage();
-                    Logger::warn('socialcrawl', 'Instagram actor fallito', ['actor' => $provider['actor'], 'url' => $canonicalUrl, 'error' => $e->getMessage()]);
+                ], 90);
+                $candidates = self::instagramPostCandidates($dataset, $canonicalUrl, $sinceDate);
+                if (!empty($candidates)) {
+                    return array_slice($candidates, 0, $limit > 0 ? $limit : null);
                 }
+                $instagramProviderErrors[] = "profile: dataset vuoto o nessun post valido";
+            } catch (Throwable $e) {
+                $instagramProviderErrors[] = "profile: " . $e->getMessage();
             }
-            Logger::warn('socialcrawl', 'Tutti gli actor Instagram senza risultati, provo fallback locale', [
+            
+            Logger::error('instagram', 'SocialCrawl ha restituito zero post', [
                 'url' => $canonicalUrl,
-                'errors' => array_slice($instagramProviderErrors, 0, 3),
+                'errors' => $instagramProviderErrors,
             ]);
+            throw new Exception("Instagram API error: impossibile estrarre i post. Verifica che il profilo sia pubblico.");
         }
 
         // Usa lo scraper locale Node.js (se disponibile) per Tiktok e Facebook, altrimenti usa socialcrawl
@@ -1380,9 +1375,7 @@ Restituisci SOLO la nuova memoria aggiornata (testo semplice), nient'altro.";
         // per avere i dati completi (didascalie e media) in un'unica chiamata.
         $skipNodeDiscovery = false;
         if ($limit > 0) {
-            if ($platform === 'facebook' && defined('SOCIALCRAWL_API_KEY') && SOCIALCRAWL_API_KEY !== '') {
-                $skipNodeDiscovery = true;
-            } elseif ($platform === 'instagram' && defined('APIFY_TOKEN') && APIFY_TOKEN !== '') {
+            if (in_array($platform, ['facebook', 'instagram']) && defined('SOCIALCRAWL_API_KEY') && SOCIALCRAWL_API_KEY !== '') {
                 $skipNodeDiscovery = true;
             }
         }
