@@ -3,6 +3,7 @@
 // Mantiene anche Whisper/Claude come alternative.
 require_once __DIR__ . '/../../config/config.php';
 if (file_exists(__DIR__ . '/../../config/keys.php')) require_once __DIR__ . '/../../config/keys.php';
+if (file_exists(__DIR__ . '/../../config/runtime-secrets.php')) require_once __DIR__ . '/../../config/runtime-secrets.php';
 if (file_exists(__DIR__ . '/../middleware/logger.php')) require_once __DIR__ . '/../middleware/logger.php';
 require_once __DIR__ . '/content_ideas.php';
 

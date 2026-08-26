@@ -839,16 +839,26 @@ const [importMsg, setImportMsg] = useState(null);
     setSyncing(true); setSyncMsg({ ok: true, text: 'Acquisizione post in corso...', loading: true });
     setAcquisitionModal({ status: 'working', title: 'Aggiorno i tuoi canali', text: "Cerco nuovi contenuti sui canali collegati. L'operazione può richiedere qualche minuto." });
     try {
-      await apiFetch('/api/index.php?action=sync', { 
+      const sync = await apiFetch('/api/index.php?action=sync', {
         method: 'POST', 
         body: JSON.stringify({ limit: parseInt(syncLimit) || 20 }) 
       }, token);
-      await processPendingLoop(false);
+      const results = Array.isArray(sync?.results) ? sync.results : [];
+      const errors = results.filter(result => result?.error).map(result => String(result.error));
+      const imported = results.reduce((sum, result) => sum + Number(result?.new || 0), 0);
+      if (errors.length > 0 && imported === 0) {
+        const message = `La scansione non ha funzionato: ${errors[0]}`;
+        setSyncMsg({ ok: false, text: message });
+        setAcquisitionModal({ status: 'error', title: 'Aggiornamento non riuscito', text: message });
+      } else {
+        await processPendingLoop(false);
+      }
     } catch (e) {
       setSyncMsg({ ok: false, text: e.message });
       setAcquisitionModal({ status: 'error', title: 'Aggiornamento non completato', text: e.message });
+    } finally {
+      setSyncing(false);
     }
-    setSyncing(false);
   }
 
   // Il piano Base deve mostrare un risultato reale il prima possibile. Al
@@ -867,6 +877,12 @@ const [importMsg, setImportMsg] = useState(null);
       const errors = results.filter(result => result?.error).map(result => result.error);
       const found = results.reduce((total, result) => total + Number(result?.found || 0), 0);
       const imported = results.reduce((total, result) => total + Number(result?.new || 0), 0);
+
+      if (errors.length > 0 && imported === 0) {
+        setBaseAcquisition({ status: 'error', message: `Il canale non ha potuto essere letto: ${errors[0]}` });
+        if (!automatic) setAcquisitionModal({ status: 'error', title: 'Acquisizione non riuscita', text: errors[0] });
+        return;
+      }
 
       // Questa lettura fa comparire subito i post grezzi: l'utente non deve
       // aspettare la riscrittura AI per avere la prova dell'acquisizione.
@@ -893,8 +909,6 @@ const [importMsg, setImportMsg] = useState(null);
       const total = fresh?.posts?.length || 0;
       if (total > 0) {
         setBaseAcquisition({ status: 'success', message: `${total} contenuti acquisiti. Il tuo spazio è pronto da esplorare.` });
-      } else if (errors.length) {
-        setBaseAcquisition({ status: 'error', message: `Il canale è collegato, ma non ha restituito contenuti: ${errors[0]}` });
       } else {
         setBaseAcquisition({ status: 'empty', message: 'Il canale non ha restituito contenuti pubblici. Controlla il collegamento o prova ad aggiornarlo.' });
       }
@@ -1026,10 +1040,19 @@ const [importMsg, setImportMsg] = useState(null);
     setScanMsg({ ok: true, text: 'Sincronizzazione manuale di tutti i canali attivi...', loading: true });
     setAcquisitionModal({ status: 'working', title: 'Sincronizzo tutti i canali', text: "Controllo ogni fonte collegata e acquisisco i nuovi contenuti. Puoi seguire qui l'avanzamento." });
     try {
-      await apiFetch('/api/index.php?action=sync', {
+      const sync = await apiFetch('/api/index.php?action=sync', {
         method: 'POST',
         body: JSON.stringify({ limit: parseInt(syncLimit) || 20 })
       }, token);
+      const results = Array.isArray(sync?.results) ? sync.results : [];
+      const errors = results.filter(result => result?.error).map(result => String(result.error));
+      const imported = results.reduce((sum, result) => sum + Number(result?.new || 0), 0);
+      if (errors.length > 0 && imported === 0) {
+        const message = `La scansione non ha funzionato: ${errors[0]}`;
+        setScanMsg({ ok: false, text: message, loading: false });
+        setAcquisitionModal({ status: 'error', title: 'Acquisizione non riuscita', text: message });
+        return;
+      }
       await processPendingLoop(true);
       await loadData();
     } catch (err) {
@@ -1054,6 +1077,7 @@ const [importMsg, setImportMsg] = useState(null);
     let totalDuplicates = 0;
     let totalErrors = 0;
     const importedIds = [];
+    const sourceErrorMessages = [];
 
     const scanSource = async (source, i) => {
       const sourceName = source.label || source.platform;
@@ -1085,6 +1109,7 @@ const [importMsg, setImportMsg] = useState(null);
         totalDuplicates += (r.duplicates || 0);
         if (Array.isArray(r.imported_ids)) importedIds.push(...r.imported_ids.map(Number));
         const errorsForSource = Array.isArray(r.errors) ? r.errors.length : 0;
+        if (errorsForSource > 0) sourceErrorMessages.push(...r.errors.map(error => String(error)));
         totalErrors += errorsForSource;
         const resultText = [
           `Trovati: ${r.found || 0}`,
@@ -1105,6 +1130,7 @@ const [importMsg, setImportMsg] = useState(null);
       } catch (err) {
         console.error("Errore scansione " + source.platform, err);
         totalErrors++;
+        sourceErrorMessages.push(err.message);
         setScanProgress(prev => prev.map(s => s.id === source.id ? {
           ...s,
           status: 'error',
@@ -1133,9 +1159,15 @@ const [importMsg, setImportMsg] = useState(null);
         : `Acquisizione completata. Nessun nuovo contenuto da elaborare. Duplicati: ${totalDuplicates}. Errori: ${totalErrors}.`,
       loading: importedIds.length > 0
     });
-    setTimeout(() => setScanProgress([]), 3000);
+    if (totalErrors === 0) setTimeout(() => setScanProgress([]), 3000);
     if (importedIds.length > 0) {
       await processPendingLoop(true, importedIds);
+    } else if (totalErrors > 0) {
+      setAcquisitionModal({
+        status: 'error',
+        title: 'Acquisizione non riuscita',
+        text: sourceErrorMessages[0] || 'I provider social non hanno restituito contenuti. Controlla la configurazione e riprova.'
+      });
     } else {
       setAcquisitionModal({ status: 'success', title: 'Canali aggiornati', text: 'Non sono stati trovati nuovi contenuti. Nessun articolo esistente è stato rigenerato.' });
     }

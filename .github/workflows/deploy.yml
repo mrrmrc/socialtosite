@@ -103,9 +103,12 @@ jobs:
           npm run build
 
       - name: Prepare production release
+        env:
+          RAPIDAPI_KEY: ${{ secrets.RAPIDAPI_KEY }}
         shell: bash
         run: |
           set -euo pipefail
+          : "${RAPIDAPI_KEY:?Set repository secret RAPIDAPI_KEY}"
           rm -rf release
           mkdir -p release
 
@@ -119,6 +122,10 @@ jobs:
 
           mkdir -p release/config
           cp config/db.php release/config/
+          RAPIDAPI_KEY_B64="$(printf '%s' "$RAPIDAPI_KEY" | base64 -w0)"
+          printf '%s\n' '<?php' \
+            "if (!defined('RAPIDAPI_KEY')) define('RAPIDAPI_KEY', base64_decode('$RAPIDAPI_KEY_B64'));" \
+            > release/config/runtime-secrets.php
           mkdir -p release/public/media
 
           if find release \( -name 'config.php' -o -name 'keys.php' -o -name '*.env' \

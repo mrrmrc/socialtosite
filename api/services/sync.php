@@ -452,15 +452,22 @@ class Sync {
                 $res = Ingest::scanSources($userId, $maxPosts, $site['profile_summary'] ?? '', $site['role_mission'] ?? '', $site['content_strategy'] ?? '', $src['id']);
                 
                 $imported = $res['imported'] ?? 0;
-                $duplicate = $res['duplicate'] ?? 0;
+                $duplicates = $res['duplicates'] ?? 0;
                 $scanErrors = array_values(array_filter($res['errors'] ?? []));
                 $scanError = $scanErrors ? mb_substr(implode(' | ', $scanErrors), 0, 2000) : null;
                 $totalNew += $imported;
 
-                $results[] = ['platform' => $src['platform'], 'new' => $imported, 'found' => $imported + $duplicate, 'error' => $scanError];
+                $results[] = [
+                    'platform' => $src['platform'],
+                    'new' => $imported,
+                    'found' => (int)($res['found'] ?? ($imported + $duplicates)),
+                    'duplicates' => $duplicates,
+                    'imported_ids' => array_values(array_map('intval', $res['imported_ids'] ?? [])),
+                    'error' => $scanError,
+                ];
 
                 DB::execute('INSERT INTO sync_log (user_id, platform, status, posts_found, posts_new, error) VALUES (?,?,?,?,?,?)', [
-                    $userId, $src['platform'], $scanError ? ($imported > 0 ? 'partial' : 'error') : 'ok', $imported + $duplicate, $imported, $scanError
+                    $userId, $src['platform'], $scanError ? ($imported > 0 ? 'partial' : 'error') : 'ok', (int)($res['found'] ?? ($imported + $duplicates)), $imported, $scanError
                 ]);
             } catch (Throwable $e) {
                 $error = mb_substr($e->getMessage(), 0, 2000);

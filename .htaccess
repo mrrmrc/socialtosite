@@ -55,7 +55,7 @@ RewriteCond %{REQUEST_URI} !^/(api|cron|db|frontend|public|node_modules|assets|l
 RewriteRule ^([^/]+)/([^/]+)/?$ public/site-professional.php?slug=$1&post=$2 [L,QSA]
 
 # ── Sicurezza: blocca accesso diretto a file sensibili ─────────────────────
-<FilesMatch "(?i)(config\.php|keys\.php|.*\.env|.*\.sql|.*\.example\.php)$">
+<FilesMatch "(?i)(config\.php|keys\.php|runtime-secrets\.php|.*\.env|.*\.sql|.*\.example\.php)$">
   Require all denied
 </FilesMatch>
 
