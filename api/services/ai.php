@@ -1887,11 +1887,15 @@ Restituisci SOLO la nuova memoria aggiornata (testo semplice), nient'altro.";
                         $videoData = $data[0];
                         $videoUrl = '';
                         if (!empty($videoData['video_files']) && is_array($videoData['video_files'])) {
-                            // sort by bandwidth descending
-                            usort($videoData['video_files'], function($a, $b) {
-                                return ($b['bandwidth'] ?? 0) <=> ($a['bandwidth'] ?? 0);
-                            });
-                            $videoUrl = $videoData['video_files'][0]['base_url'] ?? '';
+                            if (isset($videoData['video_files']['video_hd_file']) || isset($videoData['video_files']['video_sd_file'])) {
+                                $videoUrl = $videoData['video_files']['video_hd_file'] ?? $videoData['video_files']['video_sd_file'] ?? '';
+                            } else {
+                                // sort by bandwidth descending
+                                usort($videoData['video_files'], function($a, $b) {
+                                    return ($b['bandwidth'] ?? 0) <=> ($a['bandwidth'] ?? 0);
+                                });
+                                $videoUrl = $videoData['video_files'][0]['base_url'] ?? '';
+                            }
                         }
                         
                         $caption = '';
