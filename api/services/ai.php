@@ -1865,6 +1865,54 @@ Restituisci SOLO la nuova memoria aggiornata (testo semplice), nient'altro.";
     }
 
     public static function socialCrawlResolve(string $platform, string $url): array {
+        if ($platform === 'facebook') {
+            if (preg_match('~/(?:videos|watch|reel|reels)(?:/?\?v=|/)([\d]+)~i', $url, $m)) {
+                $videoId = $m[1];
+                $rapidApiKey = defined('RAPIDAPI_KEY') ? RAPIDAPI_KEY : '8869f727bamshd445c4fa1b0ac15p1e2845jsnc50f12b5538e'; // fallback to provided key
+                
+                $ch = curl_init("https://facebook-pages-scraper2.p.rapidapi.com/get_facebook_video_post_details?video_id=$videoId");
+                curl_setopt_array($ch, [
+                    CURLOPT_RETURNTRANSFER => true,
+                    CURLOPT_HTTPHEADER => [
+                        "x-rapidapi-host: facebook-pages-scraper2.p.rapidapi.com",
+                        "x-rapidapi-key: $rapidApiKey"
+                    ]
+                ]);
+                $res = curl_exec($ch);
+                curl_close($ch);
+                
+                if ($res) {
+                    $data = json_decode($res, true);
+                    if ($data && is_array($data) && !empty($data[0])) {
+                        $videoData = $data[0];
+                        $videoUrl = '';
+                        if (!empty($videoData['video_files']) && is_array($videoData['video_files'])) {
+                            // sort by bandwidth descending
+                            usort($videoData['video_files'], function($a, $b) {
+                                return ($b['bandwidth'] ?? 0) <=> ($a['bandwidth'] ?? 0);
+                            });
+                            $videoUrl = $videoData['video_files'][0]['base_url'] ?? '';
+                        }
+                        
+                        $caption = '';
+                        if (!empty($videoData['creation_story']['message_text'])) {
+                            $caption = $videoData['creation_story']['message_text'];
+                        } elseif (!empty($videoData['description'])) {
+                            $caption = $videoData['description'];
+                        }
+                        
+                        if ($caption || $videoUrl) {
+                            return [
+                                'caption' => $caption,
+                                'video' => $videoUrl,
+                                'image' => $videoData['preferred_thumbnail']['image_url'] ?? ''
+                            ];
+                        }
+                    }
+                }
+            }
+        }
+
         if (function_exists('shell_exec')) {
             try {
                 $it = self::nodeScrape($platform, $url, 0);
