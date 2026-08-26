@@ -27,7 +27,7 @@ define('ALLOWED_ORIGIN', BASE_URL);
 
 // Google Gemini — trascrizione video (anche da link YouTube) + armonizzazione.
 // Le chiavi AI vivono in config/keys.php (repo privato): vedi quel file.
-// GEMINI_API_KEY, GEMINI_MODEL, APIFY_TOKEN sono definiti lì.
+// GEMINI_API_KEY, GEMINI_MODEL, RAPIDAPI_KEY e SOCIALCRAWL_API_KEY sono definiti lì.
 
 // OpenAI — alternativa per Whisper (trascrizione). Opzionale.
 define('OPENAI_API_KEY', 'sk-...');

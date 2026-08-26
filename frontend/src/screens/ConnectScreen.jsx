@@ -117,7 +117,7 @@ export function ConnectScreen({ token, onDone }) {
           Iniziamo! Aggiungi i tuoi Social
         </h1>
         <p style={{ color: 'var(--text-muted)', fontSize: '18px', fontWeight: 500, lineHeight: 1.5 }}>
-          Incolla i link dei tuoi profili (Instagram, Facebook, TikTok, YouTube). Per Facebook e Instagram leggiamo direttamente i contenuti pubblici tramite Apify: non serve collegare un account Meta.
+          Incolla i link dei tuoi profili (Instagram, Facebook, TikTok, YouTube). Per Facebook e Instagram leggiamo direttamente i contenuti pubblici: non serve collegare un account Meta.
         </p>
       </div>
 

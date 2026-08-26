@@ -885,6 +885,302 @@ Restituisci SOLO la nuova memoria aggiornata (testo semplice), nient'altro.";
         return is_array($data) ? $data : [];
     }
 
+    private const RAPIDAPI_FACEBOOK_HOST = 'facebook-scraper7.p.rapidapi.com';
+    private const RAPIDAPI_INSTAGRAM_HOST = 'instagram39.p.rapidapi.com';
+    private const RAPIDAPI_TIKTOK_HOST = 'tiktok-api-fast-reliable-data-scraper.p.rapidapi.com';
+
+    private static function rapidApiFacebookKey(): string {
+        $key = defined('RAPIDAPI_KEY') ? trim((string)RAPIDAPI_KEY) : trim((string)(getenv('RAPIDAPI_KEY') ?: ''));
+        if ($key === '') {
+            throw new Exception('RAPIDAPI_KEY mancante in config/keys.php');
+        }
+        return $key;
+    }
+
+    private static function rapidApiFacebookRequest(string $endpoint, array $query = [], int $timeoutSeconds = 45): array {
+        $url = 'https://' . self::RAPIDAPI_FACEBOOK_HOST . $endpoint;
+        if ($query) $url .= '?' . http_build_query($query, '', '&', PHP_QUERY_RFC3986);
+
+        $ch = curl_init($url);
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_HTTPHEADER => [
+                'Accept: application/json',
+                'Content-Type: application/json',
+                'x-rapidapi-host: ' . self::RAPIDAPI_FACEBOOK_HOST,
+                'x-rapidapi-key: ' . self::rapidApiFacebookKey(),
+            ],
+            CURLOPT_TIMEOUT => $timeoutSeconds,
+            CURLOPT_SSL_VERIFYPEER => true,
+            CURLOPT_SSL_VERIFYHOST => 2,
+        ]);
+        $startedAt = microtime(true);
+        $response = curl_exec($ch);
+        $code = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $error = curl_error($ch);
+        curl_close($ch);
+        $elapsed = round(microtime(true) - $startedAt, 2);
+
+        if ($response === false) {
+            Logger::error('rapidapi', 'Errore di rete Facebook Scraper', ['endpoint' => $endpoint, 'error' => $error, 'elapsed_s' => $elapsed]);
+            throw new Exception("RapidAPI Facebook: errore di rete ($error)");
+        }
+
+        $data = json_decode($response, true);
+        if (!is_array($data)) {
+            Logger::error('rapidapi', 'Risposta JSON non valida', ['endpoint' => $endpoint, 'code' => $code, 'elapsed_s' => $elapsed]);
+            throw new Exception('RapidAPI Facebook: risposta JSON non valida');
+        }
+
+        $apiCode = isset($data['code']) ? (int)$data['code'] : $code;
+        $apiStatus = strtolower((string)($data['status'] ?? ''));
+        if ($code >= 400 || $apiCode >= 400 || $apiStatus === 'error' || !empty($data['error'])) {
+            $message = $data['message'] ?? $data['error'] ?? 'richiesta rifiutata';
+            if (is_array($message)) $message = $message['message'] ?? json_encode($message, JSON_UNESCAPED_UNICODE);
+            $message = mb_substr(trim((string)$message), 0, 240);
+            Logger::error('rapidapi', 'Facebook Scraper ha rifiutato la richiesta', [
+                'endpoint' => $endpoint,
+                'code' => $code ?: $apiCode,
+                'message' => $message,
+                'elapsed_s' => $elapsed,
+            ]);
+            throw new Exception('RapidAPI Facebook (' . ($code ?: $apiCode) . "): $message");
+        }
+
+        Logger::info('rapidapi', 'Facebook Scraper request OK', ['endpoint' => $endpoint, 'elapsed_s' => $elapsed]);
+        return $data;
+    }
+
+    private static function facebookRapidApiItems(string $profileUrl, int $limit, ?string $sinceDate = null): array {
+        $canonicalUrl = self::canonicalFacebookProfileUrl($profileUrl);
+        if ($canonicalUrl === '') throw new Exception('URL Facebook non valido');
+
+        $parts = parse_url($canonicalUrl);
+        $path = trim((string)($parts['path'] ?? ''), '/');
+        parse_str((string)($parts['query'] ?? ''), $query);
+        $numericId = $path === 'profile.php' ? trim((string)($query['id'] ?? '')) : '';
+        $username = $path !== 'profile.php' ? rawurldecode(explode('/', $path)[0] ?? '') : '';
+        $targets = [];
+        $errors = [];
+
+        if ($numericId !== '' && ctype_digit($numericId)) {
+            $targets[] = ['kind' => 'pages', 'id' => $numericId];
+            $targets[] = ['kind' => 'users', 'id' => $numericId];
+        } else {
+            try {
+                $resolved = self::rapidApiFacebookRequest('/api/pages/id', ['username' => $username]);
+                $id = trim((string)($resolved['data']['id'] ?? ''));
+                if ($id !== '') $targets[] = ['kind' => 'pages', 'id' => $id];
+                else $errors[] = 'pages/id: ID assente';
+            } catch (Throwable $e) {
+                $errors[] = 'pages/id: ' . $e->getMessage();
+            }
+
+            if (!$targets) {
+                try {
+                    $displayName = trim((string)preg_replace('/[._-]+/', ' ', $username));
+                    $resolved = self::rapidApiFacebookRequest('/api/users/id', ['name' => $displayName]);
+                    $id = trim((string)($resolved['data']['id'] ?? ''));
+                    if ($id !== '') $targets[] = ['kind' => 'users', 'id' => $id];
+                    else $errors[] = 'users/id: ID assente';
+                } catch (Throwable $e) {
+                    $errors[] = 'users/id: ' . $e->getMessage();
+                }
+            }
+        }
+
+        $wanted = max(1, $limit > 0 ? $limit : 20);
+        $sinceTimestamp = $sinceDate ? (int)strtotime($sinceDate) : 0;
+        foreach ($targets as $target) {
+            $items = [];
+            $cursor = '{}';
+            $seenCursors = [];
+            try {
+                for ($page = 0; $page < 5 && count($items) < $wanted; $page++) {
+                    if (isset($seenCursors[$cursor])) break;
+                    $seenCursors[$cursor] = true;
+                    $response = self::rapidApiFacebookRequest(
+                        '/api/' . $target['kind'] . '/' . rawurlencode($target['id']) . '/posts',
+                        ['cursor' => $cursor]
+                    );
+                    $posts = $response['data']['posts'] ?? [];
+                    if (!is_array($posts) || !$posts) break;
+
+                    foreach ($posts as $post) {
+                        if (!is_array($post)) continue;
+                        $createdAt = $post['creation_time'] ?? '';
+                        if ($sinceTimestamp > 0 && $createdAt !== '') {
+                            $postTimestamp = is_numeric($createdAt) ? (int)$createdAt : (int)strtotime((string)$createdAt);
+                            if ($postTimestamp > 0 && $postTimestamp < $sinceTimestamp) continue;
+                        }
+                        $postTimestamp = is_numeric($createdAt) ? (int)$createdAt : (int)strtotime((string)$createdAt);
+                        if ($postTimestamp > 20000000000) $postTimestamp = (int)floor($postTimestamp / 1000);
+                        $post['published_at'] = $postTimestamp > 0 ? date('Y-m-d H:i:s', $postTimestamp) : null;
+                        $items[] = $post;
+                        if (count($items) >= $wanted) break;
+                    }
+
+                    $nextCursor = trim((string)($response['data']['next_cursor'] ?? ''));
+                    if ($nextCursor === '' || $nextCursor === $cursor) break;
+                    $cursor = $nextCursor;
+                }
+            } catch (Throwable $e) {
+                $errors[] = $target['kind'] . '/posts: ' . $e->getMessage();
+                continue;
+            }
+            if ($items) return $items;
+            $errors[] = $target['kind'] . '/posts: nessun post pubblico';
+        }
+
+        throw new Exception('RapidAPI Facebook non ha restituito post: ' . implode(' | ', array_slice($errors, 0, 3)));
+    }
+
+    private static function rapidApiSocialRequest(
+        string $host,
+        string $endpoint,
+        array $query = [],
+        int $timeoutSeconds = 60,
+        string $provider = 'Social'
+    ): array {
+        $url = 'https://' . $host . $endpoint;
+        if ($query) $url .= '?' . http_build_query($query, '', '&', PHP_QUERY_RFC3986);
+
+        $ch = curl_init($url);
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_HTTPHEADER => [
+                'Accept: application/json',
+                'Content-Type: application/json',
+                'x-rapidapi-host: ' . $host,
+                'x-rapidapi-key: ' . self::rapidApiFacebookKey(),
+            ],
+            CURLOPT_TIMEOUT => $timeoutSeconds,
+            CURLOPT_SSL_VERIFYPEER => true,
+            CURLOPT_SSL_VERIFYHOST => 2,
+        ]);
+        $startedAt = microtime(true);
+        $response = curl_exec($ch);
+        $code = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $error = curl_error($ch);
+        curl_close($ch);
+        $elapsed = round(microtime(true) - $startedAt, 2);
+
+        if ($response === false) {
+            Logger::error('rapidapi', "Errore di rete $provider", ['endpoint' => $endpoint, 'error' => $error, 'elapsed_s' => $elapsed]);
+            throw new Exception("RapidAPI $provider: errore di rete ($error)");
+        }
+
+        $data = json_decode($response, true);
+        if (!is_array($data)) {
+            Logger::error('rapidapi', "Risposta JSON $provider non valida", ['endpoint' => $endpoint, 'code' => $code, 'elapsed_s' => $elapsed]);
+            throw new Exception("RapidAPI $provider: risposta JSON non valida");
+        }
+
+        $apiStatus = strtolower((string)($data['status'] ?? ''));
+        $apiCode = isset($data['status_code']) ? (int)$data['status_code'] : 0;
+        if ($code >= 400 || $apiStatus === 'error' || $apiCode >= 400 || !empty($data['error'])) {
+            $message = $data['message'] ?? $data['error'] ?? 'richiesta rifiutata';
+            if (is_array($message)) $message = $message['message'] ?? json_encode($message, JSON_UNESCAPED_UNICODE);
+            $message = mb_substr(trim((string)$message), 0, 240);
+            Logger::error('rapidapi', "$provider ha rifiutato la richiesta", [
+                'endpoint' => $endpoint,
+                'code' => $code ?: $apiCode,
+                'message' => $message,
+                'elapsed_s' => $elapsed,
+            ]);
+            throw new Exception("RapidAPI $provider (" . ($code ?: $apiCode) . "): $message");
+        }
+
+        Logger::info('rapidapi', "$provider request OK", ['endpoint' => $endpoint, 'elapsed_s' => $elapsed]);
+        return $data;
+    }
+
+    private static function instagramRapidApiItems(string $profileUrl, int $limit, ?string $sinceDate = null): array {
+        $canonicalUrl = self::canonicalInstagramProfileUrl($profileUrl);
+        if ($canonicalUrl === '') throw new Exception('URL Instagram non valido');
+        $username = trim((string)parse_url($canonicalUrl, PHP_URL_PATH), '/');
+
+        // Una sola pagina copre normalmente 12 post: evitiamo richieste extra
+        // per rispettare il piccolo hard limit del piano gratuito.
+        $response = self::rapidApiSocialRequest(
+            self::RAPIDAPI_INSTAGRAM_HOST,
+            '/getPostsByUsername',
+            ['username' => $username],
+            60,
+            'Instagram SocialMiner'
+        );
+
+        $edges = $response['edges']
+            ?? $response['data']['edges']
+            ?? $response['data']['user']['edge_owner_to_timeline_media']['edges']
+            ?? [];
+        if (!is_array($edges)) $edges = [];
+
+        $nodes = [];
+        foreach ($edges as $edge) {
+            if (!is_array($edge)) continue;
+            $node = isset($edge['node']) && is_array($edge['node']) ? $edge['node'] : $edge;
+            if ($node) $nodes[] = $node;
+        }
+
+        $items = self::instagramPostCandidates($nodes, $canonicalUrl, $sinceDate);
+        if (!$items) throw new Exception('RapidAPI Instagram non ha restituito post pubblici validi');
+        return array_slice($items, 0, $limit > 0 ? $limit : null);
+    }
+
+    private static function tiktokRapidApiItems(string $profileUrl, int $limit, ?string $sinceDate = null): array {
+        if (!preg_match('~(?:tiktok\.com/)?@([^/?#]+)~i', $profileUrl, $match)) {
+            throw new Exception('URL TikTok non valido: username non riconosciuto');
+        }
+        $username = rawurldecode($match[1]);
+        $response = self::rapidApiSocialRequest(
+            self::RAPIDAPI_TIKTOK_HOST,
+            '/user/' . rawurlencode($username) . '/feed',
+            ['max_cursor' => '0', 'min_cursor' => '0'],
+            60,
+            'TikTok MediaCrawlers'
+        );
+
+        $posts = $response['aweme_list'] ?? $response['data']['aweme_list'] ?? $response['data']['items'] ?? [];
+        if (!is_array($posts)) $posts = [];
+        $sinceTimestamp = $sinceDate ? (int)strtotime($sinceDate) : 0;
+        $items = [];
+
+        foreach ($posts as $post) {
+            if (!is_array($post)) continue;
+            $createdAt = (int)($post['create_time'] ?? 0);
+            if ($sinceTimestamp > 0 && $createdAt > 0 && $createdAt < $sinceTimestamp) continue;
+
+            $postId = trim((string)($post['aweme_id'] ?? $post['id'] ?? ''));
+            $sourceUrl = trim((string)($post['share_info']['share_url'] ?? ''));
+            if ($sourceUrl === '' && $postId !== '') {
+                $sourceUrl = 'https://www.tiktok.com/@' . rawurlencode($username) . '/video/' . rawurlencode($postId);
+            }
+            if ($sourceUrl === '') continue;
+
+            $videoUrl = '';
+            foreach (['play_addr', 'download_addr'] as $addressKey) {
+                $urls = $post['video'][$addressKey]['url_list'] ?? [];
+                if (is_array($urls) && !empty($urls[0]) && is_string($urls[0])) {
+                    $videoUrl = $urls[0];
+                    break;
+                }
+            }
+
+            $items[] = [
+                'url' => $sourceUrl,
+                'caption' => trim((string)($post['desc'] ?? '')),
+                'mediaUrl' => $videoUrl,
+                'media_type' => 'video',
+                'published_at' => $createdAt > 0 ? date('Y-m-d H:i:s', $createdAt) : null,
+            ];
+            if ($limit > 0 && count($items) >= $limit) break;
+        }
+
+        if (!$items) throw new Exception('RapidAPI TikTok non ha restituito video pubblici validi');
+        return $items;
+    }
+
     // ── Cerca ricorsivamente il primo URL video plausibile in un item ──────
     private static function findMediaUrl($node, $ignoreKeys = ['author', 'owner', 'user', 'profile']): string {
         if (is_string($node)) {
@@ -1056,7 +1352,7 @@ Restituisci SOLO la nuova memoria aggiornata (testo semplice), nient'altro.";
                 continue;
             }
 
-            $timestamp = $item['timestamp'] ?? $item['takenAtTimestamp'] ?? $item['takenAt'] ?? $item['takenAtIso'] ?? '';
+            $timestamp = $item['timestamp'] ?? $item['taken_at'] ?? $item['takenAtTimestamp'] ?? $item['takenAt'] ?? $item['takenAtIso'] ?? '';
             if ($sinceTimestamp > 0 && $timestamp !== '') {
                 $postTimestamp = is_numeric($timestamp) ? (int)$timestamp : strtotime((string)$timestamp);
                 if ($postTimestamp > 20000000000) $postTimestamp = (int)floor($postTimestamp / 1000);
@@ -1065,15 +1361,36 @@ Restituisci SOLO la nuova memoria aggiornata (testo semplice), nient'altro.";
 
             $caption = $item['caption'] ?? $item['text'] ?? $item['description'] ?? $item['alt'] ?? '';
             if (is_array($caption)) $caption = $caption['text'] ?? '';
-            $mediaUrl = $item['videoUrl'] ?? $item['video_url'] ?? $item['displayUrl'] ?? $item['imageUrl'] ?? $item['thumbnailUrl'] ?? '';
+            $mediaUrl = $item['videoUrl']
+                ?? $item['video_url']
+                ?? $item['video_versions'][0]['url']
+                ?? $item['image_versions2']['candidates'][0]['url']
+                ?? $item['display_uri']
+                ?? $item['displayUrl']
+                ?? $item['imageUrl']
+                ?? $item['thumbnailUrl']
+                ?? '';
             if ($mediaUrl === '') $mediaUrl = self::findMediaUrl($item) ?: self::findImageUrl($item);
 
+            $isVideo = !empty($item['videoUrl'])
+                || !empty($item['video_url'])
+                || !empty($item['video_versions'])
+                || (int)($item['media_type'] ?? 0) === 2
+                || preg_match('/\.(mp4|mov|webm)(?:\?|$)/i', (string)$mediaUrl);
+
             $seen[$normalized] = true;
+            $publishedTimestamp = 0;
+            if ($timestamp !== '') {
+                $publishedTimestamp = is_numeric($timestamp) ? (int)$timestamp : (int)strtotime((string)$timestamp);
+                if ($publishedTimestamp > 20000000000) $publishedTimestamp = (int)floor($publishedTimestamp / 1000);
+            }
+
             $out[] = [
                 'url' => $postUrl,
                 'caption' => is_string($caption) ? $caption : '',
                 'media_url' => is_string($mediaUrl) ? $mediaUrl : '',
-                'media_type' => (!empty($item['videoUrl']) || !empty($item['video_url']) || preg_match('/\.(mp4|mov|webm)(?:\?|$)/i', (string)$mediaUrl)) ? 'video' : 'image',
+                'media_type' => $isVideo ? 'video' : 'image',
+                'published_at' => $publishedTimestamp > 0 ? date('Y-m-d H:i:s', $publishedTimestamp) : null,
             ];
         }
         return $out;
@@ -1320,13 +1637,27 @@ Restituisci SOLO la nuova memoria aggiornata (testo semplice), nient'altro.";
             throw new Exception('Piattaforma non gestita per la scansione');
         }
 
-        // Instagram: usiamo in modo esclusivo le API dirette di SocialCrawl
+        // Instagram: RapidAPI SocialMiner e, se necessario, SocialCrawl.
         if ($platform === 'instagram') {
             $canonicalUrl = self::canonicalInstagramProfileUrl($url);
             if ($canonicalUrl === '') throw new Exception('URL Instagram non valido: inserisci il link completo del profilo pubblico.');
             $fetchLimit = max($limit > 0 ? $limit * 3 : 30, 30);
-            
+
             $instagramProviderErrors = [];
+
+            if ((defined('RAPIDAPI_KEY') && trim((string)RAPIDAPI_KEY) !== '') || trim((string)(getenv('RAPIDAPI_KEY') ?: '')) !== '') {
+                try {
+                    return self::instagramRapidApiItems($canonicalUrl, $limit, $sinceDate);
+                } catch (Throwable $e) {
+                    $instagramProviderErrors[] = 'rapidapi: ' . $e->getMessage();
+                    Logger::warn('rapidapi', 'Acquisizione Instagram fallita, provo SocialCrawl', [
+                        'url' => $canonicalUrl,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
+            } else {
+                $instagramProviderErrors[] = 'rapidapi: RAPIDAPI_KEY non configurata';
+            }
             
             // Tentativo 1: API /instagram/posts
             try {
@@ -1366,19 +1697,45 @@ Restituisci SOLO la nuova memoria aggiornata (testo semplice), nient'altro.";
             throw new Exception("Instagram API error: impossibile estrarre i post. Verifica che il profilo sia pubblico.");
         }
 
-        // Usa lo scraper locale Node.js (se disponibile) per Tiktok e Facebook, altrimenti usa socialcrawl
+        // Facebook usa prima RapidAPI; Node e SocialCrawl restano reti di sicurezza.
         $items = [];
+        $providerErrors = [];
+        $facebookCanonicalUrl = '';
+
+        if ($platform === 'facebook') {
+            $facebookCanonicalUrl = self::canonicalFacebookProfileUrl($url);
+            if ($facebookCanonicalUrl === '') throw new Exception('URL Facebook non valido: impossibile riconoscere il profilo.');
+            if ((defined('RAPIDAPI_KEY') && trim((string)RAPIDAPI_KEY) !== '') || trim((string)(getenv('RAPIDAPI_KEY') ?: '')) !== '') {
+                try {
+                    $items = self::facebookRapidApiItems($facebookCanonicalUrl, $limit, $sinceDate);
+                } catch (Throwable $e) {
+                    $providerErrors[] = 'rapidapi: ' . $e->getMessage();
+                    Logger::warn('rapidapi', 'Acquisizione Facebook fallita, provo i fallback', ['url' => $facebookCanonicalUrl, 'error' => $e->getMessage()]);
+                }
+            } else {
+                $providerErrors[] = 'rapidapi: RAPIDAPI_KEY non configurata';
+            }
+        } elseif ($platform === 'tiktok') {
+            if ((defined('RAPIDAPI_KEY') && trim((string)RAPIDAPI_KEY) !== '') || trim((string)(getenv('RAPIDAPI_KEY') ?: '')) !== '') {
+                try {
+                    $items = self::tiktokRapidApiItems($url, $limit, $sinceDate);
+                } catch (Throwable $e) {
+                    $providerErrors[] = 'rapidapi: ' . $e->getMessage();
+                    Logger::warn('rapidapi', 'Acquisizione TikTok fallita, provo i fallback', [
+                        'url' => $url,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
+            } else {
+                $providerErrors[] = 'rapidapi: RAPIDAPI_KEY non configurata';
+            }
+        }
         
         // Per la fase di discovery (limit > 0) su Facebook e Instagram, nodeScrape estrae solo gli URL senza didascalie,
         // costringendo poi il sistema a fare N chiamate a socialCrawlResolve per ogni post.
         // Se abbiamo la chiave giusta configurata, preferiamo saltare nodeScrape e usare direttamente l'API 
         // per avere i dati completi (didascalie e media) in un'unica chiamata.
-        $skipNodeDiscovery = false;
-        if ($limit > 0) {
-            if (in_array($platform, ['facebook', 'instagram']) && defined('SOCIALCRAWL_API_KEY') && SOCIALCRAWL_API_KEY !== '') {
-                $skipNodeDiscovery = true;
-            }
-        }
+        $skipNodeDiscovery = !empty($items);
         
         if (function_exists('shell_exec') && !$skipNodeDiscovery) {
             try {
@@ -1389,20 +1746,16 @@ Restituisci SOLO la nuova memoria aggiornata (testo semplice), nient'altro.";
             }
         }
 
-        $facebookCanonicalUrl = '';
         if ($platform === 'facebook') {
-            $facebookCanonicalUrl = self::canonicalFacebookProfileUrl($url);
-            if ($facebookCanonicalUrl === '') throw new Exception('URL Facebook non valido: impossibile riconoscere il profilo.');
             // Conta soltanto URL di post reali: una risposta contenente la sola
             // scheda profilo non deve impedire l'esecuzione dei fallback.
             $items = self::facebookPostCandidates($items, $facebookCanonicalUrl);
         }
 
-        if (empty($items) || (defined('socialcrawl_TOKEN') && socialcrawl_TOKEN !== '' && count($items) < min(4, $limit))) {
-            // Fallback ad socialcrawl se shell_exec non e' disponibile o bloccato da login wall
+        if (empty($items)) {
+            // Fallback a SocialCrawl se RapidAPI e lo scraper locale non sono disponibili.
             if ($platform === 'facebook') {
                 $canonicalUrl = $facebookCanonicalUrl;
-                $providerErrors = [];
                 $postInput = [
                     'startUrls' => [['url' => $canonicalUrl]],
                     'resultsLimit' => $limit ?: 20,
@@ -1411,7 +1764,7 @@ Restituisci SOLO la nuova memoria aggiornata (testo semplice), nient'altro.";
                     $postInput['onlyPostsNewerThan'] = $sinceDate;
                 }
 
-                // 1) Actor ufficiale per post. Un dataset vuoto o composto solo
+                // 1) Endpoint principale per post. Un dataset vuoto o composto solo
                 // dal profilo non e' un successo: proseguiamo con gli altri
                 // provider invece di restituire erroneamente "zero post".
                 if (count($items) < min(2, max(1, $limit))) {
@@ -1424,8 +1777,8 @@ Restituisci SOLO la nuova memoria aggiornata (testo semplice), nient'altro.";
                     }
                 }
 
-                // 2) Il pages actor a volte include latestPosts/pagePosts anche
-                // quando il posts actor non riesce a risolvere un profilo
+                // 2) Il profilo a volte include latestPosts/pagePosts anche
+                // quando l'endpoint posts non riesce a risolvere un profilo
                 // professionale personale come /twoemme/.
                 if (count($items) < min(2, max(1, $limit))) {
                     try {
@@ -1440,7 +1793,7 @@ Restituisci SOLO la nuova memoria aggiornata (testo semplice), nient'altro.";
                     }
                 }
 
-                // 3) Provider indipendente: usa un motore differente e copre i
+                // 3) Payload alternativo: copre i
                 // profili che Facebook serve solo con una fingerprint browser.
                 if (empty($items)) {
                     try {
@@ -1517,7 +1870,10 @@ Restituisci SOLO la nuova memoria aggiornata (testo semplice), nient'altro.";
             $mediaUrl = self::findMediaUrl($item);
             if (!$mediaUrl && !empty($item['mediaUrl'])) $mediaUrl = $item['mediaUrl'];
             
-            $mediaType = $mediaUrl && preg_match('/\.mp4/i', $mediaUrl) ? 'video' : ($mediaUrl ? 'image' : 'text');
+            $declaredMediaType = strtolower(trim((string)($item['media_type'] ?? '')));
+            $mediaType = in_array($declaredMediaType, ['video', 'image', 'text'], true)
+                ? $declaredMediaType
+                : ($mediaUrl && preg_match('/\.mp4/i', $mediaUrl) ? 'video' : ($mediaUrl ? 'image' : 'text'));
             if (!$mediaUrl) {
                 $mediaUrl = self::findImageUrl($item);
                 if ($mediaUrl) $mediaType = 'image';
@@ -1527,7 +1883,8 @@ Restituisci SOLO la nuova memoria aggiornata (testo semplice), nient'altro.";
                 'url' => $sourceUrl,
                 'caption' => $caption,
                 'media_url' => $mediaUrl,
-                'media_type' => $mediaType
+                'media_type' => $mediaType,
+                'published_at' => $item['published_at'] ?? null,
             ];
             if ($limit > 0 && count($out) >= $limit) break;
         }
@@ -1865,58 +2222,6 @@ Restituisci SOLO la nuova memoria aggiornata (testo semplice), nient'altro.";
     }
 
     public static function socialCrawlResolve(string $platform, string $url): array {
-        if ($platform === 'facebook') {
-            if (preg_match('~/(?:videos|watch|reel|reels)(?:/?\?v=|/)([\d]+)~i', $url, $m)) {
-                $videoId = $m[1];
-                $rapidApiKey = defined('RAPIDAPI_KEY') ? RAPIDAPI_KEY : '8869f727bamshd445c4fa1b0ac15p1e2845jsnc50f12b5538e'; // fallback to provided key
-                
-                $ch = curl_init("https://facebook-pages-scraper2.p.rapidapi.com/get_facebook_video_post_details?video_id=$videoId");
-                curl_setopt_array($ch, [
-                    CURLOPT_RETURNTRANSFER => true,
-                    CURLOPT_HTTPHEADER => [
-                        "x-rapidapi-host: facebook-pages-scraper2.p.rapidapi.com",
-                        "x-rapidapi-key: $rapidApiKey"
-                    ]
-                ]);
-                $res = curl_exec($ch);
-                curl_close($ch);
-                
-                if ($res) {
-                    $data = json_decode($res, true);
-                    if ($data && is_array($data) && !empty($data[0])) {
-                        $videoData = $data[0];
-                        $videoUrl = '';
-                        if (!empty($videoData['video_files']) && is_array($videoData['video_files'])) {
-                            if (isset($videoData['video_files']['video_hd_file']) || isset($videoData['video_files']['video_sd_file'])) {
-                                $videoUrl = $videoData['video_files']['video_hd_file'] ?? $videoData['video_files']['video_sd_file'] ?? '';
-                            } else {
-                                // sort by bandwidth descending
-                                usort($videoData['video_files'], function($a, $b) {
-                                    return ($b['bandwidth'] ?? 0) <=> ($a['bandwidth'] ?? 0);
-                                });
-                                $videoUrl = $videoData['video_files'][0]['base_url'] ?? '';
-                            }
-                        }
-                        
-                        $caption = '';
-                        if (!empty($videoData['creation_story']['message_text'])) {
-                            $caption = $videoData['creation_story']['message_text'];
-                        } elseif (!empty($videoData['description'])) {
-                            $caption = $videoData['description'];
-                        }
-                        
-                        if ($caption || $videoUrl) {
-                            return [
-                                'caption' => $caption,
-                                'video' => $videoUrl,
-                                'image' => $videoData['preferred_thumbnail']['image_url'] ?? ''
-                            ];
-                        }
-                    }
-                }
-            }
-        }
-
         if (function_exists('shell_exec')) {
             try {
                 $it = self::nodeScrape($platform, $url, 0);
@@ -1930,7 +2235,10 @@ Restituisci SOLO la nuova memoria aggiornata (testo semplice), nient'altro.";
             } catch (Throwable $e) {}
         }
 
-            'image'   => $item['media_type'] === 'image' ? $item['media_url'] : '',
+        return [
+            'caption' => '',
+            'video' => '',
+            'image' => '',
         ];
     }
 

@@ -22,8 +22,8 @@ define('OPENAI_API_KEY', envValue('OPENAI_API_KEY'));
 define('ANTHROPIC_API_KEY', envValue('ANTHROPIC_API_KEY'));
 define('GEMINI_API_KEY', envValue('GEMINI_API_KEY'));
 define('GEMINI_MODEL', envValue('GEMINI_MODEL', 'gemini-2.5-flash'));
+define('RAPIDAPI_KEY', envValue('RAPIDAPI_KEY'));
 define('SOCIALCRAWL_API_KEY', envValue('SOCIALCRAWL_API_KEY'));
-define('APIFY_TOKEN', envValue('APIFY_TOKEN')); // DEPRECATO
 
 define('META_APP_ID', envValue('META_APP_ID'));
 define('META_APP_SECRET', envValue('META_APP_SECRET'));

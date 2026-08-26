@@ -1441,7 +1441,7 @@ if ($action === 'repair-media' && $method === 'POST') {
 if ($action === 'social-auth-url' && $method === 'GET') {
     $platform = $_GET['platform'] ?? '';
     if (in_array($platform, ['facebook', 'instagram', 'instagram_login'], true)) {
-        jsonError('Facebook e Instagram non richiedono piu\' Meta Graph API: aggiungi il link pubblico del profilo, che verra\' acquisito tramite Apify.');
+        jsonError('Facebook e Instagram non richiedono piu\' Meta Graph API: aggiungi il link pubblico del profilo, che verra\' acquisito dai provider configurati.');
     }
     $state    = base64_encode(json_encode(['userId' => $userId, 'platform' => $platform]));
     $urls = [

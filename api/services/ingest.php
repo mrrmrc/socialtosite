@@ -201,7 +201,7 @@ class Ingest {
                 }
             }
         } else {
-            // TikTok / Instagram / Facebook: se non abbiamo i dati dal prefetched, usa Apify
+            // TikTok / Instagram / Facebook: risoluzione del singolo contenuto quando il discovery non ha già fornito i dati.
             if (empty($caption) && empty($prefetched['media_url'])) {
                 $r       = AI::socialCrawlResolve($platform, $url);
                 $caption = $r['caption'] ?? '';
@@ -260,7 +260,7 @@ class Ingest {
         ', [
             $userId, $platform, $postId,
             $caption, $transcript,
-            $mediaUrl, $mediaType, $url, date('Y-m-d H:i:s'), $contentHash,
+            $mediaUrl, $mediaType, $url, $prefetched['published_at'] ?? date('Y-m-d H:i:s'), $contentHash,
         ]);
 
         return [

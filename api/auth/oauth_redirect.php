@@ -6,7 +6,7 @@ $platform = $_GET['platform'] ?? '';
 
 if (in_array($platform, ['facebook', 'instagram', 'instagram_personal', 'instagram_login'], true)) {
     http_response_code(410);
-    echo "Facebook e Instagram non usano piu' Meta Graph API. Torna all'applicazione e incolla il link pubblico del profilo: i contenuti saranno acquisiti tramite Apify.";
+    echo "Facebook e Instagram non usano piu' Meta Graph API. Torna all'applicazione e incolla il link pubblico del profilo: i contenuti saranno acquisiti dai provider configurati.";
     exit;
 }
 

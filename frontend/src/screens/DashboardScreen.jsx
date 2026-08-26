@@ -435,10 +435,6 @@ export function DashboardScreen({ token, user, onLogout }) {
   const [publishingPostId, setPublishingPostId] = useState(null);
   const [syncing, setSyncing] = useState(false);
 
-  const [viewMode, setViewMode] = useState('grid');
-  const [selectedPosts, setSelectedPosts] = useState([]);
-  const [publishingPostId, setPublishingPostId] = useState(null);
-  const [syncing, setSyncing] = useState(false);
   const [linkUrl, setLinkUrl] = useState('');
   const [importing, setImporting] = useState(false);
 const [importMsg, setImportMsg] = useState(null);
@@ -2489,6 +2485,75 @@ const [importMsg, setImportMsg] = useState(null);
           sources.forEach(s => {
             // Evita duplicati se c'è già un OAuth per la stessa piattaforma
             const hasOAuth = connections.some(c => c.active && !['facebook', 'instagram', 'instagram_login'].includes(c.platform) && c.platform === s.platform);
+            allChannels.push({
+              key: 'src_' + s.id,
+              type: 'scraping',
+              platform: s.platform,
+              rawPlatform: s.platform,
+              sourceId: s.id,
+              url: s.url,
+              label: s.label,
+              since_date: s.since_date,
+              auto_publish: s.auto_publish,
+              auto_sync: s.auto_sync,
+              max_posts: s.max_posts,
+              content_count: Number(s.content_count || 0),
+              published_count: Number(s.published_count || 0),
+              draft_count: Number(s.draft_count || 0),
+              processing_count: Number(s.processing_count || 0),
+              failed_count: Number(s.failed_count || 0),
+              last_content_at: s.last_content_at || null,
+              topic_summary: s.topic_summary,
+              hasDuplicateOAuth: hasOAuth,
+            });
+          });
+
+          const detectedPlatform = detectPlatformFromUrl(addUrl);
+          const trackedPlatforms = new Set(allChannels.map(channel => channel.platform));
+          const acquiredPosts = posts.filter(post => trackedPlatforms.has(post.platform === 'instagram_login' ? 'instagram' : post.platform));
+          const newestChannelDate = allChannels.map(channel => channel.last_content_at).filter(Boolean).sort().reverse()[0] || null;
+
+          return (
+            <div className="channels-workspace">
+
+              <section className="channels-hero">
+                <div><span>Acquisizione contenuti</span><h2>{allChannels.length ? `${allChannels.length} canali sotto controllo` : 'Collega il primo canale'}</h2><p>Qui vedi subito quanto materiale è stato acquisito e quando è arrivato l'ultimo contenuto.</p></div>
+                <div className="channels-hero-metrics"><div><strong>{acquiredPosts.length}</strong><span>contenuti acquisiti</span></div><div><strong>{newestChannelDate ? new Date(newestChannelDate).toLocaleDateString('it-IT') : '—'}</strong><span>ultimo contenuto</span></div></div>
+              </section>
+
+              {/* Form Aggiungi Canale */}
+              <details className="card channel-add-panel" open={allChannels.length === 0}>
+                <summary>+ Aggiungi un nuovo canale</summary>
+                <div className="channel-add-body">
+                <h2 style={{ marginBottom: '0.5rem', fontSize: '18px' }}>➕ Aggiungi un canale</h2>
+                <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '1.25rem' }}>
+                  Incolla il link del tuo profilo social o del tuo sito web. Il sistema riconosce automaticamente la piattaforma e importa i tuoi contenuti.
+                </p>
+                <form onSubmit={handleAddChannel} style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  <div style={{ position: 'relative' }}>
+                    <input
+                      className="channel-url-input"
+                      type="url"
+                      placeholder="https://www.instagram.com/nomeutente/ oppure https://tuosito.it"
+                      value={addUrl}
+                      onChange={e => { setAddUrl(e.target.value); setAddMsg(null); }}
+                      style={{ paddingLeft: detectedPlatform ? '40px' : '16px', transition: 'padding 0.2s' }}
+                    />
+                    {detectedPlatform && (
+                      <span style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}>
+                        <img src={SOCIAL[detectedPlatform]?.icon || ''} alt="" style={{ width: 18, height: 18 }} />
+                      </span>
+                    )}
+                  </div>
+                  {detectedPlatform && (
+                    <div style={{ fontSize: '12px', color: 'var(--text-muted)', padding: '6px 10px', background: 'var(--purple-light)', borderRadius: 'var(--radius-sm)' }}>
+                      ✓ Rilevato: <strong>{SOCIAL[detectedPlatform]?.label || detectedPlatform}</strong> — {PLATFORM_DESCRIPTIONS[detectedPlatform] || ''}
+                    </div>
+                  )}
+                  <input
+                    type="text"
+                    placeholder="Etichetta (opzionale) — Es: Il mio account principale"
+                    value={addLabel}
                     onChange={e => setAddLabel(e.target.value)}
                   />
                   <button type="submit" className="btn btn-primary" disabled={addLoading || !addUrl.trim()} style={{ alignSelf: 'flex-start', padding: '10px 24px' }}>
@@ -2506,7 +2571,7 @@ const [importMsg, setImportMsg] = useState(null);
                 {/* Connessione ufficiale mantenuta soltanto per YouTube. */}
                 <div style={{ marginTop: '1.5rem', paddingTop: '1rem', borderTop: '1px solid var(--border)' }}>
                   <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                    Per YouTube puoi anche usare l'accesso ufficiale. Facebook e Instagram funzionano tramite link pubblico e Apify.
+                    Per YouTube puoi anche usare l'accesso ufficiale. Facebook e Instagram funzionano tramite link pubblico.
                   </div>
                   <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
                     {['youtube'].map(platform => {
