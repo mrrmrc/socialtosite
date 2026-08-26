@@ -886,14 +886,14 @@ Restituisci SOLO la nuova memoria aggiornata (testo semplice), nient'altro.";
         return is_array($data) ? $data : [];
     }
 
-    private const RAPIDAPI_FACEBOOK_HOST = 'facebook-scraper7.p.rapidapi.com';
+    private const RAPIDAPI_FACEBOOK_HOST = 'facebook-scraper3.p.rapidapi.com';
     private const RAPIDAPI_INSTAGRAM_HOST = 'instagram39.p.rapidapi.com';
     private const RAPIDAPI_TIKTOK_HOST = 'tiktok-api-fast-reliable-data-scraper.p.rapidapi.com';
 
     private static function rapidApiFacebookKey(): string {
         $key = defined('RAPIDAPI_KEY') ? trim((string)RAPIDAPI_KEY) : trim((string)(getenv('RAPIDAPI_KEY') ?: ''));
         if ($key === '') {
-            throw new Exception('RAPIDAPI_KEY mancante in config/keys.php');
+            throw new Exception('RAPIDAPI_KEY non configurata');
         }
         return $key;
     }
@@ -959,81 +959,35 @@ Restituisci SOLO la nuova memoria aggiornata (testo semplice), nient'altro.";
         $parts = parse_url($canonicalUrl);
         $path = trim((string)($parts['path'] ?? ''), '/');
         parse_str((string)($parts['query'] ?? ''), $query);
-        $numericId = $path === 'profile.php' ? trim((string)($query['id'] ?? '')) : '';
-        $username = $path !== 'profile.php' ? rawurldecode(explode('/', $path)[0] ?? '') : '';
-        $targets = [];
-        $errors = [];
+        $pageId = $path === 'profile.php' ? trim((string)($query['id'] ?? '')) : '';
 
-        if ($numericId !== '' && ctype_digit($numericId)) {
-            $targets[] = ['kind' => 'pages', 'id' => $numericId];
-            $targets[] = ['kind' => 'users', 'id' => $numericId];
-        } else {
-            try {
-                $resolved = self::rapidApiFacebookRequest('/api/pages/id', ['username' => $username]);
-                $id = trim((string)($resolved['data']['id'] ?? ''));
-                if ($id !== '') $targets[] = ['kind' => 'pages', 'id' => $id];
-                else $errors[] = 'pages/id: ID assente';
-            } catch (Throwable $e) {
-                $errors[] = 'pages/id: ' . $e->getMessage();
-            }
-
-            if (!$targets) {
-                try {
-                    $displayName = trim((string)preg_replace('/[._-]+/', ' ', $username));
-                    $resolved = self::rapidApiFacebookRequest('/api/users/id', ['name' => $displayName]);
-                    $id = trim((string)($resolved['data']['id'] ?? ''));
-                    if ($id !== '') $targets[] = ['kind' => 'users', 'id' => $id];
-                    else $errors[] = 'users/id: ID assente';
-                } catch (Throwable $e) {
-                    $errors[] = 'users/id: ' . $e->getMessage();
-                }
-            }
+        if ($pageId === '') {
+            $resolved = self::rapidApiFacebookRequest('/page/page_id', [
+                'url' => rtrim($canonicalUrl, '/'),
+            ]);
+            $pageId = trim((string)($resolved['page_id'] ?? $resolved['data']['page_id'] ?? ''));
         }
+        if ($pageId === '') throw new Exception('RapidAPI Facebook non ha risolto la pagina');
 
         $wanted = max(1, $limit > 0 ? $limit : 20);
         $sinceTimestamp = $sinceDate ? (int)strtotime($sinceDate) : 0;
-        foreach ($targets as $target) {
-            $items = [];
-            $cursor = '{}';
-            $seenCursors = [];
-            try {
-                for ($page = 0; $page < 5 && count($items) < $wanted; $page++) {
-                    if (isset($seenCursors[$cursor])) break;
-                    $seenCursors[$cursor] = true;
-                    $response = self::rapidApiFacebookRequest(
-                        '/api/' . $target['kind'] . '/' . rawurlencode($target['id']) . '/posts',
-                        ['cursor' => $cursor]
-                    );
-                    $posts = $response['data']['posts'] ?? [];
-                    if (!is_array($posts) || !$posts) break;
-
-                    foreach ($posts as $post) {
-                        if (!is_array($post)) continue;
-                        $createdAt = $post['creation_time'] ?? '';
-                        if ($sinceTimestamp > 0 && $createdAt !== '') {
-                            $postTimestamp = is_numeric($createdAt) ? (int)$createdAt : (int)strtotime((string)$createdAt);
-                            if ($postTimestamp > 0 && $postTimestamp < $sinceTimestamp) continue;
-                        }
-                        $postTimestamp = is_numeric($createdAt) ? (int)$createdAt : (int)strtotime((string)$createdAt);
-                        if ($postTimestamp > 20000000000) $postTimestamp = (int)floor($postTimestamp / 1000);
-                        $post['published_at'] = $postTimestamp > 0 ? date('Y-m-d H:i:s', $postTimestamp) : null;
-                        $items[] = $post;
-                        if (count($items) >= $wanted) break;
-                    }
-
-                    $nextCursor = trim((string)($response['data']['next_cursor'] ?? ''));
-                    if ($nextCursor === '' || $nextCursor === $cursor) break;
-                    $cursor = $nextCursor;
-                }
-            } catch (Throwable $e) {
-                $errors[] = $target['kind'] . '/posts: ' . $e->getMessage();
-                continue;
-            }
-            if ($items) return $items;
-            $errors[] = $target['kind'] . '/posts: nessun post pubblico';
+        $response = self::rapidApiFacebookRequest('/page/posts', ['page_id' => $pageId]);
+        $posts = $response['results'] ?? $response['data']['results'] ?? [];
+        if (!is_array($posts)) $posts = [];
+        $items = [];
+        foreach ($posts as $post) {
+            if (!is_array($post)) continue;
+            $createdAt = $post['timestamp'] ?? $post['creation_time'] ?? '';
+            $postTimestamp = is_numeric($createdAt) ? (int)$createdAt : (int)strtotime((string)$createdAt);
+            if ($postTimestamp > 20000000000) $postTimestamp = (int)floor($postTimestamp / 1000);
+            if ($sinceTimestamp > 0 && $postTimestamp > 0 && $postTimestamp < $sinceTimestamp) continue;
+            $post['published_at'] = $postTimestamp > 0 ? date('Y-m-d H:i:s', $postTimestamp) : null;
+            $items[] = $post;
+            if (count($items) >= $wanted) break;
         }
 
-        throw new Exception('RapidAPI Facebook non ha restituito post: ' . implode(' | ', array_slice($errors, 0, 3)));
+        if ($items) return $items;
+        throw new Exception('RapidAPI Facebook non ha restituito post pubblici per questa pagina');
     }
 
     private static function rapidApiSocialRequest(
