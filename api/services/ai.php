@@ -8,6 +8,38 @@ if (file_exists(__DIR__ . '/../middleware/logger.php')) require_once __DIR__ . '
 require_once __DIR__ . '/content_ideas.php';
 
 class AI {
+    private static array $sourceDiagnostics = [];
+
+    private static function beginSourceDiagnostics(string $platform, string $url, int $limit, ?string $sinceDate): void {
+        self::$sourceDiagnostics = [[
+            'time' => date('H:i:s'),
+            'provider' => 'sistema',
+            'stage' => 'avvio',
+            'status' => 'running',
+            'elapsed_ms' => 0,
+            'message' => "Piattaforma=$platform, limite=$limit, dal=" . ($sinceDate ?: 'nessuna data'),
+        ]];
+    }
+
+    private static function addSourceDiagnostic(string $provider, string $stage, string $status, string $message = '', ?float $startedAt = null, ?int $count = null): void {
+        $message = trim((string)preg_replace('/\s+/', ' ', $message));
+        $message = (string)preg_replace('/(api[_ -]?key|authorization|bearer|token)\s*[:=]\s*[^\s,;]+/i', '$1=[nascosto]', $message);
+        $entry = [
+            'time' => date('H:i:s'),
+            'provider' => $provider,
+            'stage' => $stage,
+            'status' => $status,
+            'elapsed_ms' => $startedAt !== null ? (int)round((microtime(true) - $startedAt) * 1000) : 0,
+            'message' => mb_substr($message, 0, 500),
+        ];
+        if ($count !== null) $entry['count'] = $count;
+        self::$sourceDiagnostics[] = $entry;
+    }
+
+    public static function sourceDiagnostics(): array {
+        return array_slice(self::$sourceDiagnostics, -40);
+    }
+
     private static function sanitizeProfileText(string $text): string {
         $text = trim(html_entity_decode($text, ENT_QUOTES | ENT_HTML5, 'UTF-8'));
         $text = preg_replace('/\s+/', ' ', $text);
@@ -1133,12 +1165,57 @@ Restituisci SOLO la nuova memoria aggiornata (testo semplice), nient'altro.";
     }
 
     private static function rapidApiFacebookPosts(array $response): array {
-        $posts = $response['results']
-            ?? $response['posts']
-            ?? $response['data']['results']
-            ?? $response['data']['posts']
-            ?? [];
-        return is_array($posts) ? array_values($posts) : [];
+        $candidates = [
+            $response['results'] ?? null,
+            $response['posts'] ?? null,
+            $response['items'] ?? null,
+            $response['result'] ?? null,
+            $response['data']['results'] ?? null,
+            $response['data']['posts'] ?? null,
+            $response['data']['items'] ?? null,
+            $response['data'] ?? null,
+            $response,
+        ];
+
+        foreach ($candidates as $candidate) {
+            if (!is_array($candidate) || !$candidate) continue;
+            $posts = array_is_list($candidate) ? $candidate : [$candidate];
+            $posts = array_values(array_filter($posts, static function ($post): bool {
+                if (!is_array($post)) return false;
+                return isset($post['basic_info'])
+                    || isset($post['post_id'])
+                    || isset($post['postId'])
+                    || isset($post['permalink_url'])
+                    || isset($post['url'])
+                    || isset($post['id']);
+            }));
+            if ($posts) return $posts;
+        }
+
+        return [];
+    }
+
+    private static function rapidApiFacebookPageId(array $response): string {
+        $candidates = [
+            $response['page_id'] ?? null,
+            $response['id'] ?? null,
+            $response['data']['page_id'] ?? null,
+            $response['data']['id'] ?? null,
+            $response[0]['page_id'] ?? null,
+            $response[0]['id'] ?? null,
+            $response['data'][0]['page_id'] ?? null,
+            $response['data'][0]['id'] ?? null,
+            $response['result']['page_id'] ?? null,
+            $response['result']['id'] ?? null,
+            $response['result'][0]['page_id'] ?? null,
+            $response['result'][0]['id'] ?? null,
+        ];
+        foreach ($candidates as $candidate) {
+            if (!is_scalar($candidate)) continue;
+            $pageId = trim((string)$candidate);
+            if ($pageId !== '') return $pageId;
+        }
+        return '';
     }
 
     private static function rapidApiFacebookPostTimestamp(array $post): int {
@@ -1174,10 +1251,15 @@ Restituisci SOLO la nuova memoria aggiornata (testo semplice), nient'altro.";
         $pageId = $path === 'profile.php' ? trim((string)($query['id'] ?? '')) : '';
 
         if ($pageId === '') {
+            $resolveStartedAt = microtime(true);
             $resolved = self::rapidApiFacebookRequest('/page/page_id', [
                 'url' => rtrim($canonicalUrl, '/'),
             ]);
-            $pageId = trim((string)($resolved['page_id'] ?? $resolved['data']['page_id'] ?? ''));
+            $pageId = self::rapidApiFacebookPageId($resolved);
+            $responseShape = array_is_list($resolved) ? 'lista' : 'oggetto';
+            self::addSourceDiagnostic('RapidAPI Facebook', 'risoluzione pagina', $pageId !== '' ? 'ok' : 'empty', $pageId !== '' ? 'ID pagina risolto (risposta ' . $responseShape . ')' : 'Risposta ' . $responseShape . ' senza page_id', $resolveStartedAt);
+        } else {
+            self::addSourceDiagnostic('RapidAPI Facebook', 'risoluzione pagina', 'ok', 'ID pagina già presente nel link');
         }
         if ($pageId === '') throw new Exception('RapidAPI Facebook non ha risolto la pagina');
 
@@ -1201,8 +1283,11 @@ Restituisci SOLO la nuova memoria aggiornata (testo semplice), nient'altro.";
             ];
             if ($cursor !== '') $query['cursor'] = $cursor;
 
+            $pageStartedAt = microtime(true);
             $response = self::rapidApiFacebookRequest('/page/posts', $query);
             $posts = self::rapidApiFacebookPosts($response);
+            $responseShape = array_is_list($response) ? 'lista' : 'oggetto';
+            self::addSourceDiagnostic('RapidAPI Facebook', 'pagina post ' . ($page + 1), $posts ? 'ok' : 'empty', $posts ? 'Pagina ricevuta (risposta ' . $responseShape . ')' : 'Nessun post riconosciuto nella risposta ' . $responseShape, $pageStartedAt, count($posts));
             if (!$posts) break;
 
             $pageHasDatedPosts = false;
@@ -1231,10 +1316,24 @@ Restituisci SOLO la nuova memoria aggiornata (testo semplice), nient'altro.";
                 if (count($items) >= $wanted) break;
             }
 
-            if (count($items) >= $wanted || ($pageHasDatedPosts && $pageIsEntirelyOlder)) break;
+            if (count($items) >= $wanted) {
+                self::addSourceDiagnostic('RapidAPI Facebook', 'paginazione', 'ok', 'Raggiunto il numero di contenuti richiesto', null, count($items));
+                break;
+            }
+            if ($pageHasDatedPosts && $pageIsEntirelyOlder) {
+                self::addSourceDiagnostic('RapidAPI Facebook', 'paginazione', 'stopped', 'Interrotta: tutti i post datati della pagina sono precedenti al periodo richiesto', null, count($items));
+                break;
+            }
 
             $nextCursor = self::rapidApiFacebookNextCursor($response);
-            if ($nextCursor === '' || $nextCursor === $cursor || isset($seenCursors[$nextCursor])) break;
+            if ($nextCursor === '') {
+                self::addSourceDiagnostic('RapidAPI Facebook', 'paginazione', 'stopped', 'Il provider non ha restituito un cursore per la pagina successiva', null, count($items));
+                break;
+            }
+            if ($nextCursor === $cursor || isset($seenCursors[$nextCursor])) {
+                self::addSourceDiagnostic('RapidAPI Facebook', 'paginazione', 'stopped', 'Il provider ha ripetuto un cursore già elaborato', null, count($items));
+                break;
+            }
             $seenCursors[$nextCursor] = true;
             $cursor = $nextCursor;
         }
@@ -2018,6 +2117,7 @@ Restituisci SOLO la nuova memoria aggiornata (testo semplice), nient'altro.";
     }
 
     public static function sourceItems(string $platform, string $url, int $limit = 5, ?string $sinceDate = null): array {
+        self::beginSourceDiagnostics($platform, $url, $limit, $sinceDate);
         if ($platform === 'youtube') {
             $channelId = '';
             if (preg_match('~/channel/([A-Za-z0-9_-]{20,})~', $url, $m)) {
@@ -2130,13 +2230,17 @@ Restituisci SOLO la nuova memoria aggiornata (testo semplice), nient'altro.";
             $facebookCanonicalUrl = self::canonicalFacebookProfileUrl($url);
             if ($facebookCanonicalUrl === '') throw new Exception('URL Facebook non valido: impossibile riconoscere il profilo.');
             if ((defined('RAPIDAPI_KEY') && trim((string)RAPIDAPI_KEY) !== '') || trim((string)(getenv('RAPIDAPI_KEY') ?: '')) !== '') {
+                $providerStartedAt = microtime(true);
                 try {
                     $items = self::facebookRapidApiItems($facebookCanonicalUrl, $limit, $sinceDate);
+                    self::addSourceDiagnostic('RapidAPI Facebook', 'discovery completo', 'ok', 'Post raccolti prima della normalizzazione', $providerStartedAt, count($items));
                 } catch (Throwable $e) {
+                    self::addSourceDiagnostic('RapidAPI Facebook', 'discovery completo', 'error', $e->getMessage(), $providerStartedAt);
                     $providerErrors[] = 'rapidapi: ' . $e->getMessage();
                     Logger::warn('rapidapi', 'Acquisizione Facebook fallita, provo i fallback', ['url' => $facebookCanonicalUrl, 'error' => $e->getMessage()]);
                 }
             } else {
+                self::addSourceDiagnostic('RapidAPI Facebook', 'configurazione', 'error', 'RAPIDAPI_KEY non configurata');
                 $providerErrors[] = 'rapidapi: RAPIDAPI_KEY non configurata';
             }
         } elseif ($platform === 'tiktok') {
@@ -2162,18 +2266,24 @@ Restituisci SOLO la nuova memoria aggiornata (testo semplice), nient'altro.";
         $skipNodeDiscovery = !empty($items);
         
         if (function_exists('shell_exec') && !$skipNodeDiscovery) {
+            $providerStartedAt = microtime(true);
             try {
                 $items = self::nodeScrape($platform, $url, $limit);
+                self::addSourceDiagnostic('Scraper locale', 'discovery', $items ? 'ok' : 'empty', $items ? 'Elementi ricevuti' : 'Nessun elemento ricevuto', $providerStartedAt, count($items));
             } catch (Throwable $e) {
+                self::addSourceDiagnostic('Scraper locale', 'discovery', 'error', $e->getMessage(), $providerStartedAt);
                 Logger::warn('scraper', 'Node scrape failed, trying fallback', ['platform' => $platform, 'url' => $url, 'error' => $e->getMessage()]);
                 $items = [];
             }
+        } elseif (!$skipNodeDiscovery) {
+            self::addSourceDiagnostic('Scraper locale', 'discovery', 'unavailable', 'shell_exec non disponibile sul server');
         }
 
         if ($platform === 'facebook') {
             // Conta soltanto URL di post reali: una risposta contenente la sola
             // scheda profilo non deve impedire l'esecuzione dei fallback.
             $items = self::facebookPostCandidates($items, $facebookCanonicalUrl);
+            self::addSourceDiagnostic('Normalizzatore Facebook', 'URL post', $items ? 'ok' : 'empty', $items ? 'URL di post validi riconosciuti' : 'Gli elementi ricevuti non contengono URL di post riconoscibili', null, count($items));
         }
 
         if (empty($items)) {
@@ -2192,10 +2302,14 @@ Restituisci SOLO la nuova memoria aggiornata (testo semplice), nient'altro.";
                 // dal profilo non e' un successo: proseguiamo con gli altri
                 // provider invece di restituire erroneamente "zero post".
                 if (count($items) < min(2, max(1, $limit))) {
+                    $providerStartedAt = microtime(true);
                     try {
                         $dataset = self::socialCrawlRequest('/facebook/posts', $postInput, 90);
-                        $items = array_merge($items, self::facebookPostCandidates($dataset, $canonicalUrl));
+                        $candidates = self::facebookPostCandidates($dataset, $canonicalUrl);
+                        $items = array_merge($items, $candidates);
+                        self::addSourceDiagnostic('SocialCrawl', 'facebook/posts', $candidates ? 'ok' : 'empty', $candidates ? 'Post validi ricevuti' : 'Dataset senza URL post validi', $providerStartedAt, count($candidates));
                     } catch (Throwable $e) {
+                        self::addSourceDiagnostic('SocialCrawl', 'facebook/posts', 'error', $e->getMessage(), $providerStartedAt);
                         $providerErrors[] = 'posts: ' . $e->getMessage();
                         Logger::warn('socialcrawl', 'Facebook posts actor fallito', ['url' => $canonicalUrl, 'error' => $e->getMessage()]);
                     }
@@ -2205,13 +2319,17 @@ Restituisci SOLO la nuova memoria aggiornata (testo semplice), nient'altro.";
                 // quando l'endpoint posts non riesce a risolvere un profilo
                 // professionale personale come /twoemme/.
                 if (count($items) < min(2, max(1, $limit))) {
+                    $providerStartedAt = microtime(true);
                     try {
                         $dataset = self::socialCrawlRequest('/facebook/profile', [
                             'startUrls' => [['url' => $canonicalUrl]],
                             'resultsLimit' => $limit ?: 20,
                         ], 60);
-                        $items = array_merge($items, self::facebookPostCandidates($dataset, $canonicalUrl));
+                        $candidates = self::facebookPostCandidates($dataset, $canonicalUrl);
+                        $items = array_merge($items, $candidates);
+                        self::addSourceDiagnostic('SocialCrawl', 'facebook/profile', $candidates ? 'ok' : 'empty', $candidates ? 'Post validi ricevuti dal profilo' : 'Profilo ricevuto senza URL post validi', $providerStartedAt, count($candidates));
                     } catch (Throwable $e) {
+                        self::addSourceDiagnostic('SocialCrawl', 'facebook/profile', 'error', $e->getMessage(), $providerStartedAt);
                         $providerErrors[] = 'pages: ' . $e->getMessage();
                         Logger::warn('socialcrawl', 'Facebook pages actor fallito', ['url' => $canonicalUrl, 'error' => $e->getMessage()]);
                     }
@@ -2220,13 +2338,17 @@ Restituisci SOLO la nuova memoria aggiornata (testo semplice), nient'altro.";
                 // 3) Payload alternativo: copre i
                 // profili che Facebook serve solo con una fingerprint browser.
                 if (empty($items)) {
+                    $providerStartedAt = microtime(true);
                     try {
                         $dataset = self::socialCrawlRequest('/facebook/posts', [
                             'inputUrl' => $canonicalUrl,
                             'maxPosts' => $limit ?: 20,
                         ], 60);
-                        $items = array_merge($items, self::facebookPostCandidates($dataset, $canonicalUrl));
+                        $candidates = self::facebookPostCandidates($dataset, $canonicalUrl);
+                        $items = array_merge($items, $candidates);
+                        self::addSourceDiagnostic('SocialCrawl', 'facebook/posts alternativo', $candidates ? 'ok' : 'empty', $candidates ? 'Post validi ricevuti' : 'Payload alternativo senza post validi', $providerStartedAt, count($candidates));
                     } catch (Throwable $e) {
+                        self::addSourceDiagnostic('SocialCrawl', 'facebook/posts alternativo', 'error', $e->getMessage(), $providerStartedAt);
                         $providerErrors[] = 'alternate: ' . $e->getMessage();
                         Logger::warn('socialcrawl', 'Facebook actor alternativo fallito', ['url' => $canonicalUrl, 'error' => $e->getMessage()]);
                     }
@@ -2235,10 +2357,13 @@ Restituisci SOLO la nuova memoria aggiornata (testo semplice), nient'altro.";
                 // 4) Ultima rete di sicurezza senza provider esterni.
                 if (empty($items)) {
                     Logger::warn('socialcrawl', 'Facebook provider vuoti, provo fallback HTML', ['url' => $canonicalUrl, 'limit' => $limit]);
+                    $providerStartedAt = microtime(true);
                     $items = self::facebookPostCandidates(self::facebookHtmlFallbackItems($canonicalUrl, $limit ?: 20), $canonicalUrl);
+                    self::addSourceDiagnostic('HTML Facebook', 'fallback finale', $items ? 'ok' : 'empty', $items ? 'URL post trovati nel markup pubblico' : 'Nessun URL post trovato nel markup pubblico', $providerStartedAt, count($items));
                 }
 
                 if (empty($items)) {
+                    self::addSourceDiagnostic('sistema', 'esito finale', 'error', 'Tutti i provider hanno restituito zero post validi');
                     Logger::error('facebook', 'Tutti i provider di acquisizione hanno restituito zero post', [
                         'url' => $canonicalUrl,
                         'provider_errors' => array_slice($providerErrors, 0, 3),
@@ -2322,6 +2447,7 @@ Restituisci SOLO la nuova memoria aggiornata (testo semplice), nient'altro.";
             ];
             if ($limit > 0 && count($out) >= $limit) break;
         }
+        self::addSourceDiagnostic('sistema', 'output finale', $out ? 'ok' : 'empty', $out ? 'Contenuti pronti per l’importazione' : 'Nessun contenuto ha superato la normalizzazione finale', null, count($out));
         return $out;
     }
 

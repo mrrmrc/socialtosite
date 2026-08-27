@@ -463,6 +463,7 @@ class Sync {
                     'found' => (int)($res['found'] ?? ($imported + $duplicates)),
                     'duplicates' => $duplicates,
                     'imported_ids' => array_values(array_map('intval', $res['imported_ids'] ?? [])),
+                    'debug_trace' => array_values($res['debug_trace'] ?? []),
                     'error' => $scanError,
                 ];
 

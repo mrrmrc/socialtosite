@@ -685,9 +685,16 @@ class Ingest {
             'limitPerSource'   => $limitPerSource,
         ]);
 
-        $report = ['sources' => count($sources), 'found' => 0, 'imported' => 0, 'imported_ids' => [], 'retryable_ids' => [], 'published' => 0, 'skipped' => 0, 'duplicates' => 0, 'filtered_by_date' => 0, 'errors' => []];
+        $report = ['sources' => count($sources), 'found' => 0, 'imported' => 0, 'imported_ids' => [], 'retryable_ids' => [], 'published' => 0, 'skipped' => 0, 'duplicates' => 0, 'filtered_by_date' => 0, 'errors' => [], 'debug_trace' => []];
         $seenUrls = [];
         foreach ($sources as $source) {
+            $sourceStartedAt = microtime(true);
+            $sourceErrorsBefore = count($report['errors']);
+            $sourceImportedBefore = $report['imported'];
+            $sourceDebugIndex = null;
+            $sourceDiscoveryStarted = false;
+            $limit = null;
+            $effectiveSinceDate = null;
             try {
                 $siteVisuals = DB::fetch('SELECT logo_url, cover_url FROM sites WHERE user_id=?', [$userId]);
                 $needsLogo = empty($siteVisuals['logo_url']);
@@ -777,8 +784,23 @@ class Ingest {
                 
                 if (function_exists('setSyncStatus')) setSyncStatus($userId, "Ricerca post su " . ucfirst($source['platform']) . "...");
                 
+                $sourceDiscoveryStarted = true;
                 $items = AI::sourceItems($source['platform'], $source['url'], $limit, $effectiveSinceDate);
                 $report['found'] += count($items);
+                $sourceDebugIndex = count($report['debug_trace']);
+                $report['debug_trace'][] = [
+                    'source_id' => (int)$source['id'],
+                    'platform' => (string)$source['platform'],
+                    'url' => (string)$source['url'],
+                    'limit' => $limit,
+                    'since_date' => $effectiveSinceDate,
+                    'status' => 'discovered',
+                    'found' => count($items),
+                    'imported' => 0,
+                    'elapsed_ms' => 0,
+                    'error' => null,
+                    'events' => AI::sourceDiagnostics(),
+                ];
                 
                 Logger::info('scan', 'Items trovati da sorgente', [
                     'platform' => $source['platform'],
@@ -814,8 +836,26 @@ class Ingest {
                         Logger::error('scan', 'Errore ingestione singolo post', ['platform' => $source['platform'], 'url' => $sourceUrl, 'error' => $e->getMessage()]);
                     }
                 }
+                $report['debug_trace'][$sourceDebugIndex]['status'] = count($report['errors']) > $sourceErrorsBefore ? 'partial' : 'success';
+                $report['debug_trace'][$sourceDebugIndex]['imported'] = $report['imported'] - $sourceImportedBefore;
+                $report['debug_trace'][$sourceDebugIndex]['elapsed_ms'] = (int)round((microtime(true) - $sourceStartedAt) * 1000);
             } catch (Throwable $e) {
                 $report['errors'][] = $source['platform'] . ': ' . $e->getMessage();
+                if ($sourceDebugIndex === null) {
+                    $report['debug_trace'][] = [
+                        'source_id' => (int)$source['id'],
+                        'platform' => (string)$source['platform'],
+                        'url' => (string)$source['url'],
+                        'limit' => $limit !== null ? (int)$limit : (int)$limitPerSource,
+                        'since_date' => $effectiveSinceDate ?? ($source['since_date'] ?? null),
+                        'status' => 'error',
+                        'found' => 0,
+                        'imported' => 0,
+                        'elapsed_ms' => (int)round((microtime(true) - $sourceStartedAt) * 1000),
+                        'error' => mb_substr($e->getMessage(), 0, 1000),
+                        'events' => $sourceDiscoveryStarted ? AI::sourceDiagnostics() : [],
+                    ];
+                }
                 Logger::error('scan', 'Errore sorgente', ['platform' => $source['platform'], 'url' => $source['url'], 'error' => $e->getMessage()]);
             }
         }

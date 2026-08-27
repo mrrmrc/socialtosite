@@ -417,7 +417,7 @@ function SiteMapGraph({ posts, siteUrl, siteTitle, foundationPages = [] }) {
   );
 }
 
-export function DashboardScreen({ token, user, onLogout }) {
+export function DashboardScreen({ token, user, onLogout, onAcquisitionDebug }) {
   const [tab, setTab] = useState(user?.role === 'admin' ? 'admin' : 'overview');
   const [visibilitySection, setVisibilitySection] = useState('network');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -462,6 +462,28 @@ const [importMsg, setImportMsg] = useState(null);
     const [regeneratingMenu, setRegeneratingMenu] = useState(false);
   const [savingProfile, setSavingProfile] = useState(false);
   const [syncLimit, setSyncLimit] = useState(20);
+
+  function beginAcquisitionDebug(mode, sourceCount) {
+    onAcquisitionDebug?.({
+      mode,
+      status: 'running',
+      started_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      summary: `Avvio controllo di ${sourceCount} sorgent${sourceCount === 1 ? 'e' : 'i'}.`,
+      traces: [],
+    });
+  }
+
+  function appendAcquisitionDebug(traces, status = 'running', summary = '') {
+    const incoming = Array.isArray(traces) ? traces : [];
+    onAcquisitionDebug?.(previous => ({
+      ...(previous || {}),
+      status,
+      updated_at: new Date().toISOString(),
+      summary: summary || previous?.summary || '',
+      traces: [...(previous?.traces || []), ...incoming].slice(-12),
+    }));
+  }
   
   const [headerLayout, setHeaderLayout] = useState('standard');
   const [accentColor, setAccentColor] = useState('');
@@ -1036,6 +1058,7 @@ const [importMsg, setImportMsg] = useState(null);
 
   async function syncAllChannels() {
     setScanning(true);
+    beginAcquisitionDebug('Sincronizzazione di tutti i canali', sources.length || 1);
     setScanProgress([]);
     setScanMsg({ ok: true, text: 'Sincronizzazione manuale di tutti i canali attivi...', loading: true });
     setAcquisitionModal({ status: 'working', title: 'Sincronizzo tutti i canali', text: "Controllo ogni fonte collegata e acquisisco i nuovi contenuti. Puoi seguire qui l'avanzamento." });
@@ -1045,17 +1068,21 @@ const [importMsg, setImportMsg] = useState(null);
         body: JSON.stringify({ limit: parseInt(syncLimit) || 20 })
       }, token);
       const results = Array.isArray(sync?.results) ? sync.results : [];
+      appendAcquisitionDebug(results.flatMap(result => Array.isArray(result?.debug_trace) ? result.debug_trace : []));
       const errors = results.filter(result => result?.error).map(result => String(result.error));
       const imported = results.reduce((sum, result) => sum + Number(result?.new || 0), 0);
       if (errors.length > 0 && imported === 0) {
         const message = `La scansione non ha funzionato: ${errors[0]}`;
+        appendAcquisitionDebug([], 'error', message);
         setScanMsg({ ok: false, text: message, loading: false });
         setAcquisitionModal({ status: 'error', title: 'Acquisizione non riuscita', text: message });
         return;
       }
       await processPendingLoop(true);
+      appendAcquisitionDebug([], errors.length > 0 ? 'partial' : 'success', errors.length > 0 ? `Sincronizzazione terminata con ${errors.length} errori.` : 'Sincronizzazione e acquisizione completate.');
       await loadData();
     } catch (err) {
+      appendAcquisitionDebug([], 'error', `Errore richiesta di sincronizzazione: ${err.message}`);
       setScanMsg({ ok: false, text: err.message });
       setAcquisitionModal({ status: 'error', title: 'Sincronizzazione non completata', text: err.message });
     } finally {
@@ -1069,6 +1096,7 @@ const [importMsg, setImportMsg] = useState(null);
       return;
     }
     setScanning(true); 
+    beginAcquisitionDebug('Aggiornamento contenuti', sources.length);
     setScanMsg({ ok: true, text: 'Preparazione sincronizzazione dei canali attivi...', loading: true });
     setScanProgress(sources.map((s, index) => ({ id: s.id, platform: s.platform, label: s.label, status: 'pending', details: `In attesa di avvio (${index + 1}/${sources.length})` })));
     
@@ -1105,6 +1133,7 @@ const [importMsg, setImportMsg] = useState(null);
           })
         }, token);
         const r = res.report;
+        appendAcquisitionDebug(r.debug_trace || [], (r.errors || []).length > 0 ? 'partial' : 'running', `Risposta ricevuta da ${sourceName}.`);
         totalImported += (r.imported || 0);
         totalFound += (r.found || 0);
         totalDuplicates += (r.duplicates || 0);
@@ -1133,6 +1162,7 @@ const [importMsg, setImportMsg] = useState(null);
         console.error("Errore scansione " + source.platform, err);
         totalErrors++;
         sourceErrorMessages.push(err.message);
+        appendAcquisitionDebug([], 'error', `Errore richiesta ${sourceName}: ${err.message}`);
         setScanProgress(prev => prev.map(s => s.id === source.id ? {
           ...s,
           status: 'error',
@@ -1155,6 +1185,7 @@ const [importMsg, setImportMsg] = useState(null);
     }
 
     const processingIds = [...new Set([...importedIds, ...retryableIds])];
+    appendAcquisitionDebug([], totalErrors > 0 ? 'error' : 'success', totalErrors > 0 ? `Scansione terminata con ${totalErrors} errori.` : `Scansione completata: ${totalFound} trovati, ${totalImported} importati.`);
     setScanMsg({
       ok: totalErrors === 0,
       text: processingIds.length > 0
