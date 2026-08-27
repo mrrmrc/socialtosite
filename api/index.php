@@ -72,6 +72,7 @@ function ensureSiteSchemaUpgrades(): void {
         'seo_foundation_updated_at'=>'DATETIME NULL', 'reachability_profile'=>'LONGTEXT NULL',
         'reachability_updated_at'=>'DATETIME NULL', 'account_type'=>"VARCHAR(50) DEFAULT 'business'",
         'harmonize_agent'=>"VARCHAR(50) NOT NULL DEFAULT 'content_editor'",
+        'brand_voice_profile'=>'LONGTEXT NULL',
         'living_space_mode'=>"VARCHAR(30) NOT NULL DEFAULT 'pulse'",
         'search_visible'=>'TINYINT NOT NULL DEFAULT 1',
         'dismissed_content_ideas'=>'LONGTEXT NULL',

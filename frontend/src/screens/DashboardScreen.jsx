@@ -1077,6 +1077,7 @@ const [importMsg, setImportMsg] = useState(null);
     let totalDuplicates = 0;
     let totalErrors = 0;
     const importedIds = [];
+    const retryableIds = [];
     const sourceErrorMessages = [];
 
     const scanSource = async (source, i) => {
@@ -1108,6 +1109,7 @@ const [importMsg, setImportMsg] = useState(null);
         totalFound += (r.found || 0);
         totalDuplicates += (r.duplicates || 0);
         if (Array.isArray(r.imported_ids)) importedIds.push(...r.imported_ids.map(Number));
+        if (Array.isArray(r.retryable_ids)) retryableIds.push(...r.retryable_ids.map(Number));
         const errorsForSource = Array.isArray(r.errors) ? r.errors.length : 0;
         if (errorsForSource > 0) sourceErrorMessages.push(...r.errors.map(error => String(error)));
         totalErrors += errorsForSource;
@@ -1152,16 +1154,17 @@ const [importMsg, setImportMsg] = useState(null);
       await Promise.all(chunk.map((source, offset) => scanSource(source, i + offset)));
     }
 
+    const processingIds = [...new Set([...importedIds, ...retryableIds])];
     setScanMsg({
       ok: totalErrors === 0,
-      text: importedIds.length > 0
-        ? `Acquisizione completata. Totale trovati: ${totalFound}. Nuovi importati: ${totalImported}. Duplicati: ${totalDuplicates}. Errori: ${totalErrors}. Elaboro soltanto i nuovi contenuti.`
+      text: processingIds.length > 0
+        ? `Acquisizione completata. Totale trovati: ${totalFound}. Nuovi importati: ${totalImported}. Da elaborare o riprovare: ${processingIds.length}. Duplicati: ${totalDuplicates}. Errori: ${totalErrors}.`
         : `Acquisizione completata. Nessun nuovo contenuto da elaborare. Duplicati: ${totalDuplicates}. Errori: ${totalErrors}.`,
-      loading: importedIds.length > 0
+      loading: processingIds.length > 0
     });
     if (totalErrors === 0) setTimeout(() => setScanProgress([]), 3000);
-    if (importedIds.length > 0) {
-      await processPendingLoop(true, importedIds);
+    if (processingIds.length > 0) {
+      await processPendingLoop(true, processingIds);
     } else if (totalErrors > 0) {
       setAcquisitionModal({
         status: 'error',

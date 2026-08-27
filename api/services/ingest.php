@@ -53,6 +53,66 @@ class Ingest {
         } catch (Throwable $e) {}
     }
 
+    /**
+     * Mantiene il motore editoriale compatibile con installazioni il cui
+     * schema `sites` non e' ancora stato aggiornato. Le colonne opzionali
+     * vengono create quando possibile e selezionate soltanto se esistono.
+     */
+    private static function siteEditorialContext(int $userId): array {
+        $defaults = [
+            'profile_summary' => null,
+            'bio' => null,
+            'role_mission' => null,
+            'content_strategy' => null,
+            'rag_knowledge' => null,
+            'harmonize_agent' => 'content_editor',
+            'account_type' => 'business',
+            'brand_voice_profile' => null,
+            'site_understanding' => null,
+            'user_agent_prompt' => null,
+        ];
+        $definitions = [
+            'harmonize_agent' => "VARCHAR(50) NOT NULL DEFAULT 'content_editor'",
+            'account_type' => "VARCHAR(50) DEFAULT 'business'",
+            'brand_voice_profile' => 'LONGTEXT NULL',
+            'site_understanding' => 'LONGTEXT NULL',
+            'user_agent_prompt' => 'LONGTEXT NULL',
+        ];
+
+        $existing = [];
+        try {
+            foreach (DB::fetchAll('SHOW COLUMNS FROM sites') as $column) {
+                $existing[(string)$column['Field']] = true;
+            }
+        } catch (Throwable $e) {
+            return $defaults;
+        }
+
+        foreach ($definitions as $column => $definition) {
+            if (isset($existing[$column])) continue;
+            try {
+                DB::execute("ALTER TABLE sites ADD COLUMN `$column` $definition");
+                $existing[$column] = true;
+            } catch (Throwable $e) {
+                // Un deploy con permessi DDL limitati deve poter elaborare i
+                // post usando comunque tutti i campi gia' disponibili.
+            }
+        }
+
+        $selectable = array_values(array_filter(
+            array_keys($defaults),
+            static fn(string $column): bool => isset($existing[$column])
+        ));
+        if (!$selectable) return $defaults;
+
+        $selectList = implode(', ', array_map(
+            static fn(string $column): string => "`$column`",
+            $selectable
+        ));
+        $site = DB::fetch("SELECT $selectList FROM sites WHERE user_id=?", [$userId]);
+        return array_merge($defaults, is_array($site) ? $site : []);
+    }
+
     private static function cleanSiteIdentityCandidate(string $value): string {
         $value = trim(html_entity_decode($value, ENT_QUOTES | ENT_HTML5, 'UTF-8'));
         $value = preg_replace('/\s+/', ' ', $value);
@@ -190,7 +250,12 @@ class Ingest {
             } else {
                 Logger::debug('ingest', 'Duplicato (bozza con contenuto)', ['platform' => $platform, 'postId' => $postId, 'db_id' => $exists['id']]);
                 // Ha contenuto ma non è stato pubblicato: lo trattiamo comunque come duplicato
-                return ['id' => (int) $exists['id'], 'platform' => $platform, 'duplicate' => true];
+                return [
+                    'id' => (int) $exists['id'],
+                    'platform' => $platform,
+                    'duplicate' => true,
+                    'retryable' => true,
+                ];
             }
         }
 
@@ -444,13 +509,7 @@ class Ingest {
         $raw = $transcriptText !== '' ? $transcriptText : $captionText;
         if (!$raw) throw new Exception('Nessun testo da armonizzare');
 
-        try {
-            $site = DB::fetch('SELECT profile_summary, bio, role_mission, content_strategy, rag_knowledge, harmonize_agent, account_type, brand_voice_profile, site_understanding, user_agent_prompt FROM sites WHERE user_id=?', [$userId]);
-        } catch (Throwable $e) {
-            $site = DB::fetch('SELECT profile_summary, bio, role_mission, content_strategy, rag_knowledge, harmonize_agent, account_type, brand_voice_profile FROM sites WHERE user_id=?', [$userId]);
-            $site['site_understanding'] = null;
-            $site['user_agent_prompt'] = null;
-        }
+        $site = self::siteEditorialContext($userId);
         $profileSummary = trim($site['profile_summary'] ?? ($site['bio'] ?? ''));
         $sourceContext = '';
         if (!empty($site['brand_voice_profile'])) {
@@ -626,7 +685,7 @@ class Ingest {
             'limitPerSource'   => $limitPerSource,
         ]);
 
-        $report = ['sources' => count($sources), 'found' => 0, 'imported' => 0, 'imported_ids' => [], 'published' => 0, 'skipped' => 0, 'duplicates' => 0, 'filtered_by_date' => 0, 'errors' => []];
+        $report = ['sources' => count($sources), 'found' => 0, 'imported' => 0, 'imported_ids' => [], 'retryable_ids' => [], 'published' => 0, 'skipped' => 0, 'duplicates' => 0, 'filtered_by_date' => 0, 'errors' => []];
         $seenUrls = [];
         foreach ($sources as $source) {
             try {
@@ -741,6 +800,9 @@ class Ingest {
                         $ingested = self::url($userId, $sourceUrl, $item);
                         if (!empty($ingested['duplicate'])) {
                             $report['duplicates']++;
+                            if (!empty($ingested['retryable']) && !empty($ingested['id'])) {
+                                $report['retryable_ids'][] = (int)$ingested['id'];
+                            }
                             continue;
                         }
                         $report['imported']++;
@@ -758,6 +820,7 @@ class Ingest {
             }
         }
         
+        $report['retryable_ids'] = array_values(array_unique($report['retryable_ids']));
         Logger::info('scan', 'scanSources completato', $report);
 
         // L'orchestrazione globale (Caporedattore, SEO, Graphic Designer) 
