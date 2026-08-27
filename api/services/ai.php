@@ -2286,8 +2286,11 @@ Restituisci SOLO la nuova memoria aggiornata (testo semplice), nient'altro.";
             self::addSourceDiagnostic('Normalizzatore Facebook', 'URL post', $items ? 'ok' : 'empty', $items ? 'URL di post validi riconosciuti' : 'Gli elementi ricevuti non contengono URL di post riconoscibili', null, count($items));
         }
 
-        if (empty($items)) {
-            // Fallback a SocialCrawl se RapidAPI e lo scraper locale non sono disponibili.
+        $facebookFallbackTarget = $platform === 'facebook' ? max(1, $limit ?: 20) : 0;
+        if (empty($items) || ($platform === 'facebook' && count($items) < $facebookFallbackTarget)) {
+            // Per Facebook i fallback devono continuare anche quando il primo
+            // scraper restituisce pochi elementi: un solo post (magari già
+            // importato) non soddisfa il numero richiesto dall'utente.
             if ($platform === 'facebook') {
                 $canonicalUrl = $facebookCanonicalUrl;
                 $postInput = [
@@ -2301,12 +2304,12 @@ Restituisci SOLO la nuova memoria aggiornata (testo semplice), nient'altro.";
                 // 1) Endpoint principale per post. Un dataset vuoto o composto solo
                 // dal profilo non e' un successo: proseguiamo con gli altri
                 // provider invece di restituire erroneamente "zero post".
-                if (count($items) < min(2, max(1, $limit))) {
+                if (count($items) < $facebookFallbackTarget) {
                     $providerStartedAt = microtime(true);
                     try {
                         $dataset = self::socialCrawlRequest('/facebook/posts', $postInput, 90);
                         $candidates = self::facebookPostCandidates($dataset, $canonicalUrl);
-                        $items = array_merge($items, $candidates);
+                        $items = self::facebookPostCandidates(array_merge($items, $candidates), $canonicalUrl);
                         self::addSourceDiagnostic('SocialCrawl', 'facebook/posts', $candidates ? 'ok' : 'empty', $candidates ? 'Post validi ricevuti' : 'Dataset senza URL post validi', $providerStartedAt, count($candidates));
                     } catch (Throwable $e) {
                         self::addSourceDiagnostic('SocialCrawl', 'facebook/posts', 'error', $e->getMessage(), $providerStartedAt);
@@ -2318,7 +2321,7 @@ Restituisci SOLO la nuova memoria aggiornata (testo semplice), nient'altro.";
                 // 2) Il profilo a volte include latestPosts/pagePosts anche
                 // quando l'endpoint posts non riesce a risolvere un profilo
                 // professionale personale come /twoemme/.
-                if (count($items) < min(2, max(1, $limit))) {
+                if (count($items) < $facebookFallbackTarget) {
                     $providerStartedAt = microtime(true);
                     try {
                         $dataset = self::socialCrawlRequest('/facebook/profile', [
@@ -2326,7 +2329,7 @@ Restituisci SOLO la nuova memoria aggiornata (testo semplice), nient'altro.";
                             'resultsLimit' => $limit ?: 20,
                         ], 60);
                         $candidates = self::facebookPostCandidates($dataset, $canonicalUrl);
-                        $items = array_merge($items, $candidates);
+                        $items = self::facebookPostCandidates(array_merge($items, $candidates), $canonicalUrl);
                         self::addSourceDiagnostic('SocialCrawl', 'facebook/profile', $candidates ? 'ok' : 'empty', $candidates ? 'Post validi ricevuti dal profilo' : 'Profilo ricevuto senza URL post validi', $providerStartedAt, count($candidates));
                     } catch (Throwable $e) {
                         self::addSourceDiagnostic('SocialCrawl', 'facebook/profile', 'error', $e->getMessage(), $providerStartedAt);
@@ -2337,7 +2340,7 @@ Restituisci SOLO la nuova memoria aggiornata (testo semplice), nient'altro.";
 
                 // 3) Payload alternativo: copre i
                 // profili che Facebook serve solo con una fingerprint browser.
-                if (empty($items)) {
+                if (count($items) < $facebookFallbackTarget) {
                     $providerStartedAt = microtime(true);
                     try {
                         $dataset = self::socialCrawlRequest('/facebook/posts', [
@@ -2345,7 +2348,7 @@ Restituisci SOLO la nuova memoria aggiornata (testo semplice), nient'altro.";
                             'maxPosts' => $limit ?: 20,
                         ], 60);
                         $candidates = self::facebookPostCandidates($dataset, $canonicalUrl);
-                        $items = array_merge($items, $candidates);
+                        $items = self::facebookPostCandidates(array_merge($items, $candidates), $canonicalUrl);
                         self::addSourceDiagnostic('SocialCrawl', 'facebook/posts alternativo', $candidates ? 'ok' : 'empty', $candidates ? 'Post validi ricevuti' : 'Payload alternativo senza post validi', $providerStartedAt, count($candidates));
                     } catch (Throwable $e) {
                         self::addSourceDiagnostic('SocialCrawl', 'facebook/posts alternativo', 'error', $e->getMessage(), $providerStartedAt);
@@ -2355,11 +2358,12 @@ Restituisci SOLO la nuova memoria aggiornata (testo semplice), nient'altro.";
                 }
 
                 // 4) Ultima rete di sicurezza senza provider esterni.
-                if (empty($items)) {
-                    Logger::warn('socialcrawl', 'Facebook provider vuoti, provo fallback HTML', ['url' => $canonicalUrl, 'limit' => $limit]);
+                if (count($items) < $facebookFallbackTarget) {
+                    Logger::warn('socialcrawl', 'Risultati Facebook insufficienti, provo fallback HTML', ['url' => $canonicalUrl, 'limit' => $limit, 'found' => count($items)]);
                     $providerStartedAt = microtime(true);
-                    $items = self::facebookPostCandidates(self::facebookHtmlFallbackItems($canonicalUrl, $limit ?: 20), $canonicalUrl);
-                    self::addSourceDiagnostic('HTML Facebook', 'fallback finale', $items ? 'ok' : 'empty', $items ? 'URL post trovati nel markup pubblico' : 'Nessun URL post trovato nel markup pubblico', $providerStartedAt, count($items));
+                    $htmlCandidates = self::facebookPostCandidates(self::facebookHtmlFallbackItems($canonicalUrl, $limit ?: 20), $canonicalUrl);
+                    $items = self::facebookPostCandidates(array_merge($items, $htmlCandidates), $canonicalUrl);
+                    self::addSourceDiagnostic('HTML Facebook', 'fallback finale', $htmlCandidates ? 'ok' : 'empty', $htmlCandidates ? 'URL post trovati nel markup pubblico' : 'Nessun URL post trovato nel markup pubblico', $providerStartedAt, count($htmlCandidates));
                 }
 
                 if (empty($items)) {
