@@ -1986,6 +1986,36 @@ const [importMsg, setImportMsg] = useState(null);
     setCmsSaving(false);
   }
 
+  async function regenerateEditedPost() {
+    if (!editingPost) return;
+    if (!window.confirm('Rigenerare titolo, testo e riassunto con l’orchestratore AI? Le modifiche manuali attuali verranno sostituite.')) return;
+    const postId = editingPost.id;
+    setCmsSaving(true);
+    setAcquisitionModal({
+      status: 'working',
+      title: 'Orchestrazione editoriale in corso',
+      text: 'Recupero il contenuto del post, l’eventuale pagina collegata e il profilo editoriale prima di riscrivere l’articolo.'
+    });
+    try {
+      await apiFetch('/api/index.php?action=harmonize', {
+        method: 'POST',
+        body: JSON.stringify({ id: postId, replace_edits: true, length: 'standard' })
+      }, token);
+      setEditingPost(null);
+      await loadDrafts();
+      await loadData();
+      setAcquisitionModal({
+        status: 'success',
+        title: 'Articolo rigenerato',
+        text: 'L’orchestratore ha unito contenuto social, pagina collegata e profilazione editoriale mantenendo invariato lo stato di pubblicazione.'
+      });
+    } catch (err) {
+      setAcquisitionModal({ status: 'error', title: 'Rigenerazione non riuscita', text: err.message });
+    } finally {
+      setCmsSaving(false);
+    }
+  }
+
   async function toggleFeatured(postId, currentFeatured) {
     await apiFetch('/api/index.php?action=post-feature', {
       method: 'POST',
@@ -4568,6 +4598,9 @@ const [importMsg, setImportMsg] = useState(null);
               </div>
 
               <div className="article-editor-actions">
+                <button onClick={regenerateEditedPost} disabled={cmsSaving} style={{ flex: '1 1 210px', background: 'var(--primary-light)', color: 'var(--primary-dark)', border: '1px solid var(--primary)', padding: '16px', fontSize: '15px', fontWeight: 800, borderRadius: 'var(--radius-sm)', cursor: 'pointer' }}>
+                  {cmsSaving ? '⏳ ORCHESTRAZIONE…' : '✨ RIGENERA CON L’AI'}
+                </button>
                 <button onClick={savePostEdit} disabled={cmsSaving} style={{ flex: '2 1 200px', background: 'var(--primary)', color: '#000', border: 'none', padding: '16px', fontSize: '16px', fontWeight: 800, borderRadius: 'var(--radius-sm)', cursor: 'pointer', transition: 'background 0.2s', boxShadow: '0 4px 12px rgba(0,240,255,0.2)' }}>
                   {cmsSaving ? '⏳ Salvataggio in corso...' : '✅ SALVA MODIFICHE'}
                 </button>

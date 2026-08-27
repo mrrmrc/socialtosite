@@ -58,6 +58,7 @@ foreach ($users as $row) {
         $pending = DB::fetchAll(
             "SELECT id FROM posts
               WHERE user_id=? AND seo_score=-1 AND processing_status IN ('pending', 'failed')
+                AND processing_attempts < 3
               ORDER BY id ASC",
             [$userId]
         );
@@ -83,40 +84,36 @@ foreach ($users as $row) {
                     if (!$post) throw new Exception('Post non disponibile dopo il claim della coda');
                     
                     $transcript = trim($post['transcript'] ?? '');
-                    $hasUsableRawContent = mb_strlen(trim(strip_tags((string)($post['raw_content'] ?? '')))) >= 40;
-                    if (!$transcript && !$hasUsableRawContent && !empty($post['media_url']) && strtoupper($post['media_type']) === 'VIDEO') {
+                    if (!$transcript && !empty($post['media_url'])) {
                         $cache = DB::fetch('SELECT transcript FROM posts WHERE (source_url=? OR media_url=?) AND transcript IS NOT NULL AND transcript != "" LIMIT 1', [$post['source_url'], $post['media_url']]);
                         if ($cache) {
-                            $transcript = $cache['transcript'];
+                            $transcript = trim((string)$cache['transcript']);
                         } else {
-                            if ($post['platform'] === 'youtube') {
-                                $transcript = AI::transcribeYouTube($post['media_url'] ?: $post['source_url']);
-                            } else {
-                                $parsedUrl = parse_url($post['media_url']);
-                                $path = __DIR__ . '/../' . ltrim($parsedUrl['path'], '/');
-                                if (file_exists($path)) {
-                                    $transcript = AI::transcribeFile($path, 'video/mp4');
-                                } else {
-                                    $transcript = AI::transcribeUrl($post['media_url']);
-                                }
-                            }
+                            $transcript = AI::analyzePostMedia(
+                                (string)$post['platform'],
+                                (string)$post['media_url'],
+                                (string)$post['media_type'],
+                                (string)$post['source_url']
+                            );
                         }
                     }
-                    
-                    $raw = trim($transcript ?: ($post['raw_content'] ?? ''));
+
+                    $raw = trim(implode("\n\n", array_values(array_unique(array_filter([
+                        trim((string)($post['raw_content'] ?? '')),
+                        trim((string)$transcript),
+                    ])))));
                     if ($raw) {
                         DB::execute('UPDATE posts SET transcript=? WHERE id=?', [$transcript, $postId]);
                         Ingest::harmonize($userId, $postId);
                         echo "OK\n";
                     } else {
-                        DB::execute('DELETE FROM posts WHERE id=?', [$postId]);
-                        echo "Saltato (nessun testo)\n";
+                        throw new Exception('Nessun testo ricavabile dalla didascalia o dal media');
                     }
                 } catch (Throwable $e) {
                     echo "Errore: " . $e->getMessage() . "\n";
                     try {
-                        Ingest::recoverAsDraft($userId, $postId, $e->getMessage());
-                        echo "      Creata bozza di recupero modificabile.\n";
+                        Ingest::markProcessingFailed($userId, $postId, $e->getMessage());
+                        echo "      Contenuto mantenuto in stato fallito e riprovabile.\n";
                     } catch (Throwable $recoveryError) {
                         $message = mb_substr($e->getMessage() . ' | Recupero: ' . $recoveryError->getMessage(), 0, 2000);
                         DB::execute(

@@ -29,6 +29,28 @@ class Ingest {
         try {
             DB::execute("UPDATE posts SET processing_status=CASE WHEN seo_score=-1 THEN 'pending' ELSE 'done' END WHERE processing_status='' OR processing_status IS NULL OR (seo_score>=0 AND processing_status='pending')");
         } catch (Throwable $e) {}
+        try {
+            // Le vecchie versioni convertivano ogni errore AI in una copia del
+            // post con titolo troncato: seo_score=1 nel recupero della coda,
+            // seo_score=40 nel fallback JSON. Rimettiamo in coda soltanto i
+            // contenuti riconoscibili e mai corretti manualmente.
+            DB::execute(
+                "UPDATE posts
+                    SET generated_title=NULL, generated_body=NULL, generated_excerpt=NULL,
+                        tags='[]', meta_description=NULL, seo_score=-1, published=0,
+                        processing_status='pending', processing_started_at=NULL, processing_error=NULL,
+                        agent_notes='Rimesso in coda: vecchio fallback editoriale da rigenerare'
+                  WHERE COALESCE(edited_title, '')='' AND COALESCE(edited_body, '')='' AND COALESCE(edited_excerpt, '')=''
+                    AND (
+                        (published=0 AND seo_score=1 AND agent_notes LIKE 'Recuperato dopo errore AI:%')
+                        OR
+                        (seo_score=40 AND COALESCE(generated_body, '')<>'' AND (
+                            TRIM(generated_body)=TRIM(COALESCE(raw_content, ''))
+                            OR TRIM(generated_body)=TRIM(COALESCE(transcript, ''))
+                        ))
+                    )"
+            );
+        } catch (Throwable $e) {}
     }
 
     private static function cleanSiteIdentityCandidate(string $value): string {
@@ -177,6 +199,31 @@ class Ingest {
         $caption    = $prefetched['caption'] ?? '';
         $mediaUrl   = $prefetched['media_url'] ?? $url;
         $mediaType  = $prefetched['media_type'] ?? 'text';
+        $externalUrl = trim((string)($prefetched['external_url'] ?? ''));
+
+        // I post Facebook che condividono un articolo possono non avere una
+        // didascalia propria. In quel caso il contenuto editoriale vero è nella
+        // pagina collegata: titolo, descrizione, testo e immagine diventano la
+        // base dell'orchestrazione, senza sostituire l'eventuale testo social.
+        if ($platform === 'facebook' && $externalUrl !== '') {
+            try {
+                $linked = AI::linkedPageContext($externalUrl);
+                if (!empty($linked['text'])) {
+                    $caption = trim(implode("\n\n", array_filter([
+                        trim((string)$caption),
+                        trim((string)$linked['text']),
+                    ])));
+                }
+                if ((empty($prefetched['media_url']) || $mediaType === 'text') && !empty($linked['image_url'])) {
+                    $mediaUrl = (string)$linked['image_url'];
+                    $mediaType = 'image';
+                    $prefetched['media_url'] = $mediaUrl;
+                    $prefetched['media_type'] = $mediaType;
+                }
+            } catch (Throwable $e) {
+                Logger::warn('ingest', 'Pagina collegata non arricchita', ['post_url' => $url, 'external_url' => $externalUrl, 'error' => $e->getMessage()]);
+            }
+        }
 
         if ($platform === 'youtube') {
             // Trascrizione posticipata all'elaborazione in background
@@ -331,18 +378,78 @@ class Ingest {
         $post = DB::fetch('SELECT * FROM posts WHERE id=? AND user_id=?', [$postId, $userId]);
         if (!$post) throw new Exception('Contenuto non trovato');
 
-        $raw = $post['transcript'] ?: $post['raw_content'];
-        if (!$raw) throw new Exception('Nessun testo da armonizzare');
-
         $sources = DB::fetchAll(
             'SELECT platform, label, url, topic_summary FROM social_sources WHERE user_id=? AND active=1 ORDER BY platform, id',
             [$userId]
         );
+
+        // Ripara anche gli articoli Facebook già acquisiti prima
+        // dell'arricchimento dei link esterni. Lo facciamo solo quando il testo
+        // disponibile è scarso, così una rigenerazione normale non spreca API.
+        $rawContent = trim((string)($post['raw_content'] ?? ''));
+        if (($post['platform'] ?? '') === 'facebook' && mb_strlen(strip_tags($rawContent)) < 450) {
+            $facebookProfiles = array_values(array_map(
+                static fn(array $source): string => (string)$source['url'],
+                array_filter($sources, static fn(array $source): bool => ($source['platform'] ?? '') === 'facebook')
+            ));
+            if ($facebookProfiles) {
+                $linked = AI::facebookPostEnrichment((string)($post['source_url'] ?? ''), $facebookProfiles);
+                if (!empty($linked['text'])) {
+                    $rawContent = trim(implode("\n\n", array_filter([$rawContent, (string)$linked['text']])));
+                    $newMediaUrl = trim((string)($post['media_url'] ?? ''));
+                    $newMediaType = trim((string)($post['media_type'] ?? ''));
+                    if ($newMediaUrl === '' && !empty($linked['image_url'])) {
+                        $saved = self::saveMedia((string)$linked['image_url'], 'facebook', (string)($post['platform_post_id'] ?? $postId), 'jpg');
+                        $newMediaUrl = (string)($saved['url'] ?? $linked['image_url']);
+                        $newMediaType = 'image';
+                    }
+                    DB::execute('UPDATE posts SET raw_content=?, media_url=?, media_type=? WHERE id=? AND user_id=?', [
+                        $rawContent, $newMediaUrl, $newMediaType ?: 'text', $postId, $userId,
+                    ]);
+                    $post['raw_content'] = $rawContent;
+                    $post['media_url'] = $newMediaUrl;
+                    $post['media_type'] = $newMediaType ?: 'text';
+                }
+            }
+        }
+
+        // Anche la rigenerazione manuale deve passare dall'analisi media.
+        // In precedenza solo process-pending trascriveva video e immagini:
+        // richiamando direttamente harmonize si riscriveva quindi la sola
+        // didascalia, spesso breve o priva delle informazioni dell'evento.
+        if (trim((string)($post['transcript'] ?? '')) === '' && !empty($post['media_url'])) {
+            try {
+                $mediaContext = AI::analyzePostMedia(
+                    (string)($post['platform'] ?? ''),
+                    (string)$post['media_url'],
+                    (string)($post['media_type'] ?? ''),
+                    (string)($post['source_url'] ?? '')
+                );
+                if ($mediaContext !== '') {
+                    DB::execute('UPDATE posts SET transcript=? WHERE id=? AND user_id=?', [$mediaContext, $postId, $userId]);
+                    $post['transcript'] = $mediaContext;
+                }
+            } catch (Throwable $mediaError) {
+                if (trim((string)($post['raw_content'] ?? '')) === '') throw $mediaError;
+                Logger::warn('media', 'Rigenerazione senza contesto media', [
+                    'post_id' => $postId,
+                    'platform' => $post['platform'] ?? '',
+                    'error' => $mediaError->getMessage(),
+                ]);
+            }
+        }
+
+        $transcriptText = trim((string)($post['transcript'] ?? ''));
+        $captionText = trim((string)($post['raw_content'] ?? ''));
+        $raw = $transcriptText !== '' ? $transcriptText : $captionText;
+        if (!$raw) throw new Exception('Nessun testo da armonizzare');
+
         try {
-            $site = DB::fetch('SELECT profile_summary, bio, rag_knowledge, harmonize_agent, account_type, brand_voice_profile, site_understanding FROM sites WHERE user_id=?', [$userId]);
+            $site = DB::fetch('SELECT profile_summary, bio, role_mission, content_strategy, rag_knowledge, harmonize_agent, account_type, brand_voice_profile, site_understanding, user_agent_prompt FROM sites WHERE user_id=?', [$userId]);
         } catch (Throwable $e) {
-            $site = DB::fetch('SELECT profile_summary, bio, rag_knowledge, harmonize_agent, account_type, brand_voice_profile FROM sites WHERE user_id=?', [$userId]);
+            $site = DB::fetch('SELECT profile_summary, bio, role_mission, content_strategy, rag_knowledge, harmonize_agent, account_type, brand_voice_profile FROM sites WHERE user_id=?', [$userId]);
             $site['site_understanding'] = null;
+            $site['user_agent_prompt'] = null;
         }
         $profileSummary = trim($site['profile_summary'] ?? ($site['bio'] ?? ''));
         $sourceContext = '';
@@ -351,6 +458,12 @@ class Ingest {
         }
         if ($profileSummary !== '') {
             $sourceContext .= "Profilo utente/brand:\n" . $profileSummary . "\n\n";
+        }
+        if (!empty($site['role_mission'])) {
+            $sourceContext .= "Ruolo e missione dichiarati:\n" . trim((string)$site['role_mission']) . "\n\n";
+        }
+        if (!empty($site['content_strategy'])) {
+            $sourceContext .= "Strategia editoriale dichiarata:\n" . trim((string)$site['content_strategy']) . "\n\n";
         }
         if (!empty($site['site_understanding'])) {
             $understanding = json_decode($site['site_understanding'], true);
@@ -381,7 +494,8 @@ class Ingest {
 
         // IL REVISORE EDITORIALE INTERNO: decide se il post è idoneo
         $recentPosts = DB::fetchAll('SELECT generated_title, generated_excerpt, raw_content FROM posts WHERE user_id=? AND published=1 ORDER BY published_at DESC LIMIT 10', [$userId]);
-        $decision = AI::contentDecision($raw, $post['platform'], $post['source_url'] ?? '', $sourceContext, $recentPosts);
+        $decisionInput = trim(implode("\n\n", array_values(array_unique(array_filter([$captionText, $transcriptText])))));
+        $decision = AI::contentDecision($decisionInput, $post['platform'], $post['source_url'] ?? '', $sourceContext, $recentPosts);
         if (empty($decision['publish'])) {
             $autoPublish = 0;
             $agentNotes = 'Respinto dal revisore editoriale: ' . ($decision['reason'] ?? 'Non idoneo');
@@ -389,7 +503,7 @@ class Ingest {
             $agentNotes = 'Approvato dal revisore editoriale: ' . ($decision['reason'] ?? 'Idoneo');
         }
 
-        $seo = AI::harmonize($raw, $post['platform'], $post['raw_content'] ?? '', $sourceContext, $agentName, $accountType, $searchDemand, $length, $userId);
+        $seo = AI::harmonize($raw, $post['platform'], $transcriptText !== '' ? $captionText : '', $sourceContext, $agentName, $accountType, $searchDemand, $length, $userId);
 
         DB::execute('
             UPDATE posts SET
@@ -407,25 +521,18 @@ class Ingest {
         return ['id' => $postId, 'seo' => $seo, 'decision' => $decision];
     }
 
-    public static function recoverAsDraft(int $userId, int $postId, string $error = ''): array {
+    public static function markProcessingFailed(int $userId, int $postId, string $error = ''): array {
         self::ensureProcessingSchema();
-        $post = DB::fetch('SELECT platform, source_url, transcript, raw_content FROM posts WHERE id=? AND user_id=?', [$postId, $userId]);
+        $post = DB::fetch('SELECT id FROM posts WHERE id=? AND user_id=?', [$postId, $userId]);
         if (!$post) throw new Exception('Contenuto non trovato durante il recupero');
 
-        $raw = trim((string)($post['transcript'] ?: $post['raw_content']));
-        $title = trim(preg_replace('/\s+/', ' ', strip_tags($raw)));
-        $title = $title !== '' ? mb_substr($title, 0, 90) : ucfirst((string)$post['platform']) . ' - contenuto importato';
-        $excerpt = $raw !== '' ? mb_substr(trim(preg_replace('/\s+/', ' ', strip_tags($raw))), 0, 220) : 'Contenuto acquisito da completare prima della pubblicazione.';
-        $body = $raw !== ''
-            ? '<p>' . nl2br(htmlspecialchars($raw, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8')) . '</p>'
-            : '<p>Contenuto acquisito da <a href="' . htmlspecialchars((string)$post['source_url'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') . '">questa fonte</a>. Completa il testo prima della pubblicazione.</p>';
-
+        $message = mb_substr(trim($error) ?: 'Il motore editoriale non ha prodotto un articolo valido', 0, 2000);
         DB::execute(
-            'UPDATE posts SET generated_title=?, generated_body=?, generated_excerpt=?, tags=?, meta_description=?, seo_score=1, slug=?, published=0, agent_notes=?, processing_status=\'done\', processing_started_at=NULL, processing_error=NULL WHERE id=? AND user_id=?',
-            [$title, $body, $excerpt, '[]', $excerpt, slugify($title), 'Recuperato dopo errore AI: ' . $error, $postId, $userId]
+            'UPDATE posts SET generated_title=NULL, generated_body=NULL, generated_excerpt=NULL, tags=?, meta_description=NULL, seo_score=-1, published=0, agent_notes=?, processing_status=\'failed\', processing_started_at=NULL, processing_error=? WHERE id=? AND user_id=?',
+            ['[]', 'Armonizzazione da riprovare: ' . $message, $message, $postId, $userId]
         );
 
-        return ['id' => $postId, 'title' => $title, 'recovered' => true];
+        return ['id' => $postId, 'retryable' => true, 'error' => $message];
     }
 
     // ── AGENTE 2b (Riottimizzatore): articolo pubblicato → titolo che risponde

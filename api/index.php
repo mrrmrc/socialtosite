@@ -2229,8 +2229,15 @@ if ($action === 'create-idea-draft' && $method === 'POST') {
 
 // ── AGENTE 2: POST harmonize  { id } ──────────────────────────────────────
 if ($action === 'harmonize' && $method === 'POST') {
-    $b   = body();
-    $res = Ingest::harmonize($userId, (int) ($b['id'] ?? 0));
+    $b = body();
+    $postId = (int)($b['id'] ?? 0);
+    if ($postId <= 0) jsonError('ID articolo mancante', 422);
+    $current = DB::fetch('SELECT published FROM posts WHERE id=? AND user_id=?', [$postId, $userId]);
+    if (!$current) jsonError('Articolo non trovato', 404);
+    $res = Ingest::harmonize($userId, $postId, (int)($current['published'] ?? 0), (string)($b['length'] ?? 'compact'));
+    if (!empty($b['replace_edits'])) {
+        DB::execute('UPDATE posts SET edited_title=NULL, edited_body=NULL, edited_excerpt=NULL WHERE id=? AND user_id=?', [$postId, $userId]);
+    }
     json($res);
 }
 
@@ -2327,39 +2334,41 @@ if ($action === 'process-pending' && $method === 'POST') {
     try {
         require_once __DIR__ . '/services/ai.php';
         
-        // 1. Analisi Media (Trascrizione se Video, OCR/Descrittore se Immagine)
+        // 1. Analisi media: la didascalia non sostituisce mai il contenuto
+        // visivo. Un evento, un nome o una data possono esistere solo nel
+        // fotogramma, nella locandina o nel parlato del video.
         $transcript = trim($post['transcript'] ?? '');
-        $hasUsableRawContent = mb_strlen(trim(strip_tags((string)($post['raw_content'] ?? '')))) >= 40;
-        if (!$transcript && !$hasUsableRawContent && !empty($post['media_url'])) {
-            if (strtoupper($post['media_type']) === 'VIDEO') {
-                // Verifica cache nel database
-                $cache = DB::fetch('SELECT transcript FROM posts WHERE (source_url=? OR media_url=?) AND transcript IS NOT NULL AND transcript != "" LIMIT 1', [$post['source_url'], $post['media_url']]);
-                if ($cache) {
-                    $transcript = $cache['transcript'];
-                } else {
-                    if ($post['platform'] === 'youtube') {
-                        $transcript = AI::transcribeYouTube($post['media_url'] ?: $post['source_url']);
-                    } else {
-                        // Trascrive dal file locale se salvato, altrimenti url
-                        $parsedUrl = parse_url($post['media_url']);
-                        $path = __DIR__ . '/../../' . ltrim($parsedUrl['path'], '/');
-                        if (file_exists($path)) {
-                            $transcript = AI::transcribeFile($path, 'video/mp4');
-                        } else {
-                            $transcript = AI::transcribeFile($post['media_url'], 'video/mp4');
-                        }
-                    }
+        if (!$transcript && !empty($post['media_url'])) {
+            $cache = DB::fetch('SELECT transcript FROM posts WHERE (source_url=? OR media_url=?) AND transcript IS NOT NULL AND transcript != "" LIMIT 1', [$post['source_url'], $post['media_url']]);
+            if ($cache) {
+                $transcript = trim((string)$cache['transcript']);
+            } else {
+                try {
+                    $transcript = AI::analyzePostMedia(
+                        (string)$post['platform'],
+                        (string)$post['media_url'],
+                        (string)$post['media_type'],
+                        (string)$post['source_url']
+                    );
+                } catch (Throwable $mediaError) {
+                    // Se esiste una didascalia possiamo comunque tentare la
+                    // scrittura, annotando il problema. Senza alcun testo il
+                    // contenuto resta invece in coda e potra' essere riprovato.
+                    if (trim((string)($post['raw_content'] ?? '')) === '') throw $mediaError;
+                    Logger::warn('media', 'Analisi media non disponibile, uso la didascalia', [
+                        'post_id' => $postId,
+                        'platform' => $post['platform'],
+                        'error' => $mediaError->getMessage(),
+                    ]);
                 }
-            } elseif (strtoupper($post['media_type']) === 'IMAGE' || strtoupper($post['media_type']) === 'PHOTO') {
-                // Analisi Immagine (OCR + Descrizione via Gemini)
-                $parsedUrl = parse_url($post['media_url']);
-                $path = __DIR__ . '/../../' . ltrim($parsedUrl['path'], '/');
-                $imageSrc = file_exists($path) ? $path : $post['media_url'];
-                $transcript = AI::analyzeImage($imageSrc);
             }
         }
         
-        $raw = trim($transcript ?: ($post['raw_content'] ?? ''));
+        $rawParts = array_values(array_unique(array_filter([
+            trim((string)($post['raw_content'] ?? '')),
+            trim((string)$transcript),
+        ])));
+        $raw = trim(implode("\n\n", $rawParts));
         if ($raw) {
             // Aggiorna trascrizione prima di passare ad armonizza
             DB::execute('UPDATE posts SET transcript=? WHERE id=?', [$transcript, $postId]);
@@ -2378,28 +2387,15 @@ if ($action === 'process-pending' && $method === 'POST') {
                 'seo' => $res['seo']
             ]);
         } else {
-            // Elimina post non validi o ignorati (es. solo immagini senza didascalia)
-            DB::execute('DELETE FROM posts WHERE id=?', [$postId]);
-            json([
-                'ok' => true,
-                'status' => 'deleted',
-                'published' => false,
-                'message' => 'Nessun testo estraibile. Post saltato.'
-            ]);
+            throw new Exception('Nessun testo ricavabile dalla didascalia o dal media');
         }
     } catch (Throwable $e) {
-        // Non lasciare mai un contenuto bloccato per sempre: se il provider AI
-        // fallisce, crea una bozza minima che l'utente può correggere e pubblicare.
+        // Un errore AI non deve trasformare la fonte grezza in un finto
+        // articolo pubblicabile. Il post resta esplicitamente fallito e
+        // riprovabile, conservando testo e media originali come sorgenti.
         try {
-            Ingest::recoverAsDraft($userId, $postId, $e->getMessage());
-            json([
-                'ok' => true,
-                'status' => 'draft',
-                'published' => false,
-                'recovered' => true,
-                'id' => $postId,
-                'message' => 'Il servizio AI non ha risposto: è stata creata una bozza modificabile.'
-            ]);
+            Ingest::markProcessingFailed($userId, $postId, $e->getMessage());
+            jsonError('Il motore editoriale non ha prodotto un articolo valido. Il contenuto resta in coda e può essere riprovato: ' . $e->getMessage(), 502);
         } catch (Throwable $recoveryError) {
             $message = mb_substr($e->getMessage() . ' | Recupero: ' . $recoveryError->getMessage(), 0, 2000);
             DB::execute(
