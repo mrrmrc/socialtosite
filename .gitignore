@@ -24,5 +24,9 @@ temp_*.html
 
 # Chiavi dei servizi AI: vivono solo sul server, mai nel repo.
 config/keys.php
+config/deploy.env
 config/gcp-credentials.json
 secrets/
+
+# Output di prove locali dei provider (mai sorgenti applicative)
+rapidapi_out.json

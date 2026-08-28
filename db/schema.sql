@@ -8,7 +8,7 @@ CREATE TABLE IF NOT EXISTS users (
   name       VARCHAR(255),
   slug       VARCHAR(100) UNIQUE,
   role       VARCHAR(20) DEFAULT 'user',
-  plan       VARCHAR(20) DEFAULT 'free',
+  plan       VARCHAR(20) DEFAULT 'base',
   token_version INT NOT NULL DEFAULT 0,
   created_at DATETIME DEFAULT NOW()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

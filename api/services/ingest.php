@@ -1,10 +1,12 @@
 <?php
-// api/services/ingest.php — AGENTE 1: Ingestione da link social.
-// Rileva la piattaforma, ricava il testo (trascrizione/didascalia) e salva
+// api/services/ingest.php — Ingestione da siti web e URL espliciti.
+// I social vengono acquisiti esclusivamente dai connettori OAuth ufficiali.
+// Ricava il testo e salva
 // il contenuto come BOZZA (published=0). L'armonizzazione è il passo 2.
 require_once __DIR__ . '/../../config/db.php';
 require_once __DIR__ . '/ai.php';
 require_once __DIR__ . '/visibility.php';
+require_once __DIR__ . '/website_source.php';
 require_once __DIR__ . '/../middleware/response.php';
 if (file_exists(__DIR__ . '/../middleware/logger.php')) require_once __DIR__ . '/../middleware/logger.php';
 
@@ -228,6 +230,9 @@ class Ingest {
         if (!$platform) {
             throw new Exception('Piattaforma non riconosciuta');
         }
+        if ($platform !== 'website') {
+            throw new Exception('I contenuti social vengono importati esclusivamente dai canali collegati tramite OAuth.');
+        }
 
         $postId = self::postId($platform, $url);
 
@@ -259,91 +264,18 @@ class Ingest {
             }
         }
 
-        // Ricava testo grezzo + media (video/immagine)
         $transcript = '';
-        $caption    = $prefetched['caption'] ?? '';
-        $mediaUrl   = $prefetched['media_url'] ?? $url;
-        $mediaType  = $prefetched['media_type'] ?? 'text';
-        $externalUrl = trim((string)($prefetched['external_url'] ?? ''));
-
-        // I post Facebook che condividono un articolo possono non avere una
-        // didascalia propria. In quel caso il contenuto editoriale vero è nella
-        // pagina collegata: titolo, descrizione, testo e immagine diventano la
-        // base dell'orchestrazione, senza sostituire l'eventuale testo social.
-        if ($platform === 'facebook' && $externalUrl !== '') {
-            try {
-                $linked = AI::linkedPageContext($externalUrl);
-                if (!empty($linked['text'])) {
-                    $caption = trim(implode("\n\n", array_filter([
-                        trim((string)$caption),
-                        trim((string)$linked['text']),
-                    ])));
-                }
-                if ((empty($prefetched['media_url']) || $mediaType === 'text') && !empty($linked['image_url'])) {
-                    $mediaUrl = (string)$linked['image_url'];
-                    $mediaType = 'image';
-                    $prefetched['media_url'] = $mediaUrl;
-                    $prefetched['media_type'] = $mediaType;
-                }
-            } catch (Throwable $e) {
-                Logger::warn('ingest', 'Pagina collegata non arricchita', ['post_url' => $url, 'external_url' => $externalUrl, 'error' => $e->getMessage()]);
-            }
+        $caption = trim((string)($prefetched['caption'] ?? ''));
+        $mediaUrl = trim((string)($prefetched['media_url'] ?? ''));
+        $mediaType = strtolower((string)($prefetched['media_type'] ?? 'text'));
+        if ($caption === '') {
+            $page = WebsiteSource::page($url);
+            $caption = trim($page['title'] . "\n\n" . $page['description'] . "\n\n" . $page['text']);
+            if ($mediaUrl === '' && !empty($page['image_url'])) { $mediaUrl = $page['image_url']; $mediaType = 'image'; }
         }
-
-        if ($platform === 'youtube') {
-            // Trascrizione posticipata all'elaborazione in background
-            $transcript = '';
-            $mediaUrl   = $url;
-            $mediaType  = 'video';
-        } elseif ($platform === 'website') {
-            if (!$caption) {
-                $ch = curl_init($url);
-                curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER => true, CURLOPT_FOLLOWLOCATION => true, CURLOPT_USERAGENT => 'Mozilla/5.0']);
-                $html = curl_exec($ch);
-                curl_close($ch);
-                
-                if ($html) {
-                    preg_match('/<title[^>]*>(.*?)<\/title>/is', $html, $mTitle);
-                    $title = $mTitle[1] ?? '';
-                    preg_match('/<meta[^>]*name=["\']description["\'][^>]*content=["\'](.*?)["\']/is', $html, $mDesc);
-                    $desc = $mDesc[1] ?? '';
-                    $text = strip_tags(preg_replace('/<(script|style)[^>]*>.*?<\/\1>/is', '', $html));
-                    $text = preg_replace('/\s+/', ' ', $text);
-                    $caption = trim($title . "\n\n" . $desc . "\n\n" . mb_substr($text, 0, 5000));
-                }
-            }
-        } else {
-            // TikTok / Instagram / Facebook: risoluzione del singolo contenuto quando il discovery non ha già fornito i dati.
-            if (empty($caption) && empty($prefetched['media_url'])) {
-                $r       = AI::socialCrawlResolve($platform, $url);
-                $caption = $r['caption'] ?? '';
-                $hasUsableCaption = mb_strlen(trim(strip_tags((string)$caption))) >= 40;
-
-                if (!empty($r['video'])) {
-                    $mediaUrl = $r['video'];
-                    $mediaType = 'video';
-                    // Il download dei video può durare minuti. Se la didascalia
-                    // è già sufficiente per l'articolo, lo rimandiamo alla
-                    // manutenzione media senza bloccare l'importazione.
-                    if (!$hasUsableCaption) {
-                        $saved = self::saveMedia($r['video'], $platform, $postId, 'mp4');
-                        if ($saved) $mediaUrl = $saved['url'];
-                    }
-                } elseif (!empty($r['image'])) {
-                    $saved = self::saveMedia($r['image'], $platform, $postId, 'jpg');
-                    if ($saved) { $mediaUrl = $saved['url']; $mediaType = 'image'; }
-                }
-            } else {
-                // Abbiamo i dati dal prefetched. Salviamo i media se possibile
-                $hasUsableCaption = mb_strlen(trim(strip_tags((string)$caption))) >= 40;
-                if ($mediaType === 'video' && !$hasUsableCaption && !empty($prefetched['media_url']) && strpos($prefetched['media_url'], 'http') === 0) {
-                     $saved = self::saveMedia($prefetched['media_url'], $platform, $postId, 'mp4');
-                     if ($saved) { $mediaUrl = $saved['url']; }
-                } elseif ($mediaType === 'image' && !empty($prefetched['media_url']) && strpos($prefetched['media_url'], 'http') === 0) {
-                     $saved = self::saveMedia($prefetched['media_url'], $platform, $postId, 'jpg');
-                     if ($saved) { $mediaUrl = $saved['url']; }
-                }
-            }
+        if ($mediaType === 'image' && str_starts_with($mediaUrl, 'http')) {
+            $saved = self::saveMedia($mediaUrl, 'website', $postId, 'jpg');
+            if ($saved) $mediaUrl = $saved['url'];
         }
 
         $raw = $transcript ?: $caption;
@@ -387,32 +319,28 @@ class Ingest {
     // ── Scarica e conserva un media nel sito (public/media) ────────────────
     // Ritorna ['url'=>pubblico, 'path'=>locale, 'size'=>byte] oppure null.
     public static function saveMedia(string $src, string $platform, string $postId, string $ext): ?array {
+        if (!in_array(strtolower((string)parse_url($src, PHP_URL_SCHEME)), ['http', 'https'], true)) return null;
         $dir = __DIR__ . '/../../public/media';
         if (!is_dir($dir)) @mkdir($dir, 0775, true);
         if (!is_dir($dir) || !is_writable($dir)) return null;
 
-        $name = $platform . '_' . preg_replace('/[^A-Za-z0-9_-]/', '', $postId) . '.' . $ext;
+        require_once __DIR__ . '/website_source.php';
+        try {
+            $download = WebsiteSource::download($src);
+        } catch (Throwable $e) {
+            return null;
+        }
+        $bytes = (string)($download['body'] ?? '');
+        if ($bytes === '') return null;
+
+        $safePlatform = preg_replace('/[^A-Za-z0-9_-]/', '', $platform) ?: 'media';
+        $safePostId = preg_replace('/[^A-Za-z0-9_-]/', '', $postId) ?: bin2hex(random_bytes(8));
+        $name = $safePlatform . '_' . $safePostId . '.' . $ext;
         $path = "$dir/$name";
-
-        $fp = fopen($path, 'w');
-        if (!$fp) return null;
-        $ch = curl_init($src);
-        curl_setopt_array($ch, [
-            CURLOPT_FILE           => $fp,
-            CURLOPT_FOLLOWLOCATION => true,
-            CURLOPT_TIMEOUT        => 120,
-            CURLOPT_USERAGENT      => 'Mozilla/5.0 (compatible; LinkSeoWeb/1.0)',
-        ]);
-        curl_exec($ch);
-        curl_close($ch);
-        fclose($fp);
-
-        $size = @filesize($path) ?: 0;
-        if (!$size) { @unlink($path); return null; }
 
         $detectedExt = '';
         if (class_exists('finfo')) {
-            $mime = (new finfo(FILEINFO_MIME_TYPE))->file($path) ?: '';
+            $mime = (new finfo(FILEINFO_MIME_TYPE))->buffer($bytes) ?: '';
             $detectedExt = match ($mime) {
                 'image/jpeg' => 'jpg',
                 'image/png' => 'png',
@@ -423,15 +351,12 @@ class Ingest {
                 default => '',
             };
         }
-
-        if ($detectedExt !== '' && $detectedExt !== $ext) {
-            $newName = $platform . '_' . preg_replace('/[^A-Za-z0-9_-]/', '', $postId) . '.' . $detectedExt;
-            $newPath = "$dir/$newName";
-            if (@rename($path, $newPath)) {
-                $name = $newName;
-                $path = $newPath;
-            }
-        }
+        if ($detectedExt === '') return null;
+        $name = $safePlatform . '_' . $safePostId . '.' . $detectedExt;
+        $path = "$dir/$name";
+        $written = @file_put_contents($path, $bytes, LOCK_EX);
+        if ($written === false || $written < 1) return null;
+        $size = (int)$written;
 
         $base = defined('BASE_URL') ? rtrim(BASE_URL, '/') : '';
         return ['url' => "$base/public/media/$name", 'path' => $path, 'size' => $size];
@@ -447,36 +372,6 @@ class Ingest {
             'SELECT platform, label, url, topic_summary FROM social_sources WHERE user_id=? AND active=1 ORDER BY platform, id',
             [$userId]
         );
-
-        // Ripara anche gli articoli Facebook già acquisiti prima
-        // dell'arricchimento dei link esterni. Lo facciamo solo quando il testo
-        // disponibile è scarso, così una rigenerazione normale non spreca API.
-        $rawContent = trim((string)($post['raw_content'] ?? ''));
-        if (($post['platform'] ?? '') === 'facebook' && mb_strlen(strip_tags($rawContent)) < 450) {
-            $facebookProfiles = array_values(array_map(
-                static fn(array $source): string => (string)$source['url'],
-                array_filter($sources, static fn(array $source): bool => ($source['platform'] ?? '') === 'facebook')
-            ));
-            if ($facebookProfiles) {
-                $linked = AI::facebookPostEnrichment((string)($post['source_url'] ?? ''), $facebookProfiles);
-                if (!empty($linked['text'])) {
-                    $rawContent = trim(implode("\n\n", array_filter([$rawContent, (string)$linked['text']])));
-                    $newMediaUrl = trim((string)($post['media_url'] ?? ''));
-                    $newMediaType = trim((string)($post['media_type'] ?? ''));
-                    if ($newMediaUrl === '' && !empty($linked['image_url'])) {
-                        $saved = self::saveMedia((string)$linked['image_url'], 'facebook', (string)($post['platform_post_id'] ?? $postId), 'jpg');
-                        $newMediaUrl = (string)($saved['url'] ?? $linked['image_url']);
-                        $newMediaType = 'image';
-                    }
-                    DB::execute('UPDATE posts SET raw_content=?, media_url=?, media_type=? WHERE id=? AND user_id=?', [
-                        $rawContent, $newMediaUrl, $newMediaType ?: 'text', $postId, $userId,
-                    ]);
-                    $post['raw_content'] = $rawContent;
-                    $post['media_url'] = $newMediaUrl;
-                    $post['media_type'] = $newMediaType ?: 'text';
-                }
-            }
-        }
 
         // Anche la rigenerazione manuale deve passare dall'analisi media.
         // In precedenza solo process-pending trascriveva video e immagini:
@@ -650,7 +545,7 @@ class Ingest {
     }
 
     public static function scanSources(int $userId, int $limitPerSource = 5, string $profileOverride = '', string $roleMission = '', string $contentStrategy = '', ?int $sourceId = null): array {
-        $sql = 'SELECT * FROM social_sources WHERE user_id=? AND active=1';
+        $sql = "SELECT * FROM social_sources WHERE user_id=? AND active=1 AND platform='website'";
         $params = [$userId];
         if ($sourceId) {
             $sql .= ' AND id=?';
@@ -659,7 +554,7 @@ class Ingest {
         $sql .= ' ORDER BY platform, id';
         
         $sources = DB::fetchAll($sql, $params);
-        if (!$sources && !$sourceId) throw new Exception('Inserisci almeno un link social prima della scansione');
+        if (!$sources && !$sourceId) throw new Exception('Inserisci almeno un sito web prima della scansione');
 
         $profileOverride = trim($profileOverride);
         $roleMission = trim($roleMission);
@@ -671,37 +566,22 @@ class Ingest {
             );
         }
 
-        // Se abbiamo già acquisito almeno un post, rispettiamo la data della
-        // fonte: rileggere ogni volta l'intero storico rallenta inutilmente.
-        $hasExistingPosts = (bool) DB::fetch(
-            'SELECT id FROM posts WHERE user_id=? LIMIT 1',
-            [$userId]
-        );
-        
         Logger::info('scan', 'Inizio scanSources', [
             'user_id'          => $userId,
             'sources'          => count($sources),
-            'hasExistingPosts' => $hasExistingPosts,
             'limitPerSource'   => $limitPerSource,
         ]);
 
-        $report = ['sources' => count($sources), 'found' => 0, 'imported' => 0, 'imported_ids' => [], 'retryable_ids' => [], 'published' => 0, 'skipped' => 0, 'duplicates' => 0, 'filtered_by_date' => 0, 'errors' => [], 'debug_trace' => []];
+        $report = ['sources' => count($sources), 'found' => 0, 'imported' => 0, 'imported_ids' => [], 'retryable_ids' => [], 'duplicates' => 0, 'errors' => []];
         $seenUrls = [];
         foreach ($sources as $source) {
-            $sourceStartedAt = microtime(true);
-            $sourceErrorsBefore = count($report['errors']);
-            $sourceImportedBefore = $report['imported'];
-            $sourceDebugIndex = null;
-            $sourceDiscoveryStarted = false;
-            $limit = null;
-            $effectiveSinceDate = null;
             try {
                 $siteVisuals = DB::fetch('SELECT logo_url, cover_url FROM sites WHERE user_id=?', [$userId]);
                 $needsLogo = empty($siteVisuals['logo_url']);
                 $needsCover = empty($siteVisuals['cover_url']);
                 if ($needsLogo || $needsCover) {
                     try {
-                        $visuals = AI::sourceProfileVisuals($source['platform'], $source['url']);
+                        $visuals = WebsiteSource::profileVisuals($source['url']);
                         $logoUrl = trim($visuals['logo_url'] ?? '');
                         $coverUrl = trim($visuals['cover_url'] ?? '');
                         $pageTitle = self::cleanSiteIdentityCandidate((string)($visuals['page_title'] ?? ''));
@@ -723,29 +603,11 @@ class Ingest {
                             DB::execute('UPDATE social_sources SET topic_summary=? WHERE id=? AND user_id=?', [$enrichedTopic, $source['id'], $userId]);
                             $source['topic_summary'] = $enrichedTopic;
 
-                            if ($source['platform'] === 'facebook') {
-                                $siteRecord = DB::fetch('SELECT title, profile_summary, bio, footer_text FROM sites WHERE user_id=?', [$userId]);
-                                $footerParts = array_filter([
-                                    trim((string)($visuals['address'] ?? '')),
-                                    trim((string)($visuals['phone'] ?? '')),
-                                    trim((string)($visuals['email'] ?? '')),
-                                ]);
-                                $footerCandidate = implode(' | ', array_unique($footerParts));
-                                $summaryCandidate = trim((string)($visuals['description'] ?? ''));
-
-                                $currentSiteTitle = trim((string)($siteRecord['title'] ?? ''));
-                                $replaceableSiteTitles = ['', 'Sito Personale', 'Il mio sito'];
-                                $canImportSiteTitle = in_array($currentSiteTitle, $replaceableSiteTitles, true) || filter_var($currentSiteTitle, FILTER_VALIDATE_EMAIL);
-                                if ($pageTitle !== '' && $canImportSiteTitle) {
-                                    DB::execute('UPDATE sites SET title=? WHERE user_id=?', [$pageTitle, $userId]);
-                                }
-                                if ($summaryCandidate !== '' && empty($siteRecord['profile_summary']) && empty($siteRecord['bio'])) {
-                                    DB::execute('UPDATE sites SET profile_summary=?, bio=COALESCE(NULLIF(bio, \'\'), ?) WHERE user_id=?', [$summaryCandidate, $summaryCandidate, $userId]);
-                                }
-                                if ($footerCandidate !== '') {
-                                    DB::execute('UPDATE sites SET footer_text=? WHERE user_id=?', [$footerCandidate, $userId]);
-                                }
-                            }
+                            $siteRecord = DB::fetch('SELECT title, profile_summary, bio FROM sites WHERE user_id=?', [$userId]);
+                            $summaryCandidate = trim((string)($visuals['description'] ?? ''));
+                            $currentSiteTitle = trim((string)($siteRecord['title'] ?? ''));
+                            if ($pageTitle !== '' && in_array($currentSiteTitle, ['', 'Sito Personale', 'Il mio sito'], true)) DB::execute('UPDATE sites SET title=? WHERE user_id=?', [$pageTitle, $userId]);
+                            if ($summaryCandidate !== '' && empty($siteRecord['profile_summary']) && empty($siteRecord['bio'])) DB::execute('UPDATE sites SET profile_summary=?, bio=COALESCE(NULLIF(bio, \'\'), ?) WHERE user_id=?', [$summaryCandidate, $summaryCandidate, $userId]);
                         }
 
                         if ($needsLogo && $logoUrl !== '') {
@@ -779,28 +641,12 @@ class Ingest {
                     'limit'             => $limit,
                     'effectiveSinceDate'=> $effectiveSinceDate,
                     'sinceDate_stored'  => $sourceSinceDate,
-                    'sinceDate_skipped' => !$hasExistingPosts ? 'si (DB vuoto)' : 'no',
                 ]);
                 
                 if (function_exists('setSyncStatus')) setSyncStatus($userId, "Ricerca post su " . ucfirst($source['platform']) . "...");
                 
-                $sourceDiscoveryStarted = true;
-                $items = AI::sourceItems($source['platform'], $source['url'], $limit, $effectiveSinceDate);
+                $items = WebsiteSource::items($source['url'], $limit, $effectiveSinceDate);
                 $report['found'] += count($items);
-                $sourceDebugIndex = count($report['debug_trace']);
-                $report['debug_trace'][] = [
-                    'source_id' => (int)$source['id'],
-                    'platform' => (string)$source['platform'],
-                    'url' => (string)$source['url'],
-                    'limit' => $limit,
-                    'since_date' => $effectiveSinceDate,
-                    'status' => 'discovered',
-                    'found' => count($items),
-                    'imported' => 0,
-                    'elapsed_ms' => 0,
-                    'error' => null,
-                    'events' => AI::sourceDiagnostics(),
-                ];
                 
                 Logger::info('scan', 'Items trovati da sorgente', [
                     'platform' => $source['platform'],
@@ -836,26 +682,8 @@ class Ingest {
                         Logger::error('scan', 'Errore ingestione singolo post', ['platform' => $source['platform'], 'url' => $sourceUrl, 'error' => $e->getMessage()]);
                     }
                 }
-                $report['debug_trace'][$sourceDebugIndex]['status'] = count($report['errors']) > $sourceErrorsBefore ? 'partial' : 'success';
-                $report['debug_trace'][$sourceDebugIndex]['imported'] = $report['imported'] - $sourceImportedBefore;
-                $report['debug_trace'][$sourceDebugIndex]['elapsed_ms'] = (int)round((microtime(true) - $sourceStartedAt) * 1000);
             } catch (Throwable $e) {
                 $report['errors'][] = $source['platform'] . ': ' . $e->getMessage();
-                if ($sourceDebugIndex === null) {
-                    $report['debug_trace'][] = [
-                        'source_id' => (int)$source['id'],
-                        'platform' => (string)$source['platform'],
-                        'url' => (string)$source['url'],
-                        'limit' => $limit !== null ? (int)$limit : (int)$limitPerSource,
-                        'since_date' => $effectiveSinceDate ?? ($source['since_date'] ?? null),
-                        'status' => 'error',
-                        'found' => 0,
-                        'imported' => 0,
-                        'elapsed_ms' => (int)round((microtime(true) - $sourceStartedAt) * 1000),
-                        'error' => mb_substr($e->getMessage(), 0, 1000),
-                        'events' => $sourceDiscoveryStarted ? AI::sourceDiagnostics() : [],
-                    ];
-                }
                 Logger::error('scan', 'Errore sorgente', ['platform' => $source['platform'], 'url' => $source['url'], 'error' => $e->getMessage()]);
             }
         }

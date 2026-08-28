@@ -19,7 +19,7 @@ class Logger {
     /**
      * Scrive una riga di log.
      * @param string $level  'info' | 'warn' | 'error' | 'debug'
-     * @param string $context  Chi sta loggando: 'scan', 'ingest', 'rapidapi', 'ai', 'sync', 'auth', ...
+     * @param string $context  Chi sta loggando: 'scan', 'ingest', 'oauth', 'ai', 'sync', 'auth', ...
      * @param string $message  Messaggio leggibile
      * @param array  $data     Dati strutturati aggiuntivi (opzionale)
      */

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useDeferredValue, useRef } from 'react';
-import { apiFetch, SOCIAL, SITE_LAYOUTS, detectPlatformFromUrl, PLATFORM_DESCRIPTIONS } from '../utils/api';
+import { apiFetch, SOCIAL, SITE_LAYOUTS, detectPlatformFromUrl } from '../utils/api';
 import { SocialIcon } from '../components/SocialIcon';
 import { QuillEditor } from '../components/QuillEditor';
 import { AdminScreen } from './AdminScreen';
@@ -417,7 +417,7 @@ function SiteMapGraph({ posts, siteUrl, siteTitle, foundationPages = [] }) {
   );
 }
 
-export function DashboardScreen({ token, user, onLogout, onAcquisitionDebug }) {
+export function DashboardScreen({ token, user, onLogout }) {
   const [tab, setTab] = useState(user?.role === 'admin' ? 'admin' : 'overview');
   const [visibilitySection, setVisibilitySection] = useState('network');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -440,15 +440,11 @@ export function DashboardScreen({ token, user, onLogout, onAcquisitionDebug }) {
 const [importMsg, setImportMsg] = useState(null);
   const [drafts, setDrafts] = useState([]);
   const [harmonizingId, setHarmonizingId] = useState(0);
-  const [sourceForm, setSourceForm] = useState({ label: '', url: '', platform: '' });
-  const [sourceMsg, setSourceMsg] = useState(null);
   const [addUrl, setAddUrl] = useState('');
   const [addLabel, setAddLabel] = useState('');
-  const [addOnlyNew, setAddOnlyNew] = useState(false);
   const [addMsg, setAddMsg] = useState(null);
   const [addLoading, setAddLoading] = useState(false);
   const [scanning, setScanning] = useState(false);
-  const [repairingMedia, setRepairingMedia] = useState(false);
   const [scanMsg, setScanMsg] = useState(null);
   const [scanProgress, setScanProgress] = useState([]);
   const [processingQueue, setProcessingQueue] = useState([]);
@@ -463,28 +459,6 @@ const [importMsg, setImportMsg] = useState(null);
   const [savingProfile, setSavingProfile] = useState(false);
   const [syncLimit, setSyncLimit] = useState(20);
 
-  function beginAcquisitionDebug(mode, sourceCount) {
-    onAcquisitionDebug?.({
-      mode,
-      status: 'running',
-      started_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-      summary: `Avvio controllo di ${sourceCount} sorgent${sourceCount === 1 ? 'e' : 'i'}.`,
-      traces: [],
-    });
-  }
-
-  function appendAcquisitionDebug(traces, status = 'running', summary = '') {
-    const incoming = Array.isArray(traces) ? traces : [];
-    onAcquisitionDebug?.(previous => ({
-      ...(previous || {}),
-      status,
-      updated_at: new Date().toISOString(),
-      summary: summary || previous?.summary || '',
-      traces: [...(previous?.traces || []), ...incoming].slice(-12),
-    }));
-  }
-  
   const [headerLayout, setHeaderLayout] = useState('standard');
   const [accentColor, setAccentColor] = useState('');
   const [logoUrl, setLogoUrl] = useState('');
@@ -581,6 +555,17 @@ const [importMsg, setImportMsg] = useState(null);
   }
 
   useEffect(() => { loadData(); loadDrafts(); }, []);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const oauth = params.get('oauth');
+    if (!oauth) return;
+    const platform = SOCIAL[params.get('platform')]?.label || params.get('platform') || 'Canale';
+    setSyncMsg(oauth === 'connected'
+      ? { ok: true, text: `${platform} collegato correttamente.` }
+      : { ok: false, text: params.get('message') || 'Collegamento non completato.' });
+    window.history.replaceState({}, '', window.location.pathname);
+  }, []);
 
   useEffect(() => {
     let intervalId;
@@ -715,7 +700,7 @@ const [importMsg, setImportMsg] = useState(null);
     } catch {}
   }
 
-  // AGENTE 1 — Ingestione: importa e trascrive da link
+  // Importa una pagina web esplicita.
   async function doImport(e) {
     e.preventDefault();
     if (!linkUrl.trim()) return;
@@ -987,52 +972,7 @@ const [importMsg, setImportMsg] = useState(null);
     setSelectedPosts([]);
   }
 
-  async function addSource(e) {
-    e.preventDefault();
-    setSourceMsg(null);
-    try {
-      await apiFetch('/api/index.php?action=social-source-create', {
-        method: 'POST',
-        body: JSON.stringify(sourceForm)
-      }, token);
-      setSourceForm({ label: '', url: '', platform: '' });
-      setSourceMsg({ ok: true, text: 'Social aggiunto allo spazio utente.' });
-      await loadData();
-    } catch (err) {
-      setSourceMsg({ ok: false, text: err.message });
-    }
-  }
-
-  const [checkingPlatform, setCheckingPlatform] = useState({});
-  const [checkResult, setCheckResult] = useState({});
-
-  async function checkSocialUrl(platform) {
-    const urlInput = document.getElementById(`url_${platform}`);
-    const dateInput = document.getElementById(`date_${platform}`);
-    const maxInput = document.getElementById(`max_${platform}`);
-    if (!urlInput || !urlInput.value) return;
-
-    setCheckingPlatform(prev => ({...prev, [platform]: true}));
-    setCheckResult(prev => ({...prev, [platform]: null}));
-    try {
-      const res = await apiFetch('/api/index.php?action=check-social-url', {
-        method: 'POST',
-        body: JSON.stringify({
-          platform,
-          url: urlInput.value.trim(),
-          since_date: dateInput ? dateInput.value : '',
-          max_posts: maxInput ? maxInput.value : ''
-        })
-      }, token);
-      setCheckResult(prev => ({...prev, [platform]: { ok: true, msg: res.message }}));
-    } catch (err) {
-      setCheckResult(prev => ({...prev, [platform]: { ok: false, msg: err.message }}));
-    }
-    setCheckingPlatform(prev => ({...prev, [platform]: false}));
-  }
-
   async function savePlatformSource(platform, url, since_date = null, auto_publish = 1, max_posts = null, topic_summary = null, auto_sync = 1) {
-    setSourceMsg(null);
     try {
       await apiFetch('/api/index.php?action=social-source-upsert', {
         method: 'POST',
@@ -1040,7 +980,7 @@ const [importMsg, setImportMsg] = useState(null);
       }, token);
       await loadData();
     } catch (err) {
-      setSourceMsg({ ok: false, text: err.message });
+      setScanMsg({ ok: false, text: err.message });
     }
   }
 
@@ -1058,7 +998,6 @@ const [importMsg, setImportMsg] = useState(null);
 
   async function syncAllChannels() {
     setScanning(true);
-    beginAcquisitionDebug('Sincronizzazione di tutti i canali', sources.length || 1);
     setScanProgress([]);
     setScanMsg({ ok: true, text: 'Sincronizzazione manuale di tutti i canali attivi...', loading: true });
     setAcquisitionModal({ status: 'working', title: 'Sincronizzo tutti i canali', text: "Controllo ogni fonte collegata e acquisisco i nuovi contenuti. Puoi seguire qui l'avanzamento." });
@@ -1068,21 +1007,17 @@ const [importMsg, setImportMsg] = useState(null);
         body: JSON.stringify({ limit: parseInt(syncLimit) || 20 })
       }, token);
       const results = Array.isArray(sync?.results) ? sync.results : [];
-      appendAcquisitionDebug(results.flatMap(result => Array.isArray(result?.debug_trace) ? result.debug_trace : []));
       const errors = results.filter(result => result?.error).map(result => String(result.error));
       const imported = results.reduce((sum, result) => sum + Number(result?.new || 0), 0);
       if (errors.length > 0 && imported === 0) {
         const message = `La scansione non ha funzionato: ${errors[0]}`;
-        appendAcquisitionDebug([], 'error', message);
         setScanMsg({ ok: false, text: message, loading: false });
         setAcquisitionModal({ status: 'error', title: 'Acquisizione non riuscita', text: message });
         return;
       }
       await processPendingLoop(true);
-      appendAcquisitionDebug([], errors.length > 0 ? 'partial' : 'success', errors.length > 0 ? `Sincronizzazione terminata con ${errors.length} errori.` : 'Sincronizzazione e acquisizione completate.');
       await loadData();
     } catch (err) {
-      appendAcquisitionDebug([], 'error', `Errore richiesta di sincronizzazione: ${err.message}`);
       setScanMsg({ ok: false, text: err.message });
       setAcquisitionModal({ status: 'error', title: 'Sincronizzazione non completata', text: err.message });
     } finally {
@@ -1096,7 +1031,6 @@ const [importMsg, setImportMsg] = useState(null);
       return;
     }
     setScanning(true); 
-    beginAcquisitionDebug('Aggiornamento contenuti', sources.length);
     setScanMsg({ ok: true, text: 'Preparazione sincronizzazione dei canali attivi...', loading: true });
     setScanProgress(sources.map((s, index) => ({ id: s.id, platform: s.platform, label: s.label, status: 'pending', details: `In attesa di avvio (${index + 1}/${sources.length})` })));
     
@@ -1133,7 +1067,6 @@ const [importMsg, setImportMsg] = useState(null);
           })
         }, token);
         const r = res.report;
-        appendAcquisitionDebug(r.debug_trace || [], (r.errors || []).length > 0 ? 'partial' : 'running', `Risposta ricevuta da ${sourceName}.`);
         totalImported += (r.imported || 0);
         totalFound += (r.found || 0);
         totalDuplicates += (r.duplicates || 0);
@@ -1162,7 +1095,6 @@ const [importMsg, setImportMsg] = useState(null);
         console.error("Errore scansione " + source.platform, err);
         totalErrors++;
         sourceErrorMessages.push(err.message);
-        appendAcquisitionDebug([], 'error', `Errore richiesta ${sourceName}: ${err.message}`);
         setScanProgress(prev => prev.map(s => s.id === source.id ? {
           ...s,
           status: 'error',
@@ -1185,7 +1117,6 @@ const [importMsg, setImportMsg] = useState(null);
     }
 
     const processingIds = [...new Set([...importedIds, ...retryableIds])];
-    appendAcquisitionDebug([], totalErrors > 0 ? 'error' : 'success', totalErrors > 0 ? `Scansione terminata con ${totalErrors} errori.` : `Scansione completata: ${totalFound} trovati, ${totalImported} importati.`);
     setScanMsg({
       ok: totalErrors === 0,
       text: processingIds.length > 0
@@ -1206,30 +1137,6 @@ const [importMsg, setImportMsg] = useState(null);
       setAcquisitionModal({ status: 'success', title: 'Canali aggiornati', text: 'Non sono stati trovati nuovi contenuti. Nessun articolo esistente è stato rigenerato.' });
     }
     setScanning(false);
-  }
-
-  async function repairMedia() {
-    if (!data?.posts?.some(post => post.media_url)) {
-      alert('Non ci sono media da riparare.');
-      return;
-    }
-    setRepairingMedia(true);
-    setScanMsg({ ok: true, text: 'Controllo e riparazione media in corso...', loading: true });
-    try {
-      const res = await apiFetch('/api/index.php?action=repair-media', {
-        method: 'POST',
-        body: JSON.stringify({ limit: Math.max(parseInt(syncLimit, 10) || 20, 50) })
-      }, token);
-      const report = res.report || {};
-      await loadData();
-      setScanMsg({
-        ok: true,
-        text: `Media controllati: ${report.checked || 0}. Scaricati: ${report.downloaded || 0}. Normalizzati: ${report.normalized || 0}.`
-      });
-    } catch (err) {
-      setScanMsg({ ok: false, text: err.message });
-    }
-    setRepairingMedia(false);
   }
 
   async function saveProfile() {
@@ -2065,21 +1972,19 @@ const [importMsg, setImportMsg] = useState(null);
     const url = addUrl.trim();
     if (!url) return;
     const platform = detectPlatformFromUrl(url);
-    if (!platform) {
-      setAddMsg({ ok: false, text: 'URL non riconosciuto. Inserisci il link al tuo profilo su Instagram, TikTok, YouTube, Facebook o il tuo sito web.' });
+    if (!platform || platform !== 'website') {
+      setAddMsg({ ok: false, text: 'Per Facebook, Instagram, TikTok e YouTube usa i pulsanti di connessione ufficiale. Qui puoi aggiungere soltanto un sito web.' });
       return;
     }
     setAddLoading(true);
     try {
-      const sinceDate = addOnlyNew ? new Date().toISOString().split('T')[0] : null;
       await apiFetch('/api/index.php?action=social-source-upsert', {
         method: 'POST',
-        body: JSON.stringify({ platform, label: addLabel || (SOCIAL[platform]?.label || platform), url, since_date: sinceDate })
+        body: JSON.stringify({ platform: 'website', label: addLabel || 'Sito web', url })
       }, token);
-      setAddMsg({ ok: true, text: `✅ Profilo ${SOCIAL[platform]?.label || platform} aggiunto! Clicca "Sincronizza tutti" per importare i contenuti.` });
+      setAddMsg({ ok: true, text: 'Sito web aggiunto. Clicca “Sincronizza tutti” per importare i contenuti.' });
       setAddUrl('');
       setAddLabel('');
-      setAddOnlyNew(false);
       await loadData();
     } catch (err) {
       setAddMsg({ ok: false, text: err.message });
@@ -2088,12 +1993,17 @@ const [importMsg, setImportMsg] = useState(null);
   }
 
   async function connectOAuth(platform) {
-    window.location.href = `/api/auth/oauth_redirect.php?platform=${platform}&token=${localStorage.getItem('sts_token') || ''}`;
+    try {
+      const result = await apiFetch(`/api/index.php?action=social-auth-url&platform=${encodeURIComponent(platform)}&return_to=${encodeURIComponent(window.location.pathname)}`, {}, token);
+      window.location.assign(result.url);
+    } catch (error) {
+      setSyncMsg({ ok: false, text: error.message });
+    }
   }
 
   async function removeChannel(channel) {
     if (!window.confirm(`Rimuovere il canale "${channel.label || channel.platform}"?`)) return;
-    if (channel.type === 'scraping') {
+    if (channel.type === 'website') {
       await apiFetch('/api/index.php?action=social-source-delete', { method: 'POST', body: JSON.stringify({ id: channel.sourceId }) }, token);
     } else {
       await apiFetch('/api/index.php?action=social-disconnect', { method: 'POST', body: JSON.stringify({ platform: channel.rawPlatform }) }, token);
@@ -2108,7 +2018,7 @@ const [importMsg, setImportMsg] = useState(null);
   const sources = data?.sources || [];
   const visibility = data?.visibility || {};
   const reachability = data?.reachability || { score: 0, stage: 'configurazione', checks: [] };
-  const activeChannelCount = sources.length + connections.filter(connection => connection.active && !['facebook', 'instagram', 'instagram_login'].includes(connection.platform)).length;
+  const activeChannelCount = sources.filter(source => source.platform === 'website').length + connections.filter(connection => connection.active).length;
 
   useEffect(() => {
     if (!isBasePlan || !data || baseAutoSyncStarted.current) return;
@@ -2556,11 +2466,11 @@ const [importMsg, setImportMsg] = useState(null);
           const allChannels = [];
 
           // Canali OAuth
-          connections.filter(c => c.active && !['facebook', 'instagram', 'instagram_login'].includes(c.platform)).forEach(c => {
+          connections.filter(c => c.active).forEach(c => {
             allChannels.push({
               key: 'oauth_' + c.platform,
               type: 'oauth',
-              platform: c.platform === 'instagram_login' ? 'instagram' : c.platform,
+              platform: c.platform,
               rawPlatform: c.platform,
               handle: c.handle,
               since_date: c.since_date,
@@ -2577,13 +2487,11 @@ const [importMsg, setImportMsg] = useState(null);
             });
           });
 
-          // Sorgenti URL scraping
-          sources.forEach(s => {
-            // Evita duplicati se c'è già un OAuth per la stessa piattaforma
-            const hasOAuth = connections.some(c => c.active && !['facebook', 'instagram', 'instagram_login'].includes(c.platform) && c.platform === s.platform);
+          // Siti web aggiunti tramite URL.
+          sources.filter(s => s.platform === 'website').forEach(s => {
             allChannels.push({
               key: 'src_' + s.id,
-              type: 'scraping',
+              type: 'website',
               platform: s.platform,
               rawPlatform: s.platform,
               sourceId: s.id,
@@ -2600,13 +2508,12 @@ const [importMsg, setImportMsg] = useState(null);
               failed_count: Number(s.failed_count || 0),
               last_content_at: s.last_content_at || null,
               topic_summary: s.topic_summary,
-              hasDuplicateOAuth: hasOAuth,
             });
           });
 
           const detectedPlatform = detectPlatformFromUrl(addUrl);
           const trackedPlatforms = new Set(allChannels.map(channel => channel.platform));
-          const acquiredPosts = posts.filter(post => trackedPlatforms.has(post.platform === 'instagram_login' ? 'instagram' : post.platform));
+          const acquiredPosts = posts.filter(post => trackedPlatforms.has(post.platform));
           const newestChannelDate = allChannels.map(channel => channel.last_content_at).filter(Boolean).sort().reverse()[0] || null;
 
           return (
@@ -2623,37 +2530,37 @@ const [importMsg, setImportMsg] = useState(null);
                 <div className="channel-add-body">
                 <h2 style={{ marginBottom: '0.5rem', fontSize: '18px' }}>➕ Aggiungi un canale</h2>
                 <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '1.25rem' }}>
-                  Incolla il link del tuo profilo social o del tuo sito web. Il sistema riconosce automaticamente la piattaforma e importa i tuoi contenuti.
+                  Inserisci il sito del cliente. Per i social usa le connessioni ufficiali qui sotto.
                 </p>
                 <form onSubmit={handleAddChannel} style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                   <div style={{ position: 'relative' }}>
                     <input
                       className="channel-url-input"
                       type="url"
-                      placeholder="https://www.instagram.com/nomeutente/ oppure https://tuosito.it"
+                      placeholder="https://tuosito.it"
                       value={addUrl}
                       onChange={e => { setAddUrl(e.target.value); setAddMsg(null); }}
-                      style={{ paddingLeft: detectedPlatform ? '40px' : '16px', transition: 'padding 0.2s' }}
+                      style={{ paddingLeft: detectedPlatform === 'website' ? '40px' : '16px', transition: 'padding 0.2s' }}
                     />
-                    {detectedPlatform && (
+                    {detectedPlatform === 'website' && (
                       <span style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}>
                         <img src={SOCIAL[detectedPlatform]?.icon || ''} alt="" style={{ width: 18, height: 18 }} />
                       </span>
                     )}
                   </div>
-                  {detectedPlatform && (
+                  {detectedPlatform === 'website' && (
                     <div style={{ fontSize: '12px', color: 'var(--text-muted)', padding: '6px 10px', background: 'var(--purple-light)', borderRadius: 'var(--radius-sm)' }}>
-                      ✓ Rilevato: <strong>{SOCIAL[detectedPlatform]?.label || detectedPlatform}</strong> — {PLATFORM_DESCRIPTIONS[detectedPlatform] || ''}
+                      ✓ Sito web riconosciuto
                     </div>
                   )}
                   <input
                     type="text"
-                    placeholder="Etichetta (opzionale) — Es: Il mio account principale"
+                    placeholder="Etichetta (opzionale) — Es: Sito aziendale"
                     value={addLabel}
                     onChange={e => setAddLabel(e.target.value)}
                   />
                   <button type="submit" className="btn btn-primary" disabled={addLoading || !addUrl.trim()} style={{ alignSelf: 'flex-start', padding: '10px 24px' }}>
-                    {addLoading ? '⟳ Aggiunta in corso...' : '+ Aggiungi canale'}
+                    {addLoading ? '⟳ Aggiunta in corso...' : '+ Aggiungi sito'}
                   </button>
                 </form>
                 {addMsg && (
@@ -2664,13 +2571,12 @@ const [importMsg, setImportMsg] = useState(null);
                   </div>
                 )}
 
-                {/* Connessione ufficiale mantenuta soltanto per YouTube. */}
                 <div style={{ marginTop: '1.5rem', paddingTop: '1rem', borderTop: '1px solid var(--border)' }}>
                   <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                    Per YouTube puoi anche usare l'accesso ufficiale. Facebook e Instagram funzionano tramite link pubblico.
+                    Connessioni ufficiali autorizzate dal proprietario dell'account
                   </div>
                   <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-                    {['youtube'].map(platform => {
+                    {['facebook', 'instagram', 'tiktok', 'youtube'].map(platform => {
                       const conn = connByPlatform[platform];
                       const isConnected = !!conn && conn.active;
                       return (
@@ -2702,14 +2608,7 @@ const [importMsg, setImportMsg] = useState(null);
                   {allChannels.length > 0 && (
                     <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
                       <button
-                        onClick={repairMedia}
-                        disabled={repairingMedia || scanning}
-                        className="btn btn-outline"
-                        style={{ fontSize: '13px', padding: '8px 18px' }}
-                      >
-                        {repairingMedia ? 'Riparazione media...' : 'Ripara immagini'}
-                      </button>
-                      <button onClick={syncAllChannels} disabled={scanning || repairingMedia}
+                        onClick={syncAllChannels} disabled={scanning}
                         className="btn btn-primary" style={{ fontSize: '13px', padding: '8px 18px' }}>
                         {scanning ? '⟳ Sincronizzazione...' : '🔄 Sincronizza tutti'}
                       </button>
@@ -2721,7 +2620,7 @@ const [importMsg, setImportMsg] = useState(null);
                   <div style={{ textAlign: 'center', padding: '3rem 1rem', color: 'var(--text-muted)' }}>
                     <div style={{ fontSize: '48px', marginBottom: '1rem', opacity: 0.4 }}>📭</div>
                     <div style={{ fontWeight: 600, marginBottom: '0.5rem' }}>Nessun canale aggiunto</div>
-                    <div style={{ fontSize: '13px' }}>Incolla il link del tuo profilo nel campo qui sopra per iniziare.</div>
+                    <div style={{ fontSize: '13px' }}>Connetti un social ufficiale oppure aggiungi il sito web del cliente.</div>
                   </div>
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
@@ -2876,10 +2775,10 @@ const [importMsg, setImportMsg] = useState(null);
                 <div className="channel-add-body">
                 <h2 style={{ marginBottom: '0.5rem', fontSize: '18px' }}>🔗 Importa un contenuto specifico</h2>
                 <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '12px' }}>
-                  Incolla il link di un singolo video o post per importarlo e convertirlo subito in articolo.
+                  Incolla il link di un articolo o di una pagina web per convertirlo subito in articolo. I contenuti social arrivano dai canali autorizzati.
                 </p>
                 <form onSubmit={doImport} style={{ display: 'flex', gap: '8px' }}>
-                  <input className="channel-url-input" type="text" placeholder="https://www.youtube.com/watch?v=... oppure link Instagram/TikTok"
+                  <input className="channel-url-input" type="url" placeholder="https://www.esempio.it/articolo"
                     value={linkUrl} onChange={e => setLinkUrl(e.target.value)} style={{ flex: 1 }} />
                   <button type="submit" className="btn btn-primary" disabled={importing}>
                     {importing ? '⟳ Elaborazione...' : 'Importa'}
@@ -3045,7 +2944,7 @@ const [importMsg, setImportMsg] = useState(null);
                       </div>
                       
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        {post.media_type === 'VIDEO' && <span style={{ background: 'var(--primary-light)', color: 'var(--primary-dark)', padding: '4px 10px', borderRadius: '20px', fontSize: '11px', fontWeight: 700, whiteSpace: 'nowrap' }}>🎥 VIDEO</span>}
+                        {String(post.media_type || '').toUpperCase() === 'VIDEO' && <span style={{ background: 'var(--primary-light)', color: 'var(--primary-dark)', padding: '4px 10px', borderRadius: '20px', fontSize: '11px', fontWeight: 700, whiteSpace: 'nowrap' }}>🎥 VIDEO</span>}
                         {Number(post.seo_score) < 0 ? (postProcessingStatus(post) === 'processing' ? <span className="article-processing-pulse" title="Elaborazione realmente in corso" /> : null) : (
                           <div style={{ width: '32px', height: '32px', borderRadius: '50%', flexShrink: 0, background: post.seo_score >= 80 ? 'var(--teal-light)' : (post.seo_score >= 50 ? 'var(--amber-light)' : 'var(--red-light)'), color: post.seo_score >= 80 ? 'var(--teal)' : (post.seo_score >= 50 ? 'var(--amber)' : 'var(--red)'), display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: '12px', border: `2px solid ${post.seo_score >= 80 ? 'var(--teal)' : (post.seo_score >= 50 ? 'var(--amber)' : 'var(--red)')}`, boxShadow: '0 4px 10px rgba(0,0,0,0.05)' }} title={`Score SEO: ${post.seo_score}`}>
                             {post.seo_score}

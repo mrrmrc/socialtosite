@@ -46,11 +46,3 @@ export function detectPlatformFromUrl(url) {
   if (u.match(/^https?:\/\//) && !u.includes('twitter') && !u.includes('x.com')) return 'website';
   return null;
 }
-
-export const PLATFORM_DESCRIPTIONS = {
-  instagram: 'Es: https://www.instagram.com/nomeutente/',
-  tiktok: 'Es: https://www.tiktok.com/@nomeutente',
-  youtube: 'Es: https://www.youtube.com/@nomeutente',
-  facebook: 'Es: https://www.facebook.com/nomepagina',
-  website: 'Il tuo sito web personale o blog',
-};

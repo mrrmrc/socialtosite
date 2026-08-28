@@ -1,1 +1,0 @@
-Professional Studio deployment trigger

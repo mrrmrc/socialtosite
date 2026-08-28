@@ -86,6 +86,7 @@ jobs:
           php tools/test_seo_feedback.php
           php tools/test_reachability_contacts.php
           php tools/test_content_ideas.php
+          php tools/test_website_source_security.php
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -104,27 +105,54 @@ jobs:
 
       - name: Prepare production release
         env:
-          RAPIDAPI_KEY: ${{ secrets.RAPIDAPI_KEY }}
+          FB_APP_ID: ${{ secrets.FB_APP_ID }}
+          FB_APP_SECRET: ${{ secrets.FB_APP_SECRET }}
+          IG_LOGIN_APP_ID: ${{ secrets.IG_LOGIN_APP_ID }}
+          IG_LOGIN_APP_SECRET: ${{ secrets.IG_LOGIN_APP_SECRET }}
+          TIKTOK_CLIENT_KEY: ${{ secrets.TIKTOK_CLIENT_KEY }}
+          TIKTOK_CLIENT_SECRET: ${{ secrets.TIKTOK_CLIENT_SECRET }}
+          GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+          GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
         shell: bash
         run: |
           set -euo pipefail
-          : "${RAPIDAPI_KEY:?Set repository secret RAPIDAPI_KEY}"
+          : "${FB_APP_ID:?Set repository secret FB_APP_ID}"
+          : "${FB_APP_SECRET:?Set repository secret FB_APP_SECRET}"
+          : "${IG_LOGIN_APP_ID:?Set repository secret IG_LOGIN_APP_ID}"
+          : "${IG_LOGIN_APP_SECRET:?Set repository secret IG_LOGIN_APP_SECRET}"
+          : "${TIKTOK_CLIENT_KEY:?Set repository secret TIKTOK_CLIENT_KEY}"
+          : "${TIKTOK_CLIENT_SECRET:?Set repository secret TIKTOK_CLIENT_SECRET}"
+          : "${GOOGLE_CLIENT_ID:?Set repository secret GOOGLE_CLIENT_ID}"
+          : "${GOOGLE_CLIENT_SECRET:?Set repository secret GOOGLE_CLIENT_SECRET}"
           rm -rf release
           mkdir -p release
 
           cp -r api release/
           cp -r public release/
           cp -r cron release/
-          [ ! -d scraper ] || cp -r scraper release/
           cp -r frontend/dist/. release/
           cp .htaccess robots.txt deploy-info.json release/
           cp google*.html release/ 2>/dev/null || true
 
           mkdir -p release/config
           cp config/db.php release/config/
-          RAPIDAPI_KEY_B64="$(printf '%s' "$RAPIDAPI_KEY" | base64 -w0)"
+          FB_APP_ID_B64="$(printf '%s' "$FB_APP_ID" | base64 -w0)"
+          FB_APP_SECRET_B64="$(printf '%s' "$FB_APP_SECRET" | base64 -w0)"
+          IG_LOGIN_APP_ID_B64="$(printf '%s' "$IG_LOGIN_APP_ID" | base64 -w0)"
+          IG_LOGIN_APP_SECRET_B64="$(printf '%s' "$IG_LOGIN_APP_SECRET" | base64 -w0)"
+          TIKTOK_CLIENT_KEY_B64="$(printf '%s' "$TIKTOK_CLIENT_KEY" | base64 -w0)"
+          TIKTOK_CLIENT_SECRET_B64="$(printf '%s' "$TIKTOK_CLIENT_SECRET" | base64 -w0)"
+          GOOGLE_CLIENT_ID_B64="$(printf '%s' "$GOOGLE_CLIENT_ID" | base64 -w0)"
+          GOOGLE_CLIENT_SECRET_B64="$(printf '%s' "$GOOGLE_CLIENT_SECRET" | base64 -w0)"
           printf '%s\n' '<?php' \
-            "if (!defined('RAPIDAPI_KEY')) define('RAPIDAPI_KEY', base64_decode('$RAPIDAPI_KEY_B64'));" \
+            "if (!defined('FB_APP_ID')) define('FB_APP_ID', base64_decode('$FB_APP_ID_B64'));" \
+            "if (!defined('FB_APP_SECRET')) define('FB_APP_SECRET', base64_decode('$FB_APP_SECRET_B64'));" \
+            "if (!defined('IG_LOGIN_APP_ID')) define('IG_LOGIN_APP_ID', base64_decode('$IG_LOGIN_APP_ID_B64'));" \
+            "if (!defined('IG_LOGIN_APP_SECRET')) define('IG_LOGIN_APP_SECRET', base64_decode('$IG_LOGIN_APP_SECRET_B64'));" \
+            "if (!defined('TIKTOK_CLIENT_KEY')) define('TIKTOK_CLIENT_KEY', base64_decode('$TIKTOK_CLIENT_KEY_B64'));" \
+            "if (!defined('TIKTOK_CLIENT_SECRET')) define('TIKTOK_CLIENT_SECRET', base64_decode('$TIKTOK_CLIENT_SECRET_B64'));" \
+            "if (!defined('GOOGLE_CLIENT_ID')) define('GOOGLE_CLIENT_ID', base64_decode('$GOOGLE_CLIENT_ID_B64'));" \
+            "if (!defined('GOOGLE_CLIENT_SECRET')) define('GOOGLE_CLIENT_SECRET', base64_decode('$GOOGLE_CLIENT_SECRET_B64'));" \
             > release/config/runtime-secrets.php
           mkdir -p release/public/media
 

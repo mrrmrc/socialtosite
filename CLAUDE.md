@@ -12,31 +12,20 @@ e li pubblica come sito personale (`/s/<slug>`).
 - `db/schema.sql` — schema MySQL (importato a mano, NON deployato)
 - `config/config.php` — credenziali (NON committato, vive solo sul server)
 
-## Regola di DEPLOY (importante)
-Il deploy SFTP (`.github/workflows/deploy.yml`) preleva il codice da **GitHub `main`**,
-non dal PC né dall'ambiente locale. Quindi **GitHub deve sempre essere aggiornato
-prima del deploy**.
-
-**Ogni volta che l'utente scrive "deploy":**
-1. Commit di tutte le modifiche in sospeso.
-2. Push e **merge su `main`** (GitHub allineato).
-3. Il deploy parte **da solo** al push su `main` (trigger automatico).
-   In alternativa è avviabile a mano da Actions → "Run workflow".
-
-> Nota: l'integrazione non può premere "Run workflow" via API (403). Con il
-> trigger automatico su push non serve: aggiornare `main` avvia il deploy.
+## Regola di deploy
+La sola parola riservata `deployvps` autorizza il deploy di produzione. Il
+comando crea un commit su `main` contenente `[deployvps]`, sincronizza e invia
+il branch; `.github/workflows/deploy.yml` esegue controlli, build e upload
+FTP/FTPS. Un normale push non pubblica nulla. Vedi `AGENTS.md`.
 
 ## Sicurezza
-- Credenziali deploy: il workflow usa i **Secrets** GitHub (`FTP_HOST`,
-  `FTP_USER`, `FTP_PASS`) se impostati, altrimenti ricade su
-  `config/deploy.env`, che al momento è **committato in chiaro**.
-  ⚠️ **Debito aperto (rilievo A1)**: quella password è nella history di git e
-  va ruotata. Appena i Secrets sono impostati, cancellare `config/deploy.env`
-  e rimetterlo in `.gitignore` — il workflow non richiede altre modifiche.
+- Credenziali deploy e OAuth: esclusivamente GitHub Secrets o file locali
+  ignorati. `config/deploy.env`, `config/config.php` e `config/keys.php` non
+  devono mai essere committati.
 - `config/config.php` e `config/keys.php` vivono **solo sul server**, non nel
   repo. I modelli sono `config.example.php` e `keys.example.php`.
 - Il deploy usa una **lista di inclusione** (`api/`, `public/`, `cron/`,
-  `scraper/`, build Vite, `.htaccess`, `robots.txt`): un file nuovo NON finisce
+  build Vite, `.htaccess`, `robots.txt`): un file nuovo NON finisce
   online per default. Gli script di servizio stanno in `tools/`, escluso.
 - **Confine di autenticazione**: in `api/index.php` tutto ciò che sta sopra la
   riga `JWT::require()` è pubblico. Sopra sono ammessi solo `track`, `login`,

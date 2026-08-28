@@ -9,6 +9,7 @@ x-app-environment: &app-environment
   DB_CHARSET: utf8mb4
   BASE_URL: ${BASE_URL:-http://localhost:8081}
   ALLOWED_ORIGIN: ${ALLOWED_ORIGIN:-http://localhost:8081}
+  META_GRAPH_VERSION: ${META_GRAPH_VERSION:-v26.0}
   JWT_SECRET: ${JWT_SECRET:?Imposta JWT_SECRET nel file .env}
   ENCRYPTION_KEY: ${ENCRYPTION_KEY:?Imposta ENCRYPTION_KEY nel file .env}
   ANALYTICS_SALT: ${ANALYTICS_SALT:?Imposta ANALYTICS_SALT nel file .env}
@@ -16,9 +17,6 @@ x-app-environment: &app-environment
   ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
   GEMINI_API_KEY: ${GEMINI_API_KEY:-}
   GEMINI_MODEL: ${GEMINI_MODEL:-gemini-2.5-flash}
-  RAPIDAPI_KEY: ${RAPIDAPI_KEY:-}
-  META_APP_ID: ${META_APP_ID:-}
-  META_APP_SECRET: ${META_APP_SECRET:-}
   FB_APP_ID: ${FB_APP_ID:-}
   FB_APP_SECRET: ${FB_APP_SECRET:-}
   IG_LOGIN_APP_ID: ${IG_LOGIN_APP_ID:-}

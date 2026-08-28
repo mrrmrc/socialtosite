@@ -17,12 +17,16 @@ $__emitErr = function (int $code, string $msg): void {
     exit;
 };
 set_exception_handler(function (Throwable $e) use ($__emitErr) {
-    $__emitErr(500, 'Eccezione in ' . basename($e->getFile()) . ':' . $e->getLine() . ' - ' . $e->getMessage());
+    $requestId = bin2hex(random_bytes(6));
+    error_log("[API $requestId] " . $e::class . ' in ' . $e->getFile() . ':' . $e->getLine() . ' - ' . $e->getMessage());
+    $__emitErr(500, 'Errore interno. Riferimento: ' . $requestId);
 });
 register_shutdown_function(function () use ($__emitErr) {
     $e = error_get_last();
     if ($e && in_array($e['type'], [E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR], true)) {
-        $__emitErr(500, 'Errore fatale: ' . $e['message']);
+        $requestId = bin2hex(random_bytes(6));
+        error_log("[API $requestId] Errore fatale in " . ($e['file'] ?? 'sconosciuto') . ':' . ($e['line'] ?? 0) . ' - ' . ($e['message'] ?? ''));
+        $__emitErr(500, 'Errore interno. Riferimento: ' . $requestId);
     }
 });
 if (!file_exists(__DIR__ . '/../config/config.php')) {
@@ -41,6 +45,7 @@ require_once __DIR__ . '/services/editorial_engine.php';
 require_once __DIR__ . '/services/visibility.php';
 require_once __DIR__ . '/services/seo_foundation.php';
 require_once __DIR__ . '/services/reachability.php';
+require_once __DIR__ . '/services/social_oauth.php';
 
 function setSyncStatus(int $uid, string $msg): void {
     $dir = __DIR__ . '/../public/temp';
@@ -118,6 +123,8 @@ function ensureSocialSyncSchema(): void {
             if (!isset($columns['auto_sync'])) DB::execute("ALTER TABLE `$table` ADD COLUMN auto_sync TINYINT NOT NULL DEFAULT 1");
         } catch (Throwable $e) {}
     }
+    try { DB::execute("UPDATE social_sources SET active=0 WHERE platform IN ('facebook','instagram','tiktok','youtube')"); } catch (Throwable $e) {}
+    try { DB::execute("UPDATE social_connections SET active=0, access_token='', refresh_token=NULL, expires_at=NULL WHERE platform='instagram_login'"); } catch (Throwable $e) {}
 }
 
 function ensureAdminSchema(): void {
@@ -1218,76 +1225,15 @@ if ($action === 'admin-update-prompt' && $method === 'POST') {
     json(['ok' => true]);
 }
 
-// ── GET check-social-url (verifica validita' e numero post stimati) ───────
-if ($action === 'check-social-url' && $method === 'POST') {
-    $b = body();
-    $url = trim($b['url'] ?? '');
-    $platform = trim($b['platform'] ?? '') ?: detectSocialPlatform($url);
-    $sinceDate = trim($b['since_date'] ?? '');
-    $maxPosts = isset($b['max_posts']) && $b['max_posts'] !== '' ? (int)$b['max_posts'] : 20;
-    
-    if ($sinceDate && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $sinceDate)) $sinceDate = null;
-    
-    if (!$platform) jsonError('Piattaforma non riconosciuta');
-    if (!filter_var($url, FILTER_VALIDATE_URL)) jsonError('Link social non valido');
-    
-    try {
-        require_once __DIR__ . '/services/ai.php';
-        $items = AI::sourceItems($platform, $url, $maxPosts, $sinceDate);
-        $count = count($items);
-        json([
-            'ok' => true, 
-            'platform' => $platform, 
-            'count' => $count, 
-            'message' => $count > 0 ? "Connessione OK. Trovati circa $count post validi." : "Connessione OK, ma nessun post trovato dopo la data indicata."
-        ]);
-    } catch (Throwable $e) {
-        jsonError("Errore connessione: " . $e->getMessage());
-    }
-}
-
 if ($action === 'social-sources' && $method === 'GET') {
     $sources = DB::fetchAll(
         'SELECT id, platform, label, url, topic_summary, active, created_at
            FROM social_sources
-          WHERE user_id=? AND active=1
-          ORDER BY platform, id DESC',
+          WHERE user_id=? AND active=1 AND platform=\'website\'
+          ORDER BY id DESC',
         [$userId]
     );
     json($sources);
-}
-
-if ($action === 'social-source-create' && $method === 'POST') {
-    $b = body();
-    $url = trim($b['url'] ?? '');
-    $label = trim($b['label'] ?? '');
-    $platform = trim($b['platform'] ?? '') ?: detectSocialPlatform($url);
-
-    if (!filter_var($url, FILTER_VALIDATE_URL)) jsonError('Link social non valido');
-    if (!$platform) jsonError('Piattaforma non riconosciuta');
-    if (!in_array($platform, ['instagram', 'facebook', 'tiktok', 'youtube', 'website'], true)) {
-        jsonError('Piattaforma non supportata: ' . $platform);
-    }
-
-    $sinceDate = trim($b['since_date'] ?? '');
-    if ($sinceDate && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $sinceDate)) $sinceDate = null;
-
-    $topic = 'Profilo/canale ' . $platform . ' indicato dall\'utente';
-    if ($label) $topic .= ': ' . $label;
-
-    try {
-        $id = DB::insert(
-            'INSERT INTO social_sources (user_id, platform, label, url, topic_summary) VALUES (?,?,?,?,?)',
-            [$userId, $platform, $label, $url, $topic]
-        );
-    } catch (Throwable $e) {
-        jsonError('Questo social e gia presente per l\'utente', 409);
-    }
-
-    json(['ok' => true, 'source' => [
-        'id' => $id, 'platform' => $platform, 'label' => $label, 'url' => $url,
-        'topic_summary' => $topic, 'active' => 1
-    ]], 201);
 }
 
 if ($action === 'social-source-upsert' && $method === 'POST') {
@@ -1302,23 +1248,28 @@ if ($action === 'social-source-upsert' && $method === 'POST') {
     $maxPosts = isset($b['max_posts']) && $b['max_posts'] !== '' ? (int)$b['max_posts'] : null;
     if ($sinceDate && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $sinceDate)) $sinceDate = null;
 
-    if (!in_array($platform, ['instagram', 'facebook', 'tiktok', 'youtube', 'website'], true)) {
-        jsonError('Piattaforma non supportata: ' . $platform);
-    }
+    if ($platform !== 'website') jsonError('I canali social si collegano esclusivamente tramite autorizzazione ufficiale.');
     if ($url === '') {
         DB::execute('UPDATE social_sources SET active=0 WHERE user_id=? AND platform=?', [$userId, $platform]);
         json(['ok' => true]);
     }
-    if (!filter_var($url, FILTER_VALIDATE_URL)) jsonError('Link social non valido');
+    if (!filter_var($url, FILTER_VALIDATE_URL)) jsonError('Indirizzo del sito non valido');
+    try { WebsiteSource::validate($url); } catch (Throwable $e) { jsonError($e->getMessage(), 422); }
 
     $existing = DB::fetch('SELECT id FROM social_sources WHERE user_id=? AND platform=? LIMIT 1', [$userId, $platform]);
     
     // --- LIMITI PIANO BASE ---
     $u = DB::fetch('SELECT plan FROM users WHERE id=?', [$userId]);
-    if (($u['plan'] ?? 'free') === 'base') {
-        $count = DB::fetch('SELECT COUNT(id) as c FROM social_sources WHERE user_id=? AND active=1', [$userId]);
-        if ($count['c'] >= 1 && !$existing) {
-            jsonError('Il piano Base consente di collegare un solo canale social.');
+    $plan = strtolower(trim((string)($u['plan'] ?? 'base')));
+    if (!in_array($plan, ['professional', 'pro', 'agency'], true)) {
+        $count = DB::fetch(
+            'SELECT
+                (SELECT COUNT(*) FROM social_sources WHERE user_id=? AND active=1 AND platform=\'website\' AND id<>?) +
+                (SELECT COUNT(*) FROM social_connections WHERE user_id=? AND active=1) AS c',
+            [$userId, (int)($existing['id'] ?? 0), $userId]
+        );
+        if ((int)($count['c'] ?? 0) >= 1) {
+            jsonError('Il piano Base consente di collegare un solo canale.');
         }
     }
     
@@ -1326,7 +1277,7 @@ if ($action === 'social-source-upsert' && $method === 'POST') {
     if ($customTopic) {
         $topic = $customTopic;
     } else {
-        $topic = 'Profilo/canale ' . $platform . ' indicato dall\'utente';
+        $topic = 'Sito web indicato dall\'utente';
         if ($label) $topic .= ': ' . $label;
     }
 
@@ -1388,7 +1339,7 @@ if ($action === 'social-connection-update' && $method === 'POST') {
     $maxPosts = isset($b['max_posts']) && $b['max_posts'] !== '' ? (int)$b['max_posts'] : null;
     if ($sinceDate && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $sinceDate)) $sinceDate = null;
     
-    if (!in_array($platform, ['instagram', 'instagram_login', 'facebook', 'tiktok', 'youtube'], true)) {
+    if (!in_array($platform, SocialOAuth::supportedPlatforms(), true)) {
         jsonError('Piattaforma non supportata');
     }
 
@@ -1416,10 +1367,11 @@ if ($action === 'social-source-delete' && $method === 'POST') {
 
 if ($action === 'social-disconnect' && $method === 'POST') {
     $b = body();
-    DB::execute(
-        'UPDATE social_connections SET active=0 WHERE platform=? AND user_id=?',
-        [trim($b['platform'] ?? ''), $userId]
-    );
+    try {
+        SocialOAuth::disconnect($userId, strtolower(trim((string)($b['platform'] ?? ''))));
+    } catch (Throwable $e) {
+        jsonError($e->getMessage(), 400);
+    }
     json(['ok' => true]);
 }
 
@@ -1431,55 +1383,23 @@ if ($action === 'scan-sources' && $method === 'POST') {
     json(['ok' => true, 'report' => $res]);
 }
 
-// ── GET social/auth-url?platform=xxx ─────────────────────────────────────
-if ($action === 'repair-media' && $method === 'POST') {
-    $b = body();
-    $limit = isset($b['limit']) ? (int)$b['limit'] : 50;
-    $report = Sync::repairMediaLibrary($userId, max(20, $limit));
-    json(['ok' => true, 'report' => $report]);
-}
-
 if ($action === 'social-auth-url' && $method === 'GET') {
-    $platform = $_GET['platform'] ?? '';
-    if (in_array($platform, ['facebook', 'instagram', 'instagram_login'], true)) {
-        jsonError('Facebook e Instagram non richiedono piu\' Meta Graph API: aggiungi il link pubblico del profilo, che verra\' acquisito dai provider configurati.');
+    $platform = strtolower(trim((string)($_GET['platform'] ?? '')));
+    $returnTo = trim((string)($_GET['return_to'] ?? '/dashboard'));
+    try {
+        json(['url' => SocialOAuth::authorizationUrl($userId, $platform, $returnTo)]);
+    } catch (Throwable $e) {
+        jsonError($e->getMessage(), 503);
     }
-    $state    = base64_encode(json_encode(['userId' => $userId, 'platform' => $platform]));
-    $urls = [
-        'tiktok' => 'https://www.tiktok.com/v2/auth/authorize/?' . http_build_query([
-            'client_key'    => TIKTOK_CLIENT_KEY,
-            'redirect_uri'  => TIKTOK_REDIRECT_URI,
-            'scope'         => 'user.info.basic,video.list',
-            'response_type' => 'code', 'state' => $state,
-        ]),
-        'youtube' => 'https://accounts.google.com/o/oauth2/v2/auth?' . http_build_query([
-            'client_id'     => GOOGLE_CLIENT_ID,
-            'redirect_uri'  => GOOGLE_REDIRECT_URI,
-            'scope'         => 'https://www.googleapis.com/auth/youtube.readonly',
-            'response_type' => 'code',
-            'access_type'   => 'offline',
-            'state'         => $state,
-        ]),
-    ];
-    if (!isset($urls[$platform])) jsonError('Piattaforma non supportata');
-    json(['url' => $urls[$platform]]);
 }
 
 // ── GET social/connections ────────────────────────────────────────────────
 if ($action === 'social-connections' && $method === 'GET') {
     $conns = DB::fetchAll(
-        'SELECT platform, handle, connected_at, active FROM social_connections WHERE user_id=?',
+        'SELECT platform, platform_uid, handle, connected_at, active, since_date, auto_publish, auto_sync, max_posts FROM social_connections WHERE user_id=?',
         [$userId]
     );
     json($conns);
-}
-
-// ── DELETE social/connection?platform=xxx ─────────────────────────────────
-if ($action === 'social-disconnect' && $method === 'POST') {
-    $b = body();
-    DB::execute('UPDATE social_connections SET active=0 WHERE user_id=? AND platform=?',
-        [$userId, $b['platform'] ?? '']);
-    json(['ok' => true]);
 }
 
 // ── POST sync ─────────────────────────────────────────────────────────────
@@ -1546,7 +1466,7 @@ if ($action === 'site' && $method === 'GET') {
             'SELECT platform, handle, active, since_date, auto_publish, auto_sync, max_posts FROM social_connections WHERE user_id=?', [$userId]
         );
         $sources = DB::fetchAll(
-            'SELECT id, platform, label, url, topic_summary, active, since_date, auto_publish, auto_sync, max_posts FROM social_sources WHERE user_id=? AND active=1 ORDER BY platform, id DESC',
+            'SELECT id, platform, label, url, topic_summary, active, since_date, auto_publish, auto_sync, max_posts FROM social_sources WHERE user_id=? AND active=1 AND platform=\'website\' ORDER BY id DESC',
             [$userId]
         );
         $channelStatRows = DB::fetchAll(
@@ -1560,7 +1480,7 @@ if ($action === 'site' && $method === 'GET') {
         );
         $channelStats = [];
         foreach ($channelStatRows as $row) {
-            $key = ($row['platform'] ?? '') === 'instagram_login' ? 'instagram' : ($row['platform'] ?? '');
+            $key = (string)($row['platform'] ?? '');
             if ($key === '') continue;
             if (!isset($channelStats[$key])) $channelStats[$key] = ['content_count'=>0, 'published_count'=>0, 'draft_count'=>0, 'processing_count'=>0, 'failed_count'=>0, 'last_content_at'=>null];
             $channelStats[$key]['content_count'] += (int)($row['content_count'] ?? 0);
@@ -1571,7 +1491,7 @@ if ($action === 'site' && $method === 'GET') {
             if (($row['last_content_at'] ?? '') > ($channelStats[$key]['last_content_at'] ?? '')) $channelStats[$key]['last_content_at'] = $row['last_content_at'];
         }
         foreach ($connections as &$connection) {
-            $key = ($connection['platform'] ?? '') === 'instagram_login' ? 'instagram' : ($connection['platform'] ?? '');
+            $key = (string)($connection['platform'] ?? '');
             $connection = array_merge($connection, $channelStats[$key] ?? ['content_count'=>0, 'published_count'=>0, 'draft_count'=>0, 'processing_count'=>0, 'failed_count'=>0, 'last_content_at'=>null]);
         }
         unset($connection);
@@ -1991,7 +1911,7 @@ if ($action === 'chief-editor' && $method === 'POST') {
     }
 }
 
-// ── AGENTE 1: POST ingest-url  { url } ────────────────────────────────────
+// ── POST ingest-url: importa un articolo o una pagina web ─────────────────
 if ($action === 'ingest-url' && $method === 'POST') {
     $b   = body();
     $res = Ingest::url($userId, $b['url'] ?? '');
@@ -2152,7 +2072,7 @@ if ($action === 'create-idea-draft' && $method === 'POST') {
         . '<h2>Il punto di partenza</h2><p>Questo contenuto nasce da <strong>' . $safeSource . '</strong> ed è classificato come <strong>' . $safePriority . '</strong>. Deve rispondere con chiarezza al tema “' . $safeTitle . '” usando esempi e informazioni realmente disponibili.</p>'
         . '<h2>Scaletta da sviluppare</h2><ul><li>Aprire con il bisogno o la domanda concreta del pubblico.</li><li>Spiegare il tema con un linguaggio semplice e specifico.</li><li>Aggiungere prove, esempi o dettagli riconducibili all’attività.</li><li>Concludere con un prossimo passo chiaro, senza promesse non verificabili.</li></ul>'
         . '<h2>Nota editoriale</h2><p>Tipologia: ' . $safeType . '. La versione AI completa viene elaborata in background; puoi già modificare questa struttura.</p>';
-    if (($me['plan'] ?? 'free') === 'base') {
+    if (!in_array(strtolower(trim((string)($me['plan'] ?? 'base'))), ['professional', 'pro', 'agency'], true)) {
         $monthStart = date('Y-m-01 00:00:00');
         $postsThisMonth = DB::fetch('SELECT COUNT(*) as c FROM posts WHERE user_id=? AND imported_at >= ?', [$userId, $monthStart])['c'] ?? 0;
         if ($postsThisMonth >= 10) {
