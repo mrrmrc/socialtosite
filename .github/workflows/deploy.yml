@@ -116,14 +116,17 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          : "${FB_APP_ID:?Set repository secret FB_APP_ID}"
-          : "${FB_APP_SECRET:?Set repository secret FB_APP_SECRET}"
-          : "${IG_LOGIN_APP_ID:?Set repository secret IG_LOGIN_APP_ID}"
-          : "${IG_LOGIN_APP_SECRET:?Set repository secret IG_LOGIN_APP_SECRET}"
-          : "${TIKTOK_CLIENT_KEY:?Set repository secret TIKTOK_CLIENT_KEY}"
-          : "${TIKTOK_CLIENT_SECRET:?Set repository secret TIKTOK_CLIENT_SECRET}"
-          : "${GOOGLE_CLIENT_ID:?Set repository secret GOOGLE_CLIENT_ID}"
-          : "${GOOGLE_CLIENT_SECRET:?Set repository secret GOOGLE_CLIENT_SECRET}"
+          require_pair() {
+            local label="$1" first="$2" second="$3"
+            if { [ -n "$first" ] && [ -z "$second" ]; } || { [ -z "$first" ] && [ -n "$second" ]; }; then
+              echo "::error::$label credentials must be configured as a complete pair."
+              exit 1
+            fi
+          }
+          require_pair "Facebook" "$FB_APP_ID" "$FB_APP_SECRET"
+          require_pair "Instagram" "$IG_LOGIN_APP_ID" "$IG_LOGIN_APP_SECRET"
+          require_pair "TikTok" "$TIKTOK_CLIENT_KEY" "$TIKTOK_CLIENT_SECRET"
+          require_pair "Google" "$GOOGLE_CLIENT_ID" "$GOOGLE_CLIENT_SECRET"
           rm -rf release
           mkdir -p release
 
@@ -136,24 +139,22 @@ jobs:
 
           mkdir -p release/config
           cp config/db.php release/config/
-          FB_APP_ID_B64="$(printf '%s' "$FB_APP_ID" | base64 -w0)"
-          FB_APP_SECRET_B64="$(printf '%s' "$FB_APP_SECRET" | base64 -w0)"
-          IG_LOGIN_APP_ID_B64="$(printf '%s' "$IG_LOGIN_APP_ID" | base64 -w0)"
-          IG_LOGIN_APP_SECRET_B64="$(printf '%s' "$IG_LOGIN_APP_SECRET" | base64 -w0)"
-          TIKTOK_CLIENT_KEY_B64="$(printf '%s' "$TIKTOK_CLIENT_KEY" | base64 -w0)"
-          TIKTOK_CLIENT_SECRET_B64="$(printf '%s' "$TIKTOK_CLIENT_SECRET" | base64 -w0)"
-          GOOGLE_CLIENT_ID_B64="$(printf '%s' "$GOOGLE_CLIENT_ID" | base64 -w0)"
-          GOOGLE_CLIENT_SECRET_B64="$(printf '%s' "$GOOGLE_CLIENT_SECRET" | base64 -w0)"
-          printf '%s\n' '<?php' \
-            "if (!defined('FB_APP_ID')) define('FB_APP_ID', base64_decode('$FB_APP_ID_B64'));" \
-            "if (!defined('FB_APP_SECRET')) define('FB_APP_SECRET', base64_decode('$FB_APP_SECRET_B64'));" \
-            "if (!defined('IG_LOGIN_APP_ID')) define('IG_LOGIN_APP_ID', base64_decode('$IG_LOGIN_APP_ID_B64'));" \
-            "if (!defined('IG_LOGIN_APP_SECRET')) define('IG_LOGIN_APP_SECRET', base64_decode('$IG_LOGIN_APP_SECRET_B64'));" \
-            "if (!defined('TIKTOK_CLIENT_KEY')) define('TIKTOK_CLIENT_KEY', base64_decode('$TIKTOK_CLIENT_KEY_B64'));" \
-            "if (!defined('TIKTOK_CLIENT_SECRET')) define('TIKTOK_CLIENT_SECRET', base64_decode('$TIKTOK_CLIENT_SECRET_B64'));" \
-            "if (!defined('GOOGLE_CLIENT_ID')) define('GOOGLE_CLIENT_ID', base64_decode('$GOOGLE_CLIENT_ID_B64'));" \
-            "if (!defined('GOOGLE_CLIENT_SECRET')) define('GOOGLE_CLIENT_SECRET', base64_decode('$GOOGLE_CLIENT_SECRET_B64'));" \
-            > release/config/runtime-secrets.php
+          printf '%s\n' '<?php' > release/config/runtime-secrets.php
+          append_secret() {
+            local name="$1" value="$2" encoded
+            [ -n "$value" ] || return 0
+            encoded="$(printf '%s' "$value" | base64 -w0)"
+            printf "if (!defined('%s')) define('%s', base64_decode('%s'));\n" "$name" "$name" "$encoded" \
+              >> release/config/runtime-secrets.php
+          }
+          append_secret FB_APP_ID "$FB_APP_ID"
+          append_secret FB_APP_SECRET "$FB_APP_SECRET"
+          append_secret IG_LOGIN_APP_ID "$IG_LOGIN_APP_ID"
+          append_secret IG_LOGIN_APP_SECRET "$IG_LOGIN_APP_SECRET"
+          append_secret TIKTOK_CLIENT_KEY "$TIKTOK_CLIENT_KEY"
+          append_secret TIKTOK_CLIENT_SECRET "$TIKTOK_CLIENT_SECRET"
+          append_secret GOOGLE_CLIENT_ID "$GOOGLE_CLIENT_ID"
+          append_secret GOOGLE_CLIENT_SECRET "$GOOGLE_CLIENT_SECRET"
           mkdir -p release/public/media
 
           if find release \( -name 'config.php' -o -name 'keys.php' -o -name '*.env' \
