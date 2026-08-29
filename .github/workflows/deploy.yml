@@ -147,14 +147,14 @@ jobs:
             printf "if (!defined('%s')) define('%s', base64_decode('%s'));\n" "$name" "$name" "$encoded" \
               >> release/config/runtime-secrets.php
           }
-          append_secret FB_APP_ID "$FB_APP_ID"
-          append_secret FB_APP_SECRET "$FB_APP_SECRET"
-          append_secret IG_LOGIN_APP_ID "$IG_LOGIN_APP_ID"
-          append_secret IG_LOGIN_APP_SECRET "$IG_LOGIN_APP_SECRET"
-          append_secret TIKTOK_CLIENT_KEY "$TIKTOK_CLIENT_KEY"
-          append_secret TIKTOK_CLIENT_SECRET "$TIKTOK_CLIENT_SECRET"
-          append_secret GOOGLE_CLIENT_ID "$GOOGLE_CLIENT_ID"
-          append_secret GOOGLE_CLIENT_SECRET "$GOOGLE_CLIENT_SECRET"
+          append_secret SOCIALTOSITE_RUNTIME_FB_APP_ID "$FB_APP_ID"
+          append_secret SOCIALTOSITE_RUNTIME_FB_APP_SECRET "$FB_APP_SECRET"
+          append_secret SOCIALTOSITE_RUNTIME_IG_LOGIN_APP_ID "$IG_LOGIN_APP_ID"
+          append_secret SOCIALTOSITE_RUNTIME_IG_LOGIN_APP_SECRET "$IG_LOGIN_APP_SECRET"
+          append_secret SOCIALTOSITE_RUNTIME_TIKTOK_CLIENT_KEY "$TIKTOK_CLIENT_KEY"
+          append_secret SOCIALTOSITE_RUNTIME_TIKTOK_CLIENT_SECRET "$TIKTOK_CLIENT_SECRET"
+          append_secret SOCIALTOSITE_RUNTIME_GOOGLE_CLIENT_ID "$GOOGLE_CLIENT_ID"
+          append_secret SOCIALTOSITE_RUNTIME_GOOGLE_CLIENT_SECRET "$GOOGLE_CLIENT_SECRET"
           mkdir -p release/public/media
 
           if find release \( -name 'config.php' -o -name 'keys.php' -o -name '*.env' \

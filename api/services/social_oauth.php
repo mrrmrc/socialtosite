@@ -68,6 +68,8 @@ final class SocialOAuth {
     }
 
     private static function value(string $primary, string $fallback = ''): string {
+        $runtime = 'SOCIALTOSITE_RUNTIME_' . $primary;
+        if (defined($runtime) && trim((string)constant($runtime)) !== '') return trim((string)constant($runtime));
         if (defined($primary) && trim((string)constant($primary)) !== '') return trim((string)constant($primary));
         if ($fallback !== '' && defined($fallback)) return trim((string)constant($fallback));
         return '';
