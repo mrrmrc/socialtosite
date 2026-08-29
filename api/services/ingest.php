@@ -358,7 +358,7 @@ class Ingest {
         if ($written === false || $written < 1) return null;
         $size = (int)$written;
 
-        $base = defined('BASE_URL') ? rtrim(BASE_URL, '/') : '';
+        $base = function_exists('app_base_url') ? app_base_url() : '';
         return ['url' => "$base/public/media/$name", 'path' => $path, 'size' => $size];
     }
 

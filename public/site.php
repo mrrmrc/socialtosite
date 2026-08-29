@@ -160,7 +160,7 @@ if (!$searchVisible) {
 // ── Sitemap XML ─────────────────────────────────────────────────────────────
 if ($action === 'sitemap') {
     header('Content-Type: application/xml; charset=utf-8');
-    $base = BASE_URL . '/' . $slug;
+    $base = app_base_url() . '/' . $slug;
     echo '<?xml version="1.0" encoding="UTF-8"?>' . "\n";
     echo '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">' . "\n";
     // Sito non visibile: sitemap valida ma vuota. Proporre a Google gli URL di
@@ -222,7 +222,7 @@ if ($action === 'sitemap') {
 // ── RSS / Atom Feed ─────────────────────────────────────────────────────────
 if ($action === 'feed') {
     header('Content-Type: application/atom+xml; charset=utf-8');
-    $base = BASE_URL . '/' . $slug;
+    $base = app_base_url() . '/' . $slug;
     $titleXml = htmlspecialchars($site['title'] ?? $user['name'] ?? '', ENT_XML1, 'UTF-8');
     $bioXml = htmlspecialchars($site['profile_summary'] ?: ($site['bio'] ?? ''), ENT_XML1, 'UTF-8');
     $updated = !empty($posts) ? date(DATE_ATOM, strtotime($posts[0]['published_at'] ?? 'now')) : date(DATE_ATOM);
@@ -266,7 +266,7 @@ if ($action === 'feed') {
 // ── llms.txt (AI Discoverability) ───────────────────────────────────────────
 if ($action === 'llms') {
     header('Content-Type: text/plain; charset=utf-8');
-    $base = BASE_URL . '/' . $slug;
+    $base = app_base_url() . '/' . $slug;
     $titlePlain = $site['title'] ?? $user['name'] ?? '';
     $bioPlain = $site['profile_summary'] ?: ($site['bio'] ?? '');
     
@@ -386,7 +386,7 @@ function normalizeMediaUrl(?string $url): string {
         if ($name === '' || $name === '.' || $name === '..') return '';
         $localPath = __DIR__ . '/media/' . $name;
         if (!file_exists($localPath)) return '';
-        return rtrim(BASE_URL, '/') . '/public/media/' . $name;
+        return app_base_url() . '/public/media/' . $name;
     }
     return $url;
 }
@@ -398,7 +398,7 @@ if (isBadSiteIdentity($rawTitle)) {
 $displayTitle = humanizeDisplayName($rawTitle);
 $title      = h($displayTitle);
 $bio        = h(($site['profile_summary'] ?? '') ?: ($site['bio'] ?? ''));
-$siteUrl    = BASE_URL . '/' . $slug;
+$siteUrl    = app_base_url() . '/' . $slug;
 $validThemes = ['classic', 'authority', 'portfolio', 'magazine', 'brutalist', 'ecommerce', 'wedding', 'fitness', 'restaurant', 'agency', 'zen', 'vaporwave', 'realestate', 'blogger', 'darkphoto', 'medical', 'education', 'gamer', 'startup', 'lawyer'];
 $theme      = $site['theme'] ?? 'classic';
 if (!in_array($theme, $validThemes, true)) {
@@ -1774,10 +1774,10 @@ if ($single) {
         'author' => ['@id' => $siteUrl . '#identity'],
         'publisher' => [
             '@type' => 'Organization',
-            '@id' => rtrim(BASE_URL, '/') . '#organization',
+            '@id' => app_base_url() . '#organization',
             'name' => 'LinkSeoWeb',
-            'url' => rtrim(BASE_URL, '/'),
-            'logo' => ['@type' => 'ImageObject', 'url' => rtrim(BASE_URL, '/') . '/logo-cropped.png?v=2'],
+            'url' => app_base_url(),
+            'logo' => ['@type' => 'ImageObject', 'url' => app_base_url() . '/logo-cropped.png?v=2'],
         ],
         'isAccessibleForFree' => true,
         'inLanguage' => 'it-IT',
@@ -2619,7 +2619,7 @@ header('Link: <' . $siteUrl . '/feed.xml>; rel="alternate"; type="application/at
 <a class="skip-link" href="#main-content">Vai al contenuto principale</a>
 <div class="network-bar">
   <div class="network-signature">
-    <a class="network-signature-brand" href="<?= BASE_URL ?>/scopri"><img src="/logo-cropped.png?v=2" alt=""><strong>LinkSeoWeb</strong></a>
+    <a class="network-signature-brand" href="<?= h(app_base_url()) ?>/scopri"><img src="/logo-cropped.png?v=2" alt=""><strong>LinkSeoWeb</strong></a>
     <span class="network-product-name">✦ Spazio Vivo</span>
     <span class="network-trust">Contenuti collegati alle fonti ufficiali</span>
   </div>
@@ -2666,8 +2666,8 @@ ob_start();
   <?php endif; ?>
   <?php if ($officialSiteUrl): ?><p><a href="<?= h($officialSiteUrl) ?>" target="_blank" rel="noopener">Visita il sito ufficiale →</a></p><?php endif; ?>
   <div class="footer-bottom">
-    <span>&copy; <?= date('Y') ?> <?= $title ?>. Uno <a href="<?= BASE_URL ?>">Spazio Vivo LinkSeoWeb</a>.</span>
-    <span><a href="<?= BASE_URL ?>/scopri">Esplora la rete</a> · <a href="<?= $siteUrl ?>/sitemap.xml">Sitemap</a></span>
+    <span>&copy; <?= date('Y') ?> <?= $title ?>. Uno <a href="<?= h(app_base_url()) ?>">Spazio Vivo LinkSeoWeb</a>.</span>
+    <span><a href="<?= h(app_base_url()) ?>/scopri">Esplora la rete</a> · <a href="<?= $siteUrl ?>/sitemap.xml">Sitemap</a></span>
   </div>
 <?php
 $footerHtml = ob_get_clean();

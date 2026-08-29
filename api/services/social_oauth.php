@@ -77,9 +77,9 @@ final class SocialOAuth {
 
     public static function redirectUri(string $platform): string {
         if ($platform === 'tiktok') {
-            return rtrim(BASE_URL, '/') . '/api/auth/tiktok_callback.php';
+            return app_base_url() . '/api/auth/tiktok_callback.php';
         }
-        return rtrim(BASE_URL, '/') . '/api/auth/callback.php?platform=' . rawurlencode($platform);
+        return app_base_url() . '/api/auth/callback.php?platform=' . rawurlencode($platform);
     }
 
     private static function requireConfig(string $label, string $value): string {
@@ -106,7 +106,7 @@ final class SocialOAuth {
         if (session_status() !== PHP_SESSION_ACTIVE) {
             session_set_cookie_params([
                 'httponly' => true,
-                'secure' => str_starts_with(BASE_URL, 'https://'),
+                'secure' => str_starts_with(app_base_url(), 'https://'),
                 'samesite' => 'Lax',
                 'path' => '/',
             ]);

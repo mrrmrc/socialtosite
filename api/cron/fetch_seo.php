@@ -145,7 +145,7 @@ try {
     $targetDate = date('Y-m-d', strtotime('-2 days'));
 
     $sites = DB::fetchAll("SELECT s.user_id, s.custom_domain, u.slug FROM sites s JOIN users u ON u.id=s.user_id WHERE u.slug IS NOT NULL AND u.slug<>''");
-    $basePlatformUrl = defined('BASE_URL') ? rtrim(BASE_URL, '/') : 'http://localhost';
+    $basePlatformUrl = function_exists('app_base_url') ? app_base_url() : 'http://localhost';
     $baseProperty = defined('GSC_PROPERTY') ? GSC_PROPERTY : chooseGscProperty($availableProperties, $basePlatformUrl);
 
     foreach ($sites as $site) {

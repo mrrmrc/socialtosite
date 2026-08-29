@@ -2,7 +2,7 @@
 require_once __DIR__ . '/../config/db.php';
 require_once __DIR__ . '/../config/config.php';
 
-$base = rtrim(BASE_URL, '/');
+$base = app_base_url();
 $q = trim((string)($_GET['q'] ?? ''));
 $page = max(1, (int)($_GET['page'] ?? 1));
 $perPage = 24;

@@ -60,11 +60,11 @@ AI. `FTP_REMOTE_DIR` è una variabile repository opzionale.
 
 ## URL del sito
 
-- **Dashboard:** `https://tuodominio.it/`
-- **Sito pubblico:** `https://tuodominio.it/s/nomeutente`
-- **Sitemap:** `https://tuodominio.it/s/nomeutente/sitemap.xml`
+- **Dashboard:** `https://allsocialtoweb.com/`
+- **Sito pubblico:** `https://allsocialtoweb.com/s/nomeutente`
+- **Sitemap:** `https://allsocialtoweb.com/s/nomeutente/sitemap.xml`
 - **Hub pubblico del dominio padre:** `/scopri` collega profili e articoli recenti con HTML server-rendered; `/scopri/tema/{argomento}` crea cluster tematici e `/scopri/sitemap.xml` viene incluso nella sitemap globale.
-- **API:** `https://tuodominio.it/api/index.php?action=...`
+- **API:** `https://allsocialtoweb.com/api/index.php?action=...`
 
 ## Utenti e area amministrativa
 
@@ -96,20 +96,20 @@ Per abilitare agente editoriale, deduplica semantica e 10 layout selezionabili, 
 
 - Facebook Pages: abilita Facebook Login for Business e i permessi
   `pages_show_list`, `pages_read_engagement`. Callback:
-  `https://tuodominio.it/api/auth/callback.php?platform=facebook`.
+  `https://allsocialtoweb.com/api/auth/callback.php?platform=facebook`.
 - Instagram: abilita Instagram API with Instagram Login e il permesso
   `instagram_business_basic`. Sono collegabili soltanto account Creator o
   Business autorizzati dal proprietario. Callback:
-  `https://tuodominio.it/api/auth/callback.php?platform=instagram`.
+  `https://allsocialtoweb.com/api/auth/callback.php?platform=instagram`.
 
 ### TikTok
 
 Abilita Login Kit e Display API con gli scope `user.info.basic` e
 `video.list`. Callback (TikTok non accetta query string negli URI registrati):
-`https://tuodominio.it/api/auth/tiktok_callback.php`.
+`https://allsocialtoweb.com/api/auth/tiktok_callback.php`.
 
 ### Google / YouTube
 
 Abilita YouTube Data API v3 e configura il consenso OAuth con lo scope
 `youtube.readonly`. Callback:
-`https://tuodominio.it/api/auth/callback.php?platform=youtube`.
+`https://allsocialtoweb.com/api/auth/callback.php?platform=youtube`.

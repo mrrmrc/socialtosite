@@ -1,6 +1,22 @@
 <?php
 // config/db.php — Connessione PDO MySQL
 require_once __DIR__ . '/config.php';
+if (file_exists(__DIR__ . '/runtime-secrets.php')) require_once __DIR__ . '/runtime-secrets.php';
+
+function app_base_url(): string {
+    $runtime = defined('SOCIALTOSITE_RUNTIME_BASE_URL')
+        ? trim((string)SOCIALTOSITE_RUNTIME_BASE_URL)
+        : '';
+    $configured = defined('BASE_URL') ? trim((string)BASE_URL) : '';
+    return rtrim($runtime !== '' ? $runtime : $configured, '/');
+}
+
+function app_allowed_origin(): string {
+    if (defined('SOCIALTOSITE_RUNTIME_BASE_URL') && trim((string)SOCIALTOSITE_RUNTIME_BASE_URL) !== '') {
+        return app_base_url();
+    }
+    return defined('ALLOWED_ORIGIN') ? trim((string)ALLOWED_ORIGIN) : app_base_url();
+}
 
 class DB {
     private static ?PDO $pdo = null;

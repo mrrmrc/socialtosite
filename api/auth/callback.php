@@ -5,7 +5,7 @@ require_once __DIR__ . '/../services/social_oauth.php';
 
 function oauthRedirect(array $query, string $returnTo = '/dashboard'): never {
     if (!preg_match('~^/(?:connect|dashboard)(?:/|$)~', $returnTo)) $returnTo = '/dashboard';
-    header('Location: ' . rtrim(BASE_URL, '/') . $returnTo . '?' . http_build_query($query, '', '&', PHP_QUERY_RFC3986));
+    header('Location: ' . app_base_url() . $returnTo . '?' . http_build_query($query, '', '&', PHP_QUERY_RFC3986));
     exit;
 }
 

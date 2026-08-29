@@ -16,7 +16,7 @@ define('JWT_SECRET', 'cambia_con_stringa_segreta_lunga');
 define('ENCRYPTION_KEY', 'cambia_con_64_caratteri_hex');
 
 // URL base del sito (senza slash finale)
-define('BASE_URL', 'https://tuodominio.it');
+define('BASE_URL', 'https://allsocialtoweb.com');
 // Opzionale: property esatta di Google Search Console (es. sc-domain:tuodominio.it).
 // Se omessa, il cron prova a rilevarla automaticamente tra le property accessibili.
 // define('GSC_PROPERTY', 'sc-domain:tuodominio.it');

@@ -3,8 +3,8 @@
 function cors(): void {
     // Origine consentita: ALLOWED_ORIGIN da config (default = BASE_URL).
     // Imposta ALLOWED_ORIGIN a '*' solo in sviluppo locale.
-    $allowed = defined('ALLOWED_ORIGIN') ? ALLOWED_ORIGIN
-             : (defined('BASE_URL') ? BASE_URL : '');
+    $allowed = function_exists('app_allowed_origin') ? app_allowed_origin()
+             : (defined('ALLOWED_ORIGIN') ? ALLOWED_ORIGIN : (defined('BASE_URL') ? BASE_URL : ''));
     $origin  = $_SERVER['HTTP_ORIGIN'] ?? '';
 
     if ($allowed === '*') {

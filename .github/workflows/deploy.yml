@@ -113,6 +113,7 @@ jobs:
           TIKTOK_CLIENT_SECRET: ${{ secrets.TIKTOK_CLIENT_SECRET }}
           GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
           GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+          PUBLIC_BASE_URL: https://allsocialtoweb.com
         shell: bash
         run: |
           set -euo pipefail
@@ -155,6 +156,7 @@ jobs:
           append_secret SOCIALTOSITE_RUNTIME_TIKTOK_CLIENT_SECRET "$TIKTOK_CLIENT_SECRET"
           append_secret SOCIALTOSITE_RUNTIME_GOOGLE_CLIENT_ID "$GOOGLE_CLIENT_ID"
           append_secret SOCIALTOSITE_RUNTIME_GOOGLE_CLIENT_SECRET "$GOOGLE_CLIENT_SECRET"
+          append_secret SOCIALTOSITE_RUNTIME_BASE_URL "$PUBLIC_BASE_URL"
           mkdir -p release/public/media
 
           if find release \( -name 'config.php' -o -name 'keys.php' -o -name '*.env' \

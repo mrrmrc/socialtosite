@@ -25,12 +25,12 @@ echo '<?xml version="1.0" encoding="UTF-8"?>' . "\n";
 echo '<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">' . "\n";
 
 echo "  <sitemap>\n";
-echo "    <loc>" . htmlspecialchars(BASE_URL . '/scopri/sitemap.xml', ENT_XML1, 'UTF-8') . "</loc>\n";
+echo "    <loc>" . htmlspecialchars(app_base_url() . '/scopri/sitemap.xml', ENT_XML1, 'UTF-8') . "</loc>\n";
 echo "  </sitemap>\n";
 
 foreach ($users as $user) {
     // Genera l\'URL della sitemap specifica dell\'utente
-    $loc = BASE_URL . '/' . urlencode($user['slug']) . '/sitemap.xml';
+    $loc = app_base_url() . '/' . urlencode($user['slug']) . '/sitemap.xml';
     
     echo "  <sitemap>\n";
     echo "    <loc>" . htmlspecialchars($loc, ENT_XML1, 'UTF-8') . "</loc>\n";
