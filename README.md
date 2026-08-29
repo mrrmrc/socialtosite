@@ -105,8 +105,8 @@ Per abilitare agente editoriale, deduplica semantica e 10 layout selezionabili, 
 ### TikTok
 
 Abilita Login Kit e Display API con gli scope `user.info.basic` e
-`video.list`. Callback:
-`https://tuodominio.it/api/auth/callback.php?platform=tiktok`.
+`video.list`. Callback (TikTok non accetta query string negli URI registrati):
+`https://tuodominio.it/api/auth/tiktok_callback.php`.
 
 ### Google / YouTube
 

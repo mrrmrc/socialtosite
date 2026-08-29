@@ -74,6 +74,9 @@ final class SocialOAuth {
     }
 
     public static function redirectUri(string $platform): string {
+        if ($platform === 'tiktok') {
+            return rtrim(BASE_URL, '/') . '/api/auth/tiktok_callback.php';
+        }
         return rtrim(BASE_URL, '/') . '/api/auth/callback.php?platform=' . rawurlencode($platform);
     }
 

@@ -24,34 +24,34 @@ RewriteRule ^scopri/?$ public/discover.php [L,QSA]
 # Sitemap, Feed, e llms.txt restano sul renderer storico: preserviamo SEO/feed.
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
-RewriteCond %{REQUEST_URI} !^/(api|cron|db|frontend|public|node_modules|assets|login|dashboard|connect|generating|scopri) [NC]
+RewriteCond %{REQUEST_URI} !^/(api|cron|db|frontend|public|node_modules|assets|login|dashboard|connect|generating|scopri|privacy|terms) [NC]
 RewriteRule ^([^/]+)/sitemap\.xml$ public/site.php?slug=$1&action=sitemap [L,QSA]
 
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
-RewriteCond %{REQUEST_URI} !^/(api|cron|db|frontend|public|node_modules|assets|login|dashboard|connect|generating|scopri) [NC]
+RewriteCond %{REQUEST_URI} !^/(api|cron|db|frontend|public|node_modules|assets|login|dashboard|connect|generating|scopri|privacy|terms) [NC]
 RewriteRule ^([^/]+)/feed\.xml$ public/site.php?slug=$1&action=feed [L,QSA]
 
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
-RewriteCond %{REQUEST_URI} !^/(api|cron|db|frontend|public|node_modules|assets|login|dashboard|connect|generating|scopri) [NC]
+RewriteCond %{REQUEST_URI} !^/(api|cron|db|frontend|public|node_modules|assets|login|dashboard|connect|generating|scopri|privacy|terms) [NC]
 RewriteRule ^([^/]+)/llms\.txt$ public/site.php?slug=$1&action=llms [L,QSA]
 
 # Pagine pubbliche: il router Professional decide in base al piano.
 # Base -> renderer storico; Professional/Agency -> renderer personalizzabile.
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
-RewriteCond %{REQUEST_URI} !^/(api|cron|db|frontend|public|node_modules|assets|login|dashboard|connect|generating|scopri) [NC]
+RewriteCond %{REQUEST_URI} !^/(api|cron|db|frontend|public|node_modules|assets|login|dashboard|connect|generating|scopri|privacy|terms) [NC]
 RewriteRule ^([^/]+)/categoria/([^/]+)/?$ public/site-professional.php?slug=$1&tag=$2 [L,QSA]
 
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
-RewriteCond %{REQUEST_URI} !^/(api|cron|db|frontend|public|node_modules|assets|login|dashboard|connect|generating|scopri) [NC]
+RewriteCond %{REQUEST_URI} !^/(api|cron|db|frontend|public|node_modules|assets|login|dashboard|connect|generating|scopri|privacy|terms) [NC]
 RewriteRule ^([^/]+)/?$ public/site-professional.php?slug=$1 [L,QSA]
 
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
-RewriteCond %{REQUEST_URI} !^/(api|cron|db|frontend|public|node_modules|assets|login|dashboard|connect|generating|scopri) [NC]
+RewriteCond %{REQUEST_URI} !^/(api|cron|db|frontend|public|node_modules|assets|login|dashboard|connect|generating|scopri|privacy|terms) [NC]
 RewriteRule ^([^/]+)/([^/]+)/?$ public/site-professional.php?slug=$1&post=$2 [L,QSA]
 
 # ── Sicurezza: blocca accesso diretto a file sensibili ─────────────────────

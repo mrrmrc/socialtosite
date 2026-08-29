@@ -6,6 +6,7 @@ import { ConnectScreen } from './screens/ConnectScreen';
 import { GeneratingScreen } from './screens/GeneratingScreen';
 import { DashboardScreen } from './screens/DashboardScreen';
 import { BasicUserScreen } from './screens/BasicUserScreen';
+import { LegalScreen } from './screens/LegalScreen';
 import { PlanExperience, normalizePlan } from './components/PlanExperience';
 
 function AppContent() {
@@ -83,6 +84,8 @@ function AppContent() {
   return (
     <>
       <Routes>
+        <Route path="/privacy" element={<LegalScreen type="privacy" />} />
+        <Route path="/terms" element={<LegalScreen type="terms" />} />
         <Route path="/" element={<Navigate to={token ? "/dashboard" : "/login"} replace />} />
         <Route path="/login" element={token ? <Navigate to="/dashboard" /> : <AuthScreen onAuth={handleAuth} />} />
         <Route path="/connect" element={token ? <ConnectScreen token={token} onDone={() => navigate('/generating')} /> : <Navigate to="/login" />} />
@@ -129,6 +132,9 @@ function AppContent() {
         ) : (
           <span style={{ opacity: 0.5 }}>⚙️ Dev build — {new Date().toLocaleString('it-IT')}</span>
         )}
+        <span style={{ opacity: 0.3 }}>·</span>
+        <a href="/privacy" style={{ color: 'inherit' }}>Privacy</a>
+        <a href="/terms" style={{ color: 'inherit' }}>Termini</a>
         </div>
 
       </footer>
