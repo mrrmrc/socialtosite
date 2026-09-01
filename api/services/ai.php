@@ -403,7 +403,7 @@ class AI {
             throw new Exception('GEMINI_API_KEY mancante: configurala nei segreti del deploy o in config/keys.php');
         }
         $model = defined('GEMINI_MODEL') ? GEMINI_MODEL : 'gemini-2.5-flash';
-        $url = "https://generativelanguage.googleapis.com/v1beta/models/$model:generateContent?key=" . rawurlencode($apiKey);
+        $url = "https://generativelanguage.googleapis.com/v1beta/models/$model:generateContent";
 
         $timeout = max(30, min(300, (int)($config['_timeout'] ?? 90)));
         unset($config['_timeout']);
@@ -420,7 +420,10 @@ class AI {
         curl_setopt_array($ch, [
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_POST           => true,
-            CURLOPT_HTTPHEADER     => ['Content-Type: application/json'],
+            CURLOPT_HTTPHEADER     => [
+                'Content-Type: application/json',
+                'x-goog-api-key: ' . $apiKey,
+            ],
             CURLOPT_POSTFIELDS     => json_encode($payload, JSON_UNESCAPED_UNICODE),
             CURLOPT_CONNECTTIMEOUT => 10,
             CURLOPT_TIMEOUT        => $timeout,
