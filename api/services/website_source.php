@@ -82,6 +82,104 @@ final class WebsiteSource {
         return $origin . rtrim(str_replace('\\', '/', dirname($path)), '/') . '/' . ltrim($candidate, '/');
     }
 
+    private static function sameSite(string $left, string $right): bool {
+        $normalize = static function (string $url): string {
+            $host = strtolower((string)parse_url($url, PHP_URL_HOST));
+            return preg_replace('/^www\./', '', $host);
+        };
+        return $normalize($left) !== '' && $normalize($left) === $normalize($right);
+    }
+
+    private static function isLikelyPageUrl(string $url): bool {
+        $path = strtolower((string)parse_url($url, PHP_URL_PATH));
+        if ($path === '' || str_ends_with($path, '/')) return true;
+        $extension = strtolower((string)pathinfo($path, PATHINFO_EXTENSION));
+        return $extension === '' || in_array($extension, ['html', 'htm', 'php', 'asp', 'aspx'], true);
+    }
+
+    /**
+     * Parser puro, mantenuto pubblico per poter verificare sitemap reali senza
+     * effettuare richieste di rete durante i test.
+     */
+    public static function parseSitemap(string $xml): array {
+        libxml_use_internal_errors(true);
+        $document = simplexml_load_string($xml, 'SimpleXMLElement', LIBXML_NONET | LIBXML_NOCDATA);
+        if (!$document) return ['type' => 'invalid', 'entries' => []];
+
+        $root = strtolower($document->getName());
+        if (!in_array($root, ['sitemapindex', 'urlset'], true)) {
+            return ['type' => 'invalid', 'entries' => []];
+        }
+        $nodes = $root === 'sitemapindex'
+            ? ($document->xpath('//*[local-name()="sitemap"]') ?: [])
+            : ($document->xpath('//*[local-name()="url"]') ?: []);
+        $entries = [];
+        foreach ($nodes as $node) {
+            $locNodes = $node->xpath('./*[local-name()="loc"]') ?: [];
+            $lastmodNodes = $node->xpath('./*[local-name()="lastmod"]') ?: [];
+            $location = trim(html_entity_decode((string)($locNodes[0] ?? ''), ENT_QUOTES | ENT_XML1, 'UTF-8'));
+            if ($location === '') continue;
+            $entries[] = [
+                'url' => $location,
+                'lastmod' => trim((string)($lastmodNodes[0] ?? '')),
+            ];
+        }
+        return ['type' => $root === 'sitemapindex' ? 'index' : 'urlset', 'entries' => $entries];
+    }
+
+    private static function sitemapPageUrls(string $pageUrl, string $html, int $limit, ?string $sinceDate): array {
+        $parts = parse_url($pageUrl);
+        $origin = ($parts['scheme'] ?? 'https') . '://' . ($parts['host'] ?? '');
+        if (!empty($parts['port'])) $origin .= ':' . $parts['port'];
+
+        $candidates = [];
+        if (preg_match_all('~<link[^>]+rel=["\'][^"\']*sitemap[^"\']*["\'][^>]+href=["\']([^"\']+)["\']~i', $html, $matches) ||
+            preg_match_all('~<link[^>]+href=["\']([^"\']+)["\'][^>]+rel=["\'][^"\']*sitemap[^"\']*["\']~i', $html, $matches)) {
+            foreach ($matches[1] as $candidate) $candidates[] = self::absoluteUrl($pageUrl, html_entity_decode($candidate, ENT_QUOTES));
+        }
+        try {
+            $robots = self::fetch($origin . '/robots.txt', 500000, 1)['body'];
+            if (preg_match_all('/^\s*Sitemap:\s*(\S+)\s*$/mi', $robots, $robotMatches)) {
+                foreach ($robotMatches[1] as $candidate) $candidates[] = trim($candidate);
+            }
+        } catch (Throwable $e) {}
+        $candidates[] = $origin . '/sitemap.xml';
+        $candidates[] = $origin . '/sitemap_index.xml';
+        $candidates[] = $origin . '/wp-sitemap.xml';
+
+        $queue = array_values(array_unique($candidates));
+        $visited = [];
+        $pages = [];
+        while ($queue && count($visited) < 10 && count($pages) < max(20, $limit * 8)) {
+            $sitemapUrl = array_shift($queue);
+            if (isset($visited[$sitemapUrl]) || !self::sameSite($pageUrl, $sitemapUrl)) continue;
+            $visited[$sitemapUrl] = true;
+            try {
+                $parsed = self::parseSitemap(self::fetch($sitemapUrl, 5000000, 2)['body']);
+            } catch (Throwable $e) {
+                continue;
+            }
+            foreach ($parsed['entries'] as $entry) {
+                $entryUrl = self::absoluteUrl($sitemapUrl, (string)$entry['url']);
+                if (!self::sameSite($pageUrl, $entryUrl)) continue;
+                if ($parsed['type'] === 'index') {
+                    if (!isset($visited[$entryUrl])) $queue[] = $entryUrl;
+                    continue;
+                }
+                if (!self::isLikelyPageUrl($entryUrl)) continue;
+                $timestamp = !empty($entry['lastmod']) ? strtotime((string)$entry['lastmod']) : false;
+                if ($sinceDate && $timestamp && $timestamp < strtotime($sinceDate)) continue;
+                $pages[$entryUrl] = $timestamp ?: 0;
+            }
+        }
+        arsort($pages, SORT_NUMERIC);
+        $result = [];
+        foreach (array_slice($pages, 0, max(1, $limit), true) as $pageUrl => $timestamp) {
+            $result[] = ['url' => $pageUrl, 'timestamp' => $timestamp ?: null];
+        }
+        return $result;
+    }
+
     private static function meta(string $html, string $name): string {
         $quoted = preg_quote($name, '~');
         if (preg_match('~<meta[^>]+(?:property|name)=["\']' . $quoted . '["\'][^>]+content=["\']([^"\']+)["\']~i', $html, $match) ||
@@ -110,6 +208,7 @@ final class WebsiteSource {
     }
 
     public static function items(string $url, int $limit = 10, ?string $sinceDate = null): array {
+        $limit = max(1, min(100, $limit));
         $page = self::page($url);
         $html = $page['html'];
         $feeds = [];
@@ -144,6 +243,24 @@ final class WebsiteSource {
                     if (count($items) >= $limit) break 2;
                 }
             } catch (Throwable $e) {}
+        }
+        if (!$items) {
+            foreach (self::sitemapPageUrls($page['url'], $html, $limit, $sinceDate) as $sitemapEntry) {
+                try {
+                    $articleUrl = (string)$sitemapEntry['url'];
+                    $article = self::page($articleUrl);
+                    $caption = trim($article['title'] . "\n\n" . $article['description'] . "\n\n" . $article['text']);
+                    if ($caption === '') continue;
+                    $items[] = [
+                        'url' => $article['url'],
+                        'caption' => $caption,
+                        'published_at' => !empty($sitemapEntry['timestamp']) ? date('Y-m-d H:i:s', (int)$sitemapEntry['timestamp']) : date('Y-m-d H:i:s'),
+                        'media_url' => $article['image_url'],
+                        'media_type' => $article['image_url'] ? 'image' : 'text',
+                    ];
+                    if (count($items) >= $limit) break;
+                } catch (Throwable $e) {}
+            }
         }
         if (!$items) {
             $items[] = ['url' => $page['url'], 'caption' => trim($page['title'] . "\n\n" . $page['description'] . "\n\n" . $page['text']), 'published_at' => date('Y-m-d H:i:s'), 'media_url' => $page['image_url'], 'media_type' => $page['image_url'] ? 'image' : 'text'];

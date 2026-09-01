@@ -268,6 +268,11 @@ final class SocialOAuth {
                 'code' => $code, 'grant_type' => 'authorization_code', 'redirect_uri' => $redirectUri,
             ],
         ]);
+        $grantedScopes = array_values(array_filter(preg_split('/[\s,]+/', trim((string)($tokens['scope'] ?? ''))) ?: []));
+        $missingScopes = array_values(array_diff(['user.info.basic', 'video.list'], $grantedScopes));
+        if ($grantedScopes && $missingScopes) {
+            throw new RuntimeException('TikTok non ha concesso tutti i permessi richiesti (' . implode(', ', $missingScopes) . '). Ripeti il collegamento accettandoli entrambi.');
+        }
         $token = (string)($tokens['access_token'] ?? '');
         $profile = SocialHttp::request('GET', 'https://open.tiktokapis.com/v2/user/info/', [
             'headers' => ['Accept: application/json', 'Authorization: Bearer ' . $token],

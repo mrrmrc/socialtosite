@@ -7,7 +7,9 @@ require_once __DIR__ . '/social_oauth.php';
 
 final class Sync {
     private static function credential(string $name): string {
-        $value = defined($name) ? trim((string)constant($name)) : '';
+        $runtimeName = 'SOCIALTOSITE_RUNTIME_' . $name;
+        $value = defined($runtimeName) ? trim((string)constant($runtimeName)) : '';
+        if ($value === '' && defined($name)) $value = trim((string)constant($name));
         if ($value === '') throw new RuntimeException($name . ' non configurato sul server');
         return $value;
     }

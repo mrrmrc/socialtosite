@@ -8,6 +8,14 @@ if (file_exists(__DIR__ . '/../middleware/logger.php')) require_once __DIR__ . '
 require_once __DIR__ . '/content_ideas.php';
 
 class AI {
+    private static function configValue(string $name): string {
+        $runtimeName = 'SOCIALTOSITE_RUNTIME_' . $name;
+        if (defined($runtimeName) && trim((string)constant($runtimeName)) !== '') {
+            return trim((string)constant($runtimeName));
+        }
+        return defined($name) ? trim((string)constant($name)) : '';
+    }
+
     private static function loadDesignLibrary(): array {
         static $library = null;
         if ($library !== null) return $library;
@@ -390,11 +398,12 @@ class AI {
     // ── Chiamata generica a Gemini (generateContent) ───────────────────────
     // $parts: array di "part" Gemini. $config: opzioni generationConfig.
     public static function gemini(array $parts, array $config = []): string {
-        if (!defined('GEMINI_API_KEY') || !GEMINI_API_KEY) {
-            throw new Exception('GEMINI_API_KEY mancante: aggiungila in config/keys.php');
+        $apiKey = self::configValue('GEMINI_API_KEY');
+        if ($apiKey === '') {
+            throw new Exception('GEMINI_API_KEY mancante: configurala nei segreti del deploy o in config/keys.php');
         }
         $model = defined('GEMINI_MODEL') ? GEMINI_MODEL : 'gemini-2.5-flash';
-        $url = "https://generativelanguage.googleapis.com/v1beta/models/$model:generateContent?key=" . GEMINI_API_KEY;
+        $url = "https://generativelanguage.googleapis.com/v1beta/models/$model:generateContent?key=" . rawurlencode($apiKey);
 
         $timeout = max(30, min(300, (int)($config['_timeout'] ?? 90)));
         unset($config['_timeout']);

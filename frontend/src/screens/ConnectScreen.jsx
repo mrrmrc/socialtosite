@@ -60,10 +60,12 @@ export function ConnectScreen({ token, onDone }) {
     event.preventDefault();
     setBusy('website'); setMessage(null);
     try {
-      await apiFetch('/api/index.php?action=social-source-upsert', {
+      const result = await apiFetch('/api/index.php?action=social-source-upsert', {
         method: 'POST', body: JSON.stringify({ platform: 'website', label: 'Sito web', url: websiteUrl.trim() }),
       }, token);
-      setWebsiteUrl(''); setMessage({ ok: true, text: 'Sito web aggiunto.' }); await loadChannels();
+      const report = result?.scan_report;
+      const detail = report ? ` Trovati ${report.found || 0} contenuti; ${report.imported || 0} importati.` : '';
+      setWebsiteUrl(''); setMessage({ ok: true, text: `Sito web aggiunto.${detail}` }); await loadChannels();
     } catch (error) { setMessage({ ok: false, text: error.message }); }
     finally { setBusy(''); }
   }
@@ -98,7 +100,7 @@ export function ConnectScreen({ token, onDone }) {
 
         <section className="card" style={{ marginTop: 20 }}>
           <h2 style={{ marginTop: 0 }}>Aggiungi il sito web</h2>
-          <p style={{ color: 'var(--text-muted)' }}>Il sito viene letto tramite feed RSS/Atom o, se assente, dalla pagina indicata.</p>
+          <p style={{ color: 'var(--text-muted)' }}>Cerchiamo automaticamente feed RSS/Atom e sitemap; se non sono disponibili, leggiamo la pagina indicata.</p>
           <form onSubmit={addWebsite} style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
             <input type="url" required placeholder="https://www.esempio.it" value={websiteUrl} onChange={event => setWebsiteUrl(event.target.value)} style={{ flex: '1 1 320px' }} />
             <button className="btn btn-primary" disabled={busy === 'website'}>{busy === 'website' ? 'Verifico…' : 'Aggiungi sito'}</button>

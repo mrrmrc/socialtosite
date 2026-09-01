@@ -107,6 +107,15 @@ Per abilitare agente editoriale, deduplica semantica e 10 layout selezionabili, 
 Abilita Login Kit e Display API con gli scope `user.info.basic` e
 `video.list`. Callback (TikTok non accetta query string negli URI registrati):
 `https://allsocialtoweb.com/api/auth/tiktok_callback.php`.
+La sincronizzazione usa il refresh token e rinnova automaticamente l'accesso
+prima della scadenza; entrambi gli scope devono essere approvati e accettati.
+
+### Siti web
+
+Inserendo un URL, SocialToSite cerca prima feed RSS/Atom e sitemap XML dello
+stesso dominio. Se non trova contenuti strutturati, importa la pagina indicata.
+Le richieste accettano solo HTTP/HTTPS sulle porte 80 e 443 e bloccano host,
+credenziali e indirizzi di rete privati o riservati.
 
 ### Google / YouTube
 
