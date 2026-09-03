@@ -612,7 +612,7 @@ export function AdminScreen({ token, currentUser, adminPrompts, updatePrompt }) 
                     </div>
                     <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
                       <div>{u.posts_count} contenuti</div>
-                      <div>{u.connections_count} app connesse</div>
+                      <div>{u.sources_count} fonti attive</div>
                     </div>
                     <div style={{ display: 'grid', gap: '6px' }}>
                       <select value={u.role === 'admin' ? 'admin' : (u.plan || 'base')} onChange={e => updateProfile(u.id, e.target.value)} style={{ padding: '7px', border: '1px solid var(--border-strong)', borderRadius: 'var(--radius-sm)', background: 'var(--surface)' }}>
@@ -765,7 +765,7 @@ export function AdminScreen({ token, currentUser, adminPrompts, updatePrompt }) 
                       <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '0.65rem' }}>
                         <span className="badge badge-purple">{user.sources?.length || 0} fonti</span>
                         <span className="badge badge-green">{user.posts_count || 0} contenuti</span>
-                        <span className="badge badge-amber">{user.connections_count || 0} connessioni</span>
+                        <span className="badge badge-amber">{user.sources_count || 0} fonti</span>
                       </div>
                       <div style={{ fontSize: '12px', color: 'var(--text-muted)', lineHeight: 1.5 }}>
                         Piano: {user.plan || 'free'}<br />

@@ -14,24 +14,14 @@ define('DB_PASS', envValue('DB_PASS'));
 define('DB_CHARSET', envValue('DB_CHARSET', 'utf8mb4'));
 
 define('JWT_SECRET', envValue('JWT_SECRET'));
-define('ENCRYPTION_KEY', envValue('ENCRYPTION_KEY'));
 define('BASE_URL', rtrim(envValue('BASE_URL', 'http://localhost:8081'), '/'));
 define('ALLOWED_ORIGIN', envValue('ALLOWED_ORIGIN', BASE_URL));
-define('META_GRAPH_VERSION', envValue('META_GRAPH_VERSION', 'v26.0'));
 
 define('OPENAI_API_KEY', envValue('OPENAI_API_KEY'));
 define('ANTHROPIC_API_KEY', envValue('ANTHROPIC_API_KEY'));
 define('GEMINI_API_KEY', envValue('GEMINI_API_KEY'));
 define('GEMINI_MODEL', envValue('GEMINI_MODEL', 'gemini-2.5-flash'));
-define('FB_APP_ID', envValue('FB_APP_ID'));
-define('FB_APP_SECRET', envValue('FB_APP_SECRET'));
-define('IG_LOGIN_APP_ID', envValue('IG_LOGIN_APP_ID'));
-define('IG_LOGIN_APP_SECRET', envValue('IG_LOGIN_APP_SECRET'));
-
-define('TIKTOK_CLIENT_KEY', envValue('TIKTOK_CLIENT_KEY'));
-define('TIKTOK_CLIENT_SECRET', envValue('TIKTOK_CLIENT_SECRET'));
-define('GOOGLE_CLIENT_ID', envValue('GOOGLE_CLIENT_ID'));
-define('GOOGLE_CLIENT_SECRET', envValue('GOOGLE_CLIENT_SECRET'));
+define('REFETCHER_API_KEY', envValue('REFETCHER_API_KEY'));
 
 define('OPENCLAW_API_KEY', envValue('OPENCLAW_API_KEY'));
 define('ANALYTICS_SALT', envValue('ANALYTICS_SALT'));

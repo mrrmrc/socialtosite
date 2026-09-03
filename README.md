@@ -18,16 +18,15 @@ linkseoweb-php/
 │   └── db.php             ← Classe DB (PDO MySQL)
 ├── api/
 │   ├── index.php          ← Router API principale
-│   ├── auth/
-│   │   └── callback.php   ← OAuth callback social
 │   ├── middleware/
 │   │   ├── jwt.php        ← JWT puro PHP
 │   │   └── response.php   ← Helper JSON/CORS
 │   ├── routes/
 │   │   └── auth.php       ← Register/Login
 │   └── services/
-│       ├── ai.php         ← Whisper + Claude API
-│       └── sync.php       ← Importa contenuti social
+│       ├── ai.php         ← analisi media e generazione editoriale
+│       ├── refetcher.php  ← gateway unico per i social pubblici
+│       └── sync.php       ← orchestra tutte le fonti URL
 ├── public/
 │   └── site.php           ← Pagina pubblica + sitemap XML
 ├── cron/
@@ -52,9 +51,9 @@ push su `main` non pubblica il sito: il deploy parte soltanto da un commit che
 contiene `[deployvps]` oppure da un avvio manuale esplicitamente confermato.
 Vedi `AGENTS.md` e `.github/workflows/deploy.yml`.
 
-Secrets GitHub richiesti: `FTP_HOST`, `FTP_USER`, `FTP_PASS`, le otto
-credenziali OAuth elencate in `config/keys.example.php` e gli eventuali segreti
-AI. `FTP_REMOTE_DIR` è una variabile repository opzionale.
+Secrets GitHub richiesti: `FTP_HOST`, `FTP_USER`, `FTP_PASS`,
+`REFETCHER_API_KEY` e gli eventuali segreti AI. `FTP_REMOTE_DIR` è una
+variabile repository opzionale.
 
 ---
 
@@ -90,25 +89,20 @@ Per abilitare agente editoriale, deduplica semantica e 10 layout selezionabili, 
 
 ---
 
-## Registrazione app OAuth
+## Acquisizione delle fonti
 
-### Meta
+Facebook, Instagram, TikTok, YouTube e X vengono letti esclusivamente da URL
+pubblici tramite Refetch(er). Non servono app registrate presso i social e il
+database non conserva access token, refresh token, cookie o sessioni social.
+Configura `REFETCHER_API_KEY` in `config/keys.php`; in produzione il workflow
+la riceve dal secret GitHub omonimo e la espone soltanto al backend.
+L'endpoint amministrativo di migrazione elimina anche la vecchia tabella
+`social_connections`, così eventuali token storici non restano nel database.
 
-- Facebook Pages: abilita Facebook Login for Business e i permessi
-  `pages_show_list`, `pages_read_engagement`. Callback:
-  `https://allsocialtoweb.com/api/auth/callback.php?platform=facebook`.
-- Instagram: abilita Instagram API with Instagram Login e il permesso
-  `instagram_business_basic`. Sono collegabili soltanto account Creator o
-  Business autorizzati dal proprietario. Callback:
-  `https://allsocialtoweb.com/api/auth/callback.php?platform=instagram`.
-
-### TikTok
-
-Abilita Login Kit e Display API con gli scope `user.info.basic` e
-`video.list`. Callback (TikTok non accetta query string negli URI registrati):
-`https://allsocialtoweb.com/api/auth/tiktok_callback.php`.
-La sincronizzazione usa il refresh token e rinnova automaticamente l'accesso
-prima della scadenza; entrambi gli scope devono essere approvati e accettati.
+Per profili e canali, il backend usa la discovery dei contenuti recenti e
+raggruppa gli URL trovati in batch fino a 50 elementi. Anche gli URL di singoli
+post o video sono supportati. Il risultato viene normalizzato prima di entrare
+nella stessa coda editoriale usata dai siti web.
 
 ### Siti web
 
@@ -116,9 +110,3 @@ Inserendo un URL, SocialToSite cerca prima feed RSS/Atom e sitemap XML dello
 stesso dominio. Se non trova contenuti strutturati, importa la pagina indicata.
 Le richieste accettano solo HTTP/HTTPS sulle porte 80 e 443 e bloccano host,
 credenziali e indirizzi di rete privati o riservati.
-
-### Google / YouTube
-
-Abilita YouTube Data API v3 e configura il consenso OAuth con lo scope
-`youtube.readonly`. Callback:
-`https://allsocialtoweb.com/api/auth/callback.php?platform=youtube`.

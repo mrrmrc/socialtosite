@@ -105,30 +105,16 @@ jobs:
 
       - name: Prepare production release
         env:
-          FB_APP_ID: ${{ secrets.FB_APP_ID }}
-          FB_APP_SECRET: ${{ secrets.FB_APP_SECRET }}
-          IG_LOGIN_APP_ID: ${{ secrets.IG_LOGIN_APP_ID }}
-          IG_LOGIN_APP_SECRET: ${{ secrets.IG_LOGIN_APP_SECRET }}
-          TIKTOK_CLIENT_KEY: ${{ secrets.TIKTOK_CLIENT_KEY }}
-          TIKTOK_CLIENT_SECRET: ${{ secrets.TIKTOK_CLIENT_SECRET }}
-          GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
-          GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+          REFETCHER_API_KEY: ${{ secrets.REFETCHER_API_KEY }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           PUBLIC_BASE_URL: https://allsocialtoweb.com
         shell: bash
         run: |
           set -euo pipefail
-          require_pair() {
-            local label="$1" first="$2" second="$3"
-            if { [ -n "$first" ] && [ -z "$second" ]; } || { [ -z "$first" ] && [ -n "$second" ]; }; then
-              echo "::error::$label credentials must be configured as a complete pair."
-              exit 1
-            fi
-          }
-          require_pair "Facebook" "$FB_APP_ID" "$FB_APP_SECRET"
-          require_pair "Instagram" "$IG_LOGIN_APP_ID" "$IG_LOGIN_APP_SECRET"
-          require_pair "TikTok" "$TIKTOK_CLIENT_KEY" "$TIKTOK_CLIENT_SECRET"
-          require_pair "Google" "$GOOGLE_CLIENT_ID" "$GOOGLE_CLIENT_SECRET"
+          if [ -z "$REFETCHER_API_KEY" ]; then
+            echo "::error::REFETCHER_API_KEY must be configured for social acquisition."
+            exit 1
+          fi
           rm -rf release
           mkdir -p release
 
@@ -149,14 +135,7 @@ jobs:
             printf "if (!defined('%s')) define('%s', base64_decode('%s'));\n" "$name" "$name" "$encoded" \
               >> release/config/runtime-secrets.php
           }
-          append_secret SOCIALTOSITE_RUNTIME_FB_APP_ID "$FB_APP_ID"
-          append_secret SOCIALTOSITE_RUNTIME_FB_APP_SECRET "$FB_APP_SECRET"
-          append_secret SOCIALTOSITE_RUNTIME_IG_LOGIN_APP_ID "$IG_LOGIN_APP_ID"
-          append_secret SOCIALTOSITE_RUNTIME_IG_LOGIN_APP_SECRET "$IG_LOGIN_APP_SECRET"
-          append_secret SOCIALTOSITE_RUNTIME_TIKTOK_CLIENT_KEY "$TIKTOK_CLIENT_KEY"
-          append_secret SOCIALTOSITE_RUNTIME_TIKTOK_CLIENT_SECRET "$TIKTOK_CLIENT_SECRET"
-          append_secret SOCIALTOSITE_RUNTIME_GOOGLE_CLIENT_ID "$GOOGLE_CLIENT_ID"
-          append_secret SOCIALTOSITE_RUNTIME_GOOGLE_CLIENT_SECRET "$GOOGLE_CLIENT_SECRET"
+          append_secret SOCIALTOSITE_RUNTIME_REFETCHER_API_KEY "$REFETCHER_API_KEY"
           append_secret SOCIALTOSITE_RUNTIME_GEMINI_API_KEY "$GEMINI_API_KEY"
           append_secret SOCIALTOSITE_RUNTIME_BASE_URL "$PUBLIC_BASE_URL"
           mkdir -p release/public/media
@@ -197,6 +176,11 @@ jobs:
           set net:timeout 20;
           set net:persist-retries 3;
           open -u \"$FTP_USER\",\"$FTP_PASS\" ftp://$FTP_HOST;
+          rm -f \"$FTP_REMOTE_DIR/api/auth/callback.php\";
+          rm -f \"$FTP_REMOTE_DIR/api/auth/tiktok_callback.php\";
+          rm -f \"$FTP_REMOTE_DIR/api/cron/fetch_seo.php\";
+          rm -f \"$FTP_REMOTE_DIR/api/middleware/crypto.php\";
+          rm -f \"$FTP_REMOTE_DIR/api/services/social_oauth.php\";
           mirror -R --verbose --no-perms --exclude-glob config/config.php --exclude-glob config/keys.php --exclude-glob public/media/* release/ \"$FTP_REMOTE_DIR\";
           "
 

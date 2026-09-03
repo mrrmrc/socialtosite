@@ -21,7 +21,7 @@ register_shutdown_function(function (): void {
         : __DIR__ . '/../config/gcp-credentials.json';
     if (file_exists($gcpCredentialsPath)) {
         echo "[" . date('Y-m-d H:i:s') . "] Aggiornamento Google Search Console...\n";
-        require __DIR__ . '/../api/cron/fetch_seo.php';
+        require __DIR__ . '/fetch_seo.php';
     } else {
         echo "[" . date('Y-m-d H:i:s') . "] Search Console non configurata: metriche Google non aggiornate.\n";
     }
@@ -33,8 +33,6 @@ Sync::ensureAutoSyncSchema();
 Ingest::ensureProcessingSchema();
 
 $users = DB::fetchAll('
-    SELECT DISTINCT user_id FROM social_connections WHERE active=1 AND auto_sync=1
-    UNION
     SELECT DISTINCT user_id FROM social_sources WHERE active=1 AND auto_sync=1
     UNION
     SELECT DISTINCT user_id FROM posts WHERE seo_score=-1
@@ -82,7 +80,7 @@ foreach ($users as $row) {
                     }
                     $post = DB::fetch("SELECT media_url, media_type, raw_content, source_url, platform, transcript FROM posts WHERE id=? AND user_id=? AND processing_status='processing'", [$postId, $userId]);
                     if (!$post) throw new Exception('Post non disponibile dopo il claim della coda');
-                    
+
                     $transcript = trim($post['transcript'] ?? '');
                     if (!$transcript && !empty($post['media_url'])) {
                         $cache = DB::fetch('SELECT transcript FROM posts WHERE (source_url=? OR media_url=?) AND transcript IS NOT NULL AND transcript != "" LIMIT 1', [$post['source_url'], $post['media_url']]);

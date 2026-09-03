@@ -4,4 +4,3 @@
 -- Idempotente su MySQL 8+ grazie a IF NOT EXISTS.
 
 ALTER TABLE social_sources     ADD COLUMN IF NOT EXISTS max_posts INT NULL AFTER since_date;
-ALTER TABLE social_connections ADD COLUMN IF NOT EXISTS max_posts INT NULL AFTER since_date;

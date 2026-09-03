@@ -13,25 +13,6 @@ CREATE TABLE IF NOT EXISTS users (
   created_at DATETIME DEFAULT NOW()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
-CREATE TABLE IF NOT EXISTS social_connections (
-  id            INT AUTO_INCREMENT PRIMARY KEY,
-  user_id       INT NOT NULL,
-  platform      VARCHAR(50) NOT NULL,
-  platform_uid  VARCHAR(255),
-  handle        VARCHAR(255),
-  access_token  TEXT NOT NULL,
-  refresh_token TEXT,
-  expires_at    DATETIME,
-  connected_at  DATETIME DEFAULT NOW(),
-  active        TINYINT DEFAULT 1,
-  since_date    DATE NULL,
-  auto_publish  TINYINT DEFAULT 1,
-  auto_sync     TINYINT DEFAULT 1,
-  max_posts     INT NULL,
-  UNIQUE KEY unique_user_platform (user_id, platform),
-  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
 CREATE TABLE IF NOT EXISTS social_sources (
   id            INT AUTO_INCREMENT PRIMARY KEY,
   user_id       INT NOT NULL,

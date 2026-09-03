@@ -32,17 +32,25 @@ export const SOCIAL = {
   tiktok: { icon: 'https://cdn.simpleicons.org/tiktok/000000', label: 'TikTok', color: '#010101' },
   facebook: { icon: 'https://cdn.simpleicons.org/facebook/1877F2', label: 'Facebook', color: '#1877F2' },
   youtube: { icon: 'https://cdn.simpleicons.org/youtube/FF0000', label: 'YouTube', color: '#FF0000' },
+  x: { icon: 'https://cdn.simpleicons.org/x/000000', label: 'X', color: '#000000' },
   website: { icon: 'https://cdn.simpleicons.org/googleearth/4285F4', label: 'Sito Web', color: '#4285F4' },
 };
 
 export { SITE_LAYOUTS };
 
 export function detectPlatformFromUrl(url) {
-  const u = (url || '').toLowerCase();
-  if (u.includes('youtube.com') || u.includes('youtu.be')) return 'youtube';
-  if (u.includes('tiktok.com')) return 'tiktok';
-  if (u.includes('instagram.com')) return 'instagram';
-  if (u.includes('facebook.com') || u.includes('fb.com') || u.includes('fb.watch')) return 'facebook';
-  if (u.match(/^https?:\/\//) && !u.includes('twitter') && !u.includes('x.com')) return 'website';
-  return null;
+  try {
+    const parsed = new URL(url);
+    if (!['http:', 'https:'].includes(parsed.protocol)) return null;
+    const host = parsed.hostname.toLowerCase().replace(/^www\./, '');
+    const isHost = domain => host === domain || host.endsWith(`.${domain}`);
+    if (isHost('youtube.com') || host === 'youtu.be') return 'youtube';
+    if (isHost('tiktok.com')) return 'tiktok';
+    if (isHost('instagram.com')) return 'instagram';
+    if (isHost('facebook.com') || host === 'fb.watch') return 'facebook';
+    if (isHost('twitter.com') || isHost('x.com')) return 'x';
+    return 'website';
+  } catch {
+    return null;
+  }
 }

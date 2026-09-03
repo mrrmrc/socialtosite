@@ -557,17 +557,6 @@ const [importMsg, setImportMsg] = useState(null);
   useEffect(() => { loadData(); loadDrafts(); }, []);
 
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const oauth = params.get('oauth');
-    if (!oauth) return;
-    const platform = SOCIAL[params.get('platform')]?.label || params.get('platform') || 'Canale';
-    setSyncMsg(oauth === 'connected'
-      ? { ok: true, text: `${platform} collegato correttamente.` }
-      : { ok: false, text: params.get('message') || 'Collegamento non completato.' });
-    window.history.replaceState({}, '', window.location.pathname);
-  }, []);
-
-  useEffect(() => {
     let intervalId;
     if (syncing || scanning || importing || harmonizingId > 0) {
       intervalId = setInterval(async () => {
@@ -981,18 +970,6 @@ const [importMsg, setImportMsg] = useState(null);
       await loadData();
     } catch (err) {
       setScanMsg({ ok: false, text: err.message });
-    }
-  }
-
-  async function saveConnectionSettings(platform, since_date, auto_publish, max_posts = null, auto_sync = 1) {
-    try {
-      await apiFetch('/api/index.php?action=social-connection-update', {
-        method: 'POST',
-        body: JSON.stringify({ platform, since_date, auto_publish, max_posts, auto_sync })
-      }, token);
-      await loadData();
-    } catch (err) {
-      alert(err.message);
     }
   }
 
@@ -1972,17 +1949,17 @@ const [importMsg, setImportMsg] = useState(null);
     const url = addUrl.trim();
     if (!url) return;
     const platform = detectPlatformFromUrl(url);
-    if (!platform || platform !== 'website') {
-      setAddMsg({ ok: false, text: 'Per Facebook, Instagram, TikTok e YouTube usa i pulsanti di connessione ufficiale. Qui puoi aggiungere soltanto un sito web.' });
+    if (!platform) {
+      setAddMsg({ ok: false, text: 'Inserisci un URL pubblico supportato.' });
       return;
     }
     setAddLoading(true);
     try {
       await apiFetch('/api/index.php?action=social-source-upsert', {
         method: 'POST',
-        body: JSON.stringify({ platform: 'website', label: addLabel || 'Sito web', url })
+        body: JSON.stringify({ platform, label: addLabel || SOCIAL[platform]?.label || 'Fonte', url })
       }, token);
-      setAddMsg({ ok: true, text: 'Sito web aggiunto. Clicca “Sincronizza tutti” per importare i contenuti.' });
+      setAddMsg({ ok: true, text: 'Fonte aggiunta. Clicca “Sincronizza tutti” per importare i contenuti.' });
       setAddUrl('');
       setAddLabel('');
       await loadData();
@@ -1992,33 +1969,19 @@ const [importMsg, setImportMsg] = useState(null);
     setAddLoading(false);
   }
 
-  async function connectOAuth(platform) {
-    try {
-      const result = await apiFetch(`/api/index.php?action=social-auth-url&platform=${encodeURIComponent(platform)}&return_to=${encodeURIComponent(window.location.pathname)}`, {}, token);
-      window.location.assign(result.url);
-    } catch (error) {
-      setSyncMsg({ ok: false, text: error.message });
-    }
-  }
-
   async function removeChannel(channel) {
     if (!window.confirm(`Rimuovere il canale "${channel.label || channel.platform}"?`)) return;
-    if (channel.type === 'website') {
-      await apiFetch('/api/index.php?action=social-source-delete', { method: 'POST', body: JSON.stringify({ id: channel.sourceId }) }, token);
-    } else {
-      await apiFetch('/api/index.php?action=social-disconnect', { method: 'POST', body: JSON.stringify({ platform: channel.rawPlatform }) }, token);
-    }
+    await apiFetch('/api/index.php?action=social-source-delete', { method: 'POST', body: JSON.stringify({ id: channel.sourceId }) }, token);
     await loadData();
   }
 
 
   const site = data?.site;
   const posts = data?.posts || [];
-  const connections = data?.connections || [];
   const sources = data?.sources || [];
   const visibility = data?.visibility || {};
   const reachability = data?.reachability || { score: 0, stage: 'configurazione', checks: [] };
-  const activeChannelCount = sources.filter(source => source.platform === 'website').length + connections.filter(connection => connection.active).length;
+  const activeChannelCount = sources.length;
 
   useEffect(() => {
     if (!isBasePlan || !data || baseAutoSyncStarted.current) return;
@@ -2037,8 +2000,6 @@ const [importMsg, setImportMsg] = useState(null);
   const strategyProgress = strategyCompletion(activeUnderstanding);
   const publishedPosts = posts.filter(post => Number(post.published) === 1);
   const networkPublishedPages = (visibility.published_pages ?? (publishedPosts.length + 1)) + (seoFoundation.pages || []).length + (publishedPosts.length ? 1 : 0) + (sources.length ? 1 : 0);
-  const sourceByPlatform = sources.reduce((acc, source) => ({ ...acc, [source.platform]: source }), {});
-  const connByPlatform = connections.reduce((acc, c) => ({ ...acc, [c.platform]: c }), {});
   const navigationGroups = user?.role === 'admin' ? [
     {
       label: 'Amministrazione',
@@ -2462,36 +2423,11 @@ const [importMsg, setImportMsg] = useState(null);
 
         {/* Tab: I miei canali (UNIFICATO) */}
         {tab === 'sources' && (() => {
-          // Costruisci lista unificata: prima le connessioni OAuth, poi le sorgenti URL
           const allChannels = [];
-
-          // Canali OAuth
-          connections.filter(c => c.active).forEach(c => {
-            allChannels.push({
-              key: 'oauth_' + c.platform,
-              type: 'oauth',
-              platform: c.platform,
-              rawPlatform: c.platform,
-              handle: c.handle,
-              since_date: c.since_date,
-              auto_publish: c.auto_publish,
-              auto_sync: c.auto_sync,
-              max_posts: c.max_posts,
-              content_count: Number(c.content_count || 0),
-              published_count: Number(c.published_count || 0),
-              draft_count: Number(c.draft_count || 0),
-              processing_count: Number(c.processing_count || 0),
-              failed_count: Number(c.failed_count || 0),
-              last_content_at: c.last_content_at || null,
-              label: c.handle ? `@${c.handle}` : '',
-            });
-          });
-
-          // Siti web aggiunti tramite URL.
-          sources.filter(s => s.platform === 'website').forEach(s => {
+          sources.forEach(s => {
             allChannels.push({
               key: 'src_' + s.id,
-              type: 'website',
+              type: 'url',
               platform: s.platform,
               rawPlatform: s.platform,
               sourceId: s.id,
@@ -2530,27 +2466,27 @@ const [importMsg, setImportMsg] = useState(null);
                 <div className="channel-add-body">
                 <h2 style={{ marginBottom: '0.5rem', fontSize: '18px' }}>➕ Aggiungi un canale</h2>
                 <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '1.25rem' }}>
-                  Inserisci il sito del cliente. Per i social usa le connessioni ufficiali qui sotto.
+                  Incolla l'URL pubblico di un sito, profilo, canale o singolo post. I social vengono acquisiti tramite Refetch(er), senza login dell'utente.
                 </p>
                 <form onSubmit={handleAddChannel} style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                   <div style={{ position: 'relative' }}>
                     <input
                       className="channel-url-input"
                       type="url"
-                      placeholder="https://tuosito.it"
+                      placeholder="https://www.instagram.com/nome/"
                       value={addUrl}
                       onChange={e => { setAddUrl(e.target.value); setAddMsg(null); }}
-                      style={{ paddingLeft: detectedPlatform === 'website' ? '40px' : '16px', transition: 'padding 0.2s' }}
+                      style={{ paddingLeft: detectedPlatform ? '40px' : '16px', transition: 'padding 0.2s' }}
                     />
-                    {detectedPlatform === 'website' && (
+                    {detectedPlatform && (
                       <span style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}>
                         <img src={SOCIAL[detectedPlatform]?.icon || ''} alt="" style={{ width: 18, height: 18 }} />
                       </span>
                     )}
                   </div>
-                  {detectedPlatform === 'website' && (
+                  {detectedPlatform && (
                     <div style={{ fontSize: '12px', color: 'var(--text-muted)', padding: '6px 10px', background: 'var(--purple-light)', borderRadius: 'var(--radius-sm)' }}>
-                      ✓ Sito web riconosciuto
+                      ✓ {SOCIAL[detectedPlatform]?.label || 'Fonte'} riconosciuto
                     </div>
                   )}
                   <input
@@ -2560,7 +2496,7 @@ const [importMsg, setImportMsg] = useState(null);
                     onChange={e => setAddLabel(e.target.value)}
                   />
                   <button type="submit" className="btn btn-primary" disabled={addLoading || !addUrl.trim()} style={{ alignSelf: 'flex-start', padding: '10px 24px' }}>
-                    {addLoading ? '⟳ Aggiunta in corso...' : '+ Aggiungi sito'}
+                    {addLoading ? '⟳ Aggiunta in corso...' : '+ Aggiungi fonte'}
                   </button>
                 </form>
                 {addMsg && (
@@ -2570,34 +2506,6 @@ const [importMsg, setImportMsg] = useState(null);
                     {addMsg.text}
                   </div>
                 )}
-
-                <div style={{ marginTop: '1.5rem', paddingTop: '1rem', borderTop: '1px solid var(--border)' }}>
-                  <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                    Connessioni ufficiali autorizzate dal proprietario dell'account
-                  </div>
-                  <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-                    {['facebook', 'instagram', 'tiktok', 'youtube'].map(platform => {
-                      const conn = connByPlatform[platform];
-                      const isConnected = !!conn && conn.active;
-                      return (
-                        <button key={platform}
-                          onClick={() => !isConnected && connectOAuth(platform)}
-                          disabled={isConnected}
-                          style={{
-                            display: 'flex', alignItems: 'center', gap: '8px',
-                            padding: '8px 16px', borderRadius: 'var(--radius-sm)', fontSize: '13px', fontWeight: 500,
-                            background: isConnected ? 'var(--teal-light)' : 'var(--surface)',
-                            border: `1px solid ${isConnected ? 'var(--teal)' : 'var(--border-strong)'}`,
-                            color: isConnected ? '#0F6E56' : 'var(--text)',
-                            cursor: isConnected ? 'default' : 'pointer',
-                          }}>
-                          <img src={SOCIAL[platform]?.icon} alt="" style={{ width: 16, height: 16 }} />
-                          {isConnected ? `✓ ${SOCIAL[platform]?.label} connesso come @${conn.handle}` : `Connetti ${SOCIAL[platform]?.label}`}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
               </div>
               </details>
 
@@ -2620,7 +2528,7 @@ const [importMsg, setImportMsg] = useState(null);
                   <div style={{ textAlign: 'center', padding: '3rem 1rem', color: 'var(--text-muted)' }}>
                     <div style={{ fontSize: '48px', marginBottom: '1rem', opacity: 0.4 }}>📭</div>
                     <div style={{ fontWeight: 600, marginBottom: '0.5rem' }}>Nessun canale aggiunto</div>
-                    <div style={{ fontSize: '13px' }}>Connetti un social ufficiale oppure aggiungi il sito web del cliente.</div>
+                    <div style={{ fontSize: '13px' }}>Aggiungi l'URL pubblico di un social o del sito web del cliente.</div>
                   </div>
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
@@ -2644,11 +2552,11 @@ const [importMsg, setImportMsg] = useState(null);
                               </div>
                               <div style={{ fontSize: '11px', display: 'flex', gap: '6px', marginTop: '2px' }}>
                                 <span style={{
-                                  background: channel.type === 'oauth' ? 'var(--teal-light)' : 'var(--purple-light)',
-                                  color: channel.type === 'oauth' ? '#0F6E56' : 'var(--purple-dark)',
+                                  background: 'var(--purple-light)',
+                                  color: 'var(--purple-dark)',
                                   padding: '1px 7px', borderRadius: '10px', fontWeight: 500
                                 }}>
-                                  {channel.type === 'oauth' ? '🔗 Connesso con account' : '🔍 Fonte tramite indirizzo'}
+                                  🔍 Fonte pubblica via Refetch(er)
                                 </span>
                                 <span style={{ background: (channel.auto_sync ?? 1) === 1 ? 'var(--teal-light)' : 'var(--gray-light)', color: (channel.auto_sync ?? 1) === 1 ? '#0F6E56' : 'var(--text-muted)', padding: '1px 7px', borderRadius: '10px', fontWeight: 600 }}>
                                   {(channel.auto_sync ?? 1) === 1 ? 'Controllo periodico attivo' : 'Solo manuale'}
@@ -2677,24 +2585,21 @@ const [importMsg, setImportMsg] = useState(null);
                           <input type="date" defaultValue={channel.since_date || ''}
                             title="Importa contenuti da questa data in poi"
                             onBlur={e => {
-                              if (channel.type === 'oauth') saveConnectionSettings(channel.rawPlatform, e.target.value, channel.auto_publish ?? 1, channel.max_posts, channel.auto_sync ?? 1);
-                              else savePlatformSource(channel.rawPlatform, channel.url, e.target.value, channel.auto_publish ?? 1, channel.max_posts, channel.topic_summary, channel.auto_sync ?? 1);
+                              savePlatformSource(channel.rawPlatform, channel.url, e.target.value, channel.auto_publish ?? 1, channel.max_posts, channel.topic_summary, channel.auto_sync ?? 1);
                             }}
                             style={{ padding: '5px 8px', fontSize: '12px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', width: '100%' }} />
                           <input type="number" min="1" max="500" placeholder="Max" defaultValue={channel.max_posts || ''}
                             title="Numero massimo di post da importare"
                             onBlur={e => {
                               const val = e.target.value || null;
-                              if (channel.type === 'oauth') saveConnectionSettings(channel.rawPlatform, channel.since_date, channel.auto_publish ?? 1, val, channel.auto_sync ?? 1);
-                              else savePlatformSource(channel.rawPlatform, channel.url, channel.since_date, channel.auto_publish ?? 1, val, channel.topic_summary, channel.auto_sync ?? 1);
+                              savePlatformSource(channel.rawPlatform, channel.url, channel.since_date, channel.auto_publish ?? 1, val, channel.topic_summary, channel.auto_sync ?? 1);
                             }}
                             style={{ padding: '5px 8px', fontSize: '12px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', width: '70px' }} />
                           <label style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '12px', cursor: 'pointer', whiteSpace: 'nowrap' }}>
                             <input type="checkbox" defaultChecked={(channel.auto_publish ?? 1) === 1}
                               onChange={e => {
                                 const ap = e.target.checked ? 1 : 0;
-                                if (channel.type === 'oauth') saveConnectionSettings(channel.rawPlatform, channel.since_date, ap, channel.max_posts, channel.auto_sync ?? 1);
-                                else savePlatformSource(channel.rawPlatform, channel.url, channel.since_date, ap, channel.max_posts, channel.topic_summary, channel.auto_sync ?? 1);
+                                savePlatformSource(channel.rawPlatform, channel.url, channel.since_date, ap, channel.max_posts, channel.topic_summary, channel.auto_sync ?? 1);
                               }} />
                             Pubblica auto
                           </label>
@@ -2702,8 +2607,7 @@ const [importMsg, setImportMsg] = useState(null);
                             <input type="checkbox" defaultChecked={(channel.auto_sync ?? 1) === 1}
                               onChange={e => {
                                 const automatic = e.target.checked ? 1 : 0;
-                                if (channel.type === 'oauth') saveConnectionSettings(channel.rawPlatform, channel.since_date, channel.auto_publish ?? 1, channel.max_posts, automatic);
-                                else savePlatformSource(channel.rawPlatform, channel.url, channel.since_date, channel.auto_publish ?? 1, channel.max_posts, channel.topic_summary, automatic);
+                                savePlatformSource(channel.rawPlatform, channel.url, channel.since_date, channel.auto_publish ?? 1, channel.max_posts, channel.topic_summary, automatic);
                               }} />
                             Sincronizza automaticamente
                           </label>
@@ -4375,9 +4279,9 @@ const [importMsg, setImportMsg] = useState(null);
             )}
 
             <div className="glass-modal" style={{ marginBottom: '1.5rem', padding: '1.5rem' }}>
-              <h3 style={{ marginBottom: '1rem', color: 'var(--primary)' }}>Link social inseriti</h3>
+              <h3 style={{ marginBottom: '1rem', color: 'var(--primary)' }}>Fonti pubbliche inserite</h3>
               {sources.length === 0 ? (
-                <p style={{ color: 'var(--text-muted)', fontSize: '14px', fontWeight: 500 }}>Nessun link social inserito.</p>
+                <p style={{ color: 'var(--text-muted)', fontSize: '14px', fontWeight: 500 }}>Nessuna fonte inserita.</p>
               ) : sources.map(s => (
                 <div key={s.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px', gap: '16px', background: 'rgba(0,0,0,0.2)', padding: '12px', borderRadius: 'var(--radius)' }}>
                   <div style={{ minWidth: 0 }}>
@@ -4385,32 +4289,6 @@ const [importMsg, setImportMsg] = useState(null);
                     <a href={s.url} target="_blank" rel="noopener" style={{ display: 'block', fontSize: '13px', color: 'var(--primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginTop: '4px' }}>{s.url}</a>
                   </div>
                   <span style={{ background: 'var(--teal-light)', color: 'var(--teal)', padding: '4px 10px', borderRadius: '20px', fontSize: '11px', fontWeight: 800 }}>ATTIVO</span>
-                </div>
-              ))}
-            </div>
-
-            <div className="glass-modal" style={{ marginBottom: '1.5rem', padding: '1.5rem' }}>
-              <h3 style={{ marginBottom: '1rem', color: 'var(--primary)' }}>Social connessi</h3>
-              {connections.length === 0 ? (
-                <p style={{ color: 'var(--text-muted)', fontSize: '14px', fontWeight: 500 }}>Nessun social connesso.</p>
-              ) : connections.map(c => (
-                <div key={c.platform} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px', background: 'rgba(0,0,0,0.2)', padding: '12px', borderRadius: 'var(--radius)' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                    <SocialIcon platform={c.platform} size={24} />
-                    <div>
-                      <div style={{ fontWeight: 700, fontSize: '15px', color: 'var(--text)' }}>{SOCIAL[c.platform]?.label}</div>
-                      {c.handle && <div style={{ fontSize: '13px', color: 'var(--text-muted)' }}>{c.handle}</div>}
-                    </div>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                    <input type="date" title="Retroattività" 
-                      defaultValue={c.since_date || ''}
-                      onBlur={e => saveConnectionSettings(c.platform, e.target.value, c.auto_publish ?? 1, c.max_posts, c.auto_sync ?? 1)}
-                      style={{ padding: '8px', fontSize: '14px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-strong)', background: '#111', color: 'var(--text)' }} />
-                    <span style={{ background: c.active ? 'var(--teal-light)' : 'var(--red-light)', color: c.active ? 'var(--teal)' : 'var(--red)', padding: '4px 10px', borderRadius: '20px', fontSize: '11px', fontWeight: 800 }}>
-                      {c.active ? 'ATTIVO' : 'INATTIVO'}
-                    </span>
-                  </div>
                 </div>
               ))}
             </div>

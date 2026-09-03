@@ -29,4 +29,3 @@ config/gcp-credentials.json
 secrets/
 
 # Output di prove locali dei provider (mai sorgenti applicative)
-rapidapi_out.json

@@ -45,7 +45,6 @@ require_once __DIR__ . '/services/editorial_engine.php';
 require_once __DIR__ . '/services/visibility.php';
 require_once __DIR__ . '/services/seo_foundation.php';
 require_once __DIR__ . '/services/reachability.php';
-require_once __DIR__ . '/services/social_oauth.php';
 
 function setSyncStatus(int $uid, string $msg): void {
     $dir = __DIR__ . '/../public/temp';
@@ -116,15 +115,11 @@ function ensureSocialSyncSchema(): void {
     static $done = false;
     if ($done) return;
     $done = true;
-    foreach (['social_sources', 'social_connections'] as $table) {
-        try {
-            $columns = [];
-            foreach (DB::fetchAll("SHOW COLUMNS FROM `$table`") as $column) $columns[$column['Field']] = true;
-            if (!isset($columns['auto_sync'])) DB::execute("ALTER TABLE `$table` ADD COLUMN auto_sync TINYINT NOT NULL DEFAULT 1");
-        } catch (Throwable $e) {}
-    }
-    try { DB::execute("UPDATE social_sources SET active=0 WHERE platform IN ('facebook','instagram','tiktok','youtube')"); } catch (Throwable $e) {}
-    try { DB::execute("UPDATE social_connections SET active=0, access_token='', refresh_token=NULL, expires_at=NULL WHERE platform='instagram_login'"); } catch (Throwable $e) {}
+    try {
+        $columns = [];
+        foreach (DB::fetchAll('SHOW COLUMNS FROM social_sources') as $column) $columns[$column['Field']] = true;
+        if (!isset($columns['auto_sync'])) DB::execute('ALTER TABLE social_sources ADD COLUMN auto_sync TINYINT NOT NULL DEFAULT 1');
+    } catch (Throwable $e) {}
 }
 
 function ensureAdminSchema(): void {
@@ -232,94 +227,8 @@ if (in_array($action, ['login', 'register'], true)) {
 
 // ── POST openclaw-webhook (Ricezione articoli da OpenClaw) ────────────────
 if ($action === 'openclaw-webhook' && $method === 'POST') {
-    // Parsing robusto: prova JSON, poi form-urlencoded, poi raw
-    $rawInput = file_get_contents('php://input');
-    $b = json_decode($rawInput, true);
-    if (!is_array($b) || empty($b)) {
-        // Fallback: form-urlencoded ($_POST)
-        $b = !empty($_POST) ? $_POST : [];
-    }
-    if (!is_array($b) || empty($b)) {
-        // Ultimo tentativo: parse manuale query string dal body
-        parse_str($rawInput, $b);
-    }
-    
-    // Log di debug per capire cosa arriva
-    if (class_exists('Logger')) {
-        Logger::info('openclaw', 'Webhook ricevuto', [
-            'content_type' => $_SERVER['CONTENT_TYPE'] ?? 'non specificato',
-            'body_keys' => is_array($b) ? array_keys($b) : 'non-array',
-            'api_key_present' => isset($b['api_key']),
-            'raw_length' => strlen($rawInput),
-        ]);
-    }
-
-    // Verifica API Key - prova dal body, poi dall'header Authorization.
-    // Nessun valore di ripiego: una chiave di default scritta nel codice vale
-    // quanto nessuna chiave, perché chiunque legga il sorgente la conosce.
-    if (!defined('OPENCLAW_API_KEY') || OPENCLAW_API_KEY === '') {
-        if (class_exists('Logger')) Logger::error('openclaw', 'Webhook chiamato ma OPENCLAW_API_KEY non è configurata in config.php');
-        jsonError('Webhook non configurato su questo server', 503);
-    }
-    $expectedKey = OPENCLAW_API_KEY;
-    $providedKey = $b['api_key'] ?? '';
-    if (!$providedKey) {
-        // Fallback: cerca nell'header Authorization: Bearer <key>
-        $authHeader = $_SERVER['HTTP_AUTHORIZATION'] ?? $_SERVER['HTTP_X_API_KEY'] ?? '';
-        if (str_starts_with($authHeader, 'Bearer ')) {
-            $providedKey = substr($authHeader, 7);
-        } else {
-            $providedKey = $authHeader;
-        }
-    }
-    
-    // hash_equals: confronto a tempo costante, non deducibile dai tempi di risposta.
-    if (!is_string($providedKey) || !hash_equals($expectedKey, $providedKey)) {
-        // Mai loggare frammenti di chiave, né quella attesa né quella ricevuta.
-        if (class_exists('Logger')) Logger::error('openclaw', 'API Key non valida', [
-            'ip' => $_SERVER['REMOTE_ADDR'] ?? '',
-            'key_provided' => $providedKey !== '',
-        ]);
-        jsonError('Non autorizzato — chiave API non valida', 401);
-    }
-    
-    $uid = (int)($b['user_id'] ?? 0);
-    $url = trim($b['source_url'] ?? '');
-    $plat = trim($b['platform'] ?? 'website');
-    if (!$uid || !$url) jsonError('Parametri obbligatori mancanti (user_id, source_url)');
-    if (!DB::fetch('SELECT id FROM users WHERE id=?', [$uid])) jsonError('Utente inesistente', 404);
-    
-    $title = trim($b['title'] ?? '');
-    $bodyText = trim($b['body'] ?? '');
-    $excerpt = trim($b['excerpt'] ?? '');
-    $tags = isset($b['tags']) && is_array($b['tags']) ? json_encode($b['tags']) : (is_string($b['tags'] ?? null) ? $b['tags'] : '[]');
-    $media = trim($b['media_url'] ?? '');
-    $type = trim($b['media_type'] ?? 'text');
-    $meta = trim($b['meta_description'] ?? $excerpt);
-    
-    $existing = DB::fetch('SELECT id, published FROM posts WHERE user_id=? AND source_url=?', [$uid, $url]);
-    if ($existing) {
-        if ((int)$existing['published'] === 1) {
-            json(['ok' => true, 'message' => 'Post già esistente e pubblicato', 'duplicate' => true]);
-        } else {
-            DB::execute('UPDATE posts SET generated_title=?, generated_body=?, generated_excerpt=?, tags=?, meta_description=?, seo_score=100, published=1, media_url=?, media_type=?, platform=? WHERE id=?', 
-                [$title, $bodyText, $excerpt, $tags, $meta, $media, $type, $plat, $existing['id']]);
-            json(['ok' => true, 'message' => 'Bozza aggiornata con successo', 'updated' => true]);
-        }
-    }
-    
-    $slugText = $title !== '' ? $title : (string)time();
-    $slug = strtolower(trim(preg_replace('/[^A-Za-z0-9-]+/', '-', $slugText), '-'));
-    $cHash = hash('sha256', mb_substr(strip_tags($bodyText), 0, 4000));
-    $pId = $b['platform_post_id'] ?? substr(md5($url), 0, 24);
-    
-    $newId = DB::insert('
-        INSERT INTO posts (user_id, platform, platform_post_id, raw_content, generated_title, generated_body, generated_excerpt, tags, meta_description, media_url, media_type, source_url, published_at, imported_at, content_hash, seo_score, slug, published)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW(), ?, 100, ?, 1)
-    ', [$uid, $plat, $pId, 'Generato da OpenClaw', $title, $bodyText, $excerpt, $tags, $meta, $media, $type, $url, $cHash, $slug]);
-    
-    if (class_exists('Logger')) Logger::info('openclaw', 'Post pubblicato con successo', ['post_id' => $newId, 'title' => $title]);
-    json(['ok' => true, 'message' => 'Post inserito con successo', 'inserted' => true, 'post_id' => $newId]);
+    require __DIR__ . '/routes/openclaw_webhook.php';
+    exit;
 }
 
 // ══════════════════════════════════════════════════════════════════════════
@@ -387,203 +296,8 @@ if ($action === 'sync-status' && $method === 'GET') {
 // Era raggiungibile senza token: chiunque poteva far girare ~50 ALTER TABLE
 // sul database di produzione.
 if ($action === 'migrate') {
-    requireAdmin($isAdmin);
-    ensureAdminSchema();
-    VisibilityAnalytics::ensureSchema();
-    SeoFoundation::ensureSchema();
-    try { DB::execute('ALTER TABLE social_sources ADD COLUMN since_date DATE NULL'); } catch (Throwable $e) {}
-    try { DB::execute('ALTER TABLE social_sources ADD COLUMN auto_publish TINYINT DEFAULT 1'); } catch (Throwable $e) {}
-    try { DB::execute('ALTER TABLE social_sources ADD COLUMN max_posts INT NULL'); } catch (Throwable $e) {}
-    try { DB::execute('ALTER TABLE social_connections ADD COLUMN since_date DATE NULL'); } catch (Throwable $e) {}
-    try { DB::execute('ALTER TABLE social_connections ADD COLUMN auto_publish TINYINT DEFAULT 1'); } catch (Throwable $e) {}
-    try { DB::execute('ALTER TABLE social_connections ADD COLUMN max_posts INT NULL'); } catch (Throwable $e) {}
-    try { DB::execute('ALTER TABLE sites ADD COLUMN menu_links TEXT NULL'); } catch (Throwable $e) {}
-    try { DB::execute('ALTER TABLE sites ADD COLUMN cover_url TEXT NULL'); } catch (Throwable $e) {}
-    try { DB::execute('ALTER TABLE sites ADD COLUMN logo_url TEXT NULL'); } catch (Throwable $e) {}
-    try { DB::execute("ALTER TABLE sites ADD COLUMN brand_visual_mode VARCHAR(20) NOT NULL DEFAULT 'logo'"); } catch (Throwable $e) {}
-    try { DB::execute('ALTER TABLE sites ADD COLUMN footer_text TEXT NULL'); } catch (Throwable $e) {}
-    try { DB::execute('ALTER TABLE sites ADD COLUMN accent_color VARCHAR(50) NULL'); } catch (Throwable $e) {}
-    try { DB::execute('ALTER TABLE sites ADD COLUMN header_layout VARCHAR(50) NULL'); } catch (Throwable $e) {}
-    try { DB::execute('ALTER TABLE sites ADD COLUMN custom_css TEXT NULL'); } catch (Throwable $e) {}
-    try { DB::execute('ALTER TABLE sites ADD COLUMN generated_layouts LONGTEXT NULL'); } catch (Throwable $e) {}
-    try { DB::execute('ALTER TABLE sites ADD COLUMN site_ai_data LONGTEXT NULL'); } catch (Throwable $e) {}
-    try { DB::execute('ALTER TABLE sites ADD COLUMN editorial_dna LONGTEXT NULL'); } catch (Throwable $e) {}
-    try { DB::execute('ALTER TABLE sites ADD COLUMN editorial_memory LONGTEXT NULL'); } catch (Throwable $e) {}
-    try { DB::execute('ALTER TABLE sites ADD COLUMN editorial_engine_state LONGTEXT NULL'); } catch (Throwable $e) {}
-    try { DB::execute('ALTER TABLE sites ADD COLUMN editorial_settings LONGTEXT NULL'); } catch (Throwable $e) {}
-    try { DB::execute('ALTER TABLE sites ADD COLUMN editorial_last_run DATETIME NULL'); } catch (Throwable $e) {}
-    try { DB::execute('ALTER TABLE sites ADD COLUMN site_understanding LONGTEXT NULL'); } catch (Throwable $e) {}
-    try { DB::execute('ALTER TABLE sites ADD COLUMN site_understanding_corrections LONGTEXT NULL'); } catch (Throwable $e) {}
-    try { DB::execute('ALTER TABLE sites ADD COLUMN dismissed_content_ideas LONGTEXT NULL'); } catch (Throwable $e) {}
-    try { DB::execute('ALTER TABLE sites ADD COLUMN design_prompt LONGTEXT NULL'); } catch (Throwable $e) {}
-    try { DB::execute('ALTER TABLE posts ADD COLUMN featured TINYINT DEFAULT 0'); } catch (Throwable $e) {}
-    try { DB::execute('ALTER TABLE posts ADD COLUMN edited_title VARCHAR(255) NULL'); } catch (Throwable $e) {}
-    try { DB::execute('ALTER TABLE posts ADD COLUMN edited_body LONGTEXT NULL'); } catch (Throwable $e) {}
-    try { DB::execute('ALTER TABLE posts ADD COLUMN edited_excerpt TEXT NULL'); } catch (Throwable $e) {}
-    try {
-        DB::execute('CREATE TABLE IF NOT EXISTS agent_prompts (
-          id INT AUTO_INCREMENT PRIMARY KEY,
-          agent_name VARCHAR(50) UNIQUE NOT NULL,
-          label VARCHAR(100) NOT NULL DEFAULT "",
-          description TEXT NULL,
-          instructions TEXT NOT NULL
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4');
-        try { DB::execute('ALTER TABLE agent_prompts ADD COLUMN label VARCHAR(100) NOT NULL DEFAULT ""'); } catch (Throwable $e) {}
-        try { DB::execute('ALTER TABLE agent_prompts ADD COLUMN description TEXT NULL'); } catch (Throwable $e) {}
-        $c = DB::fetch('SELECT COUNT(*) as c FROM agent_prompts')['c'] ?? 0;
-        if ($c == 0) {
-            DB::execute('INSERT INTO agent_prompts (agent_name, label, description, instructions) VALUES
-                (?, ?, ?, ?),
-                (?, ?, ?, ?),
-                (?, ?, ?, ?),
-                (?, ?, ?, ?)',
-            [
-                'content_editor', 'Content Editor', 'Filtra e riscrive i post social in articoli SEO-friendly.',
-                "Sei un editor editoriale esperto. Riscrivi questo contenuto in un articolo web compatto.\n\nContenuto:\n{content}\n\nProfilo:\n{profileSummary}\n\nGenera JSON: {\"generated_title\":\"Titolo H1 max 70 caratteri\",\"generated_body\":\"Corpo articolo in paragrafi brevi, 180-280 parole\",\"generated_excerpt\":\"Sommario max 155 caratteri\",\"tags\":[\"tag1\"],\"meta_description\":\"Meta max 155 caratteri\",\"relevance_score\":80,\"seo_score\":85}",
-                'seo_specialist', 'SEO Specialist', 'Ottimizza titolo, bio e navigazione del sito in chiave Google.',
-                "Sei un SEO/GEO Specialist. Ottimizza i metadati del sito.\n\nProfilo:\n{profileSummary}\n\nRuolo:\n{roleMission}\n\nStrategia:\n{contentStrategy}\n\nTag reali disponibili nel DB:\n[{tagsContext}]\n\nGenera JSON: {\"title\":\"Titolo SEO max 60 caratteri\",\"bio\":\"Bio max 160 caratteri\",\"menu_links\":[{\"label\":\"Home\",\"url\":\"/\"},{\"label\":\"Nome Categoria\",\"url\":\"/?tag=tag_reale_dalla_lista\"}],\"footer_text\":\"Footer max 100 caratteri\"}. ATTENZIONE: per menu_links usa SOLO url '/' per Home oppure '/?tag=nome_tag' dove nome_tag DEVE essere uno dei tag reali elencati sopra. NON inventare ancore (#) o pagine inesistenti.",
-                'graphic_designer', 'Graphic Designer', 'Genera 3 proposte di design visivo con CSS per ogni profilo.',
-                "Sei un Graphic Designer UI/UX. Crea 3 design distinti per questo profilo.\n\nProfilo:\n{profileSummary}\n\nRuolo:\n{roleMission}\n\nGenera JSON {\"proposals\":[{\"theme\":\"classic\",\"accent_color\":\"#hex\",\"header_layout\":\"standard\",\"custom_css\":\"CSS completo premium\"}]}. Temi: classic, journal, authority, portfolio, magazine, minimal, studio, local, academy, bottega.",
-                'site_ai', 'Sito AI', 'Genera un sito completo su misura: design, testi, CSS, tutto personalizzato al profilo.',
-                "Sei un team AI: SEO Specialist + Graphic Designer + Content Strategist. Genera TUTTO per un sito professionale su misura.\n\nProfilo:\n{profileSummary}\n\nRuolo:\n{roleMission}\n\nStrategia:\n{contentStrategy}\n\nPost recenti:\n{recentPosts}\n\nTag reali disponibili nel DB:\n[{tagsContext}]\n\nGenera JSON: {\"title\":\"Titolo sito max 60 caratteri\",\"bio\":\"Bio ottimizzata max 200 caratteri\",\"role_mission\":\"Missione max 150 caratteri\",\"theme\":\"classic\",\"accent_color\":\"#hex\",\"accent_secondary\":\"#hex\",\"header_layout\":\"standard\",\"menu_links\":[{\"label\":\"Home\",\"url\":\"/\"},{\"label\":\"Nome Categoria\",\"url\":\"/?tag=tag_reale_dalla_lista\"}],\"footer_text\":\"Footer\",\"custom_css\":\"Blocco CSS completo e creativo. Usa custom properties, gradienti, animazioni. Min 300 caratteri.\",\"hero_tagline\":\"Frase ad impatto max 80 caratteri\",\"cta_text\":\"Call to action\"}. ATTENZIONE: per menu_links usa SOLO url '/' per Home oppure '/?tag=nome_tag' dove nome_tag DEVE essere uno dei tag reali elencati sopra. NON inventare ancore (#) o pagine inesistenti."
-            ]);
-        }
-
-        // Register Topical Authority Architect prompt
-        $topicalAuthorityPrompt = "Sei il Topical Authority Architect, un Senior Content Strategist con accesso ai leak interni del Google Search Quality Team. Non scrivi semplici contenuti: costruisci \"Asset di Conoscenza\" che dimostrano un'esperienza pratica inattaccabile.
-
-Il tuo compito è trasformare il seguente contenuto social (estratto da {platform}) in un articolo professionale per il suo sito web.
-
-APPLICA RIGOROSAMENTE LE SEGUENTI REGOLE DI TOPICAL AUTHORITY:
-
-1. La Regola dell'Information Gain (Guadagno di Informazione)
-Google ha depositato un brevetto sull'Information Gain. Se il tuo testo dice le stesse cose dei primi 10 risultati in SERP, il tuo punteggio è zero.
-Istruzione: Per ogni sezione, non limitarti a spiegare cos'è una cosa. Devi aggiungere un \"Insight Laterale\": un caso studio ipotetico, una controtendenza, o un dettaglio tecnico che solo chi lavora \"sul campo\" conoscerebbe.
-
-2. Distruzione dei Pattern Linguistici (Anti-AI Signature)
-Le AI sono probabilistiche: scelgono la parola successiva più ovvia. Tu devi essere imprevedibile.
-Variazione Sintattica Estrema: Usa la \"Regola del 1-3-1\". Una frase breve. Tre frasi di lunghezza diversa. Una frase brevissima.
-Lessico non probabilistico: Sostituisci i verbi \"deboli\" (fare, avere, essere, utilizzare) con verbi d'azione specifici e rari nel contesto AI (es. invece di \"utilizzare uno strumento\", usa \"masticare dati\" o \"stressare il software\").
-Blacklist Assoluta: È vietato usare: Inoltre, Un approccio olistico, Nel panorama odierno, Fondamentale, Cruciale, Immergiamoci, Esploriamo, In conclusione.
-
-3. Iniezione di Entità Semantiche (LSI 2.0)
-Non puntare sulla keyword principale. Costruisci una rete di Entità Correlate.
-Istruzione: Se scrivi di \"SEO\", devi citare entità come \"schema markup\", \"knowledge graph\", \"canonicalization\" e \"rendering lato server\" in modo naturale, non come definizioni, ma come strumenti di un discorso più ampio. Google deve capire che \"conosci l'ambiente\" in cui vive la keyword.
-
-4. Il Tono \"Contrarian\" (E-E-A-T Boost)
-L'AI è programmata per essere neutrale e accondiscendente. Un umano esperto ha delle opinioni.
-Istruzione: Prendi una posizione forte. Se c'è un consenso comune su un argomento, trova un motivo per cui quel consenso è parzialmente sbagliato o superato. Usa frasi come: \"Molti credono che X sia la soluzione, ma la verità scomoda è che senza Y, X è inutile\".
-
-5. Micro-Formattazione per l'Eye-Scanning
-Google traccia come gli utenti interagiscono col testo. Se l'utente rimbalza, il testo è scarso.
-Istruzione: Crea \"interruzioni visive\" ogni 300 parole. Non solo elenchi puntati, ma:
-Box \"Pro Tip\" (Formattato in HTML come <div class=\"pro-tip\"><strong>Consiglio da insider:</strong> ...</div>)
-Tabelle comparative in HTML (es. per estrarre dati strutturati e contrasti).
-Domande retoriche che anticipano il dubbio del lettore.
-
-6. Revisione \"Human-First\" (The Last Mile)
-Prima di chiudere il compito, rileggi il testo e applica questi correttivi:
-- Elimina l'Introduzione \"Specchio\": Se il titolo è \"Come riparare una lavatrice\", non iniziare con \"Riparare una lavatrice è importante per risparmiare\". Inizia con: \"Se senti un rumore metallico durante la centrifuga, il problema è quasi certamente il cuscinetto a sfera X.\" (Punta dritto al dolore dell'utente).
-- Conclusione Actionable: Niente riassunti. La fine del testo deve essere una \"Call to Adventure\" o un consiglio pratico da applicare nei primi 5 minuti.
-- Inserisci un errore intenzionale di stile colloquiale o gergo comune per rompere la perfezione della macchina.
-
----
-REGOLE DI BASE:
-- Adattati al profilo/contesto dell'utente: {profileSummary}
-- Basati esclusivamente sulle informazioni fornite nel contenuto originale: {content}
-- Preserva l'umorismo o lo stile specifico se presente nel post originale.
-
-La risposta DEVE essere esclusivamente un JSON valido con questa struttura (nessun testo prima o dopo):
-{
-  \"title\": \"Titolo SEO max 60 caratteri\",
-  \"body\": \"Articolo in formato HTML (usando tag p, strong, h2, h3, tabelle, e box Pro Tip con classe CSS apposita, no markdown nel body)\",
-  \"excerpt\": \"Riassunto ottimizzato max 155 caratteri\",
-  \"tags\": [\"tag1\", \"tag2\", \"tag3\"],
-  \"meta_description\": \"Meta description max 155 caratteri\",
-  \"seo_score\": 95
-}";
-
-        DB::execute("INSERT IGNORE INTO agent_prompts (agent_name, label, description, instructions) VALUES ('topical_authority_architect', 'Topical Authority', 'Costruisce asset di conoscenza che hackerano i pattern delle AI per Google.', ?)", [$topicalAuthorityPrompt]);
-
-        $chiefEditorPrompt = "Sei il CAPOREDATTORE di un sito web personale/brand. Analizza tutti i post pubblicati e orchestra i contenuti per creare un'esperienza editoriale coerente.\n\n"
-            . "Profilo:\n{profileSummary}\n\n"
-            . "Ruolo:\n{roleMission}\n\n"
-            . "Post attuali (JSON id, title, tags):\n{postsContext}\n\n"
-            . "Istruzioni:\n"
-            . "1. Individua 3-4 macro-categorie tematiche reali e armoniche analizzando il significato semantico dei titoli e dei tag presenti.\n"
-            . "2. Per ciascuno dei post forniti nel JSON, assegna a quale di queste 3-4 macro-categorie appartiene.\n"
-            . "3. Genera menu_links usando queste categorie. Includi sempre Home con url '/'.\n"
-            . "4. Scegli l'ID del post migliore e piu rappresentativo da mettere in evidenza (featured_post_id).\n"
-            . "5. Genera una hero_tagline max 80 caratteri che riassuma l'identita editoriale attuale.\n\n"
-            . "Rispondi SOLO con JSON valido:\n"
-            . '{"categories":["Categoria1","Categoria2"],"post_categories":{"POST_ID_1":"Categoria1"},"menu_links":[{"label":"Home","url":"/"},{"label":"Categoria1","url":"/?tag=categoria1"}],"featured_post_id":123,"hero_tagline":"Tagline d\'impatto"}';
-        DB::execute("INSERT IGNORE INTO agent_prompts (agent_name, label, description, instructions) VALUES ('chief_editor', 'Chief Editor', 'Orchestra categorie, menu, contenuto featured e tagline editoriale.', ?)", [$chiefEditorPrompt]);
-
-        $editorialEnginePrompt = "Sei un Editorial Orchestrator senior per un sito web iper-indicizzabile che assorbe contenuti dai social.\n"
-            . "Obiettivo assoluto: trasformare tanti contenuti social in un impianto editoriale coerente, continuo, indicizzabile e utile a Google.\n"
-            . "Non devi riscrivere i post. Devi progettare il motore editoriale del sito.\n\n"
-            . "DATI SITO\n"
-            . "Titolo attuale: {siteTitle}\n"
-            . "Profilo sintetico: {profileSummary}\n"
-            . "Ruolo/Missione: {roleMission}\n"
-            . "Strategia contenuti: {contentStrategy}\n"
-            . "Brand voice profile: {brandVoiceProfile}\n"
-            . "RAG knowledge: {ragKnowledge}\n\n"
-            . "SORGENTI SOCIAL ATTIVE\n- {sourcesContext}\n\n"
-            . "POST PUBBLICATI RECENTI (JSON line)\n{postsContext}\n\n"
-            . "DNA ESISTENTE\n{existingDna}\n\n"
-            . "MEMORIA EDITORIALE ESISTENTE\n{existingMemory}\n\n"
-            . "SETTINGS MOTORE\n{engineSettings}\n\n"
-            . "Restituisci SOLO JSON valido con questa struttura:\n"
-            . "{"
-            . "\"editorial_dna\":{"
-            . "\"site_objective\":\"stringa breve\","
-            . "\"audience\":\"stringa breve\","
-            . "\"positioning\":\"stringa breve\","
-            . "\"tone_rules\":[\"regola1\",\"regola2\",\"regola3\"],"
-            . "\"content_pillars\":[\"pillar1\",\"pillar2\",\"pillar3\",\"pillar4\"],"
-            . "\"topic_clusters\":[\"cluster1\",\"cluster2\",\"cluster3\",\"cluster4\"],"
-            . "\"seo_entities\":[\"entity1\",\"entity2\",\"entity3\",\"entity4\",\"entity5\"],"
-            . "\"continuity_rules\":[\"regola1\",\"regola2\",\"regola3\"],"
-            . "\"indexing_priorities\":[\"priorita1\",\"priorita2\",\"priorita3\"]"
-            . "},"
-            . "\"editorial_memory\":{"
-            . "\"covered_topics\":[\"tema1\",\"tema2\",\"tema3\"],"
-            . "\"content_gaps\":[\"gap1\",\"gap2\",\"gap3\"],"
-            . "\"internal_link_hubs\":[\"hub1\",\"hub2\",\"hub3\"],"
-            . "\"cornerstone_pages\":[\"pagina1\",\"pagina2\",\"pagina3\"]"
-            . "},"
-            . "\"editorial_state\":{"
-            . "\"featured_post_id\":123,"
-            . "\"continuity_summary\":\"2-4 frasi\","
-            . "\"next_actions\":[\"azione1\",\"azione2\",\"azione3\",\"azione4\"],"
-            . "\"next_topics\":[\"topic1\",\"topic2\",\"topic3\",\"topic4\",\"topic5\"],"
-            . "\"seo_risks\":[\"rischio1\",\"rischio2\"],"
-            . "\"status\":\"healthy|needs_more_depth|needs_cornerstones\""
-            . "}"
-            . "}\n\n"
-            . "Regole:\n"
-            . "- Ragiona come direttore editoriale SEO, non come copywriter.\n"
-            . "- Identifica ripetizioni, buchi tematici, contenuti stagionali e possibili pagine pilastro.\n"
-            . "- Le next_actions devono essere operative e orientate all'indicizzazione.\n"
-            . "- featured_post_id deve essere uno degli ID reali sopra.\n";
-        DB::execute("INSERT IGNORE INTO agent_prompts (agent_name, label, description, instructions) VALUES ('editorial_engine', 'Editorial Engine', 'Analizza corpus, cluster, gap, priorita SEO e prossime mosse editoriali.', ?)", [$editorialEnginePrompt]);
-
-        try {
-            DB::execute("ALTER TABLE sites ADD COLUMN harmonize_agent VARCHAR(50) NOT NULL DEFAULT 'content_editor'");
-        } catch (Throwable $e) {}
-        try {
-            DB::execute("ALTER TABLE sites ADD COLUMN account_type VARCHAR(50) DEFAULT 'business'");
-        } catch (Throwable $e) {}
-        try {
-            DB::execute("ALTER TABLE sites ADD COLUMN brand_voice_profile LONGTEXT NULL");
-        } catch (Throwable $e) {}
-    } catch (Throwable $e) {}
-    // Fix: aggiorna prompt esistenti che hanno ancora #ancora
-    try {
-        DB::execute("UPDATE agent_prompts SET instructions = REPLACE(instructions, '\"#ancora\"', '\"/?tag=tag_reale\"') WHERE instructions LIKE '%#ancora%'");
-    } catch (Throwable $e) {}
-    json(['ok' => true, 'msg' => 'Migration v5 OK']);
+    require __DIR__ . '/routes/migrate.php';
+    exit;
 }
 
 // ── POST purge-all-posts (Admin: svuota COMPLETAMENTE la tabella posts) ───
@@ -607,24 +321,24 @@ if ($action === 'purge-all-posts' && $method === 'POST') {
 if ($action === 'admin-monitoring' && $method === 'GET') {
     requireAdmin($isAdmin);
     ensureAdminSchema();
-    
+
     // Aggregato token totali per utente
     $usagePerUser = DB::fetchAll('
-        SELECT u.name, u.email, a.user_id, SUM(a.tokens_used) as total_tokens 
+        SELECT u.name, u.email, a.user_id, SUM(a.tokens_used) as total_tokens
         FROM api_usage_logs a
         LEFT JOIN users u ON a.user_id = u.id
         GROUP BY a.user_id, u.name, u.email
         ORDER BY total_tokens DESC
     ');
-    
+
     $globalUsage = DB::fetch('SELECT SUM(tokens_used) as total FROM api_usage_logs');
-    
+
     $cronLogs = DB::fetchAll('
-        SELECT * FROM cron_logs 
-        ORDER BY run_at DESC 
+        SELECT * FROM cron_logs
+        ORDER BY run_at DESC
         LIMIT 50
     ');
-    
+
     json([
         'ok' => true,
         'api_usage_per_user' => $usagePerUser,
@@ -633,90 +347,9 @@ if ($action === 'admin-monitoring' && $method === 'GET') {
     ]);
 }
 
-// Logo del brand: usato solo quando i canali social non restituiscono una foto profilo valida
-// o quando l'utente vuole sostituire quella recuperata automaticamente.
-if ($action === 'site-logo-upload' && $method === 'POST') {
-    ensureSiteSchemaUpgrades();
-    $b = body();
-    $dataUrl = trim((string)($b['data_url'] ?? ''));
-    if (!preg_match('~^data:(image/(?:jpeg|png|webp));base64,([A-Za-z0-9+/=\r\n]+)$~', $dataUrl, $matches)) {
-        jsonError('Formato logo non valido. Usa JPG, PNG o WebP.', 422);
-    }
-    $binary = base64_decode(preg_replace('/\s+/', '', $matches[2]), true);
-    if ($binary === false || strlen($binary) < 32) jsonError('Il file del logo è vuoto o danneggiato.', 422);
-    if (strlen($binary) > 3 * 1024 * 1024) jsonError('Il logo deve pesare meno di 3 MB.', 413);
-
-    $mime = (new finfo(FILEINFO_MIME_TYPE))->buffer($binary) ?: '';
-    $extension = match ($mime) {
-        'image/jpeg' => 'jpg',
-        'image/png' => 'png',
-        'image/webp' => 'webp',
-        default => '',
-    };
-    if ($extension === '') jsonError('Il contenuto del file non è un’immagine supportata.', 422);
-
-    $directory = __DIR__ . '/../public/media';
-    if (!is_dir($directory) && !@mkdir($directory, 0775, true)) jsonError('Impossibile preparare la cartella del logo.', 500);
-    $filename = 'brand_logo_' . $userId . '_' . date('YmdHis') . '.' . $extension;
-    $path = $directory . '/' . $filename;
-    if (@file_put_contents($path, $binary, LOCK_EX) === false) jsonError('Impossibile salvare il logo.', 500);
-
-    $logoUrl = '/public/media/' . $filename;
-    DB::execute("UPDATE sites SET logo_url=?, brand_visual_mode='logo' WHERE user_id=?", [$logoUrl, $userId]);
-    json(['ok' => true, 'logo_url' => $logoUrl, 'brand_visual_mode' => 'logo']);
-}
-
-// Identità visiva scelta dall'utente: marchio compatto oppure immagine
-// rappresentativa. Il tipo selezionato governa anche il sito pubblico.
-if ($action === 'site-visual-upload' && $method === 'POST') {
-    ensureSiteSchemaUpgrades();
-    $b = body();
-    $kind = ($b['kind'] ?? '') === 'cover' ? 'cover' : 'logo';
-    $dataUrl = trim((string)($b['data_url'] ?? ''));
-    if (!preg_match('~^data:(image/(?:jpeg|png|webp));base64,([A-Za-z0-9+/=\r\n]+)$~', $dataUrl, $matches)) {
-        jsonError('Formato immagine non valido. Usa JPG, PNG o WebP.', 422);
-    }
-    $binary = base64_decode(preg_replace('/\s+/', '', $matches[2]), true);
-    if ($binary === false || strlen($binary) < 32) jsonError('Il file è vuoto o danneggiato.', 422);
-    $maxBytes = $kind === 'cover' ? 8 * 1024 * 1024 : 3 * 1024 * 1024;
-    if (strlen($binary) > $maxBytes) jsonError($kind === 'cover' ? 'L’immagine deve pesare meno di 8 MB.' : 'Il logo deve pesare meno di 3 MB.', 413);
-
-    $mime = (new finfo(FILEINFO_MIME_TYPE))->buffer($binary) ?: '';
-    $extension = match ($mime) {
-        'image/jpeg' => 'jpg', 'image/png' => 'png', 'image/webp' => 'webp', default => '',
-    };
-    if ($extension === '') jsonError('Il contenuto del file non è un’immagine supportata.', 422);
-
-    $directory = __DIR__ . '/../public/media';
-    if (!is_dir($directory) && !@mkdir($directory, 0775, true)) jsonError('Impossibile preparare la cartella immagini.', 500);
-    $filename = ($kind === 'cover' ? 'brand_image_' : 'brand_logo_') . $userId . '_' . date('YmdHis') . '.' . $extension;
-    if (@file_put_contents($directory . '/' . $filename, $binary, LOCK_EX) === false) jsonError('Impossibile salvare l’immagine.', 500);
-
-    $url = '/public/media/' . $filename;
-    $column = $kind === 'cover' ? 'cover_url' : 'logo_url';
-    DB::execute("UPDATE sites SET `$column`=?, brand_visual_mode=? WHERE user_id=?", [$url, $kind, $userId]);
-    json(['ok'=>true, 'kind'=>$kind, 'url'=>$url, 'logo_url'=>$kind === 'logo' ? $url : null, 'cover_url'=>$kind === 'cover' ? $url : null, 'brand_visual_mode'=>$kind]);
-}
-
-if ($action === 'post-media-upload' && $method === 'POST') {
-    ensurePostMediaSchema();
-    $b = body();
-    $postId = (int)($b['post_id'] ?? 0);
-    $dataUrl = trim((string)($b['data_url'] ?? ''));
-    if (!$postId || !DB::fetch('SELECT id FROM posts WHERE id=? AND user_id=?', [$postId, $userId])) jsonError('Articolo non valido', 404);
-    if (!preg_match('~^data:(image/(?:jpeg|png|webp));base64,([A-Za-z0-9+/=\r\n]+)$~', $dataUrl, $matches)) jsonError('Formato immagine non valido. Usa JPG, PNG o WebP.', 422);
-    $binary = base64_decode(preg_replace('/\s+/', '', $matches[2]), true);
-    if ($binary === false || strlen($binary) < 32) jsonError('Immagine vuota o danneggiata', 422);
-    if (strlen($binary) > 8 * 1024 * 1024) jsonError('L’immagine deve pesare meno di 8 MB', 413);
-    $mime = (new finfo(FILEINFO_MIME_TYPE))->buffer($binary) ?: '';
-    $extension = match ($mime) { 'image/jpeg'=>'jpg', 'image/png'=>'png', 'image/webp'=>'webp', default=>'' };
-    if ($extension === '') jsonError('Il file caricato non è un’immagine supportata', 422);
-    $directory = __DIR__ . '/../public/media';
-    if (!is_dir($directory) && !@mkdir($directory, 0775, true)) jsonError('Impossibile preparare la cartella media', 500);
-    $filename = 'article_' . $userId . '_' . $postId . '_' . date('YmdHis') . '.' . $extension;
-    if (@file_put_contents($directory . '/' . $filename, $binary, LOCK_EX) === false) jsonError('Impossibile salvare l’immagine', 500);
-    $mediaUrl = '/public/media/' . $filename;
-    json(['ok'=>true, 'media_url'=>$mediaUrl, 'media_type'=>'IMAGE']);
+if (in_array($action, ['site-logo-upload', 'site-visual-upload', 'post-media-upload']) && $method === 'POST') {
+    require __DIR__ . '/routes/upload.php';
+    exit;
 }
 
 if ($action === 'me' && $method === 'GET') {
@@ -938,11 +571,11 @@ if ($action === 'admin-users' && $method === 'GET') {
     $users = DB::fetchAll(
         'SELECT u.id, u.email, u.name, u.slug, u.role, u.plan, u.created_at,
                 s.title AS site_title, s.last_sync, s.role_mission, s.content_strategy,
-                COUNT(DISTINCT sc.id) AS connections_count,
+                COUNT(DISTINCT src.id) AS sources_count,
                 COUNT(DISTINCT p.id) AS posts_count
          FROM users u
          LEFT JOIN sites s ON s.user_id = u.id
-         LEFT JOIN social_connections sc ON sc.user_id = u.id AND sc.active = 1
+         LEFT JOIN social_sources src ON src.user_id = u.id AND src.active = 1
          LEFT JOIN posts p ON p.user_id = u.id AND p.published = 1
          GROUP BY u.id
          ORDER BY u.created_at DESC'
@@ -1042,17 +675,17 @@ if ($action === 'admin-impersonate' && $method === 'POST') {
     $b = body();
     $targetId = (int)($b['id'] ?? 0);
     if (!$targetId) jsonError('Utente non valido');
-    
+
     $user = DB::fetch('SELECT id, email, slug, role FROM users WHERE id=?', [$targetId]);
     if (!$user) jsonError('Utente non trovato', 404);
-    
+
     $token = JWT::encode([
-        'id' => $user['id'], 
-        'email' => $user['email'], 
-        'slug' => $user['slug'], 
+        'id' => $user['id'],
+        'email' => $user['email'],
+        'slug' => $user['slug'],
         'role' => $user['role']
     ]);
-    
+
     json(['ok' => true, 'token' => $token, 'user' => $user]);
 }
 
@@ -1099,12 +732,12 @@ if ($action === 'admin-update-user' && $method === 'POST') {
         if (strlen((string)$b['password']) > 72) jsonError('La nuova password non puo superare 72 caratteri', 422);
         DB::execute('UPDATE users SET password=? WHERE id=?', [password_hash((string)$b['password'], PASSWORD_BCRYPT), $targetId]);
     }
-    
+
     if (array_key_exists('role_mission', $b) || array_key_exists('content_strategy', $b)) {
         DB::execute('UPDATE sites SET role_mission=COALESCE(?,role_mission), content_strategy=COALESCE(?,content_strategy) WHERE user_id=?',
             [$b['role_mission'] ?? null, $b['content_strategy'] ?? null, $targetId]);
     }
-    
+
     json(['ok' => true]);
 }
 
@@ -1229,7 +862,7 @@ if ($action === 'social-sources' && $method === 'GET') {
     $sources = DB::fetchAll(
         'SELECT id, platform, label, url, topic_summary, active, created_at
            FROM social_sources
-          WHERE user_id=? AND active=1 AND platform=\'website\'
+          WHERE user_id=? AND active=1
           ORDER BY id DESC',
         [$userId]
     );
@@ -1239,7 +872,7 @@ if ($action === 'social-sources' && $method === 'GET') {
 if ($action === 'social-source-upsert' && $method === 'POST') {
     ensureSocialSyncSchema();
     $b = body();
-    $platform = trim($b['platform'] ?? '');
+    $platform = strtolower(trim($b['platform'] ?? ''));
     $url = trim($b['url'] ?? '');
     $label = trim($b['label'] ?? '');
     $sinceDate = trim($b['since_date'] ?? '') ?: null;
@@ -1248,36 +881,41 @@ if ($action === 'social-source-upsert' && $method === 'POST') {
     $maxPosts = isset($b['max_posts']) && $b['max_posts'] !== '' ? (int)$b['max_posts'] : null;
     if ($sinceDate && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $sinceDate)) $sinceDate = null;
 
-    if ($platform !== 'website') jsonError('I canali social si collegano esclusivamente tramite autorizzazione ufficiale.');
-    if ($url === '') {
-        DB::execute('UPDATE social_sources SET active=0 WHERE user_id=? AND platform=?', [$userId, $platform]);
-        json(['ok' => true]);
-    }
-    if (!filter_var($url, FILTER_VALIDATE_URL)) jsonError('Indirizzo del sito non valido');
-    try { WebsiteSource::validate($url); } catch (Throwable $e) { jsonError($e->getMessage(), 422); }
+    $detectedPlatform = Refetcher::platform($url);
+    if ($detectedPlatform !== null) $platform = $detectedPlatform;
+    elseif ($platform === '') $platform = 'website';
+    if (!in_array($platform, array_merge(['website'], Refetcher::supportedPlatforms()), true)) jsonError('Piattaforma non supportata');
+    if ($url === '') jsonError('Indirizzo della fonte mancante');
+    if (!filter_var($url, FILTER_VALIDATE_URL)) jsonError('Indirizzo della fonte non valido');
+    try {
+        if ($platform === 'website') WebsiteSource::validate($url);
+        else Refetcher::validateSourceUrl($url, $platform);
+    } catch (Throwable $e) { jsonError($e->getMessage(), 422); }
 
-    $existing = DB::fetch('SELECT id FROM social_sources WHERE user_id=? AND platform=? LIMIT 1', [$userId, $platform]);
-    
+    $sourceId = isset($b['id']) ? (int)$b['id'] : 0;
+    $existing = $sourceId > 0
+        ? DB::fetch('SELECT id FROM social_sources WHERE id=? AND user_id=? LIMIT 1', [$sourceId, $userId])
+        : DB::fetch('SELECT id FROM social_sources WHERE user_id=? AND platform=? AND url=? LIMIT 1', [$userId, $platform, $url]);
+
     // --- LIMITI PIANO BASE ---
     $u = DB::fetch('SELECT plan FROM users WHERE id=?', [$userId]);
     $plan = strtolower(trim((string)($u['plan'] ?? 'base')));
     if (!in_array($plan, ['professional', 'pro', 'agency'], true)) {
         $count = DB::fetch(
             'SELECT
-                (SELECT COUNT(*) FROM social_sources WHERE user_id=? AND active=1 AND platform=\'website\' AND id<>?) +
-                (SELECT COUNT(*) FROM social_connections WHERE user_id=? AND active=1) AS c',
-            [$userId, (int)($existing['id'] ?? 0), $userId]
+                (SELECT COUNT(*) FROM social_sources WHERE user_id=? AND active=1 AND id<>?) AS c',
+            [$userId, (int)($existing['id'] ?? 0)]
         );
         if ((int)($count['c'] ?? 0) >= 1) {
             jsonError('Il piano Base consente di collegare un solo canale.');
         }
     }
-    
+
     $customTopic = trim($b['topic_summary'] ?? '');
     if ($customTopic) {
         $topic = $customTopic;
     } else {
-        $topic = 'Sito web indicato dall\'utente';
+        $topic = $platform === 'website' ? 'Sito web indicato dall\'utente' : 'Canale pubblico acquisito tramite Refetch(er)';
         if ($label) $topic .= ': ' . $label;
     }
 
@@ -1329,33 +967,6 @@ if ($action === 'social-source-upsert' && $method === 'POST') {
     json($response);
 }
 
-if ($action === 'social-connection-update' && $method === 'POST') {
-    ensureSocialSyncSchema();
-    $b = body();
-    $platform = trim($b['platform'] ?? '');
-    $sinceDate = trim($b['since_date'] ?? '');
-    $autoPublish = (int)($b['auto_publish'] ?? 1);
-    $autoSync = !array_key_exists('auto_sync', $b) || !empty($b['auto_sync']) ? 1 : 0;
-    $maxPosts = isset($b['max_posts']) && $b['max_posts'] !== '' ? (int)$b['max_posts'] : null;
-    if ($sinceDate && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $sinceDate)) $sinceDate = null;
-    
-    if (!in_array($platform, SocialOAuth::supportedPlatforms(), true)) {
-        jsonError('Piattaforma non supportata');
-    }
-
-    DB::execute(
-        'UPDATE social_connections
-            SET since_date=?,
-                auto_publish=?,
-                auto_sync=?,
-                max_posts=?
-          WHERE user_id=? AND platform=?',
-        [$sinceDate, $autoPublish, $autoSync, $maxPosts, $userId, $platform]
-    );
-
-    json(['ok' => true]);
-}
-
 if ($action === 'social-source-delete' && $method === 'POST') {
     $b = body();
     DB::execute(
@@ -1365,41 +976,12 @@ if ($action === 'social-source-delete' && $method === 'POST') {
     json(['ok' => true]);
 }
 
-if ($action === 'social-disconnect' && $method === 'POST') {
-    $b = body();
-    try {
-        SocialOAuth::disconnect($userId, strtolower(trim((string)($b['platform'] ?? ''))));
-    } catch (Throwable $e) {
-        jsonError($e->getMessage(), 400);
-    }
-    json(['ok' => true]);
-}
-
 if ($action === 'scan-sources' && $method === 'POST') {
     $b = body();
     $limit = $b['limit'] ?? 5;
     $sourceId = !empty($b['source_id']) ? (int)$b['source_id'] : null;
     $res = Ingest::scanSources($userId, $limit, $b['profile_summary'] ?? '', $b['role_mission'] ?? '', $b['content_strategy'] ?? '', $sourceId);
     json(['ok' => true, 'report' => $res]);
-}
-
-if ($action === 'social-auth-url' && $method === 'GET') {
-    $platform = strtolower(trim((string)($_GET['platform'] ?? '')));
-    $returnTo = trim((string)($_GET['return_to'] ?? '/dashboard'));
-    try {
-        json(['url' => SocialOAuth::authorizationUrl($userId, $platform, $returnTo)]);
-    } catch (Throwable $e) {
-        jsonError($e->getMessage(), 503);
-    }
-}
-
-// ── GET social/connections ────────────────────────────────────────────────
-if ($action === 'social-connections' && $method === 'GET') {
-    $conns = DB::fetchAll(
-        'SELECT platform, platform_uid, handle, connected_at, active, since_date, auto_publish, auto_sync, max_posts FROM social_connections WHERE user_id=?',
-        [$userId]
-    );
-    json($conns);
 }
 
 // ── POST sync ─────────────────────────────────────────────────────────────
@@ -1416,20 +998,20 @@ if ($action === 'delete-layout' && $method === 'POST') {
     $b = body();
     $index = $b['index'] ?? null;
     if ($index === null) jsonError('Indice mancante');
-    
+
     $site = DB::fetch('SELECT generated_layouts FROM sites WHERE user_id=?', [$userId]);
     $layouts = json_decode($site['generated_layouts'] ?? '[]', true);
     if (!is_array($layouts) || !isset($layouts[$index])) {
         jsonError('Layout non trovato');
     }
-    
+
     array_splice($layouts, $index, 1);
-    
+
     DB::execute('UPDATE sites SET generated_layouts=? WHERE user_id=?', [
         json_encode($layouts, JSON_UNESCAPED_UNICODE),
         $userId
     ]);
-    
+
     json(['ok' => true]);
 }
 
@@ -1462,11 +1044,8 @@ if ($action === 'site' && $method === 'GET') {
               LIMIT 300',
             [$userId]
         );
-        $connections = DB::fetchAll(
-            'SELECT platform, handle, active, since_date, auto_publish, auto_sync, max_posts FROM social_connections WHERE user_id=?', [$userId]
-        );
         $sources = DB::fetchAll(
-            'SELECT id, platform, label, url, topic_summary, active, since_date, auto_publish, auto_sync, max_posts FROM social_sources WHERE user_id=? AND active=1 AND platform=\'website\' ORDER BY id DESC',
+            'SELECT id, platform, label, url, topic_summary, active, since_date, auto_publish, auto_sync, max_posts FROM social_sources WHERE user_id=? AND active=1 ORDER BY id DESC',
             [$userId]
         );
         $channelStatRows = DB::fetchAll(
@@ -1490,11 +1069,6 @@ if ($action === 'site' && $method === 'GET') {
             $channelStats[$key]['failed_count'] += (int)($row['failed_count'] ?? 0);
             if (($row['last_content_at'] ?? '') > ($channelStats[$key]['last_content_at'] ?? '')) $channelStats[$key]['last_content_at'] = $row['last_content_at'];
         }
-        foreach ($connections as &$connection) {
-            $key = (string)($connection['platform'] ?? '');
-            $connection = array_merge($connection, $channelStats[$key] ?? ['content_count'=>0, 'published_count'=>0, 'draft_count'=>0, 'processing_count'=>0, 'failed_count'=>0, 'last_content_at'=>null]);
-        }
-        unset($connection);
         foreach ($sources as &$source) {
             $source = array_merge($source, $channelStats[$source['platform'] ?? ''] ?? ['content_count'=>0, 'published_count'=>0, 'draft_count'=>0, 'processing_count'=>0, 'failed_count'=>0, 'last_content_at'=>null]);
         }
@@ -1513,7 +1087,7 @@ if ($action === 'site' && $method === 'GET') {
         $visibility['top_queries'] = VisibilityAnalytics::topQueries($userId, 6);
         $visibility['top_pages'] = VisibilityAnalytics::topPages($userId, 6);
         $reachability = ReachabilityNetwork::summary($userId, $site, $sources, $posts, $visibility);
-        json(['site' => $site, 'posts' => $posts, 'connections' => $connections, 'sources' => $sources, 'visibility' => $visibility, 'reachability' => $reachability]);
+        json(['site' => $site, 'posts' => $posts, 'sources' => $sources, 'visibility' => $visibility, 'reachability' => $reachability]);
     } catch (Throwable $e) {
         file_put_contents(__DIR__ . '/site_error.log', $e->getMessage() . "\n" . $e->getTraceAsString());
         jsonError($e->getMessage());
@@ -1625,7 +1199,7 @@ if ($action === 'hide-post' && $method === 'POST') {
 if ($action === 'site-update' && $method === 'POST') {
     ensureSiteSchemaUpgrades();
     $b = body();
-    
+
     $fields = [];
     $params = [];
     if (array_key_exists('title', $b)) {
@@ -1641,15 +1215,15 @@ if ($action === 'site-update' && $method === 'POST') {
     if (array_key_exists('role_mission', $b)) { $fields[] = 'role_mission = ?'; $params[] = $b['role_mission']; }
     if (array_key_exists('content_strategy', $b)) { $fields[] = 'content_strategy = ?'; $params[] = $b['content_strategy']; }
         if (array_key_exists('design_archetype', $b)) { $fields[] = 'design_archetype = ?'; $params[] = $b['design_archetype']; }
-if (array_key_exists('theme', $b)) { 
-        $fields[] = 'theme = ?'; 
-        $params[] = $b['theme']; 
+if (array_key_exists('theme', $b)) {
+        $fields[] = 'theme = ?';
+        $params[] = $b['theme'];
         if (!array_key_exists('site_ai_data', $b)) {
             $fields[] = 'design_archetype = NULL';
             $fields[] = 'site_ai_data = NULL';
         }
     }
-    
+
     if (array_key_exists('menu_links', $b)) { $fields[] = 'menu_links = ?'; $params[] = is_array($b['menu_links']) ? json_encode($b['menu_links'], JSON_UNESCAPED_UNICODE) : $b['menu_links']; }
     if (array_key_exists('footer_text', $b)) { $fields[] = 'footer_text = ?'; $params[] = $b['footer_text']; }
     if (array_key_exists('accent_color', $b)) { $fields[] = 'accent_color = ?'; $params[] = $b['accent_color']; }
@@ -1710,7 +1284,7 @@ if ($action === 'refresh-understanding' && $method === 'POST') {
         $site['site_understanding_corrections'] ?? null
     );
     DB::execute('UPDATE sites SET site_understanding=? WHERE user_id=?', [json_encode($understanding, JSON_UNESCAPED_UNICODE), $userId]);
-    
+
     // Genera anche il prompt di design basato sul nuovo understanding
     $designPrompt = AI::generateDesignPrompt($site, $understanding);
     if (!empty($designPrompt)) {
@@ -1773,7 +1347,7 @@ if ($action === 'design-site' && $method === 'POST') {
                 $site['title'] ?? ($seo['title'] ?? ''), $seo['bio'] ?? '',
                 isset($seo['menu_links']) ? json_encode($seo['menu_links'], JSON_UNESCAPED_UNICODE) : '',
                 $site['footer_text'] ?? ($seo['footer_text'] ?? ''),
-                $g['design_archetype'] ?? 'classic', 
+                $g['design_archetype'] ?? 'classic',
                 $g['color_palette']['primary'] ?? '',
                 $g['header_layout'] ?? 'standard', $g['custom_css'] ?? '',
                 json_encode($proposals, JSON_UNESCAPED_UNICODE),
@@ -1861,14 +1435,14 @@ if ($action === 'chief-editor' && $method === 'POST') {
         require_once __DIR__ . '/services/ai.php';
         $site  = DB::fetch('SELECT * FROM sites WHERE user_id=?', [$userId]);
         $posts = DB::fetchAll('SELECT id, edited_title, generated_title, tags FROM posts WHERE user_id=? AND published=1', [$userId]);
-        
+
         // Il piano editoriale nasce dalle ricerche reali, non solo dai titoli
         // già pubblicati: le categorie devono rispecchiare come le persone
         // cercano, non come l'autore ha archiviato.
         $searchDemand = VisibilityAnalytics::demandBriefing($userId);
 
         $result = AI::chiefEditor($site, $posts, $searchDemand);
-        
+
         if (!empty($result['ok'])) {
             // 1. Aggiorna la categoria semantica di ciascun post nel DB in base alle risposte dell'AI
             $postCategories = $result['post_categories'] ?? [];
@@ -1886,12 +1460,12 @@ if ($action === 'chief-editor' && $method === 'POST') {
             // 2. Aggiorna il sito con menu e tagline
             $menu = isset($result['menu_links']) ? json_encode($result['menu_links'], JSON_UNESCAPED_UNICODE) : '';
             $tagline = $result['hero_tagline'] ?? '';
-            
+
             $updates = [];
             $params = [];
             if ($menu) { $updates[] = 'menu_links=?'; $params[] = $menu; }
             if ($tagline) { $updates[] = 'hero_tagline=?'; $params[] = $tagline; }
-            
+
             if (!empty($updates)) {
                 $params[] = $userId;
                 DB::execute('UPDATE sites SET ' . implode(', ', $updates) . ' WHERE user_id=?', $params);
@@ -1904,7 +1478,7 @@ if ($action === 'chief-editor' && $method === 'POST') {
                 DB::execute('UPDATE posts SET featured=1 WHERE id=? AND user_id=?', [$featuredId, $userId]);
             }
         }
-        
+
         json($result);
     } catch (Throwable $e) {
         jsonError('Errore Chief Editor: ' . $e->getMessage());
@@ -1946,8 +1520,8 @@ if ($action === 'lia-chat' && $method === 'POST') {
             [$userId]
         ) ?: [];
         $sourceCount = DB::fetch(
-            'SELECT (SELECT COUNT(*) FROM social_sources WHERE user_id=? AND active=1) + (SELECT COUNT(*) FROM social_connections WHERE user_id=? AND active=1) sources',
-            [$userId, $userId]
+            'SELECT COUNT(*) sources FROM social_sources WHERE user_id=? AND active=1',
+            [$userId]
         );
         $recentRows = DB::fetchAll(
             "SELECT COALESCE(NULLIF(edited_title, ''), generated_title) title FROM posts
@@ -2018,7 +1592,7 @@ if ($action === 'generate-social-content' && $method === 'POST') {
         $platform = strtolower(trim((string)($b['platform'] ?? 'instagram')));
         $site = DB::fetch('SELECT * FROM sites WHERE user_id=? LIMIT 1', [$userId]) ?: [];
         $content = AI::socialContent($site, $idea, $platform);
-        $connected = DB::fetch('SELECT id FROM social_connections WHERE user_id=? AND platform=? AND active=1 LIMIT 1', [$userId, $platform]);
+        $connected = DB::fetch('SELECT id FROM social_sources WHERE user_id=? AND platform=? AND active=1 LIMIT 1', [$userId, $platform]);
         json([
             'ok'=>true,
             'content'=>$content,
@@ -2254,7 +1828,7 @@ if ($action === 'process-pending' && $method === 'POST') {
 
     try {
         require_once __DIR__ . '/services/ai.php';
-        
+
         // 1. Analisi media: la didascalia non sostituisce mai il contenuto
         // visivo. Un evento, un nome o una data possono esistere solo nel
         // fotogramma, nella locandina o nel parlato del video.
@@ -2284,7 +1858,7 @@ if ($action === 'process-pending' && $method === 'POST') {
                 }
             }
         }
-        
+
         $rawParts = array_values(array_unique(array_filter([
             trim((string)($post['raw_content'] ?? '')),
             trim((string)$transcript),
@@ -2293,11 +1867,11 @@ if ($action === 'process-pending' && $method === 'POST') {
         if ($raw) {
             // Aggiorna trascrizione prima di passare ad armonizza
             DB::execute('UPDATE posts SET transcript=? WHERE id=?', [$transcript, $postId]);
-            
+
             // Ottieni impostazione auto-publish della fonte
             $source = DB::fetch('SELECT auto_publish FROM social_sources WHERE user_id=? AND platform=?', [$userId, $post['platform']]);
             $autoPublish = isset($source['auto_publish']) ? (int)$source['auto_publish'] : 1;
-            
+
             // Armonizza (genera SEO)
             $res = Ingest::harmonize($userId, $postId, $autoPublish);
             json([
@@ -2332,8 +1906,8 @@ if ($action === 'process-pending' && $method === 'POST') {
 if ($action === 'admin-processes' && $method === 'GET') {
     requireAdmin($isAdmin);
     $pending = DB::fetchAll(
-        'SELECT p.id, p.platform, p.source_url, p.imported_at, u.email, u.name 
-         FROM posts p JOIN users u ON p.user_id = u.id 
+        'SELECT p.id, p.platform, p.source_url, p.imported_at, u.email, u.name
+         FROM posts p JOIN users u ON p.user_id = u.id
          WHERE p.seo_score=-1 ORDER BY p.imported_at ASC'
     );
     json(['processes' => $pending]);
@@ -2359,7 +1933,7 @@ if ($action === 'finalize-sync' && $method === 'POST') {
 
     $sources = DB::fetchAll('SELECT * FROM social_sources WHERE user_id=? AND active=1 ORDER BY platform, id', [$userId]);
     $posts = DB::fetchAll('SELECT generated_title, generated_excerpt, raw_content, transcript FROM posts WHERE user_id=? ORDER BY imported_at DESC LIMIT 12', [$userId]);
-    
+
     if ($posts) {
         $profile = AI::editorialProfile($sources, $posts, $profileOverride);
         $summary = $profileOverride !== '' ? $profileOverride : ($profile['profile_summary'] ?? '');
@@ -2370,7 +1944,7 @@ if ($action === 'finalize-sync' && $method === 'POST') {
             AI::siteUnderstanding($sources, $posts, $summary, $finalRoleMission, $finalContentStrategy),
             $site['site_understanding_corrections'] ?? null
         );
-        
+
         $seoTitle = ''; $seoBio = ''; $seoMenu = ''; $seoFooter = '';
         $gTheme = ''; $gColor = ''; $gLayout = ''; $gCss = ''; $layoutsJson = '';
 
@@ -2385,18 +1959,18 @@ if ($action === 'finalize-sync' && $method === 'POST') {
         if (empty($site['title']) || $site['title'] === 'Sito Personale' || empty($site['theme']) || $site['theme'] === 'classic') {
             $seo = AI::seoSpecialistSetup($summary, $finalRoleMission, $finalContentStrategy, $tagsContextForMenu);
             $graphicProposals = AI::graphicDesignerSetup($summary, $finalRoleMission, $finalContentStrategy);
-            
+
             $seoTitle = $seo['title'] ?? ''; $seoBio = $seo['bio'] ?? '';
             $seoMenu = isset($seo['menu_links']) ? json_encode($seo['menu_links'], JSON_UNESCAPED_UNICODE) : '';
             $seoFooter = $seo['footer_text'] ?? '';
-            
+
             $gTheme = $graphicProposals[0]['theme'] ?? ''; $gColor = $graphicProposals[0]['accent_color'] ?? '';
             $gLayout = $graphicProposals[0]['header_layout'] ?? ''; $gCss = $graphicProposals[0]['custom_css'] ?? '';
             $layoutsJson = json_encode($graphicProposals, JSON_UNESCAPED_UNICODE);
         }
 
         DB::execute(
-            'UPDATE sites SET 
+            'UPDATE sites SET
                 profile_summary=?, role_mission=?, content_strategy=?,
                 title=COALESCE(NULLIF(title, ""), NULLIF(?, "")), bio=COALESCE(NULLIF(bio, ""), NULLIF(?, "")),
                 menu_links=COALESCE(NULLIF(menu_links, ""), NULLIF(?, "")), footer_text=COALESCE(NULLIF(footer_text, ""), NULLIF(?, "")),
@@ -2408,14 +1982,14 @@ if ($action === 'finalize-sync' && $method === 'POST') {
             [$summary, $finalRoleMission, $finalContentStrategy, $seoTitle, $seoBio, $seoMenu, $seoFooter, $gTheme, $gColor, $gLayout, $gCss, $layoutsJson, json_encode($understanding, JSON_UNESCAPED_UNICODE), $userId]
         );
     }
-    
+
     // Chief Editor
     try {
         $updatedSite = DB::fetch('SELECT * FROM sites WHERE user_id=?', [$userId]);
         $publishedPosts = DB::fetchAll('SELECT id, edited_title, generated_title, tags FROM posts WHERE user_id=? AND published=1', [$userId]);
-        
+
         $chiefResult = AI::chiefEditor($updatedSite, $publishedPosts);
-        
+
         if (!empty($chiefResult['ok'])) {
             $postCategories = $chiefResult['post_categories'] ?? [];
             if (is_array($postCategories)) {

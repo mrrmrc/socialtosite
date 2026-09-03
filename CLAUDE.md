@@ -19,7 +19,7 @@ il branch; `.github/workflows/deploy.yml` esegue controlli, build e upload
 FTP/FTPS. Un normale push non pubblica nulla. Vedi `AGENTS.md`.
 
 ## Sicurezza
-- Credenziali deploy e OAuth: esclusivamente GitHub Secrets o file locali
+- Credenziali deploy e chiavi dei servizi: esclusivamente GitHub Secrets o file locali
   ignorati. `config/deploy.env`, `config/config.php` e `config/keys.php` non
   devono mai essere committati.
 - `config/config.php` e `config/keys.php` vivono **solo sul server**, non nel
@@ -34,7 +34,7 @@ FTP/FTPS. Un normale push non pubblica nulla. Vedi `AGENTS.md`.
 - Il corpo degli articoli passa sempre da `bodySanitizeHtml()` in `site.php`
   (whitelist di tag e attributi) più una CSP con nonce. Test di regressione:
   `tools/test_html_sanitizer.php`.
-- Token social cifrati a riposo (AES-256-GCM, `api/middleware/crypto.php`).
+- I social sono letti da URL pubblici tramite Refetch(er); non conserviamo token o sessioni social degli utenti.
 - Sessioni revocabili: incrementare `users.token_version` invalida all'istante
   tutti i token già emessi (`revokeSessions()`, endpoint `logout-all`).
 - Mai committare password/chiavi né incollarle in chat.

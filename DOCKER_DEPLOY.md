@@ -20,8 +20,8 @@ chmod 700 secrets
 chmod 600 .env
 ```
 
-Genera tre segreti diversi con `openssl rand -hex 32` e inseriscili in
-`JWT_SECRET`, `ENCRYPTION_KEY` e `ANALYTICS_SALT`. Imposta anche password
+Genera due segreti diversi con `openssl rand -hex 32` e inseriscili in
+`JWT_SECRET` e `ANALYTICS_SALT`. Configura anche `REFETCHER_API_KEY` e password
 diverse e robuste per l'utente e per root MariaDB.
 
 Avvia e verifica:
@@ -79,7 +79,7 @@ docker compose exec -T db sh -c \
 
 ## HTTPS e dominio
 
-Per OAuth social e uso reale serve un dominio HTTPS. Punta il record DNS al
+Per l'uso reale serve un dominio HTTPS. Punta il record DNS al
 VPS e configura Nginx, Apache o Caddy come reverse proxy verso
 `127.0.0.1:8081`; poi aggiorna `BASE_URL` e `ALLOWED_ORIGIN` nel `.env` con il
 dominio `https://...` e ricrea i container.

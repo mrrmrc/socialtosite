@@ -1,0 +1,213 @@
+<?php
+
+/**
+ * Unico gateway per l'acquisizione dei contenuti social pubblici.
+ *
+ * Nessuna credenziale dell'utente attraversa SocialToSite: il backend invia
+ * esclusivamente URL pubblici a Refetch(er) e normalizza la risposta prima di
+ * passarla al motore di ingestione.
+ */
+final class Refetcher {
+    private const ENDPOINT = 'https://api.refetcher.com/';
+    private const PLATFORMS = ['facebook', 'instagram', 'tiktok', 'youtube', 'x'];
+
+    public static function supportedPlatforms(): array {
+        return self::PLATFORMS;
+    }
+
+    public static function platform(string $url): ?string {
+        $host = strtolower((string)parse_url(trim($url), PHP_URL_HOST));
+        $host = preg_replace('/^www\./', '', $host);
+        return match (true) {
+            $host === 'instagram.com' || str_ends_with($host, '.instagram.com') => 'instagram',
+            $host === 'tiktok.com' || str_ends_with($host, '.tiktok.com') => 'tiktok',
+            $host === 'facebook.com' || str_ends_with($host, '.facebook.com') || $host === 'fb.watch' => 'facebook',
+            $host === 'youtube.com' || str_ends_with($host, '.youtube.com') || $host === 'youtu.be' => 'youtube',
+            $host === 'x.com' || str_ends_with($host, '.x.com') || $host === 'twitter.com' || str_ends_with($host, '.twitter.com') => 'x',
+            default => null,
+        };
+    }
+
+    public static function validateSourceUrl(string $url, ?string $expectedPlatform = null): string {
+        if (!filter_var($url, FILTER_VALIDATE_URL)) throw new RuntimeException('URL social non valido');
+        if (!in_array(strtolower((string)parse_url($url, PHP_URL_SCHEME)), ['http', 'https'], true)) {
+            throw new RuntimeException('Protocollo social non supportato');
+        }
+        $platform = self::platform($url);
+        if ($platform === null) throw new RuntimeException('Piattaforma social non supportata da Refetch(er)');
+        if ($expectedPlatform !== null && $expectedPlatform !== $platform) throw new RuntimeException('La piattaforma non corrisponde all’URL');
+        return $platform;
+    }
+
+    private static function apiKey(): string {
+        foreach (['SOCIALTOSITE_RUNTIME_REFETCHER_API_KEY', 'REFETCHER_API_KEY'] as $name) {
+            if (defined($name) && trim((string)constant($name)) !== '') return trim((string)constant($name));
+        }
+        throw new RuntimeException('REFETCHER_API_KEY non configurata sul server');
+    }
+
+    private static function request(array $payload): array {
+        $json = json_encode($payload, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+        if ($json === false) throw new RuntimeException('Richiesta Refetch(er) non serializzabile');
+
+        $ch = curl_init(self::ENDPOINT);
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_POST => true,
+            CURLOPT_POSTFIELDS => $json,
+            CURLOPT_HTTPHEADER => [
+                'Accept: application/json',
+                'Content-Type: application/json',
+                'X-API-Key: ' . self::apiKey(),
+            ],
+            CURLOPT_CONNECTTIMEOUT => 12,
+            CURLOPT_TIMEOUT => 90,
+            CURLOPT_SSL_VERIFYPEER => true,
+            CURLOPT_SSL_VERIFYHOST => 2,
+        ]);
+        $raw = curl_exec($ch);
+        $status = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $curlError = curl_error($ch);
+        curl_close($ch);
+        if ($raw === false) throw new RuntimeException('Refetch(er) non raggiungibile: ' . $curlError);
+
+        $data = json_decode((string)$raw, true);
+        if (!is_array($data)) throw new RuntimeException('Risposta Refetch(er) non valida (HTTP ' . $status . ')');
+        if ($status < 200 || $status >= 300) {
+            $message = $data['error']['message'] ?? $data['message'] ?? null;
+            if (!$message && !empty($data['results'][0]['error'])) {
+                $message = is_array($data['results'][0]['error'])
+                    ? ($data['results'][0]['error']['message'] ?? $data['results'][0]['error']['category'] ?? null)
+                    : $data['results'][0]['error'];
+            }
+            throw new RuntimeException('Refetch(er): ' . ($message ?: 'richiesta fallita') . ' (HTTP ' . $status . ')');
+        }
+        return $data;
+    }
+
+    private static function successfulResults(array $envelope): array {
+        $results = $envelope['results'] ?? [];
+        if (!is_array($results)) return [];
+        $successful = [];
+        foreach ($results as $result) {
+            if (is_array($result) && !empty($result['success'])) $successful[] = $result;
+        }
+        return $successful;
+    }
+
+    private static function isSingleContentUrl(string $platform, string $url): bool {
+        $path = strtolower((string)parse_url($url, PHP_URL_PATH));
+        return match ($platform) {
+            'instagram' => (bool)preg_match('~/(?:p|reel|reels|tv)/~', $path),
+            'tiktok' => str_contains($path, '/video/'),
+            'facebook' => (bool)preg_match('~/(?:posts|reel|reels|videos|watch|share/p)/~', $path) || str_contains(strtolower($url), 'fb.watch'),
+            'youtube' => str_contains($path, '/watch') || str_contains($path, '/shorts/') || str_contains($path, '/embed/') || strtolower((string)parse_url($url, PHP_URL_HOST)) === 'youtu.be',
+            'x' => str_contains($path, '/status/'),
+            default => false,
+        };
+    }
+
+    private static function itemUrl(array $item): string {
+        return trim((string)($item['url'] ?? $item['normalizedUrl'] ?? $item['post']['normalizedUrl'] ?? ''));
+    }
+
+    private static function normalize(array $result): ?array {
+        $post = is_array($result['post'] ?? null) ? $result['post'] : $result;
+        $media = is_array($result['media'] ?? null) ? $result['media'] : (is_array($post['media'] ?? null) ? $post['media'] : []);
+        $url = self::itemUrl($result) ?: self::itemUrl($post);
+        if ($url === '') return null;
+        $captionParts = array_filter(array_map('trim', [
+            (string)($post['caption'] ?? ''),
+            (string)($post['description'] ?? ''),
+            (string)($post['title'] ?? ''),
+        ]));
+        $caption = implode("\n\n", array_values(array_unique($captionParts)));
+        $firstChild = is_array($media['children'][0] ?? null) ? $media['children'][0] : [];
+        $mediaUrl = trim((string)(
+            $media['videoUrl'] ?? $media['hdVideoUrl'] ?? $media['thumbnailUrl']
+            ?? $firstChild['videoUrl'] ?? $firstChild['thumbnailUrl'] ?? $firstChild['url']
+            ?? $post['displayUrl'] ?? ''
+        ));
+        $mediaType = strtolower((string)($media['type'] ?? $post['type'] ?? 'text'));
+        if (str_contains($mediaType, 'video') || !empty($media['videoUrl']) || !empty($media['hdVideoUrl'])) $mediaType = 'video';
+        elseif ($mediaUrl !== '') $mediaType = 'image';
+        else $mediaType = 'text';
+        $published = $post['publishedAt'] ?? (isset($post['createTime']) ? '@' . $post['createTime'] : null);
+        $timestamp = $published ? strtotime((string)$published) : false;
+        return [
+            'url' => $url,
+            'id' => trim((string)($post['id'] ?? $post['shortcode'] ?? '')),
+            'caption' => $caption,
+            'published_at' => $timestamp ? date('Y-m-d H:i:s', $timestamp) : date('Y-m-d H:i:s'),
+            'media_url' => $mediaUrl,
+            'media_type' => $mediaType,
+        ];
+    }
+
+    private static function profileUrls(array $profileResult): array {
+        $items = [];
+        foreach (['recentPosts', 'recentVideos', 'videos'] as $key) {
+            foreach (($profileResult[$key] ?? []) as $item) if (is_array($item)) $items[] = $item;
+        }
+        // channelVideos usa talvolta `results` per i video del canale.
+        foreach (($profileResult['results'] ?? []) as $item) if (is_array($item)) $items[] = $item;
+        foreach (($profileResult['postLinks'] ?? []) as $url) $items[] = ['url' => $url];
+        $urls = [];
+        foreach ($items as $item) {
+            $url = self::itemUrl($item);
+            if ($url !== '') $urls[$url] = $item;
+        }
+        return $urls;
+    }
+
+    public static function source(string $url, int $limit = 20, ?string $sinceDate = null): array {
+        $platform = self::validateSourceUrl($url);
+        $limit = max(1, min(500, $limit));
+        $profile = null;
+        $rawItems = [];
+
+        if (self::isSingleContentUrl($platform, $url)) {
+            $rawItems = self::successfulResults(self::request(['url' => $url]));
+        } else {
+            if ($platform === 'youtube') {
+                $payload = ['type' => 'channelVideos', 'platform' => 'youtube', 'channelUrl' => $url, 'recentVideosLimit' => min(50, $limit)];
+            } else {
+                $pageSize = $platform === 'facebook' ? 3 : ($platform === 'x' ? 5 : 12);
+                $payload = [
+                    'type' => 'profile', 'platform' => $platform, 'profileUrl' => $url,
+                    'includeRecentPosts' => true,
+                    'pages' => min($platform === 'facebook' ? 10 : 25, max(1, (int)ceil($limit / $pageSize))),
+                ];
+                if ($platform === 'facebook') $payload['recentPostsLimit'] = min(25, $limit);
+            }
+            $profileResults = self::successfulResults(self::request($payload));
+            if (!$profileResults) throw new RuntimeException('Refetch(er) non ha restituito il profilo pubblico');
+            $profileResult = $profileResults[0];
+            $profile = $profileResult['profile'] ?? $profileResult['channel'] ?? null;
+            $discovered = self::profileUrls($profileResult);
+
+            // Gli elementi completi vengono riusati; i riferimenti leggeri sono
+            // arricchiti con richieste batch, massimo 50 URL per chiamata.
+            $complete = [];
+            $lightUrls = [];
+            foreach ($discovered as $itemUrl => $item) {
+                if (!empty($item['caption']) || !empty($item['description']) || !empty($item['media'])) $complete[] = $item + ['url' => $itemUrl];
+                else $lightUrls[] = $itemUrl;
+            }
+            $rawItems = $complete;
+            foreach (array_chunk(array_slice($lightUrls, 0, $limit), 50) as $chunk) {
+                $rawItems = array_merge($rawItems, self::successfulResults(self::request(['urls' => $chunk])));
+            }
+        }
+
+        $items = [];
+        foreach ($rawItems as $rawItem) {
+            $item = self::normalize($rawItem);
+            if (!$item) continue;
+            if ($sinceDate && strtotime($item['published_at']) < strtotime($sinceDate)) continue;
+            $items[$item['url']] = $item;
+            if (count($items) >= $limit) break;
+        }
+        return ['platform' => $platform, 'profile' => is_array($profile) ? $profile : [], 'items' => array_values($items)];
+    }
+}

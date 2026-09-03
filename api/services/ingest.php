@@ -1,12 +1,12 @@
 <?php
-// api/services/ingest.php — Ingestione da siti web e URL espliciti.
-// I social vengono acquisiti esclusivamente dai connettori OAuth ufficiali.
+// api/services/ingest.php — Ingestione unificata da siti web e URL pubblici.
 // Ricava il testo e salva
 // il contenuto come BOZZA (published=0). L'armonizzazione è il passo 2.
 require_once __DIR__ . '/../../config/db.php';
 require_once __DIR__ . '/ai.php';
 require_once __DIR__ . '/visibility.php';
 require_once __DIR__ . '/website_source.php';
+require_once __DIR__ . '/refetcher.php';
 require_once __DIR__ . '/../middleware/response.php';
 if (file_exists(__DIR__ . '/../middleware/logger.php')) require_once __DIR__ . '/../middleware/logger.php';
 
@@ -194,12 +194,7 @@ class Ingest {
 
     // ── Rileva la piattaforma dall'URL ─────────────────────────────────────
     public static function platform(string $url): string {
-        $u = strtolower($url);
-        if (str_contains($u, 'youtube.com') || str_contains($u, 'youtu.be')) return 'youtube';
-        if (str_contains($u, 'tiktok.com'))    return 'tiktok';
-        if (str_contains($u, 'instagram.com')) return 'instagram';
-        if (str_contains($u, 'facebook.com') || str_contains($u, 'fb.watch')) return 'facebook';
-        return 'website';
+        return Refetcher::platform($url) ?: 'website';
     }
 
     // ── ID univoco del contenuto (per evitare duplicati) ───────────────────
@@ -230,11 +225,13 @@ class Ingest {
         if (!$platform) {
             throw new Exception('Piattaforma non riconosciuta');
         }
-        if ($platform !== 'website') {
-            throw new Exception('I contenuti social vengono importati esclusivamente dai canali collegati tramite OAuth.');
+        if ($platform !== 'website' && !$prefetched) {
+            $result = Refetcher::source($url, 1);
+            $prefetched = $result['items'][0] ?? [];
+            if (!$prefetched) throw new Exception('Refetch(er) non ha restituito contenuti pubblici per questo URL');
+            $url = (string)($prefetched['url'] ?? $url);
         }
-
-        $postId = self::postId($platform, $url);
+        $postId = trim((string)($prefetched['id'] ?? '')) ?: self::postId($platform, $url);
 
         // Già importato?
         $exists = DB::fetch(
@@ -268,13 +265,13 @@ class Ingest {
         $caption = trim((string)($prefetched['caption'] ?? ''));
         $mediaUrl = trim((string)($prefetched['media_url'] ?? ''));
         $mediaType = strtolower((string)($prefetched['media_type'] ?? 'text'));
-        if ($caption === '') {
+        if ($caption === '' && $platform === 'website') {
             $page = WebsiteSource::page($url);
             $caption = trim($page['title'] . "\n\n" . $page['description'] . "\n\n" . $page['text']);
             if ($mediaUrl === '' && !empty($page['image_url'])) { $mediaUrl = $page['image_url']; $mediaType = 'image'; }
         }
-        if ($mediaType === 'image' && str_starts_with($mediaUrl, 'http')) {
-            $saved = self::saveMedia($mediaUrl, 'website', $postId, 'jpg');
+        if (in_array($mediaType, ['image', 'video'], true) && str_starts_with($mediaUrl, 'http') && !($platform === 'youtube' && $mediaType === 'video')) {
+            $saved = self::saveMedia($mediaUrl, $platform, $postId, $mediaType === 'video' ? 'mp4' : 'jpg');
             if ($saved) $mediaUrl = $saved['url'];
         }
 
@@ -544,8 +541,8 @@ class Ingest {
         return ['ok' => true, 'id' => $postId, 'applied' => $apply, 'proposal' => $result, 'queries' => $queries];
     }
 
-    public static function scanSources(int $userId, int $limitPerSource = 5, string $profileOverride = '', string $roleMission = '', string $contentStrategy = '', ?int $sourceId = null): array {
-        $sql = "SELECT * FROM social_sources WHERE user_id=? AND active=1 AND platform='website'";
+    public static function scanSources(int $userId, int $limitPerSource = 5, string $profileOverride = '', string $roleMission = '', string $contentStrategy = '', ?int $sourceId = null, ?string $fallbackSinceDate = null): array {
+        $sql = 'SELECT * FROM social_sources WHERE user_id=? AND active=1';
         $params = [$userId];
         if ($sourceId) {
             $sql .= ' AND id=?';
@@ -554,7 +551,7 @@ class Ingest {
         $sql .= ' ORDER BY platform, id';
         
         $sources = DB::fetchAll($sql, $params);
-        if (!$sources && !$sourceId) throw new Exception('Inserisci almeno un sito web prima della scansione');
+        if (!$sources && !$sourceId) throw new Exception('Inserisci almeno una fonte prima della scansione');
 
         $profileOverride = trim($profileOverride);
         $roleMission = trim($roleMission);
@@ -579,7 +576,7 @@ class Ingest {
                 $siteVisuals = DB::fetch('SELECT logo_url, cover_url FROM sites WHERE user_id=?', [$userId]);
                 $needsLogo = empty($siteVisuals['logo_url']);
                 $needsCover = empty($siteVisuals['cover_url']);
-                if ($needsLogo || $needsCover) {
+                if (($needsLogo || $needsCover) && $source['platform'] === 'website') {
                     try {
                         $visuals = WebsiteSource::profileVisuals($source['url']);
                         $logoUrl = trim($visuals['logo_url'] ?? '');
@@ -630,7 +627,7 @@ class Ingest {
 
                 // Rispettiamo la since_date se è stata configurata dall'utente.
                 $sourceSinceDate = !empty($source['since_date']) ? $source['since_date'] : null;
-                $effectiveSinceDate = $sourceSinceDate;
+                $effectiveSinceDate = $sourceSinceDate ?: $fallbackSinceDate;
                 
                 $autoPublish = (int)($source['auto_publish'] ?? 1);
                 $limit = !empty($source['max_posts']) ? (int)$source['max_posts'] : ($effectiveSinceDate ? 100 : $limitPerSource);
@@ -645,7 +642,29 @@ class Ingest {
                 
                 if (function_exists('setSyncStatus')) setSyncStatus($userId, "Ricerca post su " . ucfirst($source['platform']) . "...");
                 
-                $items = WebsiteSource::items($source['url'], $limit, $effectiveSinceDate);
+                if ($source['platform'] === 'website') {
+                    $items = WebsiteSource::items($source['url'], $limit, $effectiveSinceDate);
+                } else {
+                    $refetched = Refetcher::source($source['url'], $limit, $effectiveSinceDate);
+                    $items = $refetched['items'];
+                    $profile = $refetched['profile'];
+                    if ($profile) {
+                        $profileDetails = array_values(array_filter([
+                            trim((string)($profile['name'] ?? '')),
+                            trim((string)($profile['biography'] ?? $profile['description'] ?? '')),
+                            trim((string)($profile['categoryName'] ?? '')),
+                        ]));
+                        if ($profileDetails) {
+                            $topic = implode(' | ', array_unique(array_filter([trim((string)($source['topic_summary'] ?? '')), ...$profileDetails])));
+                            DB::execute('UPDATE social_sources SET topic_summary=? WHERE id=? AND user_id=?', [$topic, $source['id'], $userId]);
+                        }
+                        $profileImage = trim((string)($profile['profilePicUrlHd'] ?? $profile['profilePicUrl'] ?? $profile['thumbnailUrl'] ?? ''));
+                        if ($needsLogo && $profileImage !== '') {
+                            $saved = self::saveMedia($profileImage, $source['platform'], 'profile_logo_' . $source['id'], 'jpg');
+                            if ($saved) DB::execute("UPDATE sites SET logo_url=COALESCE(NULLIF(logo_url, ''), ?) WHERE user_id=?", [$saved['url'], $userId]);
+                        }
+                    }
+                }
                 $report['found'] += count($items);
                 
                 Logger::info('scan', 'Items trovati da sorgente', [
@@ -658,7 +677,10 @@ class Ingest {
                 foreach ($items as $item) {
                     $sourceUrl = $item['url'] ?? '';
                     if (!$sourceUrl) continue;
-                    $normalizedUrl = strtok($sourceUrl, '?') ?: $sourceUrl;
+                    // Le query possono identificare il contenuto (per esempio
+                    // `watch?v=` su YouTube): non vanno eliminate durante la
+                    // deduplica della singola scansione.
+                    $normalizedUrl = rtrim($sourceUrl, '/');
                     if (isset($seenUrls[$normalizedUrl])) {
                         $report['duplicates']++;
                         continue;
