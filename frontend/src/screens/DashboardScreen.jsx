@@ -46,6 +46,37 @@ function postProcessingLabel(post) {
   return 'DA ELABORARE';
 }
 
+function compactDebugValue(value, fallback = 'n/d') {
+  return value === null || value === undefined || value === '' ? fallback : String(value);
+}
+
+function providerDebugLines(entries = []) {
+  return (Array.isArray(entries) ? entries : []).flatMap(entry => {
+    const provider = entry?.provider || {};
+    const platform = String(entry?.platform || 'social').toUpperCase();
+    const lines = [
+      `${platform} · limite scelto ${compactDebugValue(entry?.scan_requested_limit ?? entry?.requested_limit ?? provider.requested_limit)} · limite del canale ${compactDebugValue(entry?.configured_max_posts, 'non impostato')} · richiesta effettiva ${compactDebugValue(entry?.requested_limit ?? provider.requested_limit)} · link trovati ${compactDebugValue(provider.provider_links, '0')} · dettagli validi ${compactDebugValue(provider.detail_results, '0')} · contenuti utilizzabili ${compactDebugValue(provider.normalized_items, '0')} · chiamate provider ${compactDebugValue(provider.provider_requests, '0')}`,
+    ];
+    if (entry?.since_date) lines.push(`${platform} · filtro data dal ${entry.since_date} · esclusi ${compactDebugValue(provider.filtered_by_date, '0')}`);
+    (Array.isArray(provider.provider_pages) ? provider.provider_pages : []).forEach((page, index) => {
+      lines.push(`${platform} · risposta ${index + 1}: pagine richieste ${compactDebugValue(page.pages_requested)}, pagine lette ${compactDebugValue(page.pages_fetched)}, link restituiti ${compactDebugValue(page.returned_count)}, incompleta ${page.incomplete ? 'sì' : 'no'}, altra pagina ${page.has_next_page ? 'sì' : 'no'}, cursore ${page.end_cursor ? 'presente' : 'assente'}`);
+      (Array.isArray(page.limitations) ? page.limitations : []).forEach(limit => lines.push(`${platform} · limite provider: ${limit}`));
+    });
+    return lines;
+  });
+}
+
+function errorDiagnosis(message = '') {
+  const normalized = String(message).toLowerCase();
+  if (normalized.includes('api key not valid') || normalized.includes('api_key_invalid')) {
+    return 'DIAGNOSI AI · la cattura è riuscita, ma Gemini rifiuta la chiave API configurata sul server. Va sostituita la chiave prima di poter creare gli articoli.';
+  }
+  if (normalized.includes('quota') || normalized.includes('resource_exhausted')) {
+    return 'DIAGNOSI AI · quota Gemini esaurita o limite di richieste raggiunto.';
+  }
+  return '';
+}
+
 const EDITORIAL_AGENT_META = {
   content_editor: { icon: '✍️', title: 'Content Editor', role: 'Riscrive i singoli contenuti social in articoli.' },
   topical_authority_architect: { icon: '🧠', title: 'Topical Authority', role: 'Produce articoli piu esperti, contrarian e orientati alla topical authority.' },
@@ -743,12 +774,13 @@ const [importMsg, setImportMsg] = useState(null);
       setAcquisitionModal({ status: 'success', title: 'Articolo elaborato', text: result?.status === 'published' ? 'Il contenuto è stato elaborato e pubblicato.' : 'Il contenuto è stato elaborato ed è disponibile negli Articoli.', completed: 1, total: 1 });
     } catch (error) {
       await loadData();
-      setAcquisitionModal({ status: 'error', title: 'Elaborazione non riuscita', text: error.message || 'Non è stato possibile elaborare il contenuto.' });
+      const message = error.message || 'Non è stato possibile elaborare il contenuto.';
+      setAcquisitionModal({ status: 'error', title: 'Elaborazione non riuscita', text: message, debug: [errorDiagnosis(message), `POST #${id} · ERRORE · ${message}`].filter(Boolean) });
     }
   }
 
   // Funzione helper per elaborare la coda (ora in parallelo)
-  async function processPendingLoop(isScan = false, onlyIds = null) {
+  async function processPendingLoop(isScan = false, onlyIds = null, initialDebug = []) {
     try {
       const allPending = await apiFetch('/api/index.php?action=pending-posts', {}, token);
       const requestedIds = Array.isArray(onlyIds) ? new Set(onlyIds.map(Number)) : null;
@@ -756,7 +788,7 @@ const [importMsg, setImportMsg] = useState(null);
         ? (allPending || []).filter(post => requestedIds.has(Number(post.id)))
         : (allPending || []);
       if (!pending || pending.length === 0) {
-        setAcquisitionModal({ status: 'success', title: 'Nessun contenuto da elaborare', text: requestedIds ? 'Il contenuto è già stato elaborato oppure è già in lavorazione.' : 'Non ci sono nuovi contenuti in attesa. Gli articoli già acquisiti non vengono rigenerati.' });
+        setAcquisitionModal({ status: 'success', title: 'Nessun contenuto da elaborare', text: requestedIds ? 'Il contenuto è già stato elaborato oppure è già in lavorazione.' : 'Non ci sono nuovi contenuti in attesa. Gli articoli già acquisiti non vengono rigenerati.', debug: initialDebug });
         return;
       }
       
@@ -769,11 +801,13 @@ const [importMsg, setImportMsg] = useState(null);
       let skippedCount = 0;
       let deletedCount = 0;
       let errorCount = 0;
+      const debugLines = [...(Array.isArray(initialDebug) ? initialDebug : [])];
+      const errorMessages = [];
       const concurrency = 3; // Tre armonizzazioni leggere in parallelo, senza trascrizioni inutili.
 
       const updateProgress = () => {
         const msg = `Elaborazione AI: completati ${completed} su ${total} post...`;
-        setAcquisitionModal({ status: 'working', title: 'Creo i tuoi articoli', text: msg, completed, total });
+        setAcquisitionModal({ status: 'working', title: 'Creo i tuoi articoli', text: msg, completed, total, debug: [...debugLines] });
         if (isScan) setScanMsg({ ok: true, text: msg, loading: true });
         else setSyncMsg({ ok: true, text: msg, loading: true });
       };
@@ -784,7 +818,7 @@ const [importMsg, setImportMsg] = useState(null);
         setProcessingQueue(prev => prev.map(p => p.id === post.id ? { ...p, status: 'processing' } : p));
         const postLabel = post.generated_title || post.source_url || `${post.platform} #${post.id}`;
         const processingMsg = `Elaborazione AI in corso: ${completed + 1}/${total} - ${post.platform.toUpperCase()} - ${postLabel}`;
-        setAcquisitionModal({ status: 'working', title: 'Creo i tuoi articoli', text: processingMsg, completed, total });
+        setAcquisitionModal({ status: 'working', title: 'Creo i tuoi articoli', text: processingMsg, completed, total, debug: [...debugLines] });
         if (isScan) setScanMsg({ ok: true, text: processingMsg, loading: true });
         else setSyncMsg({ ok: true, text: processingMsg, loading: true });
         let errorMsg = null;
@@ -798,9 +832,12 @@ const [importMsg, setImportMsg] = useState(null);
           else if (res?.status === 'skipped') skippedCount++;
           else if (res?.status === 'deleted') deletedCount++;
           else if (res?.busy) skippedCount++;
+          debugLines.push(`${post.platform.toUpperCase()} #${post.id} · elaborazione ${res?.status || (res?.busy ? 'già in corso' : 'completata')}`);
         } catch (e) {
           console.error("Errore post", post.id, e);
           errorMsg = e.message;
+          errorMessages.push(errorMsg);
+          debugLines.push(`${post.platform.toUpperCase()} #${post.id} · ERRORE · ${errorMsg}`);
           errorCount++;
         }
         
@@ -815,7 +852,8 @@ const [importMsg, setImportMsg] = useState(null);
       }
 
       const doneMsg = `Elaborazione completata. Contenuti: ${total}. Pubblicati: ${publishedCount}. In bozza: ${draftCount}. Già in lavorazione: ${skippedCount}. Saltati: ${deletedCount}. Errori: ${errorCount}.`;
-      setAcquisitionModal({ status: errorCount === total ? 'error' : 'success', title: errorCount === total ? 'Elaborazione non riuscita' : errorCount > 0 ? 'Completato con alcuni errori' : 'I contenuti sono pronti', text: doneMsg, completed: total, total });
+      const diagnoses = [...new Set(errorMessages.map(errorDiagnosis).filter(Boolean))];
+      setAcquisitionModal({ status: errorCount === total ? 'error' : 'success', title: errorCount === total ? 'Elaborazione non riuscita' : errorCount > 0 ? 'Completato con alcuni errori' : 'I contenuti sono pronti', text: doneMsg, completed: total, total, debug: [...diagnoses, ...debugLines] });
       if (isScan) setScanMsg({ ok: true, text: doneMsg });
       else setSyncMsg({ ok: true, text: doneMsg });
       
@@ -827,7 +865,8 @@ const [importMsg, setImportMsg] = useState(null);
     } catch (e) {
       console.error(e);
       setProcessingQueue([]);
-      setAcquisitionModal({ status: 'error', title: 'Elaborazione interrotta', text: e.message || 'Si è verificato un errore durante la creazione degli articoli.' });
+      const message = e.message || 'Si è verificato un errore durante la creazione degli articoli.';
+      setAcquisitionModal({ status: 'error', title: 'Elaborazione interrotta', text: message, debug: [errorDiagnosis(message), ...(Array.isArray(initialDebug) ? initialDebug : []), `ERRORE · ${message}`].filter(Boolean) });
     }
   }
 
@@ -840,14 +879,15 @@ const [importMsg, setImportMsg] = useState(null);
         body: JSON.stringify({ limit: parseInt(syncLimit) || 20 }) 
       }, token);
       const results = Array.isArray(sync?.results) ? sync.results : [];
+      const debugLines = results.flatMap(result => providerDebugLines(result?.debug));
       const errors = results.filter(result => result?.error).map(result => String(result.error));
       const imported = results.reduce((sum, result) => sum + Number(result?.new || 0), 0);
       if (errors.length > 0 && imported === 0) {
         const message = `La scansione non ha funzionato: ${errors[0]}`;
         setSyncMsg({ ok: false, text: message });
-        setAcquisitionModal({ status: 'error', title: 'Aggiornamento non riuscito', text: message });
+        setAcquisitionModal({ status: 'error', title: 'Aggiornamento non riuscito', text: message, debug: debugLines });
       } else {
-        await processPendingLoop(false);
+        await processPendingLoop(false, null, debugLines);
       }
     } catch (e) {
       setSyncMsg({ ok: false, text: e.message });
@@ -984,15 +1024,16 @@ const [importMsg, setImportMsg] = useState(null);
         body: JSON.stringify({ limit: parseInt(syncLimit) || 20 })
       }, token);
       const results = Array.isArray(sync?.results) ? sync.results : [];
+      const debugLines = results.flatMap(result => providerDebugLines(result?.debug));
       const errors = results.filter(result => result?.error).map(result => String(result.error));
       const imported = results.reduce((sum, result) => sum + Number(result?.new || 0), 0);
       if (errors.length > 0 && imported === 0) {
         const message = `La scansione non ha funzionato: ${errors[0]}`;
         setScanMsg({ ok: false, text: message, loading: false });
-        setAcquisitionModal({ status: 'error', title: 'Acquisizione non riuscita', text: message });
+        setAcquisitionModal({ status: 'error', title: 'Acquisizione non riuscita', text: message, debug: debugLines });
         return;
       }
-      await processPendingLoop(true);
+      await processPendingLoop(true, null, debugLines);
       await loadData();
     } catch (err) {
       setScanMsg({ ok: false, text: err.message });
@@ -1018,6 +1059,7 @@ const [importMsg, setImportMsg] = useState(null);
     const importedIds = [];
     const retryableIds = [];
     const sourceErrorMessages = [];
+    const scanDebugLines = [];
 
     const scanSource = async (source, i) => {
       const sourceName = source.label || source.platform;
@@ -1044,6 +1086,7 @@ const [importMsg, setImportMsg] = useState(null);
           })
         }, token);
         const r = res.report;
+        scanDebugLines.push(...providerDebugLines(r?.debug));
         totalImported += (r.imported || 0);
         totalFound += (r.found || 0);
         totalDuplicates += (r.duplicates || 0);
@@ -1103,15 +1146,16 @@ const [importMsg, setImportMsg] = useState(null);
     });
     if (totalErrors === 0) setTimeout(() => setScanProgress([]), 3000);
     if (processingIds.length > 0) {
-      await processPendingLoop(true, processingIds);
+      await processPendingLoop(true, processingIds, scanDebugLines);
     } else if (totalErrors > 0) {
       setAcquisitionModal({
         status: 'error',
         title: 'Acquisizione non riuscita',
-        text: sourceErrorMessages[0] || 'I provider social non hanno restituito contenuti. Controlla la configurazione e riprova.'
+        text: sourceErrorMessages[0] || 'I provider social non hanno restituito contenuti. Controlla la configurazione e riprova.',
+        debug: scanDebugLines
       });
     } else {
-      setAcquisitionModal({ status: 'success', title: 'Canali aggiornati', text: 'Non sono stati trovati nuovi contenuti. Nessun articolo esistente è stato rigenerato.' });
+      setAcquisitionModal({ status: 'success', title: 'Canali aggiornati', text: 'Non sono stati trovati nuovi contenuti. Nessun articolo esistente è stato rigenerato.', debug: scanDebugLines });
     }
     setScanning(false);
   }
@@ -2126,6 +2170,14 @@ const [importMsg, setImportMsg] = useState(null);
                 <div><span style={{ width: `${Math.round((acquisitionModal.completed || 0) / acquisitionModal.total * 100)}%` }} /></div>
                 <small>{acquisitionModal.completed || 0} di {acquisitionModal.total} contenuti elaborati</small>
               </div>
+            )}
+            {Array.isArray(acquisitionModal.debug) && acquisitionModal.debug.length > 0 && (
+              <details className="acquisition-debug" open={acquisitionModal.status === 'error'}>
+                <summary>Dettagli debug ({acquisitionModal.debug.length})</summary>
+                <div>
+                  {acquisitionModal.debug.map((line, index) => <code key={`${index}-${line}`}>{line}</code>)}
+                </div>
+              </details>
             )}
             {acquisitionModal.status === 'working' ? (
               <div className="acquisition-wait">Non chiudere questa pagina: continuiamo a lavorare sui tuoi contenuti.</div>

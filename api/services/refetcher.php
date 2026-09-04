@@ -160,13 +160,45 @@ final class Refetcher {
         return $urls;
     }
 
+    private static function pageDebug(array $profileResult): array {
+        $recent = is_array($profileResult['pageInfo']['recentPosts'] ?? null)
+            ? $profileResult['pageInfo']['recentPosts']
+            : [];
+        return [
+            'requested_limit' => isset($recent['requestedLimit']) ? (int)$recent['requestedLimit'] : null,
+            'returned_count' => isset($recent['returnedCount']) ? (int)$recent['returnedCount'] : null,
+            'pages_requested' => isset($recent['pagesRequested']) ? (int)$recent['pagesRequested'] : null,
+            'pages_fetched' => isset($recent['pagesFetched']) ? (int)$recent['pagesFetched'] : null,
+            'has_next_page' => !empty($recent['hasNextPage']),
+            'incomplete' => !empty($recent['incomplete']),
+            'end_cursor' => trim((string)($recent['endCursor'] ?? '')) !== '',
+            'limitations' => array_values(array_filter(array_map(
+                static fn($value): string => is_scalar($value) ? trim((string)$value) : (string)json_encode($value, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+                is_array($profileResult['limitations'] ?? null) ? $profileResult['limitations'] : []
+            ))),
+        ];
+    }
+
     public static function source(string $url, int $limit = 20, ?string $sinceDate = null): array {
         $platform = self::validateSourceUrl($url);
         $limit = max(1, min(500, $limit));
         $profile = null;
         $rawItems = [];
+        $debug = [
+            'requested_limit' => $limit,
+            'pages_requested' => 1,
+            'provider_requests' => 0,
+            'provider_links' => 0,
+            'complete_items' => 0,
+            'light_links' => 0,
+            'detail_results' => 0,
+            'normalized_items' => 0,
+            'filtered_by_date' => 0,
+            'provider_pages' => [],
+        ];
 
         if (self::isSingleContentUrl($platform, $url)) {
+            $debug['provider_requests']++;
             $rawItems = self::successfulResults(self::request(['url' => $url]));
         } else {
             if ($platform === 'youtube') {
@@ -180,11 +212,43 @@ final class Refetcher {
                 ];
                 if ($platform === 'facebook') $payload['recentPostsLimit'] = min(25, $limit);
             }
+            $debug['pages_requested'] = (int)($payload['pages'] ?? 1);
+            $debug['provider_requests']++;
             $profileResults = self::successfulResults(self::request($payload));
             if (!$profileResults) throw new RuntimeException('Refetch(er) non ha restituito il profilo pubblico');
             $profileResult = $profileResults[0];
             $profile = $profileResult['profile'] ?? $profileResult['channel'] ?? null;
             $discovered = self::profileUrls($profileResult);
+            $debug['provider_pages'][] = self::pageDebug($profileResult);
+
+            // Facebook può restituire soltanto la prima pagina e segnalare una
+            // timeline incompleta. Riprendiamo dal cursore, senza superare il
+            // numero di pagine e di contenuti già richiesto dall'utente.
+            if ($platform === 'facebook') {
+                $seenCursors = [];
+                $pageInfo = is_array($profileResult['pageInfo']['recentPosts'] ?? null) ? $profileResult['pageInfo']['recentPosts'] : [];
+                $remainingPages = max(0, (int)($payload['pages'] ?? 1) - max(1, (int)($pageInfo['pagesFetched'] ?? 1)));
+                while (count($discovered) < $limit && $remainingPages > 0 && !empty($pageInfo['incomplete']) && !empty($pageInfo['endCursor'])) {
+                    $cursor = (string)$pageInfo['endCursor'];
+                    if (isset($seenCursors[$cursor])) break;
+                    $seenCursors[$cursor] = true;
+                    usleep(350000);
+                    $resumePayload = $payload;
+                    $resumePayload['after'] = $cursor;
+                    $resumePayload['pages'] = $remainingPages;
+                    $resumePayload['recentPostsLimit'] = min(25, $limit - count($discovered));
+                    $debug['provider_requests']++;
+                    $resumeResults = self::successfulResults(self::request($resumePayload));
+                    if (!$resumeResults) break;
+                    $resumeResult = $resumeResults[0];
+                    foreach (self::profileUrls($resumeResult) as $itemUrl => $item) $discovered[$itemUrl] = $item;
+                    $debug['provider_pages'][] = self::pageDebug($resumeResult);
+                    $pageInfo = is_array($resumeResult['pageInfo']['recentPosts'] ?? null) ? $resumeResult['pageInfo']['recentPosts'] : [];
+                    $fetched = max(1, (int)($pageInfo['pagesFetched'] ?? 1));
+                    $remainingPages = max(0, $remainingPages - $fetched);
+                }
+            }
+            $debug['provider_links'] = count($discovered);
 
             // Gli elementi completi vengono riusati; i riferimenti leggeri sono
             // arricchiti con richieste batch, massimo 50 URL per chiamata.
@@ -194,9 +258,14 @@ final class Refetcher {
                 if (!empty($item['caption']) || !empty($item['description']) || !empty($item['media'])) $complete[] = $item + ['url' => $itemUrl];
                 else $lightUrls[] = $itemUrl;
             }
+            $debug['complete_items'] = count($complete);
+            $debug['light_links'] = count($lightUrls);
             $rawItems = $complete;
             foreach (array_chunk(array_slice($lightUrls, 0, $limit), 50) as $chunk) {
-                $rawItems = array_merge($rawItems, self::successfulResults(self::request(['urls' => $chunk])));
+                $debug['provider_requests']++;
+                $details = self::successfulResults(self::request(['urls' => $chunk]));
+                $debug['detail_results'] += count($details);
+                $rawItems = array_merge($rawItems, $details);
             }
         }
 
@@ -204,10 +273,14 @@ final class Refetcher {
         foreach ($rawItems as $rawItem) {
             $item = self::normalize($rawItem);
             if (!$item) continue;
-            if ($sinceDate && strtotime($item['published_at']) < strtotime($sinceDate)) continue;
+            if ($sinceDate && strtotime($item['published_at']) < strtotime($sinceDate)) {
+                $debug['filtered_by_date']++;
+                continue;
+            }
             $items[$item['url']] = $item;
             if (count($items) >= $limit) break;
         }
-        return ['platform' => $platform, 'profile' => is_array($profile) ? $profile : [], 'items' => array_values($items)];
+        $debug['normalized_items'] = count($items);
+        return ['platform' => $platform, 'profile' => is_array($profile) ? $profile : [], 'items' => array_values($items), 'debug' => $debug];
     }
 }

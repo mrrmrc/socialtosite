@@ -569,7 +569,7 @@ class Ingest {
             'limitPerSource'   => $limitPerSource,
         ]);
 
-        $report = ['sources' => count($sources), 'found' => 0, 'imported' => 0, 'imported_ids' => [], 'retryable_ids' => [], 'duplicates' => 0, 'errors' => []];
+        $report = ['sources' => count($sources), 'found' => 0, 'imported' => 0, 'imported_ids' => [], 'retryable_ids' => [], 'duplicates' => 0, 'errors' => [], 'debug' => []];
         $seenUrls = [];
         foreach ($sources as $source) {
             try {
@@ -648,6 +648,16 @@ class Ingest {
                     $refetched = Refetcher::source($source['url'], $limit, $effectiveSinceDate);
                     $items = $refetched['items'];
                     $profile = $refetched['profile'];
+                    $report['debug'][] = [
+                        'source_id' => (int)$source['id'],
+                        'platform' => (string)$source['platform'],
+                        'label' => (string)($source['label'] ?? ''),
+                        'scan_requested_limit' => $limitPerSource,
+                        'configured_max_posts' => !empty($source['max_posts']) ? (int)$source['max_posts'] : null,
+                        'requested_limit' => $limit,
+                        'since_date' => $effectiveSinceDate,
+                        'provider' => $refetched['debug'] ?? [],
+                    ];
                     if ($profile) {
                         $profileDetails = array_values(array_filter([
                             trim((string)($profile['name'] ?? '')),

@@ -51,6 +51,7 @@ final class Sync {
                     'new' => (int)($report['imported'] ?? 0),
                     'duplicates' => (int)($report['duplicates'] ?? 0),
                     'error' => !empty($report['errors']) ? implode(' | ', $report['errors']) : null,
+                    'debug' => $report['debug'] ?? [],
                 ];
             } catch (Throwable $e) {
                 $result = ['platform' => $platform, 'found' => 0, 'new' => 0, 'duplicates' => 0, 'error' => mb_substr($e->getMessage(), 0, 1500)];
