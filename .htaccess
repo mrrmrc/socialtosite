@@ -11,7 +11,7 @@ SetEnvIf Authorization "(.*)" HTTP_AUTHORIZATION=$1
 Options -Indexes
 
 # Residuo legacy non eliminabile dall'utente FTP: mai esporlo sul web.
-RewriteRule ^scraper(?:/|$) - [R=404,L]
+RewriteRule ^(?:scraper|storage)(?:/|$) - [R=404,L]
 
 <IfModule mod_headers.c>
   <FilesMatch "^index\.html$">
