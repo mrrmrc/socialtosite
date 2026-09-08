@@ -254,8 +254,9 @@ final class Refetcher {
             }
             $debug['provider_links'] = count($discovered);
 
-            // Gli elementi completi vengono riusati; i riferimenti leggeri sono
-            // arricchiti con richieste batch, massimo 50 URL per chiamata.
+            // Il piano Refetch(er) configurato accetta al massimo 10 URL per
+            // richiesta di dettaglio. Suddividere qui consente comunque di
+            // acquisire limiti superiori senza perdere contenuti.
             $complete = [];
             $lightUrls = [];
             foreach ($discovered as $itemUrl => $item) {
@@ -265,7 +266,7 @@ final class Refetcher {
             $debug['complete_items'] = count($complete);
             $debug['light_links'] = count($lightUrls);
             $rawItems = $complete;
-            foreach (array_chunk(array_slice($lightUrls, 0, $limit), 50) as $chunk) {
+            foreach (array_chunk(array_slice($lightUrls, 0, $limit), 10) as $chunk) {
                 $debug['provider_requests']++;
                 $details = self::successfulResults(self::request(['urls' => $chunk]));
                 $debug['detail_results'] += count($details);
