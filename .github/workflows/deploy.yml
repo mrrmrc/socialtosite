@@ -183,7 +183,7 @@ jobs:
           rm -f \"$FTP_REMOTE_DIR/api/cron/fetch_seo.php\";
           rm -f \"$FTP_REMOTE_DIR/api/middleware/crypto.php\";
           rm -f \"$FTP_REMOTE_DIR/api/services/social_oauth.php\";
-          mirror -R --delete --verbose --no-perms --exclude-glob config/config.php --exclude-glob config/keys.php --exclude '^public/media(/.*)?$' release/ \"$FTP_REMOTE_DIR\";
+          mirror -R --delete --verbose --no-perms --exclude-glob config/config.php --exclude-glob config/keys.php --exclude '^(public/media|scraper)(/.*)?$' release/ \"$FTP_REMOTE_DIR\";
           "
 
       - name: Verify deployed release on production
