@@ -123,9 +123,10 @@ final class Refetcher {
         $captionParts = array_filter(array_map('trim', [
             (string)($post['caption'] ?? ''),
             (string)($post['description'] ?? ''),
-            (string)($post['title'] ?? ''),
         ]));
         $caption = implode("\n\n", array_values(array_unique($captionParts)));
+        $title = trim((string)($post['title'] ?? ''));
+        if ($caption === '') $caption = $title;
         $firstChild = is_array($media['children'][0] ?? null) ? $media['children'][0] : [];
         $mediaUrl = trim((string)(
             $media['videoUrl'] ?? $media['hdVideoUrl'] ?? $media['thumbnailUrl']
@@ -136,16 +137,45 @@ final class Refetcher {
         if (str_contains($mediaType, 'video') || !empty($media['videoUrl']) || !empty($media['hdVideoUrl'])) $mediaType = 'video';
         elseif ($mediaUrl !== '') $mediaType = 'image';
         else $mediaType = 'text';
+        $imageUrls = self::mediaImageUrls($media);
+        $displayUrl = trim((string)($post['displayUrl'] ?? ''));
+        if ($displayUrl !== '') array_unshift($imageUrls, $displayUrl);
+        if ($mediaType === 'image' && $mediaUrl !== '') array_unshift($imageUrls, $mediaUrl);
+        $imageUrls = array_values(array_unique(array_filter($imageUrls, static fn(string $value): bool => filter_var($value, FILTER_VALIDATE_URL) !== false)));
         $published = $post['publishedAt'] ?? (isset($post['createTime']) ? '@' . $post['createTime'] : null);
         $timestamp = $published ? strtotime((string)$published) : false;
         return [
             'url' => $url,
             'id' => trim((string)($post['id'] ?? $post['shortcode'] ?? '')),
+            'title' => $title,
             'caption' => $caption,
-            'published_at' => $timestamp ? date('Y-m-d H:i:s', $timestamp) : date('Y-m-d H:i:s'),
+            'published_at' => $timestamp ? date('Y-m-d H:i:s', $timestamp) : null,
             'media_url' => $mediaUrl,
+            'image_urls' => $imageUrls,
             'media_type' => $mediaType,
+            'raw_payload' => $result,
         ];
+    }
+
+    private static function mediaImageUrls(array $media): array {
+        $urls = [];
+        foreach (['imageUrl', 'displayUrl', 'thumbnailUrl', 'url'] as $key) {
+            $value = trim((string)($media[$key] ?? ''));
+            if ($value !== '') $urls[] = $value;
+        }
+        foreach ((is_array($media['images'] ?? null) ? $media['images'] : []) as $image) {
+            if (is_string($image)) $urls[] = trim($image);
+            elseif (is_array($image)) {
+                foreach (['url', 'imageUrl', 'displayUrl', 'thumbnailUrl'] as $key) {
+                    $value = trim((string)($image[$key] ?? ''));
+                    if ($value !== '') $urls[] = $value;
+                }
+            }
+        }
+        foreach ((is_array($media['children'] ?? null) ? $media['children'] : []) as $child) {
+            if (is_array($child)) $urls = array_merge($urls, self::mediaImageUrls($child));
+        }
+        return $urls;
     }
 
     private static function profileUrls(array $profileResult): array {
@@ -278,7 +308,7 @@ final class Refetcher {
         foreach ($rawItems as $rawItem) {
             $item = self::normalize($rawItem);
             if (!$item) continue;
-            if ($sinceDate && strtotime($item['published_at']) < strtotime($sinceDate)) {
+            if ($sinceDate && !empty($item['published_at']) && strtotime($item['published_at']) < strtotime($sinceDate)) {
                 $debug['filtered_by_date']++;
                 continue;
             }

@@ -3,11 +3,15 @@
 require_once __DIR__ . '/../../config/db.php';
 require_once __DIR__ . '/refetcher.php';
 require_once __DIR__ . '/website_source.php';
+require_once __DIR__ . '/profile_analyzer.php';
 
 final class RawImport
 {
+    private static bool $schemaReady = false;
+
     public static function ensureSchema(): void
     {
+        if (self::$schemaReady) return;
         DB::execute("CREATE TABLE IF NOT EXISTS content_sources (
             id INT AUTO_INCREMENT PRIMARY KEY,
             user_id INT NOT NULL,
@@ -57,7 +61,9 @@ final class RawImport
             title TEXT NULL,
             body_text LONGTEXT NULL,
             media_url TEXT NULL,
+            image_urls LONGTEXT NULL,
             media_type VARCHAR(40) NULL,
+            post_status VARCHAR(30) NOT NULL DEFAULT 'potential',
             published_at DATETIME NULL,
             raw_payload LONGTEXT NOT NULL,
             imported_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -68,6 +74,19 @@ final class RawImport
             CONSTRAINT fk_raw_contents_source FOREIGN KEY (source_id) REFERENCES content_sources(id) ON DELETE CASCADE,
             CONSTRAINT fk_raw_contents_run FOREIGN KEY (import_run_id) REFERENCES import_runs(id) ON DELETE SET NULL
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+
+        self::addColumnIfMissing('content_sources', 'since_date', 'DATE NULL AFTER url_hash');
+        self::addColumnIfMissing('content_sources', 'acquisition_limit', 'INT NOT NULL DEFAULT 500 AFTER since_date');
+        self::addColumnIfMissing('raw_contents', 'image_urls', 'LONGTEXT NULL AFTER media_url');
+        self::addColumnIfMissing('raw_contents', 'post_status', "VARCHAR(30) NOT NULL DEFAULT 'potential' AFTER media_type");
+        ProfileAnalyzer::ensureSchema();
+        self::$schemaReady = true;
+    }
+
+    private static function addColumnIfMissing(string $table, string $column, string $definition): void
+    {
+        $exists = DB::fetch('SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=? AND TABLE_NAME=? AND COLUMN_NAME=?', [DB_NAME, $table, $column]);
+        if (!$exists) DB::execute("ALTER TABLE `$table` ADD COLUMN `$column` $definition");
     }
 
     public static function detectPlatform(string $url): string
@@ -93,21 +112,24 @@ final class RawImport
         return rtrim($url, '/');
     }
 
-    public static function addSource(int $userId, string $url, string $label = ''): array
+    public static function addSource(int $userId, string $url, string $label = '', ?string $sinceDate = null): array
     {
         self::ensureSchema();
         $url = self::normalizeUrl($url);
         $platform = self::detectPlatform($url);
         $host = preg_replace('/^www\./', '', (string) parse_url($url, PHP_URL_HOST));
         $label = trim($label) ?: ($host ?: ucfirst($platform));
+        $sinceDate = self::validateSinceDate($sinceDate);
+        $acquisitionLimit = $platform === 'website' ? 100 : 500;
         $hash = hash('sha256', strtolower($url));
         try {
-            $id = DB::insert('INSERT INTO content_sources (user_id, platform, label, url, url_hash) VALUES (?, ?, ?, ?, ?)', [$userId, $platform, mb_substr($label, 0, 255), $url, $hash]);
+            $id = DB::insert('INSERT INTO content_sources (user_id, platform, label, url, url_hash, since_date, acquisition_limit) VALUES (?, ?, ?, ?, ?, ?, ?)', [$userId, $platform, mb_substr($label, 0, 255), $url, $hash, $sinceDate, $acquisitionLimit]);
         } catch (PDOException $e) {
             if ((int)($e->errorInfo[1] ?? 0) !== 1062) throw $e;
             $existing = DB::fetch('SELECT * FROM content_sources WHERE user_id=? AND url_hash=?', [$userId, $hash]);
             if (!$existing) throw $e;
-            return $existing;
+            DB::execute('UPDATE content_sources SET label=?, since_date=?, acquisition_limit=? WHERE id=? AND user_id=?', [mb_substr($label, 0, 255), $sinceDate, $acquisitionLimit, $existing['id'], $userId]);
+            return DB::fetch('SELECT * FROM content_sources WHERE id=? AND user_id=?', [$existing['id'], $userId]);
         }
         return DB::fetch('SELECT * FROM content_sources WHERE id=? AND user_id=?', [$id, $userId]);
     }
@@ -116,9 +138,19 @@ final class RawImport
     {
         self::ensureSchema();
         $sources = DB::fetchAll("SELECT s.*, COUNT(c.id) content_count FROM content_sources s LEFT JOIN raw_contents c ON c.source_id=s.id WHERE s.user_id=? GROUP BY s.id ORDER BY s.created_at DESC", [$userId]);
-        $contents = DB::fetchAll("SELECT c.id, c.platform, c.source_url, c.title, c.body_text, c.media_url, c.media_type, c.published_at, c.imported_at, s.label source_label FROM raw_contents c JOIN content_sources s ON s.id=c.source_id WHERE c.user_id=? ORDER BY COALESCE(c.published_at, c.imported_at) DESC LIMIT 100", [$userId]);
+        $contents = DB::fetchAll("SELECT c.id, c.platform, c.source_url, c.title, c.body_text, c.media_url, c.image_urls, c.media_type, c.post_status, c.published_at, c.imported_at, s.label source_label FROM raw_contents c JOIN content_sources s ON s.id=c.source_id WHERE c.user_id=? ORDER BY COALESCE(c.published_at, c.imported_at) DESC LIMIT 100", [$userId]);
         $latestRun = DB::fetch('SELECT r.*, s.label source_label, s.platform FROM import_runs r JOIN content_sources s ON s.id=r.source_id WHERE r.user_id=? ORDER BY r.id DESC LIMIT 1', [$userId]);
-        return ['sources' => $sources, 'contents' => $contents, 'latest_run' => $latestRun];
+        return ['sources' => $sources, 'contents' => $contents, 'latest_run' => $latestRun, 'profile' => ProfileAnalyzer::profile($userId), 'profile_questions' => ProfileAnalyzer::questions($userId)];
+    }
+
+    public static function updateSourcePeriod(int $userId, int $sourceId, ?string $sinceDate): array
+    {
+        self::ensureSchema();
+        $sinceDate = self::validateSinceDate($sinceDate);
+        $updated = DB::execute('UPDATE content_sources SET since_date=? WHERE id=? AND user_id=?', [$sinceDate, $sourceId, $userId]);
+        $source = DB::fetch('SELECT * FROM content_sources WHERE id=? AND user_id=?', [$sourceId, $userId]);
+        if (!$source) throw new RuntimeException('Sorgente non trovata.');
+        return $source;
     }
 
     public static function createRun(int $userId, int $sourceId): array
@@ -145,22 +177,26 @@ final class RawImport
         DB::execute('UPDATE import_runs SET status="running", phase=?, message=?, found_count=?, imported_count=?, duplicate_count=? WHERE id=?', [$phase, mb_substr($message, 0, 500), (int)($counts['found'] ?? 0), (int)($counts['imported'] ?? 0), (int)($counts['duplicates'] ?? 0), $runId]);
     }
 
-    public static function execute(int $userId, int $runId, int $limit = 20): array
+    public static function execute(int $userId, int $runId, int $limit = 0): array
     {
         self::ensureSchema();
         $run = self::runStatus($userId, $runId);
         if ($run['status'] === 'completed') return $run;
         $source = DB::fetch('SELECT * FROM content_sources WHERE id=? AND user_id=?', [(int)$run['source_id'], $userId]);
         if (!$source) throw new RuntimeException('Sorgente non trovata.');
-        $limit = max(1, min(100, $limit));
+        $configuredLimit = (int)($source['acquisition_limit'] ?? ($source['platform'] === 'website' ? 100 : 500));
+        $maximum = $source['platform'] === 'website' ? 100 : 500;
+        $limit = $limit > 0 ? min($limit, $configuredLimit) : $configuredLimit;
+        $limit = max(1, min($maximum, $limit));
+        $sinceDate = self::validateSinceDate($source['since_date'] ?? null);
         DB::execute('UPDATE import_runs SET status="running", phase="connecting", message="Connessione alla sorgente", started_at=NOW(), error_message=NULL WHERE id=?', [$runId]);
         DB::execute('UPDATE content_sources SET status="importing", last_message="Connessione alla sorgente" WHERE id=?', [$source['id']]);
         try {
             self::progress($runId, 'discovering', 'Ricerca dei contenuti pubblici');
             if ($source['platform'] === 'website') {
-                $items = WebsiteSource::items($source['url'], $limit);
+                $items = WebsiteSource::items($source['url'], $limit, $sinceDate);
             } else {
-                $response = Refetcher::source($source['url'], $limit);
+                $response = Refetcher::source($source['url'], $limit, $sinceDate);
                 $items = is_array($response['items'] ?? null) ? $response['items'] : [];
             }
             $counts = ['found' => count($items), 'imported' => 0, 'duplicates' => 0];
@@ -176,16 +212,25 @@ final class RawImport
                 $mediaUrl = trim((string)($item['media_url'] ?? $item['image_url'] ?? $item['thumbnailUrl'] ?? $item['displayUrl'] ?? ''));
                 $mediaType = trim((string)($item['media_type'] ?? $item['type'] ?? ''));
                 $published = self::dateValue($item['published_at'] ?? $item['timestamp'] ?? $item['createTime'] ?? null);
-                $raw = json_encode($item, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_INVALID_UTF8_SUBSTITUTE);
+                if ($sinceDate && $published && strtotime($published) < strtotime($sinceDate)) continue;
+                $imageUrls = self::imageUrls($item, $mediaUrl, $mediaType);
+                $rawPayload = $item['raw_payload'] ?? $item;
+                $raw = json_encode($rawPayload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_INVALID_UTF8_SUBSTITUTE);
                 $contentHash = hash('sha256', strtolower(rtrim($sourceUrl, '/')) ?: $raw);
                 try {
-                    DB::insert('INSERT INTO raw_contents (user_id, source_id, import_run_id, platform, external_id, source_url, content_hash, title, body_text, media_url, media_type, published_at, raw_payload) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', [$userId, $source['id'], $runId, $source['platform'], $externalId ?: null, $sourceUrl, $contentHash, $title ?: null, $caption ?: null, $mediaUrl ?: null, $mediaType ?: null, $published, $raw ?: '{}']);
+                    DB::insert('INSERT INTO raw_contents (user_id, source_id, import_run_id, platform, external_id, source_url, content_hash, title, body_text, media_url, image_urls, media_type, post_status, published_at, raw_payload) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, "potential", ?, ?)', [$userId, $source['id'], $runId, $source['platform'], $externalId ?: null, $sourceUrl, $contentHash, $title ?: null, $caption ?: null, $mediaUrl ?: null, json_encode($imageUrls, JSON_UNESCAPED_SLASHES), $mediaType ?: null, $published, $raw ?: '{}']);
                     $counts['imported']++;
                 } catch (PDOException $e) {
                     if ((int)($e->errorInfo[1] ?? 0) !== 1062) throw $e;
                     $counts['duplicates']++;
                 }
                 self::progress($runId, 'importing', "Salvati {$counts['imported']} di {$counts['found']} contenuti", $counts);
+            }
+            self::progress($runId, 'profiling', 'Aggiornamento del profilo utente', $counts);
+            try {
+                ProfileAnalyzer::analyze($userId);
+            } catch (Throwable $profileError) {
+                error_log('[PROFILE] ' . $profileError->getMessage());
             }
             DB::execute('UPDATE import_runs SET status="completed", phase="completed", message="Acquisizione completata", found_count=?, imported_count=?, duplicate_count=?, completed_at=NOW() WHERE id=?', [$counts['found'], $counts['imported'], $counts['duplicates'], $runId]);
             DB::execute('UPDATE content_sources SET status="ready", last_message=?, last_import_at=NOW() WHERE id=?', ["{$counts['imported']} nuovi contenuti importati", $source['id']]);
@@ -207,5 +252,22 @@ final class RawImport
             $timestamp = strtotime((string)$value);
         }
         return $timestamp ? date('Y-m-d H:i:s', $timestamp) : null;
+    }
+
+    private static function validateSinceDate(?string $value): ?string
+    {
+        $value = trim((string)$value);
+        if ($value === '') return null;
+        $date = DateTimeImmutable::createFromFormat('!Y-m-d', $value);
+        if (!$date || $date->format('Y-m-d') !== $value) throw new InvalidArgumentException('La data iniziale non è valida.');
+        if ($date > new DateTimeImmutable('today')) throw new InvalidArgumentException('La data iniziale non può essere nel futuro.');
+        return $value;
+    }
+
+    private static function imageUrls(array $item, string $mediaUrl, string $mediaType): array
+    {
+        $urls = is_array($item['image_urls'] ?? null) ? $item['image_urls'] : [];
+        if ($mediaUrl !== '' && $mediaType !== 'video') array_unshift($urls, $mediaUrl);
+        return array_values(array_unique(array_filter(array_map('trim', $urls), static fn(string $url): bool => filter_var($url, FILTER_VALIDATE_URL) !== false)));
     }
 }

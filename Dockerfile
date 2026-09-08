@@ -22,7 +22,7 @@ COPY --from=frontend-build /build/frontend/dist/ ./
 COPY api/index.php ./api/index.php
 COPY api/middleware/jwt.php api/middleware/response.php api/middleware/ratelimit.php ./api/middleware/
 COPY api/routes/auth.php ./api/routes/auth.php
-COPY api/services/raw_import.php api/services/refetcher.php api/services/website_source.php ./api/services/
+COPY api/services/raw_import.php api/services/refetcher.php api/services/website_source.php api/services/profile_analyzer.php ./api/services/
 COPY config/db.php config/config.docker.php ./config/
 COPY docker/apache-vhost.conf /etc/apache2/sites-available/000-default.conf
 COPY docker/entrypoint.sh /usr/local/bin/linkseoweb-entrypoint

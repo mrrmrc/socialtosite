@@ -199,7 +199,7 @@ final class WebsiteSource {
         if ($image !== '') $image = self::absoluteUrl($response['url'], $image);
         $clean = preg_replace('~<(script|style|nav|footer|form)[^>]*>.*?</\1>~is', ' ', $html);
         $text = trim(preg_replace('/\s+/u', ' ', html_entity_decode(strip_tags($clean), ENT_QUOTES | ENT_HTML5, 'UTF-8')));
-        return ['url' => $response['url'], 'title' => $title, 'description' => $description, 'text' => mb_substr($text, 0, 12000), 'image_url' => $image, 'html' => $html];
+        return ['url' => $response['url'], 'title' => $title, 'description' => $description, 'text' => mb_substr($text, 0, 200000), 'image_url' => $image, 'html' => $html];
     }
 
     public static function profileVisuals(string $url): array {
@@ -234,11 +234,24 @@ final class WebsiteSource {
                     $dateRaw = (string)($entry->pubDate ?? $entry->published ?? $entry->updated ?? '');
                     $timestamp = $dateRaw !== '' ? strtotime($dateRaw) : false;
                     if ($sinceDate && $timestamp && $timestamp < strtotime($sinceDate)) continue;
+                    $title = trim((string)($entry->title ?? ''));
+                    $entryBody = (string)($entry->description ?? $entry->summary ?? $entry->content ?? '');
+                    $imageUrls = [];
+                    if (preg_match_all('~<img[^>]+src=["\']([^"\']+)["\']~i', $entryBody, $imageMatches)) {
+                        foreach ($imageMatches[1] as $imageUrl) $imageUrls[] = self::absoluteUrl($feedUrl, html_entity_decode($imageUrl, ENT_QUOTES | ENT_HTML5));
+                    }
+                    if (isset($entry->enclosure['url']) && str_starts_with(strtolower((string)$entry->enclosure['type']), 'image/')) {
+                        $imageUrls[] = self::absoluteUrl($feedUrl, (string)$entry->enclosure['url']);
+                    }
                     $items[] = [
                         'url' => self::absoluteUrl($feedUrl, $link),
-                        'caption' => trim((string)($entry->title ?? '') . "\n\n" . strip_tags((string)($entry->description ?? $entry->summary ?? $entry->content ?? ''))),
+                        'title' => $title,
+                        'caption' => trim(strip_tags($entryBody)) ?: $title,
                         'published_at' => $timestamp ? date('Y-m-d H:i:s', $timestamp) : date('Y-m-d H:i:s'),
-                        'media_type' => 'text',
+                        'media_url' => $imageUrls[0] ?? '',
+                        'image_urls' => array_values(array_unique($imageUrls)),
+                        'media_type' => $imageUrls ? 'image' : 'text',
+                        'raw_payload' => json_decode(json_encode($entry, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES), true),
                     ];
                     if (count($items) >= $limit) break 2;
                 }
@@ -249,21 +262,24 @@ final class WebsiteSource {
                 try {
                     $articleUrl = (string)$sitemapEntry['url'];
                     $article = self::page($articleUrl);
-                    $caption = trim($article['title'] . "\n\n" . $article['description'] . "\n\n" . $article['text']);
+                    $caption = trim($article['description'] . "\n\n" . $article['text']) ?: $article['title'];
                     if ($caption === '') continue;
                     $items[] = [
                         'url' => $article['url'],
+                        'title' => $article['title'],
                         'caption' => $caption,
                         'published_at' => !empty($sitemapEntry['timestamp']) ? date('Y-m-d H:i:s', (int)$sitemapEntry['timestamp']) : date('Y-m-d H:i:s'),
                         'media_url' => $article['image_url'],
+                        'image_urls' => $article['image_url'] ? [$article['image_url']] : [],
                         'media_type' => $article['image_url'] ? 'image' : 'text',
+                        'raw_payload' => ['url' => $article['url'], 'title' => $article['title'], 'description' => $article['description'], 'text' => $article['text'], 'image_url' => $article['image_url']],
                     ];
                     if (count($items) >= $limit) break;
                 } catch (Throwable $e) {}
             }
         }
         if (!$items) {
-            $items[] = ['url' => $page['url'], 'caption' => trim($page['title'] . "\n\n" . $page['description'] . "\n\n" . $page['text']), 'published_at' => date('Y-m-d H:i:s'), 'media_url' => $page['image_url'], 'media_type' => $page['image_url'] ? 'image' : 'text'];
+            $items[] = ['url' => $page['url'], 'title' => $page['title'], 'caption' => trim($page['description'] . "\n\n" . $page['text']) ?: $page['title'], 'published_at' => date('Y-m-d H:i:s'), 'media_url' => $page['image_url'], 'image_urls' => $page['image_url'] ? [$page['image_url']] : [], 'media_type' => $page['image_url'] ? 'image' : 'text', 'raw_payload' => ['url' => $page['url'], 'title' => $page['title'], 'description' => $page['description'], 'text' => $page['text'], 'image_url' => $page['image_url']]];
         }
         return array_slice($items, 0, max(1, $limit));
     }

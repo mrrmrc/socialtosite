@@ -11,6 +11,8 @@ x-app-environment: &app-environment
   ALLOWED_ORIGIN: ${ALLOWED_ORIGIN:-http://localhost:8081}
   JWT_SECRET: ${JWT_SECRET:?Imposta JWT_SECRET nel file .env}
   REFETCHER_API_KEY: ${REFETCHER_API_KEY:-}
+  GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+  GEMINI_MODEL: ${GEMINI_MODEL:-gemini-2.5-flash}
 
 services:
   app:

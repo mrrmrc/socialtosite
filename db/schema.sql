@@ -39,6 +39,8 @@ CREATE TABLE IF NOT EXISTS content_sources (
   label VARCHAR(255) NOT NULL,
   url TEXT NOT NULL,
   url_hash CHAR(64) NOT NULL,
+  since_date DATE NULL,
+  acquisition_limit INT NOT NULL DEFAULT 500,
   status VARCHAR(30) NOT NULL DEFAULT 'ready',
   last_message TEXT NULL,
   last_import_at DATETIME NULL,
@@ -81,7 +83,9 @@ CREATE TABLE IF NOT EXISTS raw_contents (
   title TEXT NULL,
   body_text LONGTEXT NULL,
   media_url TEXT NULL,
+  image_urls LONGTEXT NULL,
   media_type VARCHAR(40) NULL,
+  post_status VARCHAR(30) NOT NULL DEFAULT 'potential',
   published_at DATETIME NULL,
   raw_payload LONGTEXT NOT NULL,
   imported_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -91,6 +95,44 @@ CREATE TABLE IF NOT EXISTS raw_contents (
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
   FOREIGN KEY (source_id) REFERENCES content_sources(id) ON DELETE CASCADE,
   FOREIGN KEY (import_run_id) REFERENCES import_runs(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS user_content_profiles (
+  user_id INT PRIMARY KEY,
+  status VARCHAR(30) NOT NULL DEFAULT 'pending',
+  display_name VARCHAR(255) NULL,
+  activity_type VARCHAR(255) NULL,
+  summary TEXT NULL,
+  audiences LONGTEXT NULL,
+  topics LONGTEXT NULL,
+  tone VARCHAR(255) NULL,
+  goals LONGTEXT NULL,
+  locations LONGTEXT NULL,
+  offers LONGTEXT NULL,
+  evidence LONGTEXT NULL,
+  confidence DECIMAL(5,4) NOT NULL DEFAULT 0,
+  source_count INT NOT NULL DEFAULT 0,
+  content_count INT NOT NULL DEFAULT 0,
+  error_message TEXT NULL,
+  generated_at DATETIME NULL,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS profile_questions (
+  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  user_id INT NOT NULL,
+  question_key VARCHAR(100) NOT NULL,
+  question TEXT NOT NULL,
+  reason TEXT NULL,
+  answer TEXT NULL,
+  status VARCHAR(30) NOT NULL DEFAULT 'open',
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  answered_at DATETIME NULL,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE KEY unique_profile_question (user_id, question_key),
+  KEY profile_question_user (user_id, status),
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS posts (

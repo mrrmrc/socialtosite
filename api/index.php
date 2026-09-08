@@ -49,8 +49,17 @@ if ($action === 'dashboard' && $method === 'GET') json(RawImport::dashboard($use
 if ($action === 'sources' && $method === 'POST') {
     $payload = body();
     try {
-        $source = RawImport::addSource($userId, (string)($payload['url'] ?? ''), (string)($payload['label'] ?? ''));
+        $source = RawImport::addSource($userId, (string)($payload['url'] ?? ''), (string)($payload['label'] ?? ''), isset($payload['since_date']) ? (string)$payload['since_date'] : null);
         json(['source' => $source], 201);
+    } catch (InvalidArgumentException $e) {
+        jsonError($e->getMessage(), 422);
+    }
+}
+
+if ($action === 'source-period' && $method === 'POST') {
+    $payload = body();
+    try {
+        json(['source' => RawImport::updateSourcePeriod($userId, (int)($payload['source_id'] ?? 0), isset($payload['since_date']) ? (string)$payload['since_date'] : null)]);
     } catch (InvalidArgumentException $e) {
         jsonError($e->getMessage(), 422);
     }
@@ -63,11 +72,25 @@ if ($action === 'import-start' && $method === 'POST') {
 
 if ($action === 'import-execute' && $method === 'POST') {
     $payload = body();
-    json(['run' => RawImport::execute($userId, (int)($payload['run_id'] ?? 0), (int)($payload['limit'] ?? 20))]);
+    json(['run' => RawImport::execute($userId, (int)($payload['run_id'] ?? 0), (int)($payload['limit'] ?? 0))]);
 }
 
 if ($action === 'import-status' && $method === 'GET') {
     json(['run' => RawImport::runStatus($userId, (int)($_GET['run_id'] ?? 0))]);
+}
+
+if ($action === 'profile-refresh' && $method === 'POST') {
+    json(['profile' => ProfileAnalyzer::analyze($userId), 'questions' => ProfileAnalyzer::questions($userId)]);
+}
+
+if ($action === 'profile-answer' && $method === 'POST') {
+    $payload = body();
+    try {
+        $profile = ProfileAnalyzer::answer($userId, (int)($payload['question_id'] ?? 0), (string)($payload['answer'] ?? ''));
+        json(['profile' => $profile, 'questions' => ProfileAnalyzer::questions($userId)]);
+    } catch (InvalidArgumentException $e) {
+        jsonError($e->getMessage(), 422);
+    }
 }
 
 jsonError('Endpoint non trovato', 404);

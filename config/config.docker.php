@@ -14,3 +14,5 @@ define('BASE_URL', envValue('BASE_URL', 'http://localhost:8081'));
 define('ALLOWED_ORIGIN', envValue('ALLOWED_ORIGIN', BASE_URL));
 define('JWT_SECRET', envValue('JWT_SECRET'));
 define('REFETCHER_API_KEY', envValue('REFETCHER_API_KEY'));
+define('GEMINI_API_KEY', envValue('GEMINI_API_KEY'));
+define('GEMINI_MODEL', envValue('GEMINI_MODEL', 'gemini-2.5-flash'));
