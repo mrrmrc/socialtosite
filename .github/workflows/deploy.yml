@@ -75,17 +75,18 @@ jobs:
           errors=0
           while IFS= read -r -d '' file; do
             php -l "$file" >/dev/null 2>&1 || { echo "::error file=$file::PHP syntax error"; php -l "$file"; errors=1; }
-          done < <(find api public cron config -name '*.php' -print0)
+          done < <(printf '%s\0' \
+            api/index.php \
+            api/middleware/jwt.php api/middleware/response.php api/middleware/ratelimit.php \
+            api/routes/auth.php \
+            api/services/raw_import.php api/services/refetcher.php api/services/website_source.php \
+            config/db.php)
           [ "$errors" -eq 0 ] || exit 1
 
       - name: Run tests
         shell: bash
         run: |
           set -euo pipefail
-          php tools/test_html_sanitizer.php
-          php tools/test_seo_feedback.php
-          php tools/test_reachability_contacts.php
-          php tools/test_content_ideas.php
           php tools/test_website_source_security.php
 
       - name: Setup Node.js
@@ -106,7 +107,6 @@ jobs:
       - name: Prepare production release
         env:
           REFETCHER_API_KEY: ${{ secrets.REFETCHER_API_KEY }}
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           PUBLIC_BASE_URL: https://allsocialtoweb.com
         shell: bash
         run: |
@@ -118,9 +118,11 @@ jobs:
           rm -rf release
           mkdir -p release
 
-          cp -r api release/
-          cp -r public release/
-          cp -r cron release/
+          mkdir -p release/api/middleware release/api/routes release/api/services
+          cp api/index.php release/api/
+          cp api/middleware/{jwt,response,ratelimit}.php release/api/middleware/
+          cp api/routes/auth.php release/api/routes/
+          cp api/services/{raw_import,refetcher,website_source}.php release/api/services/
           cp -r frontend/dist/. release/
           cp .htaccess robots.txt deploy-info.json release/
           cp google*.html release/ 2>/dev/null || true
@@ -136,7 +138,6 @@ jobs:
               >> release/config/runtime-secrets.php
           }
           append_secret SOCIALTOSITE_RUNTIME_REFETCHER_API_KEY "$REFETCHER_API_KEY"
-          append_secret SOCIALTOSITE_RUNTIME_GEMINI_API_KEY "$GEMINI_API_KEY"
           append_secret SOCIALTOSITE_RUNTIME_BASE_URL "$PUBLIC_BASE_URL"
           mkdir -p release/public/media
 
@@ -181,7 +182,7 @@ jobs:
           rm -f \"$FTP_REMOTE_DIR/api/cron/fetch_seo.php\";
           rm -f \"$FTP_REMOTE_DIR/api/middleware/crypto.php\";
           rm -f \"$FTP_REMOTE_DIR/api/services/social_oauth.php\";
-          mirror -R --verbose --no-perms --exclude-glob config/config.php --exclude-glob config/keys.php --exclude-glob public/media/* release/ \"$FTP_REMOTE_DIR\";
+          mirror -R --delete --verbose --no-perms --exclude-glob config/config.php --exclude-glob config/keys.php --exclude-glob public/media/* release/ \"$FTP_REMOTE_DIR\";
           "
 
       - name: Verify deployed release on production

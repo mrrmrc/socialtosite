@@ -1,151 +1,135 @@
-import React, { useState, useEffect } from 'react';
-import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 
-import { AuthScreen } from './screens/AuthScreen';
-import { ConnectScreen } from './screens/ConnectScreen';
-import { GeneratingScreen } from './screens/GeneratingScreen';
-import { DashboardScreen } from './screens/DashboardScreen';
-import { BasicUserScreen } from './screens/BasicUserScreen';
-import { LegalScreen } from './screens/LegalScreen';
-import { PlanExperience, normalizePlan } from './components/PlanExperience';
+const API = '/api/index.php?action=';
+const PLATFORM = {
+  website: { label: 'Sito web', mark: 'WWW' },
+  youtube: { label: 'YouTube', mark: 'YT' },
+  instagram: { label: 'Instagram', mark: 'IG' },
+  facebook: { label: 'Facebook', mark: 'FB' },
+  tiktok: { label: 'TikTok', mark: 'TK' },
+  x: { label: 'X', mark: 'X' },
+};
+const STEPS = [
+  ['queued', 'In coda'], ['connecting', 'Connessione'], ['discovering', 'Ricerca'],
+  ['importing', 'Importazione'], ['completed', 'Completata'],
+];
 
-function AppContent() {
-  const navigate = useNavigate();
-  const [token, setToken] = useState(null);
-  const [user, setUser] = useState(null);
-  const [deployInfo, setDeployInfo] = useState(null);
-  const [loading, setLoading] = useState(true);
+async function request(action, token, options = {}) {
+  const response = await fetch(`${API}${action}`, {
+    ...options,
+    headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}), ...options.headers },
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data.error || `Errore server (${response.status})`);
+  return data;
+}
+
+function Login({ onLogin }) {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
+  async function submit(event) {
+    event.preventDefault(); setBusy(true); setError('');
+    try {
+      const data = await request('login', null, { method: 'POST', body: JSON.stringify({ email, password }) });
+      onLogin(data.token, data.user);
+    } catch (e) { setError(e.message); } finally { setBusy(false); }
+  }
+  return <main className="login-shell">
+    <section className="login-copy">
+      <div className="brand"><span className="brand-dot" /> LinkSeoWeb</div>
+      <p className="eyebrow">CONTENT IMPORT / 01</p>
+      <h1>Un solo posto per tutti i tuoi contenuti.</h1>
+      <p className="lead">Collega un profilo, un canale YouTube o un sito. Noi importiamo il materiale originale nel database, senza modificarlo.</p>
+      <div className="platform-row">{['YT', 'IG', 'FB', 'TK', 'X', 'WWW'].map(x => <span key={x}>{x}</span>)}</div>
+    </section>
+    <section className="login-panel">
+      <form className="auth-card" onSubmit={submit}>
+        <p className="kicker">Area riservata</p><h2>Accedi al raccoglitore</h2>
+        <label>Email<input type="email" value={email} onChange={e => setEmail(e.target.value)} required autoFocus /></label>
+        <label>Password<input type="password" value={password} onChange={e => setPassword(e.target.value)} required /></label>
+        {error && <div className="notice error">{error}</div>}
+        <button className="primary" disabled={busy}>{busy ? 'Accesso…' : 'Entra'}</button>
+      </form>
+    </section>
+  </main>;
+}
+
+function Progress({ run }) {
+  if (!run) return <div className="empty-process"><span>◎</span><p>Nessuna acquisizione avviata.</p><small>Collega una sorgente e premi “Acquisisci”.</small></div>;
+  const current = run.phase === 'failed' ? -1 : STEPS.findIndex(([key]) => key === run.phase);
+  return <div className="process-card">
+    <div className="process-head"><div><p className="kicker">Ultima acquisizione</p><h3>{run.source_label}</h3></div><span className={`status ${run.status}`}>{run.status}</span></div>
+    <div className="timeline">{STEPS.map(([key, label], index) => <div className={`step ${index <= current ? 'done' : ''} ${index === current ? 'active' : ''}`} key={key}><i /> <span>{label}</span></div>)}</div>
+    <p className="run-message">{run.error_message || run.message}</p>
+    <div className="metrics"><span><strong>{run.found_count || 0}</strong> trovati</span><span><strong>{run.imported_count || 0}</strong> importati</span><span><strong>{run.duplicate_count || 0}</strong> già presenti</span></div>
+  </div>;
+}
+
+function Dashboard({ token, user, onLogout }) {
+  const [data, setData] = useState({ sources: [], contents: [], latest_run: null });
+  const [url, setUrl] = useState(''); const [label, setLabel] = useState('');
+  const [run, setRun] = useState(null); const [busySource, setBusySource] = useState(null);
+  const [error, setError] = useState(''); const [loading, setLoading] = useState(true);
+  const load = useCallback(async () => {
+    const next = await request('dashboard', token); setData(next); setRun(old => old || next.latest_run);
+  }, [token]);
+  useEffect(() => { load().catch(e => setError(e.message)).finally(() => setLoading(false)); }, [load]);
 
   useEffect(() => {
-    fetch('/deploy-info.json', { cache: 'no-store' })
-      .then(r => r.ok ? r.json() : null)
-      .then(setDeployInfo)
-      .catch(() => {});
+    if (!run?.id || !['queued', 'running'].includes(run.status)) return undefined;
+    const poll = setInterval(async () => {
+      try {
+        const next = (await request(`import-status&run_id=${run.id}`, token)).run; setRun(next);
+        if (['completed', 'failed'].includes(next.status)) { clearInterval(poll); await load(); setBusySource(null); }
+      } catch (e) { setError(e.message); clearInterval(poll); setBusySource(null); }
+    }, 800);
+    return () => clearInterval(poll);
+  }, [run?.id, run?.status, token, load]);
 
-    const storedToken = localStorage.getItem('sts_token');
-    if (!storedToken) {
-      localStorage.removeItem('sts_user');
-      setLoading(false);
-      return;
-    }
-
-    let cancelled = false;
-    fetch('/api/index.php?action=me', {
-      headers: { Authorization: `Bearer ${storedToken}` },
-      cache: 'no-store',
-    })
-      .then(response => {
-        if (!response.ok) throw new Error('session-sync-failed');
-        return response.json();
-      })
-      .then(data => {
-        if (cancelled || !data?.user) return;
-        setToken(storedToken);
-        setUser(data.user);
-        localStorage.setItem('sts_user', JSON.stringify(data.user));
-      })
-      .catch(() => {
-        if (cancelled) return;
-        localStorage.removeItem('sts_token');
-        localStorage.removeItem('sts_user');
-        setToken(null);
-        setUser(null);
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-
-    return () => { cancelled = true; };
-  }, []);
-
-  function handleAuth(t, u) {
-    setToken(t);
-    setUser(u);
-    navigate('/dashboard');
+  async function addSource(event) {
+    event.preventDefault(); setError('');
+    try { await request('sources', token, { method: 'POST', body: JSON.stringify({ url, label }) }); setUrl(''); setLabel(''); await load(); }
+    catch (e) { setError(e.message); }
   }
-
-  function logout() {
-    localStorage.removeItem('sts_token');
-    localStorage.removeItem('sts_user');
-    setToken(null);
-    setUser(null);
-    navigate('/login');
+  async function importSource(source) {
+    setError(''); setBusySource(source.id);
+    try {
+      const created = (await request('import-start', token, { method: 'POST', body: JSON.stringify({ source_id: source.id }) })).run;
+      setRun(created);
+      request('import-execute', token, { method: 'POST', body: JSON.stringify({ run_id: created.id, limit: 20 }) }).catch(e => setError(e.message));
+    } catch (e) { setError(e.message); setBusySource(null); }
   }
-
-  const userPlan = normalizePlan(user?.plan);
-  const usesBasicExperience = user?.role !== 'admin' && userPlan === 'base';
-
-  if (loading) return (
-    <main style={{ minHeight: '100vh', display: 'grid', placeItems: 'center', background: 'var(--bg)' }}>
-      <div style={{ color: 'var(--primary)', fontWeight: 800 }}>Verifica accesso…</div>
+  const total = useMemo(() => data.sources.reduce((sum, item) => sum + Number(item.content_count || 0), 0), [data.sources]);
+  if (loading) return <div className="loading">Caricamento archivio…</div>;
+  return <div className="app-shell">
+    <header><div className="brand"><span className="brand-dot" /> LinkSeoWeb <em>Import</em></div><div className="user"><span>{user.name || user.email}</span><button onClick={onLogout}>Esci</button></div></header>
+    <main className="workspace">
+      <section className="hero"><div><p className="eyebrow">RACCOGLITORE CONTENUTI</p><h1>Collega. Acquisisci.<br />Conserva l’originale.</h1></div><div className="hero-stat"><strong>{total}</strong><span>contenuti grezzi<br />nel database</span></div></section>
+      {error && <div className="notice error">{error}</div>}
+      <div className="grid-main">
+        <section className="panel connect-panel"><div className="section-title"><span>01</span><div><h2>Collega una sorgente</h2><p>Incolla il link pubblico di un profilo, canale o sito.</p></div></div>
+          <form className="source-form" onSubmit={addSource}><label>URL della sorgente<input value={url} onChange={e => setUrl(e.target.value)} placeholder="https://youtube.com/@canale" required /></label><label>Nome <small>opzionale</small><input value={label} onChange={e => setLabel(e.target.value)} placeholder="Il mio canale" /></label><button className="primary">Collega sorgente <b>→</b></button></form>
+          <p className="support">Supportati: siti web, YouTube, Instagram, Facebook, TikTok e X.</p>
+        </section>
+        <section className="panel"><div className="section-title"><span>02</span><div><h2>Processo di acquisizione</h2><p>Ogni passaggio è visibile. Nessuna elaborazione AI.</p></div></div><Progress run={run} /></section>
+      </div>
+      <section className="sources-section"><div className="section-title"><span>03</span><div><h2>Le tue sorgenti</h2><p>{data.sources.length} collegamenti attivi</p></div></div>
+        <div className="source-list">{data.sources.length === 0 ? <div className="empty-wide">Le sorgenti collegate appariranno qui.</div> : data.sources.map(source => { const meta = PLATFORM[source.platform] || PLATFORM.website; return <article className="source-card" key={source.id}><div className={`platform-icon ${source.platform}`}>{meta.mark}</div><div className="source-info"><strong>{source.label}</strong><a href={source.url} target="_blank" rel="noreferrer">{source.url}</a><small>{source.content_count || 0} contenuti · {source.last_message || 'Pronta per la prima acquisizione'}</small></div><span className={`dot ${source.status}`} /><button onClick={() => importSource(source)} disabled={busySource !== null}>{busySource === source.id ? 'Acquisizione…' : 'Acquisisci'}</button></article>; })}</div>
+      </section>
+      <section className="archive"><div className="archive-head"><div className="section-title"><span>04</span><div><h2>Archivio grezzo</h2><p>Ultimi 100 contenuti importati, senza trasformazioni.</p></div></div><span className="database-pill">● DATABASE LIVE</span></div>
+        {data.contents.length === 0 ? <div className="empty-wide">Nessun contenuto importato.</div> : <div className="content-table"><div className="table-row table-head"><span>Sorgente</span><span>Contenuto originale</span><span>Data</span><span>Link</span></div>{data.contents.map(item => <div className="table-row" key={item.id}><span><b>{PLATFORM[item.platform]?.mark || 'WWW'}</b>{item.source_label}</span><span><strong>{item.title || 'Contenuto senza titolo'}</strong><small>{item.body_text || 'Payload acquisito'}</small></span><span>{new Date(item.published_at || item.imported_at).toLocaleDateString('it-IT')}</span><span><a className="open-link" href={item.source_url} target="_blank" rel="noreferrer">Apri ↗</a></span></div>)}</div>}
+      </section>
     </main>
-  );
-
-  return (
-    <>
-      <Routes>
-        <Route path="/privacy" element={<LegalScreen type="privacy" />} />
-        <Route path="/terms" element={<LegalScreen type="terms" />} />
-        <Route path="/" element={<Navigate to={token ? "/dashboard" : "/login"} replace />} />
-        <Route path="/login" element={token ? <Navigate to="/dashboard" /> : <AuthScreen onAuth={handleAuth} />} />
-        <Route path="/connect" element={token ? <ConnectScreen token={token} onDone={() => navigate('/generating')} /> : <Navigate to="/login" />} />
-        <Route path="/generating" element={token ? <GeneratingScreen token={token} user={user} onDone={() => navigate('/dashboard')} /> : <Navigate to="/login" />} />
-        <Route
-          path="/dashboard/manage/*"
-          element={token ? <DashboardScreen token={token} user={user} onLogout={logout} /> : <Navigate to="/login" />}
-        />
-        <Route
-          path="/dashboard/*"
-          element={token ? (
-            usesBasicExperience
-              ? <BasicUserScreen token={token} user={user} onLogout={logout} onEnterDashboard={() => navigate('/dashboard/manage')} />
-              : <DashboardScreen token={token} user={user} onLogout={logout} />
-          ) : <Navigate to="/login" />}
-        />
-        <Route path="*" element={<Navigate to={token ? "/dashboard" : "/login"} replace />} />
-      </Routes>
-
-      {token && user && !usesBasicExperience && <PlanExperience user={user} />}
-      
-      <footer style={{
-        textAlign: 'center', padding: 0, fontSize: '11px',
-        color: 'var(--text-faint)', borderTop: '1px solid var(--border)',
-        background: 'var(--sidebar-bg)', backdropFilter: 'blur(8px)',
-        position: 'relative', zIndex: 10,
-      }}>
-        <div style={{ padding: '12px 20px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '16px', flexWrap: 'wrap' }}>
-        <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-          <img src="/logo-cropped.png?v=2" alt="LinkSeoWeb" style={{ height: '28px', opacity: 0.9, display: 'block' }} />
-          <span style={{ opacity: 0.6 }}>LinkSeoWeb</span>
-        </span>
-        <span style={{ opacity: 0.3 }}>·</span>
-        {user?.plan && <>
-          <span>Piano: <strong style={{ color: 'var(--primary)', textTransform: 'uppercase' }}>{user.plan}</strong></span>
-          <span style={{ opacity: 0.3 }}>·</span>
-        </>}
-        {deployInfo ? (
-          <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-            <span style={{ opacity: 0.5 }}>🚀</span>
-            <span>Deploy: <strong style={{ color: 'var(--primary)', opacity: 0.8 }}>{deployInfo.deployed_day} {deployInfo.deployed_at}</strong></span>
-            {deployInfo.release && <span style={{ opacity: 0.4 }}>· {deployInfo.release}</span>}
-          </span>
-        ) : (
-          <span style={{ opacity: 0.5 }}>⚙️ Dev build — {new Date().toLocaleString('it-IT')}</span>
-        )}
-        <span style={{ opacity: 0.3 }}>·</span>
-        <a href="/privacy" style={{ color: 'inherit' }}>Privacy</a>
-        <a href="/terms" style={{ color: 'inherit' }}>Termini</a>
-        </div>
-
-      </footer>
-    </>
-  );
+    <footer>LinkSeoWeb Content Import <span>•</span> Acquisizione diretta <span>•</span> Nessuna elaborazione</footer>
+  </div>;
 }
 
 export default function App() {
-  return (
-    <BrowserRouter>
-      <AppContent />
-    </BrowserRouter>
-  );
+  const [token, setToken] = useState(() => localStorage.getItem('lsw_token'));
+  const [user, setUser] = useState(() => JSON.parse(localStorage.getItem('lsw_user') || 'null'));
+  function login(nextToken, nextUser) { localStorage.setItem('lsw_token', nextToken); localStorage.setItem('lsw_user', JSON.stringify(nextUser)); setToken(nextToken); setUser(nextUser); }
+  function logout() { localStorage.removeItem('lsw_token'); localStorage.removeItem('lsw_user'); setToken(null); setUser(null); }
+  return token && user ? <Dashboard token={token} user={user} onLogout={logout} /> : <Login onLogin={login} />;
 }

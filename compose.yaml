@@ -10,16 +10,7 @@ x-app-environment: &app-environment
   BASE_URL: ${BASE_URL:-http://localhost:8081}
   ALLOWED_ORIGIN: ${ALLOWED_ORIGIN:-http://localhost:8081}
   JWT_SECRET: ${JWT_SECRET:?Imposta JWT_SECRET nel file .env}
-  ANALYTICS_SALT: ${ANALYTICS_SALT:?Imposta ANALYTICS_SALT nel file .env}
-  OPENAI_API_KEY: ${OPENAI_API_KEY:-}
-  ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
-  GEMINI_API_KEY: ${GEMINI_API_KEY:-}
-  GEMINI_MODEL: ${GEMINI_MODEL:-gemini-3.6-flash}
   REFETCHER_API_KEY: ${REFETCHER_API_KEY:-}
-  OPENCLAW_API_KEY: ${OPENCLAW_API_KEY:-}
-  GSC_PROPERTY: ${GSC_PROPERTY:-}
-  GCP_CREDENTIALS_PATH: /var/www/html/secrets/gcp-credentials.json
-  SYNC_INTERVAL_SECONDS: ${SYNC_INTERVAL_SECONDS:-21600}
 
 services:
   app:
@@ -30,9 +21,6 @@ services:
     environment: *app-environment
     ports:
       - "${APP_BIND_ADDRESS:-0.0.0.0}:${APP_PORT:-8081}:80"
-    volumes:
-      - media_data:/var/www/html/public/media
-      - ./secrets:/var/www/html/secrets:ro
     depends_on:
       db:
         condition: service_healthy
@@ -42,18 +30,6 @@ services:
       timeout: 5s
       retries: 5
       start_period: 20s
-
-  cron:
-    image: linkseoweb-app:latest
-    restart: unless-stopped
-    command: ["linkseoweb-cron"]
-    environment: *app-environment
-    volumes:
-      - media_data:/var/www/html/public/media
-      - ./secrets:/var/www/html/secrets:ro
-    depends_on:
-      db:
-        condition: service_healthy
 
   db:
     image: mariadb:11.4
@@ -78,5 +54,3 @@ volumes:
   db_data:
     # Mantiene i dati creati dal primo deploy, prima del rebranding.
     name: socialtosite_db_data
-  media_data:
-    name: socialtosite_media_data

@@ -30,6 +30,69 @@ CREATE TABLE IF NOT EXISTS social_sources (
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+-- Nuovo nucleo Content Import: conserva esclusivamente sorgenti, esecuzioni
+-- di acquisizione e payload originali. Le tabelle legacy restano separate.
+CREATE TABLE IF NOT EXISTS content_sources (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  user_id INT NOT NULL,
+  platform VARCHAR(30) NOT NULL,
+  label VARCHAR(255) NOT NULL,
+  url TEXT NOT NULL,
+  url_hash CHAR(64) NOT NULL,
+  status VARCHAR(30) NOT NULL DEFAULT 'ready',
+  last_message TEXT NULL,
+  last_import_at DATETIME NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE KEY unique_content_source (user_id, url_hash),
+  KEY source_user (user_id),
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS import_runs (
+  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  user_id INT NOT NULL,
+  source_id INT NOT NULL,
+  status VARCHAR(30) NOT NULL DEFAULT 'queued',
+  phase VARCHAR(30) NOT NULL DEFAULT 'queued',
+  message VARCHAR(500) NOT NULL DEFAULT 'Acquisizione in coda',
+  found_count INT NOT NULL DEFAULT 0,
+  imported_count INT NOT NULL DEFAULT 0,
+  duplicate_count INT NOT NULL DEFAULT 0,
+  error_message TEXT NULL,
+  started_at DATETIME NULL,
+  completed_at DATETIME NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  KEY run_user (user_id, created_at),
+  KEY run_source (source_id, created_at),
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  FOREIGN KEY (source_id) REFERENCES content_sources(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS raw_contents (
+  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  user_id INT NOT NULL,
+  source_id INT NOT NULL,
+  import_run_id BIGINT NULL,
+  platform VARCHAR(30) NOT NULL,
+  external_id VARCHAR(255) NULL,
+  source_url TEXT NOT NULL,
+  content_hash CHAR(64) NOT NULL,
+  title TEXT NULL,
+  body_text LONGTEXT NULL,
+  media_url TEXT NULL,
+  media_type VARCHAR(40) NULL,
+  published_at DATETIME NULL,
+  raw_payload LONGTEXT NOT NULL,
+  imported_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY unique_raw_content (user_id, source_id, content_hash),
+  KEY raw_user_date (user_id, imported_at),
+  KEY raw_source (source_id),
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  FOREIGN KEY (source_id) REFERENCES content_sources(id) ON DELETE CASCADE,
+  FOREIGN KEY (import_run_id) REFERENCES import_runs(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 CREATE TABLE IF NOT EXISTS posts (
   id                INT AUTO_INCREMENT PRIMARY KEY,
   user_id           INT NOT NULL,
