@@ -137,7 +137,7 @@ final class Refetcher {
         if (str_contains($mediaType, 'video') || !empty($media['videoUrl']) || !empty($media['hdVideoUrl'])) $mediaType = 'video';
         elseif ($mediaUrl !== '') $mediaType = 'image';
         else $mediaType = 'text';
-        $imageUrls = self::mediaImageUrls($media);
+        $imageUrls = array_merge(self::mediaImageUrls($media), self::findImageUrls($result));
         $displayUrl = trim((string)($post['displayUrl'] ?? ''));
         if ($displayUrl !== '') array_unshift($imageUrls, $displayUrl);
         if ($mediaType === 'image' && $mediaUrl !== '') array_unshift($imageUrls, $mediaUrl);
@@ -174,6 +174,23 @@ final class Refetcher {
         }
         foreach ((is_array($media['children'] ?? null) ? $media['children'] : []) as $child) {
             if (is_array($child)) $urls = array_merge($urls, self::mediaImageUrls($child));
+        }
+        return $urls;
+    }
+
+    private static function findImageUrls(mixed $value, string $keyHint = '', int $depth = 0): array {
+        if ($depth > 8) return [];
+        if (is_string($value)) {
+            $candidate = trim($value);
+            $hint = strtolower($keyHint);
+            $looksLikeImageKey = preg_match('/(?:image|photo|picture|thumbnail|display|cover|poster|preview)/', $hint);
+            $looksLikeImageUrl = preg_match('/\.(?:jpe?g|png|webp|gif)(?:\?|$)/i', $candidate) || str_contains($candidate, 'fbcdn.net') || str_contains($candidate, 'cdninstagram.com');
+            return $looksLikeImageKey && $looksLikeImageUrl && filter_var($candidate, FILTER_VALIDATE_URL) ? [$candidate] : [];
+        }
+        if (!is_array($value)) return [];
+        $urls = [];
+        foreach ($value as $key => $child) {
+            $urls = array_merge($urls, self::findImageUrls($child, is_string($key) ? $key : $keyHint, $depth + 1));
         }
         return $urls;
     }

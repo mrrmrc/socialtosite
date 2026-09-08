@@ -19,6 +19,7 @@ final class RawImport
             label VARCHAR(255) NOT NULL,
             url TEXT NOT NULL,
             url_hash CHAR(64) NOT NULL,
+            source_profile LONGTEXT NULL,
             status VARCHAR(30) NOT NULL DEFAULT 'ready',
             last_message TEXT NULL,
             last_import_at DATETIME NULL,
@@ -64,6 +65,10 @@ final class RawImport
             image_urls LONGTEXT NULL,
             media_type VARCHAR(40) NULL,
             post_status VARCHAR(30) NOT NULL DEFAULT 'potential',
+            draft_title TEXT NULL,
+            draft_body LONGTEXT NULL,
+            draft_image_url TEXT NULL,
+            draft_updated_at DATETIME NULL,
             published_at DATETIME NULL,
             raw_payload LONGTEXT NOT NULL,
             imported_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -77,8 +82,13 @@ final class RawImport
 
         self::addColumnIfMissing('content_sources', 'since_date', 'DATE NULL AFTER url_hash');
         self::addColumnIfMissing('content_sources', 'acquisition_limit', 'INT NOT NULL DEFAULT 500 AFTER since_date');
+        self::addColumnIfMissing('content_sources', 'source_profile', 'LONGTEXT NULL AFTER acquisition_limit');
         self::addColumnIfMissing('raw_contents', 'image_urls', 'LONGTEXT NULL AFTER media_url');
         self::addColumnIfMissing('raw_contents', 'post_status', "VARCHAR(30) NOT NULL DEFAULT 'potential' AFTER media_type");
+        self::addColumnIfMissing('raw_contents', 'draft_title', 'TEXT NULL AFTER post_status');
+        self::addColumnIfMissing('raw_contents', 'draft_body', 'LONGTEXT NULL AFTER draft_title');
+        self::addColumnIfMissing('raw_contents', 'draft_image_url', 'TEXT NULL AFTER draft_body');
+        self::addColumnIfMissing('raw_contents', 'draft_updated_at', 'DATETIME NULL AFTER draft_image_url');
         ProfileAnalyzer::ensureSchema();
         self::$schemaReady = true;
     }
@@ -137,8 +147,8 @@ final class RawImport
     public static function dashboard(int $userId): array
     {
         self::ensureSchema();
-        $sources = DB::fetchAll("SELECT s.*, COUNT(c.id) content_count FROM content_sources s LEFT JOIN raw_contents c ON c.source_id=s.id WHERE s.user_id=? GROUP BY s.id ORDER BY s.created_at DESC", [$userId]);
-        $contents = DB::fetchAll("SELECT c.id, c.platform, c.source_url, c.title, c.body_text, c.media_url, c.image_urls, c.media_type, c.post_status, c.published_at, c.imported_at, s.label source_label FROM raw_contents c JOIN content_sources s ON s.id=c.source_id WHERE c.user_id=? ORDER BY COALESCE(c.published_at, c.imported_at) DESC LIMIT 100", [$userId]);
+        $sources = DB::fetchAll("SELECT s.id,s.user_id,s.platform,s.label,s.url,s.url_hash,s.since_date,s.acquisition_limit,s.status,s.last_message,s.last_import_at,s.created_at,s.updated_at,COUNT(c.id) content_count FROM content_sources s LEFT JOIN raw_contents c ON c.source_id=s.id WHERE s.user_id=? GROUP BY s.id ORDER BY s.created_at DESC", [$userId]);
+        $contents = DB::fetchAll("SELECT c.id, c.platform, c.source_url, c.title, c.body_text, c.media_url, c.image_urls, c.media_type, c.post_status, c.draft_title, c.draft_body, c.draft_image_url, c.draft_updated_at, c.published_at, c.imported_at, s.label source_label FROM raw_contents c JOIN content_sources s ON s.id=c.source_id WHERE c.user_id=? ORDER BY COALESCE(c.published_at, c.imported_at) DESC LIMIT 100", [$userId]);
         $latestRun = DB::fetch('SELECT r.*, s.label source_label, s.platform FROM import_runs r JOIN content_sources s ON s.id=r.source_id WHERE r.user_id=? ORDER BY r.id DESC LIMIT 1', [$userId]);
         return ['sources' => $sources, 'contents' => $contents, 'latest_run' => $latestRun, 'profile' => ProfileAnalyzer::profile($userId), 'profile_questions' => ProfileAnalyzer::questions($userId)];
     }
@@ -151,6 +161,23 @@ final class RawImport
         $source = DB::fetch('SELECT * FROM content_sources WHERE id=? AND user_id=?', [$sourceId, $userId]);
         if (!$source) throw new RuntimeException('Sorgente non trovata.');
         return $source;
+    }
+
+    public static function updatePotentialPost(int $userId, int $contentId, string $title, string $body, ?string $imageUrl): array
+    {
+        self::ensureSchema();
+        $content = DB::fetch('SELECT id FROM raw_contents WHERE id=? AND user_id=?', [$contentId, $userId]);
+        if (!$content) throw new RuntimeException('Post potenziale non trovato.');
+        $title = trim($title);
+        $body = trim($body);
+        $imageUrl = trim((string)$imageUrl);
+        if (mb_strlen($title) > 1000) throw new InvalidArgumentException('Il titolo supera i 1.000 caratteri.');
+        if (mb_strlen($body) > 500000) throw new InvalidArgumentException('Il testo supera la dimensione consentita.');
+        if ($imageUrl !== '' && (!filter_var($imageUrl, FILTER_VALIDATE_URL) || !in_array(strtolower((string)parse_url($imageUrl, PHP_URL_SCHEME)), ['http', 'https'], true))) {
+            throw new InvalidArgumentException('L’URL dell’immagine non è valido.');
+        }
+        DB::execute('UPDATE raw_contents SET draft_title=?, draft_body=?, draft_image_url=?, draft_updated_at=NOW() WHERE id=? AND user_id=?', [$title, $body, $imageUrl ?: null, $contentId, $userId]);
+        return DB::fetch('SELECT id, draft_title, draft_body, draft_image_url, draft_updated_at FROM raw_contents WHERE id=? AND user_id=?', [$contentId, $userId]);
     }
 
     public static function createRun(int $userId, int $sourceId): array
@@ -198,6 +225,9 @@ final class RawImport
             } else {
                 $response = Refetcher::source($source['url'], $limit, $sinceDate);
                 $items = is_array($response['items'] ?? null) ? $response['items'] : [];
+                if (is_array($response['profile'] ?? null) && $response['profile']) {
+                    DB::execute('UPDATE content_sources SET source_profile=? WHERE id=? AND user_id=?', [json_encode($response['profile'], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_INVALID_UTF8_SUBSTITUTE), $source['id'], $userId]);
+                }
             }
             $counts = ['found' => count($items), 'imported' => 0, 'duplicates' => 0];
             self::progress($runId, 'importing', 'Salvataggio dei contenuti grezzi', $counts);
@@ -222,6 +252,8 @@ final class RawImport
                     $counts['imported']++;
                 } catch (PDOException $e) {
                     if ((int)($e->errorInfo[1] ?? 0) !== 1062) throw $e;
+                    $imagesJson = json_encode($imageUrls, JSON_UNESCAPED_SLASHES) ?: '[]';
+                    DB::execute('UPDATE raw_contents SET external_id=COALESCE(NULLIF(?,""),external_id), title=COALESCE(NULLIF(?,""),title), body_text=COALESCE(NULLIF(?,""),body_text), media_url=COALESCE(NULLIF(?,""),media_url), image_urls=IF(?<>"[]",?,image_urls), media_type=COALESCE(NULLIF(?,""),media_type), published_at=COALESCE(?,published_at), raw_payload=? WHERE user_id=? AND source_id=? AND content_hash=?', [$externalId, $title, $caption, $mediaUrl, $imagesJson, $imagesJson, $mediaType, $published, $raw ?: '{}', $userId, $source['id'], $contentHash]);
                     $counts['duplicates']++;
                 }
                 self::progress($runId, 'importing', "Salvati {$counts['imported']} di {$counts['found']} contenuti", $counts);

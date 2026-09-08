@@ -83,6 +83,7 @@ final class ProfileAnalyzer
     {
         self::ensureSchema();
         $contents = DB::fetchAll("SELECT c.id, c.platform, c.title, c.body_text, c.published_at, s.label source_label, s.url source_profile_url FROM raw_contents c JOIN content_sources s ON s.id=c.source_id WHERE c.user_id=? ORDER BY COALESCE(c.published_at,c.imported_at) DESC LIMIT 120", [$userId]);
+        $sources = DB::fetchAll('SELECT id,platform,label,url,source_profile FROM content_sources WHERE user_id=? ORDER BY id ASC', [$userId]);
         $sourceCount = (int)(DB::fetch('SELECT COUNT(*) total FROM content_sources WHERE user_id=?', [$userId])['total'] ?? 0);
         $contentCount = (int)(DB::fetch('SELECT COUNT(*) total FROM raw_contents WHERE user_id=?', [$userId])['total'] ?? 0);
         if (!$contents) {
@@ -100,6 +101,10 @@ final class ProfileAnalyzer
             'title' => mb_substr((string)$row['title'], 0, 500),
             'text' => mb_substr((string)$row['body_text'], 0, 1800),
         ], $contents);
+        $sourceProfiles = array_map(static function (array $source): array {
+            $metadata = json_decode((string)($source['source_profile'] ?? ''), true);
+            return ['source_id' => (int)$source['id'], 'platform' => $source['platform'], 'label' => $source['label'], 'url' => $source['url'], 'public_profile' => is_array($metadata) ? $metadata : []];
+        }, $sources);
 
         DB::query("INSERT INTO user_content_profiles (user_id,status,source_count,content_count) VALUES (?,'analyzing',?,?) ON DUPLICATE KEY UPDATE status='analyzing',source_count=VALUES(source_count),content_count=VALUES(content_count),error_message=NULL", [$userId, $sourceCount, $contentCount]);
         try {
@@ -114,6 +119,7 @@ final class ProfileAnalyzer
                     'questions' => [['key' => 'stable_snake_case', 'question' => 'string', 'reason' => 'string']],
                 ],
                 'user_answers' => $answers,
+                'source_profiles' => $sourceProfiles,
                 'content_samples' => $samples,
             ]);
             self::save($userId, $result, $sourceCount, $contentCount);

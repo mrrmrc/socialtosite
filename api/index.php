@@ -65,6 +65,15 @@ if ($action === 'source-period' && $method === 'POST') {
     }
 }
 
+if ($action === 'potential-post' && $method === 'POST') {
+    $payload = body();
+    try {
+        json(['content' => RawImport::updatePotentialPost($userId, (int)($payload['content_id'] ?? 0), (string)($payload['title'] ?? ''), (string)($payload['body'] ?? ''), isset($payload['image_url']) ? (string)$payload['image_url'] : null)]);
+    } catch (InvalidArgumentException $e) {
+        jsonError($e->getMessage(), 422);
+    }
+}
+
 if ($action === 'import-start' && $method === 'POST') {
     $payload = body();
     json(['run' => RawImport::createRun($userId, (int)($payload['source_id'] ?? 0))], 201);

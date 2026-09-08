@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import './profile.css';
 
 const API = '/api/index.php?action=';
@@ -85,13 +85,13 @@ function Progress({ run }) {
 
 function UserProfile({ profile, questions, onAnswer, onRefresh, busy }) {
   const [answers, setAnswers] = useState({});
-  if (!profile) return <section className="profile-section"><div className="section-title"><span>04</span><div><h2>Profilo editoriale</h2><p>Il profilo nascerà dall’analisi dei primi contenuti acquisiti.</p></div></div><div className="empty-wide">Acquisisci contenuti per iniziare la profilazione.</div></section>;
+  if (!profile) return <section className="profile-section"><div className="section-title"><span>04</span><div><h2>Profilo editoriale</h2><p>Analisi dell’identità, dei temi e del pubblico.</p></div></div><div className="profile-empty"><span>✦</span><div><h3>Il profilo non è stato ancora creato</h3><p>Posso analizzare subito i contenuti già presenti nel database.</p></div><button className="primary" onClick={onRefresh} disabled={busy}>{busy ? 'Analisi in corso…' : 'Crea il profilo'}</button></div></section>;
   const openQuestions = (questions || []).filter(item => item.status === 'open');
   const chips = [...(profile.topics || []), ...(profile.audiences || [])].slice(0, 10);
   return <section className="profile-section">
     <div className="profile-head"><div className="section-title"><span>04</span><div><h2>Profilo editoriale</h2><p>Inferito dalle sorgenti e dalle tue risposte, senza modificare i contenuti.</p></div></div><button className="ghost" onClick={onRefresh} disabled={busy}>Rianalizza</button></div>
     {profile.status === 'error' && <div className="notice error">Profilazione non completata: {profile.error_message}</div>}
-    <div className="profile-grid"><div><p className="kicker">Identità rilevata</p><h3>{profile.display_name || 'Identità da chiarire'}</h3><strong className="activity">{profile.activity_type || 'Attività non ancora definita'}</strong><p>{profile.summary || 'Servono altri contenuti per costruire un profilo affidabile.'}</p><div className="chips">{chips.map((chip, index) => <span key={`${chip}-${index}`}>{chip}</span>)}</div></div><div className="confidence"><strong>{Math.round((profile.confidence || 0) * 100)}%</strong><span>confidenza</span><small>{profile.content_count || 0} contenuti · {profile.source_count || 0} sorgenti</small></div></div>
+    {['pending', 'analyzing'].includes(profile.status) ? <div className="profile-empty"><span>✦</span><div><h3>Profilazione in preparazione</h3><p>Avvia l’analisi dei contenuti già acquisiti.</p></div><button className="primary" onClick={onRefresh} disabled={busy}>{busy ? 'Analisi in corso…' : 'Analizza ora'}</button></div> : <div className="profile-grid"><div><p className="kicker">Identità rilevata</p><h3>{profile.display_name || 'Identità da chiarire'}</h3><strong className="activity">{profile.activity_type || 'Attività non ancora definita'}</strong><p>{profile.summary || 'Servono altri contenuti per costruire un profilo affidabile.'}</p><div className="chips">{chips.map((chip, index) => <span key={`${chip}-${index}`}>{chip}</span>)}</div></div><div className="confidence"><strong>{Math.round((profile.confidence || 0) * 100)}%</strong><span>confidenza</span><small>{profile.content_count || 0} contenuti · {profile.source_count || 0} sorgenti</small></div></div>}
     {openQuestions.length > 0 && <div className="questions"><p className="kicker">Mi serve il tuo aiuto</p><h3>Alcune cose non sono ancora chiare</h3>{openQuestions.map(question => <form key={question.id} onSubmit={event => { event.preventDefault(); onAnswer(question.id, answers[question.id] || ''); }}><label>{question.question}<small>{question.reason}</small><textarea value={answers[question.id] || ''} onChange={event => setAnswers(old => ({ ...old, [question.id]: event.target.value }))} required /></label><button className="primary" disabled={busy}>Salva risposta</button></form>)}</div>}
   </section>;
 }
@@ -102,16 +102,29 @@ function SourcePeriod({ source, onSave, busy }) {
   return <span className="period-editor"><input aria-label={`Data iniziale ${source.label}`} type="date" max={new Date().toISOString().slice(0, 10)} value={value} onChange={event => setValue(event.target.value)} /><button type="button" onClick={() => onSave(source.id, value || null)} disabled={busy}>Salva periodo</button><small>Vuoto = tutto; non elimina i contenuti già acquisiti</small></span>;
 }
 
+function PostEditor({ item, onClose, onSave, busy }) {
+  const hasDraft = Boolean(item.draft_updated_at);
+  const [title, setTitle] = useState(hasDraft ? (item.draft_title || '') : (item.title || ''));
+  const [body, setBody] = useState(hasDraft ? (item.draft_body || '') : (item.body_text || ''));
+  const [imageUrl, setImageUrl] = useState(hasDraft ? (item.draft_image_url || '') : previewImage(item));
+  return <div className="editor-backdrop" role="presentation" onMouseDown={event => { if (event.target === event.currentTarget) onClose(); }}><section className="post-editor" role="dialog" aria-modal="true" aria-label="Modifica post potenziale"><div className="editor-head"><div><p className="kicker">BOZZA PER IL SITO</p><h2>Modifica il post</h2></div><button className="close-editor" onClick={onClose} aria-label="Chiudi">×</button></div><div className="editor-layout"><form onSubmit={event => { event.preventDefault(); onSave(item.id, { title, body, image_url: imageUrl }); }}><label>Titolo<input value={title} onChange={event => setTitle(event.target.value)} placeholder="Titolo del post" /></label><label>Testo<textarea value={body} onChange={event => setBody(event.target.value)} placeholder="Testo del post" /></label><label>Immagine<input type="url" value={imageUrl} onChange={event => setImageUrl(event.target.value)} placeholder="https://…" /></label><div className="editor-actions"><button type="button" className="ghost" onClick={onClose}>Annulla</button><button className="primary" disabled={busy}>{busy ? 'Salvataggio…' : 'Salva bozza'}</button></div></form><aside className="post-preview">{imageUrl ? <img src={imageUrl} alt="Anteprima" /> : <div className="preview-placeholder">Nessuna immagine</div>}<small>ANTEPRIMA POST</small><h3>{title || 'Titolo del post'}</h3><p>{body || 'Il testo comparirà qui.'}</p><a href={item.source_url} target="_blank" rel="noreferrer">Vedi originale sul social ↗</a></aside></div><details className="original-data"><summary>Confronta con il contenuto originale</summary><h4>{item.title || 'Senza titolo'}</h4><p>{item.body_text || 'Nessun testo originale disponibile.'}</p></details></section></div>;
+}
+
 function Dashboard({ token, user, onLogout }) {
   const [data, setData] = useState({ sources: [], contents: [], latest_run: null, profile: null, profile_questions: [] });
   const [url, setUrl] = useState(''); const [label, setLabel] = useState('');
   const [period, setPeriod] = useState('90'); const [customDate, setCustomDate] = useState('');
   const [run, setRun] = useState(null); const [busySource, setBusySource] = useState(null);
   const [error, setError] = useState(''); const [loading, setLoading] = useState(true); const [profileBusy, setProfileBusy] = useState(false);
+  const [editingPost, setEditingPost] = useState(null); const [postBusy, setPostBusy] = useState(false); const autoProfile = useRef(false);
   const load = useCallback(async () => {
     const next = await request('dashboard', token); setData(next); setRun(old => old || next.latest_run);
   }, [token]);
   useEffect(() => { load().catch(e => setError(e.message)).finally(() => setLoading(false)); }, [load]);
+  useEffect(() => {
+    if (loading || !data.contents.length || data.profile || autoProfile.current) return;
+    autoProfile.current = true; refreshProfile();
+  }, [loading, data.contents.length, data.profile]);
 
   useEffect(() => {
     if (!run?.id || !['queued', 'running'].includes(run.status)) return undefined;
@@ -140,7 +153,7 @@ function Dashboard({ token, user, onLogout }) {
   async function refreshProfile() {
     setProfileBusy(true); setError('');
     try { const result = await request('profile-refresh', token, { method: 'POST', body: '{}' }); setData(old => ({ ...old, profile: result.profile, profile_questions: result.questions })); }
-    catch (e) { setError(e.message); } finally { setProfileBusy(false); }
+    catch (e) { setError(`Profilazione: ${e.message}`); await load().catch(() => {}); } finally { setProfileBusy(false); }
   }
   async function answerProfile(questionId, answer) {
     setProfileBusy(true); setError('');
@@ -151,6 +164,14 @@ function Dashboard({ token, user, onLogout }) {
     setError('');
     try { const result = await request('source-period', token, { method: 'POST', body: JSON.stringify({ source_id: sourceId, since_date: sinceDate }) }); setData(old => ({ ...old, sources: old.sources.map(item => item.id === sourceId ? { ...item, since_date: result.source.since_date } : item) })); }
     catch (e) { setError(e.message); }
+  }
+  async function savePotentialPost(contentId, draft) {
+    setPostBusy(true); setError('');
+    try {
+      const result = await request('potential-post', token, { method: 'POST', body: JSON.stringify({ content_id: contentId, ...draft }) });
+      setData(old => ({ ...old, contents: old.contents.map(item => item.id === contentId ? { ...item, ...result.content } : item) }));
+      setEditingPost(null);
+    } catch (e) { setError(e.message); } finally { setPostBusy(false); }
   }
   const total = useMemo(() => data.sources.reduce((sum, item) => sum + Number(item.content_count || 0), 0), [data.sources]);
   if (loading) return <div className="loading">Caricamento archivio…</div>;
@@ -170,10 +191,11 @@ function Dashboard({ token, user, onLogout }) {
         <div className="source-list">{data.sources.length === 0 ? <div className="empty-wide">Le sorgenti collegate appariranno qui.</div> : data.sources.map(source => { const meta = PLATFORM[source.platform] || PLATFORM.website; return <article className="source-card" key={source.id}><div className={`platform-icon ${source.platform}`}>{meta.mark}</div><div className="source-info"><strong>{source.label}</strong><a href={source.url} target="_blank" rel="noreferrer">{source.url}</a><small>{source.content_count || 0} contenuti · dal {source.since_date ? new Date(`${source.since_date}T12:00:00`).toLocaleDateString('it-IT') : 'primo disponibile'} · {source.last_message || 'Pronta per la prima acquisizione'}</small></div><SourcePeriod source={source} onSave={saveSourcePeriod} busy={busySource !== null} /><span className={`dot ${source.status}`} /><button onClick={() => importSource(source)} disabled={busySource !== null}>{busySource === source.id ? 'Acquisizione…' : 'Acquisisci'}</button></article>; })}</div>
       </section>
       <UserProfile profile={data.profile} questions={data.profile_questions} onAnswer={answerProfile} onRefresh={refreshProfile} busy={profileBusy} />
-      <section className="archive"><div className="archive-head"><div className="section-title"><span>05</span><div><h2>Post potenziali</h2><p>Ultimi 100 contenuti originali con titolo, testo e immagini.</p></div></div><span className="database-pill">● DATABASE LIVE</span></div>
-        {data.contents.length === 0 ? <div className="empty-wide">Nessun contenuto importato.</div> : <div className="content-table"><div className="table-row table-head"><span>Sorgente</span><span>Contenuto originale</span><span>Data</span><span>Link</span></div>{data.contents.map(item => { const image = previewImage(item); return <div className="table-row" key={item.id}><span><b>{PLATFORM[item.platform]?.mark || 'WWW'}</b>{item.source_label}</span><span className="content-cell">{image && <img src={image} alt="" loading="lazy" />}<span><strong>{item.title || 'Contenuto senza titolo'}</strong><small>{item.body_text || 'Payload acquisito'}</small><em>POST POTENZIALE</em></span></span><span>{new Date(item.published_at || item.imported_at).toLocaleDateString('it-IT')}</span><span><a className="open-link" href={item.source_url} target="_blank" rel="noreferrer">Apri ↗</a></span></div>; })}</div>}
+      <section className="archive"><div className="archive-head"><div className="section-title"><span>05</span><div><h2>Post potenziali</h2><p>Apri una scheda, modifica titolo, testo e immagine, poi salva la tua bozza.</p></div></div><span className="database-pill">● {data.contents.length} NEL DATABASE</span></div>
+        {data.contents.length === 0 ? <div className="empty-wide">Nessun contenuto importato.</div> : <div className="post-grid">{data.contents.map(item => { const image = item.draft_updated_at ? item.draft_image_url : previewImage(item); const title = item.draft_updated_at ? item.draft_title : item.title; const body = item.draft_updated_at ? item.draft_body : item.body_text; return <article className="post-card" key={item.id}>{image ? <img src={image} alt="" loading="lazy" /> : <div className="post-no-image">{PLATFORM[item.platform]?.mark || 'WWW'}</div>}<div className="post-card-body"><div className="post-meta"><span>{item.source_label}</span><time>{new Date(item.published_at || item.imported_at).toLocaleDateString('it-IT')}</time></div><h3>{title || 'Contenuto senza titolo'}</h3><p>{body || 'Nessun testo disponibile.'}</p><div className="post-card-actions"><button onClick={() => setEditingPost(item)}>Modifica bozza</button><a href={item.source_url} target="_blank" rel="noreferrer">Originale ↗</a></div>{item.draft_updated_at && <em>BOZZA MODIFICATA</em>}</div></article>; })}</div>}
       </section>
     </main>
+    {editingPost && <PostEditor item={editingPost} onClose={() => setEditingPost(null)} onSave={savePotentialPost} busy={postBusy} />}
     <footer>LinkSeoWeb Content Import <span>•</span> Originali invariati <span>•</span> AI solo per la profilazione</footer>
   </div>;
 }
