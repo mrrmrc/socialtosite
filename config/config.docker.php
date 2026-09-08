@@ -20,7 +20,7 @@ define('ALLOWED_ORIGIN', envValue('ALLOWED_ORIGIN', BASE_URL));
 define('OPENAI_API_KEY', envValue('OPENAI_API_KEY'));
 define('ANTHROPIC_API_KEY', envValue('ANTHROPIC_API_KEY'));
 define('GEMINI_API_KEY', envValue('GEMINI_API_KEY'));
-define('GEMINI_MODEL', envValue('GEMINI_MODEL', 'gemini-2.5-flash'));
+define('GEMINI_MODEL', envValue('GEMINI_MODEL', 'gemini-3.6-flash'));
 define('REFETCHER_API_KEY', envValue('REFETCHER_API_KEY'));
 
 define('OPENCLAW_API_KEY', envValue('OPENCLAW_API_KEY'));

@@ -9,6 +9,10 @@ require_once __DIR__ . '/content_ideas.php';
 
 class AI {
     private static function configValue(string $name): string {
+        $environmentValue = getenv($name);
+        if ($environmentValue !== false && trim((string)$environmentValue) !== '') {
+            return trim((string)$environmentValue);
+        }
         $runtimeName = 'SOCIALTOSITE_RUNTIME_' . $name;
         if (defined($runtimeName) && trim((string)constant($runtimeName)) !== '') {
             return trim((string)constant($runtimeName));
@@ -402,7 +406,7 @@ class AI {
         if ($apiKey === '') {
             throw new Exception('GEMINI_API_KEY mancante: configurala nei segreti del deploy o in config/keys.php');
         }
-        $model = defined('GEMINI_MODEL') ? GEMINI_MODEL : 'gemini-2.5-flash';
+        $model = defined('GEMINI_MODEL') ? GEMINI_MODEL : 'gemini-3.6-flash';
         $url = "https://generativelanguage.googleapis.com/v1beta/models/$model:generateContent";
 
         $timeout = max(30, min(300, (int)($config['_timeout'] ?? 90)));

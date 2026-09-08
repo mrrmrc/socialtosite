@@ -40,6 +40,10 @@ final class Refetcher {
     }
 
     private static function apiKey(): string {
+        $environmentValue = getenv('REFETCHER_API_KEY');
+        if ($environmentValue !== false && trim((string)$environmentValue) !== '') {
+            return trim((string)$environmentValue);
+        }
         foreach (['SOCIALTOSITE_RUNTIME_REFETCHER_API_KEY', 'REFETCHER_API_KEY'] as $name) {
             if (defined($name) && trim((string)constant($name)) !== '') return trim((string)constant($name));
         }
