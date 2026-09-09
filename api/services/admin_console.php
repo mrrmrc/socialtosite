@@ -20,6 +20,11 @@ final class AdminConsole
             description TEXT NULL,
             instructions LONGTEXT NOT NULL
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+        
+        $agentColumns = [];
+        foreach (DB::fetchAll('SHOW COLUMNS FROM agent_prompts') as $column) $agentColumns[$column['Field']] = true;
+        if (!isset($agentColumns['label'])) DB::execute("ALTER TABLE agent_prompts ADD COLUMN label VARCHAR(100) NOT NULL DEFAULT '' AFTER agent_name");
+        if (!isset($agentColumns['description'])) DB::execute("ALTER TABLE agent_prompts ADD COLUMN description TEXT NULL AFTER label");
         DB::execute("CREATE TABLE IF NOT EXISTS app_settings (
             setting_key VARCHAR(100) PRIMARY KEY,
             setting_value TEXT NULL,
