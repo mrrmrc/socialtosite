@@ -81,6 +81,7 @@ jobs:
             api/routes/auth.php \
             api/services/raw_import.php api/services/refetcher.php api/services/website_source.php api/services/profile_analyzer.php \
             api/services/admin_console.php api/services/editorial_supervisor.php api/services/provider_config.php \
+            api/services/ai.php api/services/content_ideas.php \
             config/db.php)
           [ "$errors" -eq 0 ] || exit 1
 
@@ -129,7 +130,7 @@ jobs:
           cp api/index.php release/api/
           cp api/middleware/{jwt,response,ratelimit}.php release/api/middleware/
           cp api/routes/auth.php release/api/routes/
-          cp api/services/{raw_import,refetcher,website_source,profile_analyzer,admin_console,editorial_supervisor,provider_config}.php release/api/services/
+          cp api/services/{raw_import,refetcher,website_source,profile_analyzer,admin_console,editorial_supervisor,provider_config,ai,content_ideas}.php release/api/services/
           cp -r frontend/dist/. release/
           cp .htaccess robots.txt deploy-info.json release/
           cp google*.html release/ 2>/dev/null || true
