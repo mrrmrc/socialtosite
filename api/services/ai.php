@@ -621,9 +621,6 @@ Restituisci SOLO la nuova memoria aggiornata (testo semplice), nient'altro.";
             'maxOutputTokens'=> 65536,
             'thinkingConfig' => ['thinkingBudget' => 0],
         ]));
-    } catch (Exception $e) {
-            return '';
-        }
     }
 
     // ── Trascrivi un file audio/video già scaricato ────────────────────────
@@ -640,9 +637,6 @@ Restituisci SOLO la nuova memoria aggiornata (testo semplice), nient'altro.";
             'maxOutputTokens'=> 65536,
             'thinkingConfig' => ['thinkingBudget' => 0],
         ]));
-    } catch (Exception $e) {
-            return '';
-        }
     }
 
     private static function decodeJsonObject(string $text): ?array {
@@ -914,9 +908,6 @@ Restituisci SOLO la nuova memoria aggiornata (testo semplice), nient'altro.";
         return trim(self::gemini([['text' => $prompt]], [
             'maxOutputTokens' => 2048,
         ]));
-    } catch (Exception $e) {
-            return '';
-        }
     }
 
     public static function editorialProfile(array $sources, array $samplePosts, string $profileOverride = ''): array {
