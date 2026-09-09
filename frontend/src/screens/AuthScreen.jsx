@@ -11,7 +11,7 @@ export function AuthScreen({ onAuth }) {
     e.preventDefault();
     setLoading(true); setError('');
     try {
-      const data = await apiFetch('/api/index.php?action=login', {
+      const data = await apiFetch('/api/routes/auth.php?action=login', {
         method: 'POST',
         body: JSON.stringify({ email, password }),
       });
