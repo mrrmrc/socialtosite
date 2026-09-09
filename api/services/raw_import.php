@@ -185,6 +185,14 @@ final class RawImport
         return DB::fetch('SELECT id, draft_title, draft_body, draft_image_url, draft_updated_at FROM raw_contents WHERE id=? AND user_id=?', [$contentId, $userId]);
     }
 
+    public static function deletePotentialPost(int $userId, int $contentId): void
+    {
+        self::ensureSchema();
+        $content = DB::fetch('SELECT id FROM raw_contents WHERE id=? AND user_id=?', [$contentId, $userId]);
+        if (!$content) throw new RuntimeException('Contenuto non trovato.');
+        DB::execute('DELETE FROM raw_contents WHERE id=? AND user_id=?', [$contentId, $userId]);
+    }
+
     public static function createRun(int $userId, int $sourceId): array
     {
         self::ensureSchema();

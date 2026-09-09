@@ -77,6 +77,16 @@ if ($action === 'potential-post' && $method === 'POST') {
     }
 }
 
+if ($action === 'delete-post' && $method === 'POST') {
+    $payload = body();
+    try {
+        RawImport::deletePotentialPost($userId, (int)($payload['content_id'] ?? 0));
+        json(['success' => true]);
+    } catch (InvalidArgumentException $e) {
+        jsonError($e->getMessage(), 422);
+    }
+}
+
 if ($action === 'import-start' && $method === 'POST') {
     $payload = body();
     json(['run' => RawImport::createRun($userId, (int)($payload['source_id'] ?? 0))], 201);

@@ -1,4 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import ReactQuill from 'react-quill';
+import 'react-quill/dist/quill.snow.css';
 import './profile.css';
 
 const API = '/api/index.php?action=';
@@ -102,7 +104,7 @@ function SourcePeriod({ source, onSave, busy }) {
   return <span className="period-editor"><input aria-label={`Data iniziale ${source.label}`} type="date" max={new Date().toISOString().slice(0, 10)} value={value} onChange={event => setValue(event.target.value)} /><button type="button" onClick={() => onSave(source.id, value || null)} disabled={busy}>Salva periodo</button><small>Vuoto = tutto; non elimina i contenuti già acquisiti</small></span>;
 }
 
-function PostEditor({ item, onClose, onSave, onGenerate, busy }) {
+function PostEditor({ item, onClose, onSave, onGenerate, onDelete, busy }) {
   const hasDraft = Boolean(item.draft_updated_at);
   const [title, setTitle] = useState(hasDraft ? (item.draft_title || '') : (item.title || ''));
   const [body, setBody] = useState(hasDraft ? (item.draft_body || '') : (item.body_text || ''));
@@ -112,7 +114,7 @@ function PostEditor({ item, onClose, onSave, onGenerate, busy }) {
     setBody(item.draft_updated_at ? (item.draft_body || '') : (item.body_text || ''));
     setImageUrl(item.draft_updated_at ? (item.draft_image_url || '') : previewImage(item));
   }, [item]);
-  return <div className="editor-backdrop" role="presentation" onMouseDown={event => { if (event.target === event.currentTarget) onClose(); }}><section className="post-editor" role="dialog" aria-modal="true" aria-label="Modifica post potenziale"><div className="editor-head"><div><p className="kicker">SUPERVISORE EDITORIALE</p><h2>Articolo per il sito</h2><p>Il contenuto originale resta intatto; la bozza viene costruita a parte.</p></div><button className="close-editor" onClick={onClose} aria-label="Chiudi">×</button></div><div className="editor-supervisor"><button type="button" className="ai-generate" onClick={() => onGenerate(item.id)} disabled={busy}>✦ {busy ? 'Il supervisore sta lavorando…' : 'Trasforma in articolo SEO'}</button>{item.editorial_notes && <span>{item.editorial_notes}</span>}{item.seo_score > 0 && <b>SEO {item.seo_score}/100</b>}</div><div className="editor-layout"><form onSubmit={event => { event.preventDefault(); onSave(item.id, { title, body, image_url: imageUrl }); }}><label>Titolo<input value={title} onChange={event => setTitle(event.target.value)} placeholder="Titolo dell’articolo" /></label><label>Testo completo<textarea value={body} onChange={event => setBody(event.target.value)} placeholder="Corpo dell’articolo" /></label><label>Immagine<input type="url" value={imageUrl} onChange={event => setImageUrl(event.target.value)} placeholder="https://…" /></label><div className="editor-actions"><button type="button" className="ghost" onClick={onClose}>Annulla</button><button className="primary" disabled={busy}>{busy ? 'Salvataggio…' : 'Salva bozza'}</button></div></form><aside className="post-preview">{imageUrl ? <img src={imageUrl} alt="Anteprima" /> : <div className="preview-placeholder">Nessuna immagine</div>}<small>ANTEPRIMA ARTICOLO</small><h3>{title || 'Titolo dell’articolo'}</h3><p>{body ? body.replace(/<[^>]+>/g, ' ') : 'Il testo comparirà qui.'}</p><a href={item.source_url} target="_blank" rel="noreferrer">Vedi originale sul social ↗</a></aside></div><details className="original-data"><summary>Leggi tutto il contenuto originale importato</summary><h4>{item.title || 'Senza titolo'}</h4><p>{item.body_text || 'Nessun testo originale disponibile.'}</p></details></section></div>;
+  return <div className="editor-backdrop" role="presentation" onMouseDown={event => { if (event.target === event.currentTarget) onClose(); }}><section className="post-editor" role="dialog" aria-modal="true" aria-label="Modifica post potenziale"><div className="editor-head"><div><p className="kicker">SUPERVISORE EDITORIALE</p><h2>Articolo per il sito</h2><p>Il contenuto originale resta intatto; la bozza viene costruita a parte.</p></div><button className="close-editor" onClick={onClose} aria-label="Chiudi">×</button></div><div className="editor-supervisor"><button type="button" className="ai-generate" onClick={() => onGenerate(item.id)} disabled={busy}>✦ {busy ? 'Il supervisore sta lavorando…' : 'Trasforma in articolo SEO'}</button>{item.editorial_notes && <span>{item.editorial_notes}</span>}{item.seo_score > 0 && <b>SEO {item.seo_score}/100</b>}</div><div className="editor-layout"><form onSubmit={event => { event.preventDefault(); onSave(item.id, { title, body, image_url: imageUrl }); }}><label>Titolo<input value={title} onChange={event => setTitle(event.target.value)} placeholder="Titolo dell’articolo" /></label><label className="quill-label">Testo completo<ReactQuill theme="snow" value={body} onChange={setBody} placeholder="Corpo dell’articolo" /></label><label>Immagine<input type="url" value={imageUrl} onChange={event => setImageUrl(event.target.value)} placeholder="https://…" /></label><div className="editor-actions"><button type="button" className="btn-danger" onClick={() => { if (window.confirm('Sei sicuro di voler eliminare questo post definitivamente?')) onDelete(item.id); }} disabled={busy}>Elimina post</button><button type="button" className="ghost" onClick={onClose}>Annulla</button><button className="primary" disabled={busy}>{busy ? 'Salvataggio…' : 'Salva bozza'}</button></div></form><aside className="post-preview">{imageUrl ? <img src={imageUrl} alt="Anteprima" /> : <div className="preview-placeholder">Nessuna immagine</div>}<small>ANTEPRIMA ARTICOLO</small><h3>{title || 'Titolo dell’articolo'}</h3><div className="preview-body-html" dangerouslySetInnerHTML={{ __html: body ? body : 'Il testo comparirà qui.' }} /><a href={item.source_url} target="_blank" rel="noreferrer">Vedi originale sul social ↗</a></aside></div><details className="original-data"><summary>Leggi tutto il contenuto originale importato</summary><h4>{item.title || 'Senza titolo'}</h4><p>{item.body_text || 'Nessun testo originale disponibile.'}</p></details></section></div>;
 }
 
 function AdminPanel({ token, currentUser, onBack, onImpersonate }) {
@@ -203,6 +205,14 @@ function Dashboard({ token, user, onLogout, onAdmin }) {
     try { const result = await request('editorial-generate', token, { method:'POST', body:JSON.stringify({ content_id:contentId }) }); setData(old=>({...old,contents:old.contents.map(item=>item.id===contentId?{...item,...result.content}:item)})); setEditingPost(old=>old?{...old,...result.content}:old); }
     catch(e) { setError(`Supervisore editoriale: ${e.message}`); } finally { setPostBusy(false); }
   }
+  async function deleteArticle(contentId) {
+    setPostBusy(true); setError('');
+    try {
+      await request('delete-post', token, { method: 'POST', body: JSON.stringify({ content_id: contentId }) });
+      setData(old => ({ ...old, contents: old.contents.filter(item => item.id !== contentId) }));
+      setEditingPost(null);
+    } catch (e) { setError(e.message); } finally { setPostBusy(false); }
+  }
   const total = useMemo(() => data.sources.reduce((sum, item) => sum + Number(item.content_count || 0), 0), [data.sources]);
   if (loading) return <div className="loading">Caricamento archivio…</div>;
   return <div className="app-shell">
@@ -225,7 +235,7 @@ function Dashboard({ token, user, onLogout, onAdmin }) {
         {data.contents.length === 0 ? <div className="empty-wide">Nessun contenuto importato.</div> : <div className="post-grid">{data.contents.map(item => { const image = item.draft_updated_at ? item.draft_image_url : previewImage(item); const title = item.draft_updated_at ? item.draft_title : item.title; const body = item.draft_updated_at ? item.draft_body : item.body_text; return <article className="post-card" key={item.id}>{image ? <img src={image} alt="" loading="lazy" /> : <div className="post-no-image">{PLATFORM[item.platform]?.mark || 'WWW'}</div>}<div className="post-card-body"><div className="post-meta"><span>{item.source_label}</span><time>{new Date(item.published_at || item.imported_at).toLocaleDateString('it-IT')}</time></div><h3>{title || 'Contenuto senza titolo'}</h3><p>{body ? body.replace(/<[^>]+>/g,' ') : 'Nessun testo disponibile.'}</p><div className="post-card-actions"><button onClick={() => setEditingPost(item)}>{item.generated_at ? 'Apri articolo' : 'Supervisore AI'}</button><a href={item.source_url} target="_blank" rel="noreferrer">Originale ↗</a></div>{item.generated_at && <em>ARTICOLO SEO · {item.seo_score}/100</em>}</div></article>; })}</div>}
       </section>
     </main>
-    {editingPost && <PostEditor item={editingPost} onClose={() => setEditingPost(null)} onSave={savePotentialPost} onGenerate={generateArticle} busy={postBusy} />}
+    {editingPost && <PostEditor item={editingPost} onClose={() => setEditingPost(null)} onSave={savePotentialPost} onGenerate={generateArticle} onDelete={deleteArticle} busy={postBusy} />}
     <footer>LinkSeoWeb <span>•</span> Originali invariati <span>•</span> Supervisione editoriale AI separata</footer>
   </div>;
 }

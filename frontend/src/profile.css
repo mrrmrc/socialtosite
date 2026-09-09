@@ -75,13 +75,19 @@ body { background: #f2f5f2; }
 .post-editor label { display: grid; gap: 8px; font-size: 12px; font-weight: 800; }
 .post-editor textarea { min-height: 290px; resize: vertical; line-height: 1.55; }
 .editor-actions { display: flex; justify-content: flex-end; gap: 10px; }
+.btn-danger { background: #d94545; color: white; border: 0; border-radius: 9px; padding: 11px 14px; font-weight: 800; font-size: 11px; margin-right: auto; }
+.btn-danger:hover { background: #c23b3b; }
+.quill-label .ql-container { min-height: 250px; background: #fff; border-bottom-left-radius: 9px; border-bottom-right-radius: 9px; font-family: inherit; font-size: 14px; }
+.quill-label .ql-toolbar { background: #f9fbf9; border-top-left-radius: 9px; border-top-right-radius: 9px; border-color: #dce4dd; }
+.quill-label .ql-container.ql-snow { border-color: #dce4dd; }
 .post-preview { overflow: hidden; align-self: start; border: 1px solid #dfe6e0; border-radius: 18px; background: #fbfcfb; padding-bottom: 22px; }
 .post-preview > img, .preview-placeholder { width: 100%; height: 230px; object-fit: cover; background: #e9eeea; }
 .preview-placeholder { display: grid; place-items: center; color: var(--muted); }
 .post-preview > small, .post-preview > h3, .post-preview > p, .post-preview > a { display: block; margin-left: 22px; margin-right: 22px; }
 .post-preview > small { margin-top: 19px; color: var(--green); font-weight: 900; letter-spacing: .1em; }
 .post-preview > h3 { margin-top: 8px; margin-bottom: 10px; font-family: Georgia,serif; font-size: 25px; }
-.post-preview > p { max-height: 145px; overflow: auto; color: var(--muted); line-height: 1.5; }
+.preview-body-html { max-height: 145px; overflow: auto; color: var(--muted); line-height: 1.5; font-size: 13px; margin: 0 22px; }
+.preview-body-html p { margin-top: 0; margin-bottom: 10px; }
 .post-preview > a { margin-top: 18px; color: var(--green); font-size: 12px; font-weight: 800; }
 .original-data { margin-top: 24px; border-top: 1px solid #e2e8e3; padding-top: 18px; color: var(--muted); }
 .original-data summary { cursor: pointer; color: var(--green); font-weight: 800; }
