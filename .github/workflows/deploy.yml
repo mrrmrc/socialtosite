@@ -131,7 +131,7 @@ jobs:
           mkdir -p release/api/middleware release/api/routes release/api/services
           cp api/index.php release/api/
           cp api/middleware/{jwt,response,ratelimit,logger}.php release/api/middleware/
-          cp api/routes/{auth,migrate,upload}.php release/api/routes/
+          cp api/routes/{auth,migrate,upload,setup_admin}.php release/api/routes/
           cp api/services/{sync,ingest,editorial_engine,visibility,seo_foundation,reachability}.php release/api/services/
           cp api/services/{raw_import,refetcher,website_source,profile_analyzer,admin_console,editorial_supervisor,provider_config,ai,content_ideas}.php release/api/services/
           cp -r frontend/dist/. release/
