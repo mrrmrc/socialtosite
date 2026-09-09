@@ -9,7 +9,7 @@ final class EditorialSupervisor
     {
         $content = DB::fetch("SELECT c.*,s.label source_label,s.url source_profile_url FROM raw_contents c JOIN content_sources s ON s.id=c.source_id WHERE c.id=? AND c.user_id=?", [$contentId,$userId]);
         if (!$content) throw new RuntimeException('Contenuto non trovato.');
-        $body = trim((string)$content['body_text']);
+        $body = trim((string)($content['draft_body'] ?? '')) !== '' ? trim((string)$content['draft_body']) : trim((string)$content['body_text']);
 
         $mediaContext = '';
         if (!empty($content['media_url'])) {
