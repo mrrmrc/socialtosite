@@ -623,6 +623,25 @@ Restituisci SOLO la nuova memoria aggiornata (testo semplice), nient'altro.";
         ]));
     }
 
+    public static function transcribeMediaUrl(string $url): string {
+        try {
+            $bytes = @file_get_contents($url);
+            if ($bytes === false || $bytes === '') return '';
+            $finfo = new finfo(FILEINFO_MIME_TYPE);
+            $mime = $finfo->buffer($bytes) ?: 'video/mp4';
+            return trim(self::gemini([
+                ['inlineData' => ['mimeType' => $mime, 'data' => base64_encode($bytes)]],
+                ['text' => "Trascrivi INTEGRALMENTE e VERBATIM, in italiano, tutto il parlato dall'inizio alla fine. NON riassumere. Se nel video NON c'� parlato, analizza visivamente il video e descrivi nel dettaglio tutti i concetti mostrati. Solo il testo della trascrizione o descrizione."],
+            ], [
+                '_timeout'       => 300,
+                'temperature'    => 0,
+                'maxOutputTokens'=> 65536,
+            ]));
+        } catch (Exception $e) {
+            return '';
+        }
+    }
+
     // ── Trascrivi un file audio/video già scaricato ────────────────────────
     public static function transcribeFile(string $path, string $mime = 'video/mp4'): string {
         $bytes = @file_get_contents($path);
@@ -637,6 +656,25 @@ Restituisci SOLO la nuova memoria aggiornata (testo semplice), nient'altro.";
             'maxOutputTokens'=> 65536,
             'thinkingConfig' => ['thinkingBudget' => 0],
         ]));
+    }
+
+    public static function transcribeMediaUrl(string $url): string {
+        try {
+            $bytes = @file_get_contents($url);
+            if ($bytes === false || $bytes === '') return '';
+            $finfo = new finfo(FILEINFO_MIME_TYPE);
+            $mime = $finfo->buffer($bytes) ?: 'video/mp4';
+            return trim(self::gemini([
+                ['inlineData' => ['mimeType' => $mime, 'data' => base64_encode($bytes)]],
+                ['text' => "Trascrivi INTEGRALMENTE e VERBATIM, in italiano, tutto il parlato dall'inizio alla fine. NON riassumere. Se nel video NON c'� parlato, analizza visivamente il video e descrivi nel dettaglio tutti i concetti mostrati. Solo il testo della trascrizione o descrizione."],
+            ], [
+                '_timeout'       => 300,
+                'temperature'    => 0,
+                'maxOutputTokens'=> 65536,
+            ]));
+        } catch (Exception $e) {
+            return '';
+        }
     }
 
     private static function decodeJsonObject(string $text): ?array {
@@ -908,6 +946,25 @@ Restituisci SOLO la nuova memoria aggiornata (testo semplice), nient'altro.";
         return trim(self::gemini([['text' => $prompt]], [
             'maxOutputTokens' => 2048,
         ]));
+    }
+
+    public static function transcribeMediaUrl(string $url): string {
+        try {
+            $bytes = @file_get_contents($url);
+            if ($bytes === false || $bytes === '') return '';
+            $finfo = new finfo(FILEINFO_MIME_TYPE);
+            $mime = $finfo->buffer($bytes) ?: 'video/mp4';
+            return trim(self::gemini([
+                ['inlineData' => ['mimeType' => $mime, 'data' => base64_encode($bytes)]],
+                ['text' => "Trascrivi INTEGRALMENTE e VERBATIM, in italiano, tutto il parlato dall'inizio alla fine. NON riassumere. Se nel video NON c'� parlato, analizza visivamente il video e descrivi nel dettaglio tutti i concetti mostrati. Solo il testo della trascrizione o descrizione."],
+            ], [
+                '_timeout'       => 300,
+                'temperature'    => 0,
+                'maxOutputTokens'=> 65536,
+            ]));
+        } catch (Exception $e) {
+            return '';
+        }
     }
 
     public static function editorialProfile(array $sources, array $samplePosts, string $profileOverride = ''): array {

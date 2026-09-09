@@ -10,13 +10,22 @@ final class EditorialSupervisor
         $content = DB::fetch("SELECT c.*,s.label source_label,s.url source_profile_url FROM raw_contents c JOIN content_sources s ON s.id=c.source_id WHERE c.id=? AND c.user_id=?", [$contentId,$userId]);
         if (!$content) throw new RuntimeException('Contenuto non trovato.');
         $body = trim((string)$content['body_text']);
-        if ($body === '') throw new RuntimeException('Il post non contiene testo sufficiente da elaborare.');
+
+        $mediaContext = '';
+        if (!empty($content['media_url'])) {
+            try {
+                $mediaContext = AI::analyzePostMedia((string)$content['platform'], (string)$content['media_url'], (string)$content['media_type'], (string)$content['source_url']);
+            } catch (Throwable $e) {}
+        }
+
+        if ($body === '' && $mediaContext === '') throw new RuntimeException('Il post non contiene testo sufficiente da elaborare e l\'analisi del media è fallita.');
         $profile = DB::fetch('SELECT * FROM user_content_profiles WHERE user_id=?', [$userId]) ?: [];
         $context = "Identita e pubblico:\n" . trim((string)($profile['summary'] ?? ''))
             . "\nTono: " . trim((string)($profile['tone'] ?? ''))
             . "\nTemi: " . trim((string)($profile['topics'] ?? '[]'))
             . "\nSorgente: " . trim((string)$content['source_label']) . ' — ' . trim((string)$content['source_profile_url']);
         $source = trim((string)$content['title'] . "\n\n" . $body);
+        if ($mediaContext !== '') $source .= "\n\n[Trascrizione / Analisi visiva del media allegato]\n" . $mediaContext;
         $result = AI::harmonize($source, (string)$content['platform'], $body, $context, 'content_editor', 'business', '', 'compact', $userId);
         $reviewNotes = 'Prima stesura approvata dal revisore automatico.';
         try {
