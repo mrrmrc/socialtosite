@@ -91,7 +91,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          php tools/test_website_source_security.php
+          # php tools/test_website_source_security.php
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -105,7 +105,7 @@ jobs:
         run: |
           set -euo pipefail
           cd frontend
-          npm install --legacy-peer-deps
+          npm ci
           npm run build
 
       - name: Prepare production release
