@@ -87,8 +87,13 @@ final class RawImport
         self::addColumnIfMissing('raw_contents', 'post_status', "VARCHAR(30) NOT NULL DEFAULT 'potential' AFTER media_type");
         self::addColumnIfMissing('raw_contents', 'draft_title', 'TEXT NULL AFTER post_status');
         self::addColumnIfMissing('raw_contents', 'draft_body', 'LONGTEXT NULL AFTER draft_title');
-        self::addColumnIfMissing('raw_contents', 'draft_image_url', 'TEXT NULL AFTER draft_body');
-        self::addColumnIfMissing('raw_contents', 'draft_updated_at', 'DATETIME NULL AFTER draft_image_url');
+        self::addColumnIfMissing('raw_contents', 'draft_excerpt', 'TEXT NULL AFTER draft_body');
+        self::addColumnIfMissing('raw_contents', 'tags', 'TEXT NULL AFTER draft_excerpt');
+        self::addColumnIfMissing('raw_contents', 'draft_image_url', 'TEXT NULL AFTER tags');
+        self::addColumnIfMissing('raw_contents', 'media_alignment', 'VARCHAR(20) NULL AFTER draft_image_url');
+        self::addColumnIfMissing('raw_contents', 'media_display_width', 'VARCHAR(20) NULL AFTER media_alignment');
+        self::addColumnIfMissing('raw_contents', 'noindex', 'TINYINT(1) NOT NULL DEFAULT 0 AFTER media_display_width');
+        self::addColumnIfMissing('raw_contents', 'draft_updated_at', 'DATETIME NULL AFTER noindex');
         self::addColumnIfMissing('raw_contents', 'editorial_status', "VARCHAR(30) NOT NULL DEFAULT 'raw' AFTER draft_updated_at");
         self::addColumnIfMissing('raw_contents', 'editorial_notes', 'TEXT NULL AFTER editorial_status');
         self::addColumnIfMissing('raw_contents', 'seo_score', 'INT NOT NULL DEFAULT 0 AFTER editorial_notes');
@@ -191,6 +196,41 @@ final class RawImport
         $content = DB::fetch('SELECT id FROM raw_contents WHERE id=? AND user_id=?', [$contentId, $userId]);
         if (!$content) throw new RuntimeException('Contenuto non trovato.');
         DB::execute('DELETE FROM raw_contents WHERE id=? AND user_id=?', [$contentId, $userId]);
+    }
+
+    public static function bulkDeletePosts(int $userId, array $contentIds): void
+    {
+        self::ensureSchema();
+        if (empty($contentIds)) return;
+        $placeholders = implode(',', array_fill(0, count($contentIds), '?'));
+        $params = array_merge($contentIds, [$userId]);
+        DB::execute("DELETE FROM raw_contents WHERE id IN ($placeholders) AND user_id=?", $params);
+    }
+
+    public static function updatePost(int $userId, array $data): array
+    {
+        self::ensureSchema();
+        $contentId = (int)($data['id'] ?? 0);
+        $content = DB::fetch('SELECT id FROM raw_contents WHERE id=? AND user_id=?', [$contentId, $userId]);
+        if (!$content) throw new RuntimeException('Contenuto non trovato.');
+
+        $title = trim((string)($data['edited_title'] ?? ''));
+        $body = trim((string)($data['edited_body'] ?? ''));
+        $excerpt = trim((string)($data['edited_excerpt'] ?? ''));
+        $tags = is_array($data['tags'] ?? null) ? implode(',', array_map('trim', $data['tags'])) : trim((string)($data['tags'] ?? ''));
+        $imageUrl = trim((string)($data['media_url'] ?? ''));
+        $mediaType = trim((string)($data['media_type'] ?? ''));
+        $mediaWidth = trim((string)($data['media_display_width'] ?? ''));
+        $mediaAlignment = trim((string)($data['media_alignment'] ?? ''));
+        $noindex = (int)($data['noindex'] ?? 0);
+
+        if (mb_strlen($title) > 1000) throw new InvalidArgumentException('Il titolo supera i 1.000 caratteri.');
+        if (mb_strlen($body) > 500000) throw new InvalidArgumentException('Il testo supera la dimensione consentita.');
+
+        DB::execute('UPDATE raw_contents SET draft_title=?, draft_body=?, draft_excerpt=?, tags=?, draft_image_url=?, media_type=?, media_display_width=?, media_alignment=?, noindex=?, draft_updated_at=NOW() WHERE id=? AND user_id=?', 
+            [$title, $body, $excerpt, $tags, $imageUrl ?: null, $mediaType ?: null, $mediaWidth ?: null, $mediaAlignment ?: null, $noindex, $contentId, $userId]);
+            
+        return DB::fetch('SELECT * FROM raw_contents WHERE id=? AND user_id=?', [$contentId, $userId]);
     }
 
     public static function createRun(int $userId, int $sourceId): array

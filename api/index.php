@@ -80,13 +80,37 @@ if ($action === 'potential-post' && $method === 'POST') {
 if ($action === 'delete-post' && $method === 'POST') {
     $payload = body();
     try {
-        RawImport::deletePotentialPost($userId, (int)($payload['content_id'] ?? 0));
+        $contentId = (int)($payload['id'] ?? $payload['content_id'] ?? 0);
+        RawImport::deletePotentialPost($userId, $contentId);
         json(['success' => true]);
     } catch (InvalidArgumentException $e) {
         jsonError($e->getMessage(), 422);
+    } catch (RuntimeException $e) {
+        jsonError($e->getMessage(), 404);
     }
 }
 
+if ($action === 'bulk-delete-posts' && $method === 'POST') {
+    $payload = body();
+    $ids = array_filter(array_map('intval', $payload['ids'] ?? []));
+    try {
+        RawImport::bulkDeletePosts($userId, $ids);
+        json(['success' => true]);
+    } catch (RuntimeException $e) {
+        jsonError($e->getMessage(), 404);
+    }
+}
+
+if ($action === 'post-update' && $method === 'POST') {
+    $payload = body();
+    try {
+        json(['content' => RawImport::updatePost($userId, $payload)]);
+    } catch (InvalidArgumentException $e) {
+        jsonError($e->getMessage(), 422);
+    } catch (RuntimeException $e) {
+        jsonError($e->getMessage(), 404);
+    }
+}
 if ($action === 'import-start' && $method === 'POST') {
     $payload = body();
     json(['run' => RawImport::createRun($userId, (int)($payload['source_id'] ?? 0))], 201);
