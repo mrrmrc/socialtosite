@@ -77,8 +77,10 @@ jobs:
             php -l "$file" >/dev/null 2>&1 || { echo "::error file=$file::PHP syntax error"; php -l "$file"; errors=1; }
           done < <(printf '%s\0' \
             api/index.php \
-            api/middleware/jwt.php api/middleware/response.php api/middleware/ratelimit.php \
+            api/middleware/jwt.php api/middleware/response.php api/middleware/ratelimit.php api/middleware/logger.php \
             api/routes/auth.php \
+            api/services/sync.php api/services/ingest.php api/services/editorial_engine.php \
+            api/services/visibility.php api/services/seo_foundation.php api/services/reachability.php \
             api/services/raw_import.php api/services/refetcher.php api/services/website_source.php api/services/profile_analyzer.php \
             api/services/admin_console.php api/services/editorial_supervisor.php api/services/provider_config.php \
             api/services/ai.php api/services/content_ideas.php \
@@ -128,8 +130,9 @@ jobs:
 
           mkdir -p release/api/middleware release/api/routes release/api/services
           cp api/index.php release/api/
-          cp api/middleware/{jwt,response,ratelimit}.php release/api/middleware/
-          cp api/routes/auth.php release/api/routes/
+          cp api/middleware/{jwt,response,ratelimit,logger}.php release/api/middleware/
+          cp api/routes/{auth,migrate,upload}.php release/api/routes/
+          cp api/services/{sync,ingest,editorial_engine,visibility,seo_foundation,reachability}.php release/api/services/
           cp api/services/{raw_import,refetcher,website_source,profile_analyzer,admin_console,editorial_supervisor,provider_config,ai,content_ideas}.php release/api/services/
           cp -r frontend/dist/. release/
           cp .htaccess robots.txt deploy-info.json release/
