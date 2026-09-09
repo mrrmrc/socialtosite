@@ -89,6 +89,11 @@ final class RawImport
         self::addColumnIfMissing('raw_contents', 'draft_body', 'LONGTEXT NULL AFTER draft_title');
         self::addColumnIfMissing('raw_contents', 'draft_image_url', 'TEXT NULL AFTER draft_body');
         self::addColumnIfMissing('raw_contents', 'draft_updated_at', 'DATETIME NULL AFTER draft_image_url');
+        self::addColumnIfMissing('raw_contents', 'editorial_status', "VARCHAR(30) NOT NULL DEFAULT 'raw' AFTER draft_updated_at");
+        self::addColumnIfMissing('raw_contents', 'editorial_notes', 'TEXT NULL AFTER editorial_status');
+        self::addColumnIfMissing('raw_contents', 'seo_score', 'INT NOT NULL DEFAULT 0 AFTER editorial_notes');
+        self::addColumnIfMissing('raw_contents', 'meta_description', 'VARCHAR(255) NULL AFTER seo_score');
+        self::addColumnIfMissing('raw_contents', 'generated_at', 'DATETIME NULL AFTER meta_description');
         ProfileAnalyzer::ensureSchema();
         self::$schemaReady = true;
     }
@@ -148,7 +153,7 @@ final class RawImport
     {
         self::ensureSchema();
         $sources = DB::fetchAll("SELECT s.id,s.user_id,s.platform,s.label,s.url,s.url_hash,s.since_date,s.acquisition_limit,s.status,s.last_message,s.last_import_at,s.created_at,s.updated_at,COUNT(c.id) content_count FROM content_sources s LEFT JOIN raw_contents c ON c.source_id=s.id WHERE s.user_id=? GROUP BY s.id ORDER BY s.created_at DESC", [$userId]);
-        $contents = DB::fetchAll("SELECT c.id, c.platform, c.source_url, c.title, c.body_text, c.media_url, c.image_urls, c.media_type, c.post_status, c.draft_title, c.draft_body, c.draft_image_url, c.draft_updated_at, c.published_at, c.imported_at, s.label source_label FROM raw_contents c JOIN content_sources s ON s.id=c.source_id WHERE c.user_id=? ORDER BY COALESCE(c.published_at, c.imported_at) DESC LIMIT 100", [$userId]);
+        $contents = DB::fetchAll("SELECT c.id, c.platform, c.source_url, c.title, c.body_text, c.media_url, c.image_urls, c.media_type, c.post_status, c.draft_title, c.draft_body, c.draft_image_url, c.draft_updated_at, c.editorial_status, c.editorial_notes, c.seo_score, c.meta_description, c.generated_at, c.published_at, c.imported_at, s.label source_label FROM raw_contents c JOIN content_sources s ON s.id=c.source_id WHERE c.user_id=? ORDER BY COALESCE(c.published_at, c.imported_at) DESC LIMIT 100", [$userId]);
         $latestRun = DB::fetch('SELECT r.*, s.label source_label, s.platform FROM import_runs r JOIN content_sources s ON s.id=r.source_id WHERE r.user_id=? ORDER BY r.id DESC LIMIT 1', [$userId]);
         return ['sources' => $sources, 'contents' => $contents, 'latest_run' => $latestRun, 'profile' => ProfileAnalyzer::profile($userId), 'profile_questions' => ProfileAnalyzer::questions($userId)];
     }

@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/provider_config.php';
 
 /**
  * Unico gateway per l'acquisizione dei contenuti social pubblici.
@@ -40,6 +41,9 @@ final class Refetcher {
     }
 
     private static function apiKey(): string {
+        if (!ProviderConfig::enabled('refetcher')) throw new RuntimeException('Connessione Refetch(er) disattivata dal pannello amministrativo');
+        $managed = ProviderConfig::secret('refetcher');
+        if ($managed !== '') return $managed;
         $environmentValue = getenv('REFETCHER_API_KEY');
         if ($environmentValue !== false && trim((string)$environmentValue) !== '') {
             return trim((string)$environmentValue);
@@ -86,6 +90,10 @@ final class Refetcher {
             }
             throw new RuntimeException('Refetch(er): ' . ($message ?: 'richiesta fallita') . ' (HTTP ' . $status . ')');
         }
+        try {
+            global $userId;
+            DB::execute('INSERT INTO api_usage_logs (user_id,provider,action,tokens_used) VALUES (?,?,?,0)', [isset($userId) ? $userId : null,'refetcher',(string)($payload['type'] ?? (!empty($payload['urls']) ? 'details' : 'fetch'))]);
+        } catch (Throwable $e) {}
         return $data;
     }
 
@@ -120,10 +128,18 @@ final class Refetcher {
         $media = is_array($result['media'] ?? null) ? $result['media'] : (is_array($post['media'] ?? null) ? $post['media'] : []);
         $url = self::itemUrl($result) ?: self::itemUrl($post);
         if ($url === '') return null;
-        $captionParts = array_filter(array_map('trim', [
-            (string)($post['caption'] ?? ''),
-            (string)($post['description'] ?? ''),
-        ]));
+        // Ogni social usa campi diversi per il testo esteso. Conserviamo tutte
+        // le parti editoriali note, senza troncare e senza includere commenti.
+        $captionParts = [];
+        foreach ([$post, $result] as $candidate) {
+            foreach (['caption','description','text','fullText','message','content','videoDescription','accessibilityCaption'] as $key) {
+                $value = $candidate[$key] ?? '';
+                if (is_scalar($value) && trim((string)$value) !== '') $captionParts[] = trim((string)$value);
+            }
+        }
+        $edgeCaption = $post['edge_media_to_caption']['edges'][0]['node']['text'] ?? '';
+        if (is_scalar($edgeCaption) && trim((string)$edgeCaption) !== '') $captionParts[] = trim((string)$edgeCaption);
+        $captionParts = array_values(array_unique($captionParts));
         $caption = implode("\n\n", array_values(array_unique($captionParts)));
         $title = trim((string)($post['title'] ?? ''));
         if ($caption === '') $caption = $title;
@@ -312,12 +328,22 @@ final class Refetcher {
             }
             $debug['complete_items'] = count($complete);
             $debug['light_links'] = count($lightUrls);
-            $rawItems = $complete;
-            foreach (array_chunk(array_slice($lightUrls, 0, $limit), 10) as $chunk) {
+            // Il testo incluso nella risposta profilo e spesso una preview.
+            // Apriamo quindi ogni singolo URL scoperto, anche se contiene gia
+            // una caption, e usiamo il record del profilo soltanto come fallback.
+            $detailedByUrl = [];
+            foreach (array_chunk(array_slice(array_keys($discovered), 0, $limit), 10) as $chunk) {
                 $debug['provider_requests']++;
                 $details = self::successfulResults(self::request(['urls' => $chunk]));
                 $debug['detail_results'] += count($details);
-                $rawItems = array_merge($rawItems, $details);
+                foreach ($details as $detail) {
+                    $detailUrl = self::itemUrl($detail);
+                    if ($detailUrl !== '') $detailedByUrl[rtrim($detailUrl, '/')] = $detail;
+                }
+            }
+            $rawItems = [];
+            foreach (array_slice($discovered, 0, $limit, true) as $itemUrl => $profileItem) {
+                $rawItems[] = $detailedByUrl[rtrim($itemUrl, '/')] ?? ($profileItem + ['url'=>$itemUrl]);
             }
         }
 

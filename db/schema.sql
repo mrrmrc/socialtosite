@@ -91,6 +91,11 @@ CREATE TABLE IF NOT EXISTS raw_contents (
   draft_body LONGTEXT NULL,
   draft_image_url TEXT NULL,
   draft_updated_at DATETIME NULL,
+  editorial_status VARCHAR(30) NOT NULL DEFAULT 'raw',
+  editorial_notes TEXT NULL,
+  seo_score INT NOT NULL DEFAULT 0,
+  meta_description VARCHAR(255) NULL,
+  generated_at DATETIME NULL,
   published_at DATETIME NULL,
   raw_payload LONGTEXT NOT NULL,
   imported_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -232,6 +237,35 @@ CREATE TABLE IF NOT EXISTS agent_prompts (
   id             INT AUTO_INCREMENT PRIMARY KEY,
   agent_name     VARCHAR(50) UNIQUE NOT NULL,
   instructions   TEXT NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS ai_provider_connections (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  provider VARCHAR(40) NOT NULL UNIQUE,
+  label VARCHAR(100) NOT NULL,
+  model VARCHAR(120) NULL,
+  secret_ciphertext LONGTEXT NULL,
+  monthly_credit DECIMAL(12,2) NULL,
+  enabled TINYINT NOT NULL DEFAULT 1,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS api_usage_logs (
+  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  user_id INT NULL,
+  provider VARCHAR(40) NOT NULL,
+  action VARCHAR(100) NOT NULL,
+  tokens_used INT NOT NULL DEFAULT 0,
+  estimated_cost DECIMAL(12,6) NOT NULL DEFAULT 0,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  KEY usage_provider_date (provider, created_at),
+  KEY usage_user_date (user_id, created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS app_settings (
+  setting_key VARCHAR(100) PRIMARY KEY,
+  setting_value TEXT NULL,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS login_attempts (

@@ -1,8 +1,9 @@
 # LinkSeoWeb Content Import
 
-MVP per collegare sorgenti pubbliche tramite URL e conservarne i contenuti
-originali in MariaDB. Non genera testi, non modifica i contenuti e non pubblica
-siti o post.
+Applicazione per collegare sorgenti pubbliche tramite URL, conservarne il
+contenuto originale in MariaDB e trasformarlo, su richiesta, in una bozza
+editoriale separata e ottimizzata per la ricerca. L'originale non viene mai
+sovrascritto.
 
 ## Funzioni
 
@@ -12,6 +13,10 @@ siti o post.
 - Deduplica sul link originale.
 - Archivio degli ultimi contenuti importati.
 - Persistenza del payload originale restituito dalla sorgente.
+- Supervisore editoriale AI con controllo di fedelta, intento di ricerca,
+  struttura dell'articolo e metadati SEO.
+- Pannello amministrativo protetto da ruolo per utenti, accesso assistito alle
+  loro aree, agenti AI, connessioni cifrate, budget e consumi.
 
 ## Dati
 
@@ -21,8 +26,8 @@ Il nuovo flusso utilizza esclusivamente:
 - `import_runs`: stato e contatori di ogni acquisizione.
 - `raw_contents`: testo, media, metadati e payload originali.
 
-Le vecchie tabelle non vengono eliminate automaticamente e non sono lette dal
-nuovo runtime.
+Le vecchie tabelle non vengono eliminate automaticamente. Il runtime aggiorna
+in modo incrementale lo schema necessario alle funzioni attive.
 
 ## Sviluppo frontend
 

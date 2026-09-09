@@ -24,10 +24,13 @@ require_once __DIR__ . '/../config/db.php';
 require_once __DIR__ . '/middleware/jwt.php';
 require_once __DIR__ . '/middleware/response.php';
 require_once __DIR__ . '/services/raw_import.php';
+require_once __DIR__ . '/services/admin_console.php';
+require_once __DIR__ . '/services/editorial_supervisor.php';
 
 cors();
 $method = $_SERVER['REQUEST_METHOD'];
 $action = $_GET['action'] ?? '';
+AdminConsole::ensureSchema();
 
 if ($action === 'login' && $method === 'POST') {
     require __DIR__ . '/routes/auth.php';
@@ -100,6 +103,32 @@ if ($action === 'profile-answer' && $method === 'POST') {
     } catch (InvalidArgumentException $e) {
         jsonError($e->getMessage(), 422);
     }
+}
+
+if ($action === 'editorial-generate' && $method === 'POST') {
+    $payload = body();
+    try { json(['content'=>EditorialSupervisor::generate($userId,(int)($payload['content_id'] ?? 0))]); }
+    catch (InvalidArgumentException $e) { jsonError($e->getMessage(),422); }
+}
+
+if (str_starts_with($action, 'admin-')) AdminConsole::requireAdmin($user);
+if ($action === 'admin-overview' && $method === 'GET') json(AdminConsole::overview());
+if ($action === 'admin-create-user' && $method === 'POST') {
+    try { json(['user'=>AdminConsole::createUser(body())],201); }
+    catch (InvalidArgumentException|PDOException $e) { jsonError($e instanceof PDOException ? 'Username/email gia in uso.' : $e->getMessage(),422); }
+}
+if ($action === 'admin-update-user' && $method === 'POST') {
+    try { json(['user'=>AdminConsole::updateUser(body(),$userId)]); }
+    catch (InvalidArgumentException $e) { jsonError($e->getMessage(),422); }
+}
+if ($action === 'admin-impersonate' && $method === 'POST') json(AdminConsole::impersonate($userId,(int)(body()['id'] ?? 0)));
+if ($action === 'admin-agent' && $method === 'POST') {
+    try { json(['agent'=>AdminConsole::updateAgent(body())]); }
+    catch (InvalidArgumentException $e) { jsonError($e->getMessage(),422); }
+}
+if ($action === 'admin-provider' && $method === 'POST') {
+    try { json(['provider'=>AdminConsole::updateProvider(body())]); }
+    catch (InvalidArgumentException $e) { jsonError($e->getMessage(),422); }
 }
 
 jsonError('Endpoint non trovato', 404);

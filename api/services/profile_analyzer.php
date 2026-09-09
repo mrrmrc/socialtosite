@@ -1,6 +1,7 @@
 <?php
 
 require_once __DIR__ . '/../../config/db.php';
+require_once __DIR__ . '/provider_config.php';
 
 final class ProfileAnalyzer
 {
@@ -176,9 +177,9 @@ final class ProfileAnalyzer
 
     private static function gemini(array $input): array
     {
-        $key = self::configValue('GEMINI_API_KEY', 'SOCIALTOSITE_RUNTIME_GEMINI_API_KEY');
+        $key = ProviderConfig::enabled('gemini') ? (ProviderConfig::secret('gemini') ?: self::configValue('GEMINI_API_KEY', 'SOCIALTOSITE_RUNTIME_GEMINI_API_KEY')) : '';
         if ($key === '') throw new RuntimeException('GEMINI_API_KEY non configurata sul server.');
-        $model = self::configValue('GEMINI_MODEL', 'SOCIALTOSITE_RUNTIME_GEMINI_MODEL') ?: 'gemini-2.5-flash';
+        $model = ProviderConfig::model('gemini') ?: (self::configValue('GEMINI_MODEL', 'SOCIALTOSITE_RUNTIME_GEMINI_MODEL') ?: 'gemini-2.5-flash');
         $payload = json_encode(['contents' => [['role' => 'user', 'parts' => [['text' => json_encode($input, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)]]]], 'generationConfig' => ['responseMimeType' => 'application/json', 'temperature' => 0.15]], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
         $ch = curl_init('https://generativelanguage.googleapis.com/v1beta/models/' . rawurlencode($model) . ':generateContent?key=' . rawurlencode($key));
         curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER => true, CURLOPT_POST => true, CURLOPT_POSTFIELDS => $payload, CURLOPT_HTTPHEADER => ['Content-Type: application/json'], CURLOPT_CONNECTTIMEOUT => 12, CURLOPT_TIMEOUT => 90, CURLOPT_SSL_VERIFYPEER => true, CURLOPT_SSL_VERIFYHOST => 2]);
@@ -190,6 +191,11 @@ final class ProfileAnalyzer
         $response = json_decode((string)$raw, true);
         if ($status < 200 || $status >= 300) throw new RuntimeException('Profilazione AI fallita (HTTP ' . $status . ').');
         $text = $response['candidates'][0]['content']['parts'][0]['text'] ?? '';
+        try {
+            global $userId;
+            $tokens = (int)($response['usageMetadata']['totalTokenCount'] ?? max(1,(strlen($payload) + strlen((string)$text)) / 4));
+            DB::execute('INSERT INTO api_usage_logs (user_id,provider,action,tokens_used) VALUES (?,?,?,?)', [isset($userId) ? $userId : null,'gemini','profileAnalysis',$tokens]);
+        } catch (Throwable $e) {}
         $result = json_decode((string)$text, true);
         if (!is_array($result)) throw new RuntimeException('La profilazione AI ha restituito dati non validi.');
         return $result;

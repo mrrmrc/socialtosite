@@ -18,7 +18,7 @@ if ($path === 'register') {
 // POST /api/auth.php?action=login
 if ($method === 'POST' && $path === 'login') {
     $b = body();
-    $email    = trim($b['email'] ?? '');
+    $email    = trim($b['email'] ?? $b['username'] ?? '');
     $password = $b['password'] ?? '';
 
     $ip = LoginGuard::clientIp();
@@ -29,11 +29,19 @@ if ($method === 'POST' && $path === 'login') {
         jsonError("Troppi tentativi di accesso. Riprova fra $minuti " . ($minuti === 1 ? 'minuto' : 'minuti') . '.', 429);
     }
 
-    $user = DB::fetch('SELECT * FROM users WHERE email=?', [$email]);
-    if (!$user || !password_verify($password, $user['password'])) {
+    $user = DB::fetch('SELECT * FROM users WHERE email=? OR slug=? LIMIT 1', [$email, $email]);
+    $storedPassword = (string)($user['password'] ?? '');
+    $legacySha = str_starts_with($storedPassword, '$sha256$');
+    $validPassword = $user && ($legacySha
+        ? hash_equals(substr($storedPassword, 8), hash('sha256', $password))
+        : password_verify($password, $storedPassword));
+    if (!$validPassword) {
         LoginGuard::record($email, $ip, false);
         jsonError('Credenziali non valide', 401);
     }
+    // Il bootstrap non conserva la password in chiaro: al primo accesso il
+    // digest provvisorio viene sostituito con password_hash nativo e salato.
+    if ($legacySha) DB::execute('UPDATE users SET password=? WHERE id=?', [password_hash($password, PASSWORD_DEFAULT), $user['id']]);
     LoginGuard::record($email, $ip, true);
 
     $role = $user['role'] ?? 'user';

@@ -6,9 +6,15 @@ if (file_exists(__DIR__ . '/../../config/keys.php')) require_once __DIR__ . '/..
 if (file_exists(__DIR__ . '/../../config/runtime-secrets.php')) require_once __DIR__ . '/../../config/runtime-secrets.php';
 if (file_exists(__DIR__ . '/../middleware/logger.php')) require_once __DIR__ . '/../middleware/logger.php';
 require_once __DIR__ . '/content_ideas.php';
+require_once __DIR__ . '/provider_config.php';
 
 class AI {
     private static function configValue(string $name): string {
+        if ($name === 'GEMINI_API_KEY') {
+            if (!ProviderConfig::enabled('gemini')) return '';
+            $managed = ProviderConfig::secret('gemini');
+            if ($managed !== '') return $managed;
+        }
         $environmentValue = getenv($name);
         if ($environmentValue !== false && trim((string)$environmentValue) !== '') {
             return trim((string)$environmentValue);
@@ -406,7 +412,7 @@ class AI {
         if ($apiKey === '') {
             throw new Exception('GEMINI_API_KEY mancante: configurala nei segreti del deploy o in config/keys.php');
         }
-        $model = defined('GEMINI_MODEL') ? GEMINI_MODEL : 'gemini-3.6-flash';
+        $model = ProviderConfig::model('gemini') ?: (defined('GEMINI_MODEL') ? GEMINI_MODEL : 'gemini-2.5-flash');
         $url = "https://generativelanguage.googleapis.com/v1beta/models/$model:generateContent";
 
         $timeout = max(30, min(300, (int)($config['_timeout'] ?? 90)));
