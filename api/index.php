@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 // api/index.php ÔÇö Router principale
 
 // ÔöÇÔöÇ Gestione errori: restituisci SEMPRE JSON (mai 500 con corpo vuoto) ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
