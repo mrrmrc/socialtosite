@@ -40,8 +40,8 @@ export function AuthScreen({ onAuth }) {
         <div style={{ background: 'var(--surface)', borderRadius: 'var(--radius-xl)', padding: '32px', boxShadow: 'var(--shadow-lg)', border: '1px solid var(--border)' }}>
           <form onSubmit={submit}>
             <div className="form-group">
-              <label className="label">Email</label>
-              <input type="email" placeholder="tua@email.it" value={email} onChange={e => setEmail(e.target.value)} required />
+              <label className="label">Email o Username</label>
+              <input type="text" placeholder="tua@email.it oppure username" value={email} onChange={e => setEmail(e.target.value)} required />
             </div>
             <div className="form-group">
               <label className="label">Password</label>
