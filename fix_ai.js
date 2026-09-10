@@ -1,0 +1,1 @@
+const fs = require('fs'); let c = fs.readFileSync('api/services/ai.php', 'utf8'); c = c.replace(/(\n\s*public static function transcribeMediaUrl\(string \$url\): string \{[\s\S]*?\n\s*\})/g, ''); fs.writeFileSync('api/services/ai.php', c);
