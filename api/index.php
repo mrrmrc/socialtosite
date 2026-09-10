@@ -1101,21 +1101,28 @@ if ($action === 'site' && $method === 'GET') {
 
 // ÔöÇÔöÇ DELETE post (Hard delete) ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
 if ($action === 'delete-post' && $method === 'POST') {
-    $b = body();
-    DB::execute('DELETE FROM posts WHERE id=? AND user_id=?', [$b['id'] ?? 0, $userId]);
-    json(['ok' => true]);
+    $payload = body();
+    try {
+        $contentId = (int)($payload['id'] ?? $payload['content_id'] ?? 0);
+        RawImport::deletePotentialPost($userId, $contentId);
+        json(['success' => true]);
+    } catch (InvalidArgumentException $e) {
+        jsonError($e->getMessage(), 422);
+    } catch (RuntimeException $e) {
+        jsonError($e->getMessage(), 404);
+    }
 }
 
 // ÔöÇÔöÇ BULK DELETE posts ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
 if ($action === 'bulk-delete-posts' && $method === 'POST') {
-    $b = body();
-    $ids = $b['ids'] ?? [];
-    if (is_array($ids) && count($ids) > 0) {
-        $placeholders = implode(',', array_fill(0, count($ids), '?'));
-        $params = array_merge($ids, [$userId]);
-        DB::execute("DELETE FROM posts WHERE id IN ($placeholders) AND user_id=?", $params);
+    $payload = body();
+    $ids = array_filter(array_map('intval', $payload['ids'] ?? []));
+    try {
+        RawImport::bulkDeletePosts($userId, $ids);
+        json(['success' => true]);
+    } catch (RuntimeException $e) {
+        jsonError($e->getMessage(), 404);
     }
-    json(['ok' => true]);
 }
 
 // ÔöÇÔöÇ TOGGLE PUBLISH post ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
@@ -1140,57 +1147,14 @@ if ($action === 'post-feature' && $method === 'POST') {
 
 // ÔöÇÔöÇ EDIT post (CMS editoriale) ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
 if ($action === 'post-update' && $method === 'POST') {
-    ensurePostMediaSchema();
-    $b = body();
-    $id = (int)($b['id'] ?? 0);
-    if (!$id) jsonError('ID post mancante');
-    $fields = [];
-    $params = [];
-    if (array_key_exists('edited_title', $b)) { $fields[] = 'edited_title=?'; $params[] = $b['edited_title']; }
-    if (array_key_exists('edited_body', $b))  { $fields[] = 'edited_body=?';  $params[] = $b['edited_body']; }
-    if (array_key_exists('edited_excerpt', $b)){ $fields[] = 'edited_excerpt=?'; $params[] = $b['edited_excerpt']; }
-    if (array_key_exists('tags', $b))         { $fields[] = 'tags=?'; $params[] = is_array($b['tags']) ? json_encode($b['tags']) : $b['tags']; }
-    if (array_key_exists('published', $b))    { $fields[] = 'published=?';    $params[] = (int)$b['published']; }
-    if (array_key_exists('noindex', $b))      { $fields[] = 'noindex=?';      $params[] = !empty($b['noindex']) ? 1 : 0; }
-    if (array_key_exists('media_url', $b)) {
-        $mediaUrl = trim((string)$b['media_url']);
-        if ($mediaUrl !== '' && !filter_var($mediaUrl, FILTER_VALIDATE_URL) && !str_starts_with($mediaUrl, '/public/media/')) jsonError('Indirizzo immagine non valido', 422);
-        $mediaType = strtoupper(trim((string)($b['media_type'] ?? 'IMAGE')));
-        if (!in_array($mediaType, ['IMAGE', 'VIDEO'], true)) $mediaType = 'IMAGE';
-        $fields[] = 'media_url=?'; $params[] = $mediaUrl;
-        $fields[] = 'media_type=?'; $params[] = $mediaUrl === '' ? '' : $mediaType;
+    $payload = body();
+    try {
+        json(['content' => RawImport::updatePost($userId, $payload)]);
+    } catch (InvalidArgumentException $e) {
+        jsonError($e->getMessage(), 422);
+    } catch (RuntimeException $e) {
+        jsonError($e->getMessage(), 404);
     }
-    if (array_key_exists('media_display_width', $b)) { $fields[] = 'media_display_width=?'; $params[] = max(30, min(100, (int)$b['media_display_width'])); }
-    if (array_key_exists('media_alignment', $b)) {
-        $alignment = strtolower(trim((string)$b['media_alignment']));
-        if (!in_array($alignment, ['left', 'center', 'right'], true)) $alignment = 'center';
-        $fields[] = 'media_alignment=?'; $params[] = $alignment;
-    }
-    if (empty($fields)) json(['ok' => true]);
-    $params[] = $id; $params[] = $userId;
-    DB::execute('UPDATE posts SET ' . implode(',', $fields) . ' WHERE id=? AND user_id=?', $params);
-
-    if (array_key_exists('edited_body', $b) && ($b['published'] ?? 0) == 1) {
-        $userPlan = DB::fetch('SELECT plan FROM users WHERE id=?', [$userId])['plan'] ?? 'base';
-        if (strtolower($userPlan) === 'base') {
-            $texts = array_column(DB::fetchAll('SELECT edited_body FROM posts WHERE user_id=? AND published=1 ORDER BY id DESC LIMIT 5', [$userId]), 'edited_body');
-            if (count($texts) > 0) {
-                try {
-                    require_once __DIR__ . '/services/ai.php';
-                    $voiceProfileJson = AI::generateBrandVoiceProfile($texts);
-                    $voiceData = json_decode($voiceProfileJson, true);
-                    if ($voiceData && isset($voiceData['custom_instructions'])) {
-                        $instructions = "Tono: " . ($voiceData['tone'] ?? 'Neutro') . "\n";
-                        $instructions .= "Stile vocabolario: " . implode(', ', $voiceData['vocabulary_traits'] ?? []) . "\n";
-                        $instructions .= "Regole speciali: " . $voiceData['custom_instructions'];
-                        DB::execute('UPDATE sites SET user_agent_prompt=? WHERE user_id=?', [$instructions, $userId]);
-                    }
-                } catch (Throwable $e) { error_log('Errore update brand voice: ' . $e->getMessage()); }
-            }
-        }
-    }
-
-    json(['ok' => true]);
 }
 
 // ÔöÇÔöÇ DELETE post (legacy hide) ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
