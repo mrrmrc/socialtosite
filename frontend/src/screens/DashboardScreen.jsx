@@ -1890,6 +1890,7 @@ const [importMsg, setImportMsg] = useState(null);
       id: post.id,
       title: post.edited_title || post.generated_title || '',
       body: post.edited_body || post.generated_body || '',
+      rawContent: post.raw_content || '',
       excerpt: post.edited_excerpt || post.generated_excerpt || '',
       tags: (post.tags || []).join(', '),
       mediaUrl: post.media_url || '',
@@ -1933,6 +1934,7 @@ const [importMsg, setImportMsg] = useState(null);
           id: editingPost.id,
           edited_title: editingPost.title,
           edited_body: editingPost.body,
+          raw_content: editingPost.rawContent,
           edited_excerpt: editingPost.excerpt,
           tags: editingPost.tags.split(',').map(t => t.trim()).filter(Boolean),
           media_url: editingPost.mediaUrl,
@@ -4438,6 +4440,12 @@ const [importMsg, setImportMsg] = useState(null);
                   </div>
                 </section>
                 
+                <div style={{ marginBottom: '1.5rem' }}>
+                  <label style={{ display: 'block', fontSize: '15px', fontWeight: 700, marginBottom: '8px', color: 'var(--text)' }}>Testo Grezzo Originale (importato dal social)</label>
+                  <textarea value={editingPost.rawContent} onChange={e => setEditingPost({...editingPost, rawContent: e.target.value})} placeholder="Testo originale prelevato dal social..." style={{ width: '100%', minHeight: '120px', padding: '12px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-strong)', fontSize: '14px', background: 'var(--bg-subtle, #f5f5f5)', color: 'var(--text)', resize: 'vertical' }} />
+                  <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>Modifica questo testo prima di rigenerare con l'AI se l'importazione era incompleta.</p>
+                </div>
+
                 <div>
                   <label style={{ display: 'block', fontSize: '15px', fontWeight: 700, marginBottom: '8px', color: 'var(--text)' }}>Testo dell'Articolo</label>
                   <QuillEditor value={editingPost.body} onChange={val => setEditingPost({...editingPost, body: val})} className="article-rich-editor" style={{ background: '#fff', color: '#000', border: '2px solid var(--border-strong)', borderRadius: 'var(--radius-sm)', marginBottom: '8px' }} />
@@ -4538,3 +4546,5 @@ const [importMsg, setImportMsg] = useState(null);
     </div>
   );
 }
+
+

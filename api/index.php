@@ -1042,7 +1042,7 @@ if ($action === 'site' && $method === 'GET') {
             $site['site_understanding'] = !empty($mergedUnderstanding) ? $mergedUnderstanding : null;
         }
         $posts = DB::fetchAll(
-            'SELECT id, user_id, platform, platform_post_id, SUBSTR(raw_content, 1, 500) as raw_content, generated_title, generated_excerpt, generated_body, edited_body, edited_title, edited_excerpt, tags, media_url, media_type, media_display_width, media_alignment, noindex, source_url, published_at, seo_score, slug, published, agent_notes, processing_status, processing_started_at, processing_attempts, processing_error
+            'SELECT id, user_id, platform, platform_post_id, raw_content, generated_title, generated_excerpt, generated_body, edited_body, edited_title, edited_excerpt, tags, media_url, media_type, media_display_width, media_alignment, noindex, source_url, published_at, seo_score, slug, published, agent_notes, processing_status, processing_started_at, processing_attempts, processing_error
                FROM posts
               WHERE user_id=?
               ORDER BY published_at DESC
@@ -1148,6 +1148,7 @@ if ($action === 'post-update' && $method === 'POST') {
     $params = [];
     if (array_key_exists('edited_title', $b)) { $fields[] = 'edited_title=?'; $params[] = $b['edited_title']; }
     if (array_key_exists('edited_body', $b))  { $fields[] = 'edited_body=?';  $params[] = $b['edited_body']; }
+    if (array_key_exists('raw_content', $b))  { $fields[] = 'raw_content=?';  $params[] = $b['raw_content']; }
     if (array_key_exists('edited_excerpt', $b)){ $fields[] = 'edited_excerpt=?'; $params[] = $b['edited_excerpt']; }
     if (array_key_exists('tags', $b))         { $fields[] = 'tags=?'; $params[] = is_array($b['tags']) ? json_encode($b['tags']) : $b['tags']; }
     if (array_key_exists('published', $b))    { $fields[] = 'published=?';    $params[] = (int)$b['published']; }
@@ -2047,3 +2048,4 @@ if ($action === 'admin-logs' && $method === 'GET') {
 }
 
 jsonError('Endpoint non trovato', 404);
+
