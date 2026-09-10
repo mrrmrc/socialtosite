@@ -15,7 +15,7 @@ export async function apiFetch(path, opts = {}, token = null) {
       data = null;
     }
   }
-  if (r.status === 401) { localStorage.removeItem('sts_token'); window.location.reload(); return; }
+  if (r.status === 401 && !path.includes('action=login')) { localStorage.removeItem('sts_token'); window.location.reload(); return; }
   if (!r.ok) {
     const htmlTitle = raw.match(/<title>(.*?)<\/title>/i)?.[1]?.trim();
     const fallback = htmlTitle || raw.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 220);
