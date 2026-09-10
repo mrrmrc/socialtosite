@@ -203,7 +203,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          url="https://213.32.22.252/deploy-info.json?ts=${GITHUB_RUN_ID}"
+          url="https://allsocialtoweb.com/deploy-info.json?ts=${GITHUB_RUN_ID}"
           echo "Verifying $url"
           body="$(curl -kfsS --retry 4 --retry-delay 3 "$url")"
           echo "$body"
@@ -211,6 +211,6 @@ jobs:
             echo "::error::FTP completed but production is not serving release $RELEASE. Check FTP_REMOTE_DIR / VPS volume mapping."
             exit 1
           }
-          echo "deployvps verified: $RELEASE is live on https://213.32.22.252/"
+          echo "deployvps verified: $RELEASE is live on https://allsocialtoweb.com/"
 
 # Fix CRLF
