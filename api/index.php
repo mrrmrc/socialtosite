@@ -1029,6 +1029,11 @@ if ($action === 'site' && $method === 'GET') {
         ensurePostMediaSchema();
         ensureSocialSyncSchema();
         $site  = DB::fetch('SELECT * FROM sites WHERE user_id=?', [$userId]);
+        if (!$site) {
+            // Primo accesso: la riga sites non esiste ancora — la creiamo per evitare crash a cascata.
+            DB::execute('INSERT IGNORE INTO sites (user_id, title) VALUES (?, ?)', [$userId, $me['name'] ?? '']);
+            $site = DB::fetch('SELECT * FROM sites WHERE user_id=?', [$userId]) ?? [];
+        }
         if ($site) {
             $mergedUnderstanding = mergeUnderstanding(
                 $site['site_understanding'] ?? null,

@@ -93,7 +93,8 @@ class ReachabilityNetwork {
         return $profile;
     }
 
-    public static function summary(int $userId, array $site, array $sources, array $posts, array $visibility): array {
+    public static function summary(int $userId, ?array $site, array $sources, array $posts, array $visibility): array {
+        $site = $site ?? [];
         self::ensureSchema();
         $profile = self::normalize(self::decode($site['reachability_profile'] ?? null));
         if ($profile['official_site_url'] === '') {
