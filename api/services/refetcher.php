@@ -227,11 +227,20 @@ final class Refetcher {
         return $urls;
     }
 
-    private static function pageDebug(array $profileResult): array {
+    private static function facebookUsername(string $url): ?string {
+        $path = trim((string)parse_url($url, PHP_URL_PATH), '/');
+        if ($path === '') return null;
+        $first = rawurldecode((string)explode('/', $path, 2)[0]);
+        if (in_array(strtolower($first), ['profile.php', 'pages', 'groups', 'events', 'watch', 'reel', 'reels', 'videos'], true)) return null;
+        return preg_match('/^[a-z0-9._-]+$/i', $first) ? $first : null;
+    }
+
+    private static function pageDebug(array $profileResult, string $strategy = 'profile_url'): array {
         $recent = is_array($profileResult['pageInfo']['recentPosts'] ?? null)
             ? $profileResult['pageInfo']['recentPosts']
             : [];
         return [
+            'strategy' => $strategy,
             'requested_limit' => isset($recent['requestedLimit']) ? (int)$recent['requestedLimit'] : null,
             'returned_count' => isset($recent['returnedCount']) ? (int)$recent['returnedCount'] : null,
             'pages_requested' => isset($recent['pagesRequested']) ? (int)$recent['pagesRequested'] : null,
@@ -294,7 +303,37 @@ final class Refetcher {
             if ($platform === 'facebook') {
                 $seenCursors = [];
                 $pageInfo = is_array($profileResult['pageInfo']['recentPosts'] ?? null) ? $profileResult['pageInfo']['recentPosts'] : [];
-                $remainingPages = max(0, (int)($payload['pages'] ?? 1) - max(1, (int)($pageInfo['pagesFetched'] ?? 1)));
+                $pagesConsumed = max(1, (int)($pageInfo['pagesFetched'] ?? 1));
+
+                // Un primo tentativo Facebook può essere troncato prima che il
+                // provider esponga un cursore. Una nuova scansione tramite lo
+                // username usa un ingresso documentato alternativo e spesso
+                // ottiene il cursore che manca alla richiesta via profileUrl.
+                if (count($discovered) < min(3, $limit) && !empty($pageInfo['incomplete']) && empty($pageInfo['endCursor'])) {
+                    usleep(900000);
+                    $restartPayload = $payload;
+                    $username = self::facebookUsername($url);
+                    $strategy = 'profile_restart';
+                    if ($username !== null) {
+                        unset($restartPayload['profileUrl']);
+                        $restartPayload['username'] = $username;
+                        $strategy = 'username_restart';
+                    }
+                    $debug['provider_requests']++;
+                    $restartResults = self::successfulResults(self::request($restartPayload));
+                    if ($restartResults) {
+                        $restartResult = $restartResults[0];
+                        foreach (self::profileUrls($restartResult) as $itemUrl => $item) $discovered[$itemUrl] = $item;
+                        $debug['provider_pages'][] = self::pageDebug($restartResult, $strategy);
+                        $restartPageInfo = is_array($restartResult['pageInfo']['recentPosts'] ?? null) ? $restartResult['pageInfo']['recentPosts'] : [];
+                        $pagesConsumed += max(1, (int)($restartPageInfo['pagesFetched'] ?? 1));
+                        if (!empty($restartPageInfo['endCursor']) || (int)($restartPageInfo['returnedCount'] ?? 0) > (int)($pageInfo['returnedCount'] ?? 0)) {
+                            $pageInfo = $restartPageInfo;
+                        }
+                    }
+                }
+
+                $remainingPages = max(0, (int)($payload['pages'] ?? 1) - $pagesConsumed);
                 while (count($discovered) < $limit && $remainingPages > 0 && !empty($pageInfo['incomplete']) && !empty($pageInfo['endCursor'])) {
                     $cursor = (string)$pageInfo['endCursor'];
                     if (isset($seenCursors[$cursor])) break;
@@ -309,7 +348,7 @@ final class Refetcher {
                     if (!$resumeResults) break;
                     $resumeResult = $resumeResults[0];
                     foreach (self::profileUrls($resumeResult) as $itemUrl => $item) $discovered[$itemUrl] = $item;
-                    $debug['provider_pages'][] = self::pageDebug($resumeResult);
+                    $debug['provider_pages'][] = self::pageDebug($resumeResult, 'cursor_resume');
                     $pageInfo = is_array($resumeResult['pageInfo']['recentPosts'] ?? null) ? $resumeResult['pageInfo']['recentPosts'] : [];
                     $fetched = max(1, (int)($pageInfo['pagesFetched'] ?? 1));
                     $remainingPages = max(0, $remainingPages - $fetched);
