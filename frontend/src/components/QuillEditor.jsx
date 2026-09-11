@@ -1,4 +1,6 @@
 import React, { useEffect, useRef } from 'react';
+import Quill from 'quill';
+import 'quill/dist/quill.snow.css';
 
 export function QuillEditor({ value, onChange, style, className = '' }) {
   const containerRef = useRef(null);

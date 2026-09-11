@@ -13,6 +13,7 @@
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
+    "quill": "^1.3.7",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
     "react-quill": "^2.0.0"
