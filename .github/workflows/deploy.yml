@@ -91,7 +91,7 @@ jobs:
             api/routes/auth.php \
             api/services/sync.php api/services/ingest.php api/services/editorial_engine.php \
             api/services/visibility.php api/services/seo_foundation.php api/services/reachability.php \
-            api/services/raw_import.php api/services/refetcher.php api/services/website_source.php api/services/profile_analyzer.php \
+            api/services/raw_import.php api/services/apify_client.php api/services/website_source.php api/services/profile_analyzer.php \
             api/services/admin_console.php api/services/editorial_supervisor.php api/services/provider_config.php \
             api/services/ai.php api/services/content_ideas.php \
             config/db.php)
@@ -120,16 +120,76 @@ jobs:
 
       - name: Prepare production release
         env:
-          REFETCHER_API_KEY: ${{ secrets.REFETCHER_API_KEY }}
+          APIFY_API_TOKEN: ${{ secrets.APIFY_API_TOKEN || secrets.REFETCHER_API_KEY }}
+
+      - name: Generate release identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          DEPLOYED_AT="$(TZ=Europe/Rome date '+%Y-%m-%d %H:%M:%S')"
+          RELEASE="deployvps-${GITHUB_RUN_NUMBER}-${GITHUB_SHA::7}"
+          cat > deploy-info.json <<EOF
+          {
+            "deployed_at": "$DEPLOYED_AT",
+            "timezone": "Europe/Rome",
+            "release": "$RELEASE",
+            "commit": "$GITHUB_SHA",
+            "method": "deployvps-ftp"
+          }
+          EOF
+          echo "RELEASE=$RELEASE" >> "$GITHUB_ENV"
+
+      - name: Check PHP syntax
+        shell: bash
+        run: |
+          set -euo pipefail
+          errors=0
+          while IFS= read -r -d '' file; do
+            php -l "$file" >/dev/null 2>&1 || { echo "::error file=$file::PHP syntax error"; php -l "$file"; errors=1; }
+          done < <(printf '%s\0' \
+            api/index.php \
+            api/middleware/jwt.php api/middleware/response.php api/middleware/ratelimit.php api/middleware/logger.php \
+            api/routes/auth.php \
+            api/services/sync.php api/services/ingest.php api/services/editorial_engine.php \
+            api/services/visibility.php api/services/seo_foundation.php api/services/reachability.php \
+            api/services/raw_import.php api/services/apify_client.php api/services/website_source.php api/services/profile_analyzer.php \
+            api/services/admin_console.php api/services/editorial_supervisor.php api/services/provider_config.php \
+            api/services/ai.php api/services/content_ideas.php \
+            config/db.php)
+          [ "$errors" -eq 0 ] || exit 1
+
+      - name: Run tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          # php tools/test_website_source_security.php
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Build frontend
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd frontend
+          npm install --legacy-peer-deps
+          npm run build
+
+      - name: Prepare production release
+        env:
+          APIFY_API_TOKEN: ${{ secrets.APIFY_API_TOKEN || secrets.REFETCHER_API_KEY }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           GEMINI_MODEL: ${{ vars.GEMINI_MODEL || 'gemini-3.6-flash' }}
           PUBLIC_BASE_URL: https://allsocialtoweb.com
         shell: bash
         run: |
           set -euo pipefail
-          if [ -z "$REFETCHER_API_KEY" ]; then
-            echo "::error::REFETCHER_API_KEY must be configured for social acquisition."
-            exit 1
+          if [ -z "$APIFY_API_TOKEN" ]; then
+            echo "::warning::APIFY_API_TOKEN is not in secrets. Ensure it is configured in the Admin Panel."
           fi
           if [ -z "$GEMINI_API_KEY" ]; then
             echo "::error::GEMINI_API_KEY must be configured for user profiling."
@@ -152,7 +212,7 @@ jobs:
           cp api/middleware/{jwt,response,ratelimit,logger}.php release/api/middleware/
           cp api/routes/{auth,migrate,upload,setup_admin}.php release/api/routes/
           cp api/services/{sync,ingest,editorial_engine,visibility,seo_foundation,reachability}.php release/api/services/
-          cp api/services/{raw_import,refetcher,website_source,profile_analyzer,admin_console,editorial_supervisor,provider_config,ai,content_ideas}.php release/api/services/
+          cp api/services/{raw_import,apify_client,website_source,profile_analyzer,admin_console,editorial_supervisor,provider_config,ai,content_ideas}.php release/api/services/
           cp -r frontend/dist/. release/
           cp .htaccess robots.txt deploy-info.json release/
           cp google*.html release/ 2>/dev/null || true
@@ -167,7 +227,7 @@ jobs:
             printf "if (!defined('%s')) define('%s', base64_decode('%s'));\n" "$name" "$name" "$encoded" \
               >> release/config/runtime-secrets.php
           }
-          append_secret SOCIALTOSITE_RUNTIME_REFETCHER_API_KEY "$REFETCHER_API_KEY"
+          append_secret SOCIALTOSITE_RUNTIME_APIFY_API_TOKEN "$APIFY_API_TOKEN"
           append_secret SOCIALTOSITE_RUNTIME_GEMINI_API_KEY "$GEMINI_API_KEY"
           append_secret SOCIALTOSITE_RUNTIME_GEMINI_MODEL "$GEMINI_MODEL"
           append_secret SOCIALTOSITE_RUNTIME_BASE_URL "$PUBLIC_BASE_URL"
