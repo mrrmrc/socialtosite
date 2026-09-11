@@ -14,6 +14,6 @@ if (!defined('GEMINI_API_KEY')) define('GEMINI_API_KEY', '');
 // Modello Gemini (flash = veloce, economico, gestisce video/YouTube da link).
 if (!defined('GEMINI_MODEL'))   define('GEMINI_MODEL', 'gemini-3.6-flash');
 
-// Refetch(er): un'unica chiave backend per Facebook, Instagram, TikTok,
+// Apify: un'unica chiave backend per Facebook, Instagram, TikTok,
 // YouTube e X. Non inserire mai questa chiave nel codice React.
-if (!defined('REFETCHER_API_KEY')) define('REFETCHER_API_KEY', '');
+if (!defined('APIFY_API_TOKEN')) define('APIFY_API_TOKEN', '');

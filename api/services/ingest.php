@@ -6,7 +6,7 @@ require_once __DIR__ . '/../../config/db.php';
 require_once __DIR__ . '/ai.php';
 require_once __DIR__ . '/visibility.php';
 require_once __DIR__ . '/website_source.php';
-require_once __DIR__ . '/refetcher.php';
+require_once __DIR__ . '/apify_client.php';
 require_once __DIR__ . '/../middleware/response.php';
 if (file_exists(__DIR__ . '/../middleware/logger.php')) require_once __DIR__ . '/../middleware/logger.php';
 
@@ -194,7 +194,7 @@ class Ingest {
 
     // ── Rileva la piattaforma dall'URL ─────────────────────────────────────
     public static function platform(string $url): string {
-        return Refetcher::platform($url) ?: 'website';
+        return ApifyClient::platform($url) ?: 'website';
     }
 
     // ── ID univoco del contenuto (per evitare duplicati) ───────────────────
@@ -226,9 +226,9 @@ class Ingest {
             throw new Exception('Piattaforma non riconosciuta');
         }
         if ($platform !== 'website' && !$prefetched) {
-            $result = Refetcher::source($url, 1);
+            $result = ApifyClient::source($url, 1);
             $prefetched = $result['items'][0] ?? [];
-            if (!$prefetched) throw new Exception('Refetch(er) non ha restituito contenuti pubblici per questo URL');
+            if (!$prefetched) throw new Exception('ApifyClient non ha restituito contenuti pubblici per questo URL');
             $url = (string)($prefetched['url'] ?? $url);
         }
         $postId = trim((string)($prefetched['id'] ?? '')) ?: self::postId($platform, $url);
@@ -645,7 +645,7 @@ class Ingest {
                 if ($source['platform'] === 'website') {
                     $items = WebsiteSource::items($source['url'], $limit, $effectiveSinceDate);
                 } else {
-                    $refetched = Refetcher::source($source['url'], $limit, $effectiveSinceDate);
+                    $refetched = ApifyClient::source($source['url'], $limit, $effectiveSinceDate);
                     $items = $refetched['items'];
                     $profile = $refetched['profile'];
                     $report['debug'][] = [

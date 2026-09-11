@@ -1,7 +1,7 @@
 <?php
 
 require_once __DIR__ . '/../../config/db.php';
-require_once __DIR__ . '/refetcher.php';
+require_once __DIR__ . '/apify_client.php';
 require_once __DIR__ . '/website_source.php';
 require_once __DIR__ . '/profile_analyzer.php';
 
@@ -276,7 +276,7 @@ final class RawImport
             if ($source['platform'] === 'website') {
                 $items = WebsiteSource::items($source['url'], $limit, $sinceDate);
             } else {
-                $response = Refetcher::source($source['url'], $limit, $sinceDate);
+                $response = ApifyClient::source($source['url'], $limit, $sinceDate);
                 $items = is_array($response['items'] ?? null) ? $response['items'] : [];
                 if (is_array($response['profile'] ?? null) && $response['profile']) {
                     DB::execute('UPDATE content_sources SET source_profile=? WHERE id=? AND user_id=?', [json_encode($response['profile'], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_INVALID_UTF8_SUBSTITUTE), $source['id'], $userId]);

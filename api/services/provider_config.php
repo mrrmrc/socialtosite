@@ -35,7 +35,7 @@ final class ProviderConfig
         if (!isset($usageColumns['estimated_cost'])) DB::execute('ALTER TABLE api_usage_logs ADD COLUMN estimated_cost DECIMAL(12,6) NOT NULL DEFAULT 0 AFTER tokens_used');
         DB::execute("INSERT IGNORE INTO ai_provider_connections (provider,label,model) VALUES
             ('gemini','Google Gemini',NULL),
-            ('refetcher','Refetch(er)',NULL)");
+            ('apify','Apify',NULL)");
         self::$ready = true;
     }
 

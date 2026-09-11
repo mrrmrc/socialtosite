@@ -73,7 +73,7 @@ final class AdminConsole
             COALESCE(SUM(CASE WHEN l.created_at >= DATE_FORMAT(NOW(), '%Y-%m-01') THEN l.estimated_cost ELSE 0 END),0) month_cost
             FROM ai_provider_connections p LEFT JOIN api_usage_logs l ON l.provider=p.provider GROUP BY p.id ORDER BY p.id");
         foreach ($providers as &$provider) {
-            $envName = $provider['provider'] === 'gemini' ? 'GEMINI_API_KEY' : 'REFETCHER_API_KEY';
+            $envName = $provider['provider'] === 'gemini' ? 'GEMINI_API_KEY' : 'APIFY_API_TOKEN';
             $runtimeName = 'SOCIALTOSITE_RUNTIME_' . $envName;
             $externalSecret = trim((string)(getenv($envName) ?: '')) !== '' || (defined($runtimeName) && trim((string)constant($runtimeName)) !== '') || (defined($envName) && trim((string)constant($envName)) !== '');
             if ($externalSecret) $provider['credential_configured'] = 1;
@@ -134,7 +134,7 @@ final class AdminConsole
     public static function updateProvider(array $payload): array
     {
         $provider = strtolower(trim((string)($payload['provider'] ?? '')));
-        if (!in_array($provider, ['gemini','refetcher'], true)) throw new InvalidArgumentException('Provider non supportato.');
+        if (!in_array($provider, ['gemini','apify'], true)) throw new InvalidArgumentException('Provider non supportato.');
         $current = DB::fetch('SELECT * FROM ai_provider_connections WHERE provider=?', [$provider]);
         $ciphertext = $current['secret_ciphertext'] ?? null;
         if (array_key_exists('credential', $payload) && trim((string)$payload['credential']) !== '') $ciphertext = ProviderConfig::encrypt(trim((string)$payload['credential']));
