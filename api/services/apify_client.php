@@ -172,7 +172,7 @@ final class ApifyClient {
 
         switch ($platform) {
             case 'facebook':
-                $actorId = 'apify/facebook-pages-scraper';
+                $actorId = 'apify/facebook-posts-scraper';
                 $payload = [
                     'startUrls' => [['url' => $url]],
                     'resultsLimit' => $limit
