@@ -125,6 +125,15 @@ jobs:
             echo "::error::GEMINI_API_KEY must be configured for user profiling."
             exit 1
           fi
+          if ! gemini_status="$(curl -sS -o /tmp/gemini-key-check.json -w '%{http_code}' --connect-timeout 10 --max-time 30 -H "x-goog-api-key: $GEMINI_API_KEY" 'https://generativelanguage.googleapis.com/v1beta/models?pageSize=1')"; then
+            echo "::error::Unable to validate GEMINI_API_KEY because the Gemini API is unreachable."
+            exit 1
+          fi
+          if [ "$gemini_status" != "200" ]; then
+            echo "::error::GEMINI_API_KEY was rejected by Gemini (HTTP $gemini_status). Replace the GitHub Actions secret before deploying."
+            exit 1
+          fi
+          rm -f /tmp/gemini-key-check.json
           rm -rf release
           mkdir -p release
 

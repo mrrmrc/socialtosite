@@ -12,8 +12,6 @@ class AI {
     private static function configValue(string $name): string {
         if ($name === 'GEMINI_API_KEY') {
             if (!ProviderConfig::enabled('gemini')) return '';
-            $managed = ProviderConfig::secret('gemini');
-            if ($managed !== '') return $managed;
         }
         $environmentValue = getenv($name);
         if ($environmentValue !== false && trim((string)$environmentValue) !== '') {
@@ -23,7 +21,14 @@ class AI {
         if (defined($runtimeName) && trim((string)constant($runtimeName)) !== '') {
             return trim((string)constant($runtimeName));
         }
-        return defined($name) ? trim((string)constant($name)) : '';
+        if (defined($name) && trim((string)constant($name)) !== '') {
+            return trim((string)constant($name));
+        }
+        if ($name === 'GEMINI_API_KEY') {
+            $managed = ProviderConfig::secret('gemini');
+            if ($managed !== '') return $managed;
+        }
+        return '';
     }
 
     private static function loadDesignLibrary(): array {

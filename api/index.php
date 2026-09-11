@@ -1896,7 +1896,7 @@ if ($action === 'process-pending' && $method === 'POST') {
         // riprovabile, conservando testo e media originali come sorgenti.
         try {
             Ingest::markProcessingFailed($userId, $postId, $e->getMessage());
-            jsonError('Il motore editoriale non ha prodotto un articolo valido. Il contenuto resta in coda e pu├▓ essere riprovato: ' . $e->getMessage(), 502);
+            jsonError('Il motore editoriale non ha prodotto un articolo valido. Il contenuto resta in coda e può essere riprovato: ' . $e->getMessage(), 502);
         } catch (Throwable $recoveryError) {
             $message = mb_substr($e->getMessage() . ' | Recupero: ' . $recoveryError->getMessage(), 0, 2000);
             DB::execute(

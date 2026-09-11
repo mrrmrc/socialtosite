@@ -177,7 +177,7 @@ final class ProfileAnalyzer
 
     private static function gemini(array $input): array
     {
-        $key = ProviderConfig::enabled('gemini') ? (ProviderConfig::secret('gemini') ?: self::configValue('GEMINI_API_KEY', 'SOCIALTOSITE_RUNTIME_GEMINI_API_KEY')) : '';
+        $key = ProviderConfig::enabled('gemini') ? (self::configValue('GEMINI_API_KEY', 'SOCIALTOSITE_RUNTIME_GEMINI_API_KEY') ?: ProviderConfig::secret('gemini')) : '';
         if ($key === '') throw new RuntimeException('GEMINI_API_KEY non configurata sul server.');
         $model = ProviderConfig::model('gemini') ?: (self::configValue('GEMINI_MODEL', 'SOCIALTOSITE_RUNTIME_GEMINI_MODEL') ?: 'gemini-2.5-flash');
         $payload = json_encode(['contents' => [['role' => 'user', 'parts' => [['text' => json_encode($input, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)]]]], 'generationConfig' => ['responseMimeType' => 'application/json', 'temperature' => 0.15]], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
