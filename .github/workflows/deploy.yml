@@ -112,7 +112,7 @@ jobs:
         env:
           REFETCHER_API_KEY: ${{ secrets.REFETCHER_API_KEY }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          GEMINI_MODEL: ${{ vars.GEMINI_MODEL || 'gemini-2.5-flash' }}
+          GEMINI_MODEL: ${{ vars.GEMINI_MODEL || 'gemini-3.6-flash' }}
           PUBLIC_BASE_URL: https://allsocialtoweb.com
         shell: bash
         run: |

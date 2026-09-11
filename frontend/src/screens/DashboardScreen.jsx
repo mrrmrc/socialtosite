@@ -60,6 +60,9 @@ function providerDebugLines(entries = []) {
     if (entry?.since_date) lines.push(`${platform} · filtro data dal ${entry.since_date} · esclusi ${compactDebugValue(provider.filtered_by_date, '0')}`);
     (Array.isArray(provider.provider_pages) ? provider.provider_pages : []).forEach((page, index) => {
       lines.push(`${platform} · risposta ${index + 1}: pagine richieste ${compactDebugValue(page.pages_requested)}, pagine lette ${compactDebugValue(page.pages_fetched)}, link restituiti ${compactDebugValue(page.returned_count)}, incompleta ${page.incomplete ? 'sì' : 'no'}, altra pagina ${page.has_next_page ? 'sì' : 'no'}, cursore ${page.end_cursor ? 'presente' : 'assente'}`);
+      if (page.incomplete && !page.end_cursor) {
+        lines.push(`${platform} · il provider ha interrotto la timeline senza fornire un cursore: in questa scansione non è possibile richiedere altri post oltre a quelli restituiti.`);
+      }
       (Array.isArray(page.limitations) ? page.limitations : []).forEach(limit => lines.push(`${platform} · limite provider: ${limit}`));
     });
     return lines;

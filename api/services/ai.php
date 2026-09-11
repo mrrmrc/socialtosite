@@ -417,7 +417,8 @@ class AI {
         if ($apiKey === '') {
             throw new Exception('GEMINI_API_KEY mancante: configurala nei segreti del deploy o in config/keys.php');
         }
-        $model = ProviderConfig::model('gemini') ?: (defined('GEMINI_MODEL') ? GEMINI_MODEL : 'gemini-2.5-flash');
+        $model = ProviderConfig::model('gemini') ?: (defined('GEMINI_MODEL') ? GEMINI_MODEL : 'gemini-3.6-flash');
+        if ($model === 'gemini-2.5-flash') $model = 'gemini-3.6-flash';
         $url = "https://generativelanguage.googleapis.com/v1beta/models/$model:generateContent";
 
         $timeout = max(30, min(300, (int)($config['_timeout'] ?? 90)));

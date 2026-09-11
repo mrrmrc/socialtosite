@@ -12,7 +12,7 @@
 // Google Gemini (Google AI Studio → Get API key).
 if (!defined('GEMINI_API_KEY')) define('GEMINI_API_KEY', '');
 // Modello Gemini (flash = veloce, economico, gestisce video/YouTube da link).
-if (!defined('GEMINI_MODEL'))   define('GEMINI_MODEL', 'gemini-2.5-flash');
+if (!defined('GEMINI_MODEL'))   define('GEMINI_MODEL', 'gemini-3.6-flash');
 
 // Refetch(er): un'unica chiave backend per Facebook, Instagram, TikTok,
 // YouTube e X. Non inserire mai questa chiave nel codice React.

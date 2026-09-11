@@ -179,7 +179,8 @@ final class ProfileAnalyzer
     {
         $key = ProviderConfig::enabled('gemini') ? (self::configValue('GEMINI_API_KEY', 'SOCIALTOSITE_RUNTIME_GEMINI_API_KEY') ?: ProviderConfig::secret('gemini')) : '';
         if ($key === '') throw new RuntimeException('GEMINI_API_KEY non configurata sul server.');
-        $model = ProviderConfig::model('gemini') ?: (self::configValue('GEMINI_MODEL', 'SOCIALTOSITE_RUNTIME_GEMINI_MODEL') ?: 'gemini-2.5-flash');
+        $model = ProviderConfig::model('gemini') ?: (self::configValue('GEMINI_MODEL', 'SOCIALTOSITE_RUNTIME_GEMINI_MODEL') ?: 'gemini-3.6-flash');
+        if ($model === 'gemini-2.5-flash') $model = 'gemini-3.6-flash';
         $payload = json_encode(['contents' => [['role' => 'user', 'parts' => [['text' => json_encode($input, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)]]]], 'generationConfig' => ['responseMimeType' => 'application/json', 'temperature' => 0.15]], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
         $ch = curl_init('https://generativelanguage.googleapis.com/v1beta/models/' . rawurlencode($model) . ':generateContent?key=' . rawurlencode($key));
         curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER => true, CURLOPT_POST => true, CURLOPT_POSTFIELDS => $payload, CURLOPT_HTTPHEADER => ['Content-Type: application/json'], CURLOPT_CONNECTTIMEOUT => 12, CURLOPT_TIMEOUT => 90, CURLOPT_SSL_VERIFYPEER => true, CURLOPT_SSL_VERIFYHOST => 2]);
