@@ -55,9 +55,10 @@ function providerDebugLines(entries = []) {
     const provider = entry?.provider || {};
     const platform = String(entry?.platform || 'social').toUpperCase();
     const lines = [
-      `${platform} · limite scelto ${compactDebugValue(entry?.scan_requested_limit ?? entry?.requested_limit ?? provider.requested_limit)} · limite del canale ${compactDebugValue(entry?.configured_max_posts, 'non impostato')} · richiesta effettiva ${compactDebugValue(entry?.requested_limit ?? provider.requested_limit)} · link trovati ${compactDebugValue(provider.provider_links, '0')} · dettagli validi ${compactDebugValue(provider.detail_results, '0')} · contenuti utilizzabili ${compactDebugValue(provider.normalized_items, '0')} · chiamate provider ${compactDebugValue(provider.provider_requests, '0')}`,
+      `${platform} · limite scelto ${compactDebugValue(entry?.scan_requested_limit ?? entry?.requested_limit ?? provider.requested_limit)} · limite del canale ${compactDebugValue(entry?.configured_max_posts, 'non impostato')} · richiesta effettiva ${compactDebugValue(entry?.requested_limit ?? provider.requested_limit)} · risultati estratti ${compactDebugValue(provider.raw_results ?? provider.provider_links, '0')} · contenuti utilizzabili ${compactDebugValue(provider.normalized_items, '0')}`,
     ];
     if (entry?.since_date) lines.push(`${platform} · filtro data dal ${entry.since_date} · esclusi ${compactDebugValue(provider.filtered_by_date, '0')}`);
+    if (provider.actor_id) lines.push(`${platform} · scraper utilizzato: ${provider.actor_id}`);
     (Array.isArray(provider.provider_pages) ? provider.provider_pages : []).forEach((page, index) => {
       const strategy = page.strategy && page.strategy !== 'profile_url' ? `, recupero ${page.strategy}` : '';
       lines.push(`${platform} · risposta ${index + 1}: pagine richieste ${compactDebugValue(page.pages_requested)}, pagine lette ${compactDebugValue(page.pages_fetched)}, link restituiti ${compactDebugValue(page.returned_count)}, incompleta ${page.incomplete ? 'sì' : 'no'}, altra pagina ${page.has_next_page ? 'sì' : 'no'}, cursore ${page.end_cursor ? 'presente' : 'assente'}${strategy}`);
