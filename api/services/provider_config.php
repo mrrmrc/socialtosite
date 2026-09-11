@@ -80,6 +80,23 @@ final class ProviderConfig
     {
         self::ensureSchema();
         $row = DB::fetch('SELECT model, enabled FROM ai_provider_connections WHERE provider=?', [$provider]);
-        return $row && (int)$row['enabled'] === 1 ? trim((string)$row['model']) : '';
+        if (!$row || (int)$row['enabled'] !== 1) return '';
+        $stored = trim((string)$row['model']);
+        $model = self::normalizeModel($provider, $stored);
+        if ($model !== $stored) {
+            DB::execute('UPDATE ai_provider_connections SET model=? WHERE provider=?', [$model !== '' ? $model : null, $provider]);
+        }
+        return $model;
+    }
+
+    public static function normalizeModel(string $provider, string $model): string
+    {
+        $model = trim($model);
+        if (strtolower(trim($provider)) !== 'gemini' || $model === '') return $model;
+
+        // The REST URL already supplies the `models/` path segment.
+        $model = preg_replace('#^models/#i', '', $model) ?? $model;
+        if (strtolower($model) === 'gemini-2.5-flash') return 'gemini-3.6-flash';
+        return $model;
     }
 }

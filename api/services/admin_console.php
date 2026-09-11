@@ -139,8 +139,9 @@ final class AdminConsole
         $ciphertext = $current['secret_ciphertext'] ?? null;
         if (array_key_exists('credential', $payload) && trim((string)$payload['credential']) !== '') $ciphertext = ProviderConfig::encrypt(trim((string)$payload['credential']));
         if (!empty($payload['clear_credential'])) $ciphertext = null;
+        $model = ProviderConfig::normalizeModel($provider, (string)($payload['model'] ?? ($current['model'] ?? '')));
         DB::execute('UPDATE ai_provider_connections SET model=?,monthly_credit=?,enabled=?,secret_ciphertext=? WHERE provider=?', [
-            trim((string)($payload['model'] ?? ($current['model'] ?? ''))) ?: null,
+            $model !== '' ? $model : null,
             ($payload['monthly_credit'] ?? '') === '' ? null : max(0,(float)$payload['monthly_credit']),
             !empty($payload['enabled']) ? 1 : 0,$ciphertext,$provider
         ]);
