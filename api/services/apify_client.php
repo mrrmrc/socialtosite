@@ -58,8 +58,15 @@ final class ApifyClient {
         if ($json === false) throw new RuntimeException('Richiesta Apify non serializzabile');
 
         $token = self::apiKey();
+        // Negli URL REST Apify il nome leggibile `owner/actor` deve essere
+        // rappresentato come `owner~actor`. Lasciamo gli ID in forma leggibile
+        // nelle configurazioni e normalizziamoli in un solo punto.
+        $actorApiId = str_replace('/', '~', trim($actorId));
+        if (!preg_match('/^[A-Za-z0-9_-]+~[A-Za-z0-9_-]+$/', $actorApiId)) {
+            throw new RuntimeException('Identificativo actor Apify non valido');
+        }
         // Usiamo run-sync-get-dataset-items che blocca finché l'esecuzione non termina e restituisce i risultati.
-        $url = self::API_BASE . "/acts/{$actorId}/run-sync-get-dataset-items?token={$token}";
+        $url = self::API_BASE . "/acts/{$actorApiId}/run-sync-get-dataset-items?token=" . rawurlencode($token);
 
         $ch = curl_init($url);
         curl_setopt_array($ch, [
@@ -144,10 +151,15 @@ final class ApifyClient {
         if ($mediaType === 'image' && $mediaUrl !== '') array_unshift($imageUrls, $mediaUrl);
         $imageUrls = array_values(array_unique(array_filter($imageUrls, static fn(string $value): bool => filter_var($value, FILTER_VALIDATE_URL) !== false)));
 
-        $published = $result['publishedAt'] ?? $result['time'] ?? $result['timestamp'] ?? $result['createdAt'] ?? null;
+        $published = $result['publishedAt'] ?? $result['time'] ?? $result['timestamp'] ?? $result['createdAt'] ?? $result['takenAt'] ?? $result['takenAtIso'] ?? null;
         $timestamp = false;
         if ($published) {
-            $timestamp = is_numeric($published) ? (int)$published : strtotime((string)$published);
+            if (is_numeric($published)) {
+                $timestamp = (int)$published;
+                if ($timestamp > 20000000000) $timestamp = (int)floor($timestamp / 1000);
+            } else {
+                $timestamp = strtotime((string)$published);
+            }
         }
 
         return [
@@ -177,6 +189,7 @@ final class ApifyClient {
                     'startUrls' => [['url' => $url]],
                     'resultsLimit' => $limit
                 ];
+                if ($sinceDate) $payload['onlyPostsNewerThan'] = $sinceDate;
                 break;
             case 'instagram':
                 $actorId = 'apify/instagram-scraper';
@@ -185,9 +198,10 @@ final class ApifyClient {
                     'resultsType' => 'posts',
                     'resultsLimit' => $limit
                 ];
+                if ($sinceDate) $payload['onlyPostsNewerThan'] = $sinceDate;
                 break;
             case 'youtube':
-                $actorId = 'streamer/youtube-scraper';
+                $actorId = 'streamers/youtube-scraper';
                 $payload = [
                     'startUrls' => [['url' => $url]],
                     'maxResults' => $limit
@@ -195,15 +209,19 @@ final class ApifyClient {
                 break;
             case 'tiktok':
                 $actorId = 'clockworks/tiktok-profile-scraper';
+                $path = trim((string)parse_url($url, PHP_URL_PATH), '/');
+                $segments = array_values(array_filter(explode('/', $path)));
+                $profile = ltrim((string)($segments[0] ?? ''), '@');
+                if ($profile === '') throw new RuntimeException('URL profilo TikTok non valido');
                 $payload = [
-                    'profileURLs' => [$url],
+                    'profiles' => [$profile],
                     'resultsPerPage' => $limit
                 ];
                 break;
             case 'x':
-                $actorId = 'apify/twitter-scraper';
+                $actorId = 'apidojo/tweet-scraper';
                 $payload = [
-                    'startUrls' => [['url' => $url]],
+                    'startUrls' => [$url],
                     'maxItems' => $limit
                 ];
                 break;

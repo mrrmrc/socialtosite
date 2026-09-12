@@ -881,15 +881,15 @@ if ($action === 'social-source-upsert' && $method === 'POST') {
     $maxPosts = isset($b['max_posts']) && $b['max_posts'] !== '' ? (int)$b['max_posts'] : null;
     if ($sinceDate && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $sinceDate)) $sinceDate = null;
 
-    $detectedPlatform = Refetcher::platform($url);
+    $detectedPlatform = ApifyClient::platform($url);
     if ($detectedPlatform !== null) $platform = $detectedPlatform;
     elseif ($platform === '') $platform = 'website';
-    if (!in_array($platform, array_merge(['website'], Refetcher::supportedPlatforms()), true)) jsonError('Piattaforma non supportata');
+    if (!in_array($platform, array_merge(['website'], ApifyClient::supportedPlatforms()), true)) jsonError('Piattaforma non supportata');
     if ($url === '') jsonError('Indirizzo della fonte mancante');
     if (!filter_var($url, FILTER_VALIDATE_URL)) jsonError('Indirizzo della fonte non valido');
     try {
         if ($platform === 'website') WebsiteSource::validate($url);
-        else Refetcher::validateSourceUrl($url, $platform);
+        else ApifyClient::validateSourceUrl($url, $platform);
     } catch (Throwable $e) { jsonError($e->getMessage(), 422); }
 
     $sourceId = isset($b['id']) ? (int)$b['id'] : 0;
