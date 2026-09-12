@@ -41,15 +41,28 @@ final class ApifyClient {
 
     private static function apiKey(): string {
         if (!ProviderConfig::enabled('apify')) throw new RuntimeException('Connessione Apify disattivata dal pannello amministrativo');
-        $managed = ProviderConfig::secret('apify');
-        if ($managed !== '') return $managed;
+
+        // Il secret iniettato dalla release viene validato da GitHub Actions
+        // prima dell'upload e deve quindi avere precedenza su una credenziale
+        // storica eventualmente rimasta nel database.
+        if (defined('SOCIALTOSITE_RUNTIME_APIFY_API_TOKEN')) {
+            $runtimeValue = trim((string)constant('SOCIALTOSITE_RUNTIME_APIFY_API_TOKEN'));
+            if ($runtimeValue !== '') return $runtimeValue;
+        }
+
         $environmentValue = getenv('APIFY_API_TOKEN');
         if ($environmentValue !== false && trim((string)$environmentValue) !== '') {
             return trim((string)$environmentValue);
         }
-        foreach (['SOCIALTOSITE_RUNTIME_APIFY_API_TOKEN', 'APIFY_API_TOKEN'] as $name) {
-            if (defined($name) && trim((string)constant($name)) !== '') return trim((string)constant($name));
+
+        if (defined('APIFY_API_TOKEN')) {
+            $configuredValue = trim((string)constant('APIFY_API_TOKEN'));
+            if ($configuredValue !== '') return $configuredValue;
         }
+
+        $managed = ProviderConfig::secret('apify');
+        if ($managed !== '') return $managed;
+
         throw new RuntimeException('APIFY_API_TOKEN non configurata sul server');
     }
 
@@ -97,6 +110,9 @@ final class ApifyClient {
 
         if ($status < 200 || $status >= 300) {
             $message = $data['error']['message'] ?? $data['message'] ?? null;
+            if ($status === 401) {
+                throw new RuntimeException('Apify: credenziale non valida o revocata; aggiornare APIFY_API_TOKEN e ridistribuire (HTTP 401)');
+            }
             throw new RuntimeException('Apify: ' . ($message ?: 'richiesta fallita') . ' (HTTP ' . $status . ')');
         }
 

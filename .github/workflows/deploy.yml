@@ -120,7 +120,7 @@ jobs:
 
       - name: Prepare production release
         env:
-          APIFY_API_TOKEN: ${{ secrets.APIFY_API_TOKEN || secrets.REFETCHER_API_KEY }}
+          APIFY_API_TOKEN: ${{ secrets.APIFY_API_TOKEN }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           GEMINI_MODEL: ${{ vars.GEMINI_MODEL || 'gemini-3.6-flash' }}
           PUBLIC_BASE_URL: https://allsocialtoweb.com
@@ -128,8 +128,18 @@ jobs:
         run: |
           set -euo pipefail
           if [ -z "$APIFY_API_TOKEN" ]; then
-            echo "::warning::APIFY_API_TOKEN is not in secrets. Ensure it is configured in the Admin Panel."
+            echo "::error::APIFY_API_TOKEN must be configured as a repository secret."
+            exit 1
           fi
+          if ! apify_status="$(curl -sS -o /tmp/apify-token-check.json -w '%{http_code}' --connect-timeout 10 --max-time 30 -H "Authorization: Bearer $APIFY_API_TOKEN" 'https://api.apify.com/v2/users/me')"; then
+            echo "::error::Unable to validate APIFY_API_TOKEN because the Apify API is unreachable."
+            exit 1
+          fi
+          if [ "$apify_status" != "200" ]; then
+            echo "::error::APIFY_API_TOKEN was rejected by Apify (HTTP $apify_status)."
+            exit 1
+          fi
+          rm -f /tmp/apify-token-check.json
           if [ -z "$GEMINI_API_KEY" ]; then
             echo "::error::GEMINI_API_KEY must be configured for user profiling."
             exit 1
