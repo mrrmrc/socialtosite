@@ -64,7 +64,7 @@ final class ContentIdeaFormatter {
                 'title'=>$title,
                 'reason'=>self::text($candidate['reason']??$candidate['perche']??$candidate['why']??'',420)?:'Approfondisce un bisogno concreto del pubblico usando le informazioni già confermate.',
                 'type'=>$type,'priority'=>$priority,
-                'source'=>self::text($candidate['source']??$candidate['fonte']??'',160)?:($sourceUrl!==''?'Segnale di attualità verificabile':'Profilazione editoriale LinkSeoWeb'),
+                'source'=>self::text($candidate['source']??$candidate['fonte']??'',160)?:($sourceUrl!==''?'Segnale di attualità verificabile':'Profilazione editoriale All Social To Web'),
                 'source_url'=>$sourceUrl,'freshness'=>$freshness,
                 'social_angle'=>self::text($candidate['social_angle']??$candidate['taglio_social']??'',280)?:'Trasforma il punto centrale in una domanda concreta e rimanda all’approfondimento completo.',
             ];

@@ -502,7 +502,7 @@ class AI {
             'titoli_recenti' => $recentTitles,
         ];
 
-        $prompt = "Sei LIA, l'assistente AI integrata in LinkSeoWeb. Rispondi in italiano come una consulente competente, naturale, attenta e concreta.\n"
+        $prompt = "Sei LIA, l'assistente AI integrata in All Social To Web. Rispondi in italiano come una consulente competente, naturale, attenta e concreta.\n"
             . "Comprendi davvero la domanda e collegala al contesto e ai messaggi precedenti. Evita risposte standard, slogan, ripetizioni e liste inutili.\n"
             . "Se la domanda e' breve o ambigua, deduci il significato piu probabile dalla conversazione; fai una sola domanda di chiarimento soltanto quando cambia davvero la risposta.\n"
             . "Puoi proporre il prossimo passo, spiegare il prodotto, ragionare su contenuti e strategia e commentare i dati forniti.\n"
@@ -1231,7 +1231,7 @@ Restituisci SOLO la nuova memoria aggiornata (testo semplice), nient'altro.";
             CURLOPT_FILE           => $fp,
             CURLOPT_FOLLOWLOCATION => true,
             CURLOPT_TIMEOUT        => 120,
-            CURLOPT_USERAGENT      => 'Mozilla/5.0 (compatible; LinkSeoWeb/1.0)',
+            CURLOPT_USERAGENT      => 'Mozilla/5.0 (compatible; AllSocialToWeb/1.0)',
         ]);
         curl_exec($ch);
         curl_close($ch);
@@ -1288,7 +1288,7 @@ Testi da analizzare:
             CURLOPT_FILE           => $fp,
             CURLOPT_FOLLOWLOCATION => true,
             CURLOPT_TIMEOUT        => 60,
-            CURLOPT_USERAGENT      => 'LinkSeoWeb/1.0',
+            CURLOPT_USERAGENT      => 'AllSocialToWeb/1.0',
         ]);
         curl_exec($ch);
         curl_close($ch);
@@ -1741,7 +1741,7 @@ Testi da analizzare:
             CURLOPT_FOLLOWLOCATION => true,
             CURLOPT_CONNECTTIMEOUT => 3,
             CURLOPT_TIMEOUT => 6,
-            CURLOPT_USERAGENT => 'LinkSeoWeb/1.0 content-research',
+            CURLOPT_USERAGENT => 'AllSocialToWeb/1.0 content-research',
         ]);
         $xml = curl_exec($ch);
         $status = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);

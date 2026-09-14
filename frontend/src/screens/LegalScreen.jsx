@@ -1,10 +1,8 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
-
 const UPDATED_AT = '28 agosto 2026';
 
 const privacySections = [
-  ['1. Chi gestisce il servizio', <p key="operator">SocialToSite, prodotto LinkSeoWeb, gestisce la piattaforma. Per richieste sulla privacy puoi scrivere a <a href="mailto:support@ideesitiweb.it">support@ideesitiweb.it</a>.</p>],
+  ['1. Chi gestisce il servizio', <p key="operator">All Social To Web gestisce la piattaforma SocialToSite. Per richieste sulla privacy puoi scrivere a <a href="mailto:support@ideesitiweb.it">support@ideesitiweb.it</a>.</p>],
   ['2. Dati trattati', <ul key="data"><li>Dati di registrazione e accesso, come nome, indirizzo e-mail e informazioni necessarie a proteggere l’account.</li><li>Dati dei canali collegati con il tuo consenso: identificativi del profilo, pagine Facebook, account Instagram professionali, profili e video TikTok, canali e video YouTube e relativi contenuti pubblici o autorizzati.</li><li>URL e contenuti dei siti web indicati dall’utente.</li><li>Bozze editoriali, preferenze, configurazioni e contenuti generati nella piattaforma.</li><li>Dati tecnici e log essenziali per sicurezza, diagnosi degli errori e funzionamento del servizio.</li></ul>],
   ['3. Perché utilizziamo i dati', <p key="purposes">Usiamo i dati per autenticare l’utente, collegare i canali richiesti, importare i contenuti autorizzati, generare bozze editoriali, pubblicare solo quando richiesto, offrire assistenza, prevenire abusi e mantenere sicuro il servizio.</p>],
   ['4. Base del trattamento', <p key="basis">Il trattamento è necessario per erogare il servizio richiesto. I contenuti social vengono letti soltanto da URL pubblici indicati dall’utente, senza accesso all’account social, cookie di sessione o token personali. Alcuni dati tecnici sono trattati per il legittimo interesse alla sicurezza e all’affidabilità della piattaforma.</p>],
@@ -34,11 +32,11 @@ export function LegalScreen({ type }) {
   return (
     <main className="legal-page">
       <header className="legal-header">
-        <Link to="/" className="legal-brand" aria-label="Torna a SocialToSite">
-          <img src="/logo-cropped.png?v=2" alt="LinkSeoWeb" />
-          <span><strong>SocialToSite</strong><small>by LinkSeoWeb</small></span>
-        </Link>
-        <Link to="/login" className="btn btn-outline">Accedi</Link>
+        <a href="/" className="legal-brand" aria-label="Torna ad All Social To Web">
+          <img src="/logo-cropped.png?v=2" alt="All Social To Web" />
+          <span><strong>All Social To Web</strong><small>Dai social al tuo spazio</small></span>
+        </a>
+        <a href="/accedi" className="btn btn-outline">Accedi</a>
       </header>
 
       <article className="legal-document">
@@ -52,8 +50,8 @@ export function LegalScreen({ type }) {
         </p>
 
         <nav className="legal-switch" aria-label="Documenti legali">
-          <Link className={isPrivacy ? 'is-active' : ''} to="/privacy">Privacy</Link>
-          <Link className={!isPrivacy ? 'is-active' : ''} to="/terms">Termini</Link>
+          <a className={isPrivacy ? 'is-active' : ''} href="/privacy">Privacy</a>
+          <a className={!isPrivacy ? 'is-active' : ''} href="/terms">Termini</a>
         </nav>
 
         <div className="legal-sections">

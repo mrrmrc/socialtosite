@@ -26,7 +26,7 @@ function pextract_image_from_page(string $pageUrl): string {
  if(!function_exists('curl_init'))return'';
  try {
   $ch=curl_init($pageUrl); if($ch===false)return'';
-  curl_setopt_array($ch,[CURLOPT_RETURNTRANSFER=>true,CURLOPT_FOLLOWLOCATION=>true,CURLOPT_TIMEOUT=>3,CURLOPT_CONNECTTIMEOUT=>2,CURLOPT_USERAGENT=>'Mozilla/5.0 (compatible; LinkSeoWeb/1.0)',CURLOPT_HTTPHEADER=>['Accept: text/html,application/xhtml+xml']]);
+  curl_setopt_array($ch,[CURLOPT_RETURNTRANSFER=>true,CURLOPT_FOLLOWLOCATION=>true,CURLOPT_TIMEOUT=>3,CURLOPT_CONNECTTIMEOUT=>2,CURLOPT_USERAGENT=>'Mozilla/5.0 (compatible; AllSocialToWeb/1.0)',CURLOPT_HTTPHEADER=>['Accept: text/html,application/xhtml+xml']]);
   $html=curl_exec($ch); $contentType=(string)curl_getinfo($ch,CURLINFO_CONTENT_TYPE); curl_close($ch);
   if(!is_string($html)||$html===''||stripos($contentType,'text/html')===false)return'';
   foreach(['~<meta[^>]+(?:property|name)=["\'](?:og:image|og:image:secure_url|twitter:image)["\'][^>]+content=["\']([^"\']+)["\']~i','~<meta[^>]+content=["\']([^"\']+)["\'][^>]+(?:property|name)=["\'](?:og:image|og:image:secure_url|twitter:image)["\']~i'] as $pattern) if(preg_match($pattern,$html,$m)){ $resolved=pabsolute_url($m[1],$pageUrl); if($resolved!=='')return$cache[$pageUrl]=$resolved; }

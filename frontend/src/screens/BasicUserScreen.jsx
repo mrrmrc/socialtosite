@@ -235,7 +235,7 @@ export function BasicUserScreen({ user, token, onLogout, onEnterDashboard }) {
         {loading && step === 0 && !error && (
           <>
             <h1 className="lia-title">Sto preparando il tuo spazio</h1>
-            <p className="lia-text">Puoi iniziare a orientarti mentre LinkSeoWeb controlla i tuoi contenuti.</p>
+            <p className="lia-text">Puoi iniziare a orientarti mentre All Social To Web controlla i tuoi contenuti.</p>
             <div className="lia-progress" aria-hidden="true"><span /></div>
             <p className="lia-status" role="status">{LOADING_MESSAGES[loadingMessageIndex]}</p>
             <button className="lia-button" onClick={onEnterDashboard}>Entra subito nel pannello</button>

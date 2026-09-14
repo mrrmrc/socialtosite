@@ -686,7 +686,7 @@ $contentWidth = $densityMode === 'compact' ? '1040px' : ($densityMode === 'balan
 $heroPadding = $densityMode === 'compact' ? '6rem 1.5rem 4rem' : ($densityMode === 'balanced' ? '7rem 1.5rem 5rem' : '9rem 1.5rem 6rem');
 $gridMin = $cardsMode === 'cinematic' ? '360px' : ($cardsMode === 'product' ? '300px' : '320px');
 
-// Identita visiva unica LinkSeoWeb: leggibile, veloce e riconoscibile.
+// Identita visiva unica All Social To Web: leggibile, veloce e riconoscibile.
 $archetype = 'network-standard';
 $customCss = '';
 $fontHeading = 'Inter';
@@ -1775,7 +1775,7 @@ if ($single) {
         'publisher' => [
             '@type' => 'Organization',
             '@id' => app_base_url() . '#organization',
-            'name' => 'LinkSeoWeb',
+            'name' => 'All Social To Web',
             'url' => app_base_url(),
             'logo' => ['@type' => 'ImageObject', 'url' => app_base_url() . '/logo-cropped.png?v=2'],
         ],
@@ -2169,7 +2169,7 @@ header('Link: <' . $siteUrl . '/feed.xml>; rel="alternate"; type="application/at
     .hospitality-media-item span { display: block; padding: 0.95rem 1rem 1.1rem; font-weight: 600; line-height: 1.35; }
     .hospitality-cta-band { display: flex; justify-content: space-between; gap: 1.2rem; align-items: center; padding: 2rem; border-radius: 32px; background: linear-gradient(135deg, rgba(160,106,66,0.12), rgba(61,139,109,0.10)); border: 1px solid rgba(0,0,0,0.05); }
 
-    /* Identita unica della rete LinkSeoWeb */
+    /* Identita unica della rete All Social To Web */
     :root { --accent:#5B5CE2; --bg:#F6F7FB; --card-bg:#fff; --text:#182033; --border:#E3E6EF; --radius:18px; }
     body.theme-network-standard { background:#F6F7FB; color:#182033; overflow-x:clip; }
     .network-bar { background:linear-gradient(110deg,#151A2D 0%,#252058 58%,#5B2FA8 100%); color:#fff; padding:.65rem 1.25rem; font-size:.78rem; letter-spacing:.02em; }
@@ -2619,7 +2619,7 @@ header('Link: <' . $siteUrl . '/feed.xml>; rel="alternate"; type="application/at
 <a class="skip-link" href="#main-content">Vai al contenuto principale</a>
 <div class="network-bar">
   <div class="network-signature">
-    <a class="network-signature-brand" href="<?= h(app_base_url()) ?>/scopri"><img src="/logo-cropped.png?v=2" alt=""><strong>LinkSeoWeb</strong></a>
+    <a class="network-signature-brand" href="<?= h(app_base_url()) ?>/scopri"><img src="/logo-cropped.png?v=2" alt=""><strong>All Social To Web</strong></a>
     <span class="network-product-name">✦ Spazio Vivo</span>
     <span class="network-trust">Contenuti collegati alle fonti ufficiali</span>
   </div>
@@ -2666,7 +2666,7 @@ ob_start();
   <?php endif; ?>
   <?php if ($officialSiteUrl): ?><p><a href="<?= h($officialSiteUrl) ?>" target="_blank" rel="noopener">Visita il sito ufficiale →</a></p><?php endif; ?>
   <div class="footer-bottom">
-    <span>&copy; <?= date('Y') ?> <?= $title ?>. Uno <a href="<?= h(app_base_url()) ?>">Spazio Vivo LinkSeoWeb</a>.</span>
+    <span>&copy; <?= date('Y') ?> <?= $title ?>. Uno <a href="<?= h(app_base_url()) ?>">Spazio Vivo All Social To Web</a>.</span>
     <span><a href="<?= h(app_base_url()) ?>/scopri">Esplora la rete</a> · <a href="<?= $siteUrl ?>/sitemap.xml">Sitemap</a></span>
   </div>
 <?php
@@ -2678,7 +2678,7 @@ ob_start();
   <nav class="breadcrumb" aria-label="Percorso"><a href="<?= $siteUrl ?>">Home</a><span class="sep">/</span><span><?= h($foundationPage['title']) ?></span></nav>
   <article class="foundation-page">
     <header class="foundation-header"<?php if ($useHospitalityLanding): ?> style="--foundation-cover:url('<?= h($hospitalityHeroImage ?: $placeholderImage) ?>')"<?php endif; ?>>
-      <span class="network-kicker">Informazioni ufficiali organizzate da LinkSeoWeb</span>
+      <span class="network-kicker">Informazioni ufficiali organizzate da All Social To Web</span>
       <h1><?= h($foundationPage['title']) ?></h1>
       <p><?= h($foundationPage['intro'] ?? '') ?></p>
     </header>

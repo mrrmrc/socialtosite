@@ -1,4 +1,4 @@
-# LinkSeoWeb Content Import
+# All Social To Web
 
 Applicazione per collegare sorgenti pubbliche tramite URL, conservarne il
 contenuto originale in MariaDB e trasformarlo, su richiesta, in una bozza

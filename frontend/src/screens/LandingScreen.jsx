@@ -1,138 +1,174 @@
-import React from 'react';
-import { SOCIAL } from '../utils/api';
+import React, { useState } from 'react';
 
-export function LandingScreen({ onGetStarted }) {
-  const isLoggedIn = !!localStorage.getItem('sts_token');
+const examples = {
+  hospitality: {
+    tab: 'Agriturismo', label: 'OSPITALITÀ · UMBRIA', name: 'La Quercia',
+    title: 'La campagna,\ncome dovrebbe essere.',
+    description: 'Camere tra gli ulivi, cucina della terra e giornate che seguono un ritmo più lento.',
+    action: 'Verifica disponibilità', paths: ['Dormire', 'Mangiare', 'Esperienze'],
+    stories: ['Una colazione fatta qui', 'Il sentiero degli ulivi'], theme: 'earth',
+  },
+  legal: {
+    tab: 'Studio legale', label: 'DIRITTO D’IMPRESA · MILANO', name: 'Studio Ferri',
+    title: 'Chiarezza nelle\ndecisioni importanti.',
+    description: 'Competenza legale, ascolto e una direzione concreta per imprese e professionisti.',
+    action: 'Richiedi un colloquio', paths: ['Competenze', 'Professionisti', 'Approfondimenti'],
+    stories: ['Nuove regole per le imprese', 'Contratti senza zone grigie'], theme: 'ink',
+  },
+  editorial: {
+    tab: 'Blog', label: 'CULTURA DIGITALE · IDEE', name: 'Fuori Margine',
+    title: 'Le idee non devono\nsparire nel feed.',
+    description: 'Storie, strumenti e punti di vista per capire come cambia il nostro modo di creare.',
+    action: 'Esplora gli articoli', paths: ['Storie', 'Strumenti', 'Prospettive'],
+    stories: ['La creatività dopo l’algoritmo', 'Costruire un archivio vivo'], theme: 'paper',
+  },
+};
+
+function BrandMark({ compact = false }) {
+  return (
+    <span className={`astw-brand${compact ? ' is-compact' : ''}`}>
+      <span className="astw-mark" aria-hidden="true"><i /><i /><i /></span>
+      <span><strong>All Social</strong><b>To Web</b></span>
+    </span>
+  );
+}
+
+function ArrowIcon() {
+  return <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M4 10h11M11 5l5 5-5 5" /></svg>;
+}
+
+export function LandingScreen({ onGetStarted, isLoggedIn = false }) {
+  const [activeExample, setActiveExample] = useState('hospitality');
+  const example = examples[activeExample];
+  const primaryAction = () => {
+    if (isLoggedIn) window.location.href = '/dashboard';
+    else if (onGetStarted) onGetStarted();
+    else window.location.href = '/accedi';
+  };
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--bg)', color: 'var(--text)', overflowX: 'hidden' }}>
-
-      {/* Blob decorativi sfondo */}
-      <div aria-hidden="true" style={{ position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 0, overflow: 'hidden' }}>
-        <div style={{ position: 'absolute', width: '700px', height: '700px', borderRadius: '50%', top: '-200px', left: '-200px', background: 'radial-gradient(circle, rgba(99,102,241,0.12) 0%, transparent 70%)', animation: 'blobFloat 12s ease-in-out infinite' }} />
-        <div style={{ position: 'absolute', width: '500px', height: '500px', borderRadius: '50%', bottom: '-100px', right: '-100px', background: 'radial-gradient(circle, rgba(139,92,246,0.10) 0%, transparent 70%)', animation: 'blobFloat 16s ease-in-out infinite reverse' }} />
-        <div style={{ position: 'absolute', width: '400px', height: '400px', borderRadius: '50%', top: '40%', right: '10%', background: 'radial-gradient(circle, rgba(6,182,212,0.07) 0%, transparent 70%)', animation: 'blobFloat 10s ease-in-out infinite 4s' }} />
-      </div>
-
-      {/* Navbar */}
-      <header style={{ padding: '16px 40px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(11, 15, 25, 0.8)', backdropFilter: 'blur(24px)', WebkitBackdropFilter: 'blur(24px)', position: 'sticky', top: 0, zIndex: 100, borderBottom: '1px solid rgba(255,255,255,0.05)', boxShadow: '0 2px 20px rgba(0,0,0,0.2)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <img src="/logo.png?v=2" alt="" style={{ width: 42, height: 42, objectFit: 'contain', filter: 'drop-shadow(0 6px 12px rgba(99,102,241,.25))' }} />
-          <span style={{ fontWeight: 800, fontSize: '18px', letterSpacing: '-0.5px' }}>LinkSeo<span className="gradient-text">Web</span></span>
-        </div>
-        <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-          <a href="/scopri" style={{ color: 'var(--text-muted)', textDecoration: 'none', fontSize: '14px', fontWeight: 700 }}>Scopri</a>
-          {!isLoggedIn && <button className="btn btn-outline" onClick={onGetStarted} style={{ padding: '8px 20px', fontSize: '14px' }}>Accedi</button>}
-          <button className="btn btn-primary" onClick={() => { if (isLoggedIn) window.location.href = '/dashboard'; else onGetStarted(); }} style={{ padding: '10px 22px', fontSize: '14px' }}>
-            {isLoggedIn ? 'Dashboard →' : 'Inizia Gratis'}
+    <div className="public-site">
+      <header className="public-header">
+        <a href="/" className="public-logo" aria-label="All Social To Web, homepage"><BrandMark /></a>
+        <nav aria-label="Navigazione principale">
+          <a href="#come-funziona">Come funziona</a>
+          <a href="#layout-unico">Il formato</a>
+          <a href="/scopri">Esplora la rete</a>
+        </nav>
+        <div className="public-header-actions">
+          {!isLoggedIn && <a className="public-login" href="/accedi">Accedi</a>}
+          <button className="public-button public-button-dark" onClick={primaryAction}>
+            {isLoggedIn ? 'Vai alla dashboard' : 'Crea il tuo spazio'} <ArrowIcon />
           </button>
         </div>
       </header>
 
-      {/* Hero Section */}
-      <section style={{ position: 'relative', zIndex: 1, maxWidth: '1100px', margin: '0 auto', padding: '100px 24px 80px', textAlign: 'center' }}>
-        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', background: 'var(--primary-light)', color: 'var(--primary-dark)', border: '1px solid rgba(99,102,241,0.25)', borderRadius: '50px', padding: '6px 18px', fontSize: '13px', fontWeight: 700, marginBottom: '32px', animation: 'fadeInUp 0.6s ease both' }}>
-          <span style={{ fontSize: '16px' }}>✨</span> AI-Powered Content Manager · Gratis per iniziare
-        </div>
-
-        <h1 style={{ fontSize: 'clamp(40px, 7vw, 76px)', fontWeight: 800, lineHeight: 1.05, letterSpacing: '-2px', marginBottom: '28px', animation: 'fadeInUp 0.7s 0.1s ease both' }}>
-          Il tuo sito si aggiorna<br />
-          <span className="gradient-text">da solo, mentre dormi.</span>
-        </h1>
-
-        <p style={{ fontSize: 'clamp(16px, 2.5vw, 21px)', color: 'var(--text-muted)', maxWidth: '680px', margin: '0 auto 48px', lineHeight: 1.65, animation: 'fadeInUp 0.7s 0.2s ease both' }}>
-          Collega Instagram, TikTok, YouTube e Facebook. La nostra AI trasforma ogni post in un
-          <strong style={{ color: 'var(--text)' }}> articolo SEO ottimizzato</strong> e lo pubblica sul tuo sito personale.
-          Traffico organico su Google, senza pagare un euro di ADS.
-        </p>
-
-        <div style={{ display: 'flex', gap: '16px', justifyContent: 'center', flexWrap: 'wrap', animation: 'fadeInUp 0.7s 0.3s ease both' }}>
-          <button id="hero-cta" className="btn btn-primary" onClick={() => { if (isLoggedIn) window.location.href = '/dashboard'; else onGetStarted(); }} style={{ fontSize: '17px', padding: '16px 36px' }}>
-            {isLoggedIn ? 'Vai alla Dashboard →' : '🚀 Inizia Gratis Ora'}
-          </button>
-          <button className="btn btn-outline" onClick={() => document.getElementById('features').scrollIntoView({ behavior: 'smooth' })} style={{ fontSize: '17px', padding: '16px 32px' }}>Come funziona ↓</button>
-        </div>
-
-        {/* Mockup visivo */}
-        <div style={{ marginTop: '72px', animation: 'fadeInUp 0.8s 0.4s ease both' }}>
-          <div style={{ background: 'var(--surface)', borderRadius: '24px', border: '1px solid var(--border)', boxShadow: '0 24px 80px rgba(99,102,241,0.18), 0 8px 32px rgba(0,0,0,0.06)', padding: '20px', maxWidth: '760px', margin: '0 auto', textAlign: 'left' }}>
-            <div style={{ display: 'flex', gap: '8px', marginBottom: '16px', alignItems: 'center' }}>
-              <div style={{ width: 12, height: 12, borderRadius: '50%', background: '#FDA4AF' }} />
-              <div style={{ width: 12, height: 12, borderRadius: '50%', background: '#FDE68A' }} />
-              <div style={{ width: 12, height: 12, borderRadius: '50%', background: '#6EE7B7' }} />
-              <div style={{ flex: 1, background: 'var(--bg)', borderRadius: '8px', padding: '6px 14px', fontSize: '12px', color: 'var(--text-muted)', marginLeft: '8px', border: '1px solid var(--border)' }}>🔒 LinkSeoWeb / il tuo spazio</div>
+      <main>
+        <section className="public-hero">
+          <div className="public-hero-orbit orbit-one" aria-hidden="true" />
+          <div className="public-hero-orbit orbit-two" aria-hidden="true" />
+          <div className="public-hero-copy">
+            <span className="public-kicker"><i /> Dai social a uno spazio che resta</span>
+            <h1>I tuoi contenuti meritano <em>più di 24 ore.</em></h1>
+            <p>All Social To Web trasforma post, video e storie in un sito proprietario, organizzato e pronto per essere trovato.</p>
+            <div className="public-hero-actions">
+              <button className="public-button public-button-coral" onClick={primaryAction}>
+                {isLoggedIn ? 'Apri il tuo spazio' : 'Porta i tuoi social sul web'} <ArrowIcon />
+              </button>
+              <a className="public-text-link" href="#layout-unico">Guarda come cambia <span>↓</span></a>
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px' }}>
-              {[
-                { emoji: '📸', title: 'Nuova collezione estate 2026', src: 'Instagram', badge: '✅ SEO' },
-                { emoji: '🎬', title: 'Tutorial: come fare la pasta fatta in casa', src: 'YouTube', badge: '✅ SEO' },
-                { emoji: '🎵', title: 'Behind the scenes del video virale', src: 'TikTok', badge: '⏳ AI...' },
-              ].map((item, i) => (
-                <div key={i} style={{ background: 'var(--bg)', borderRadius: '12px', padding: '16px', border: '1px solid var(--border)' }}>
-                  <div style={{ fontSize: '28px', marginBottom: '8px' }}>{item.emoji}</div>
-                  <div style={{ fontSize: '12px', fontWeight: 700, marginBottom: '6px', lineHeight: 1.3 }}>{item.title}</div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600 }}>{item.src}</span>
-                    <span style={{ fontSize: '10px', fontWeight: 700, color: item.badge.startsWith('✅') ? 'var(--teal)' : 'var(--amber)', background: item.badge.startsWith('✅') ? 'var(--teal-light)' : 'var(--amber-light)', padding: '2px 8px', borderRadius: '20px' }}>{item.badge}</span>
-                  </div>
-                </div>
+            <div className="public-channel-row" aria-label="Canali supportati">
+              <span>Collega</span>
+              <b className="channel-instagram">IG</b><b className="channel-tiktok">TT</b><b className="channel-youtube">YT</b><b className="channel-facebook">FB</b><b className="channel-web">WWW</b>
+            </div>
+          </div>
+
+          <div className="public-flow-demo" aria-label="I contenuti social diventano un sito organizzato">
+            <div className="flow-source flow-source-one"><span>IG</span><div><small>NUOVO POST</small><strong>Una storia da raccontare</strong></div></div>
+            <div className="flow-source flow-source-two"><span>▶</span><div><small>NUOVO VIDEO</small><strong>Contenuto acquisito</strong></div></div>
+            <div className="flow-line" aria-hidden="true"><i /><i /><i /></div>
+            <div className="flow-site-card">
+              <div className="flow-browser"><i /><i /><i /><span>iltuospazio.it</span></div>
+              <div className="flow-site-hero"><small>IL TUO SPAZIO UFFICIALE</small><strong>Quello che fai, finalmente insieme.</strong><span>Esplora i contenuti →</span></div>
+              <div className="flow-site-grid"><span /><span /><span /></div>
+            </div>
+            <div className="flow-status"><i /> Pubblicato e organizzato</div>
+          </div>
+        </section>
+
+        <section className="public-statement" aria-label="La promessa di All Social To Web">
+          <p>I social sono il momento.</p>
+          <h2>Il tuo sito è la memoria.</h2>
+          <span>Ogni contenuto entra in un sistema ordinato, navigabile e davvero tuo.</span>
+        </section>
+
+        <section className="public-process" id="come-funziona">
+          <header className="public-section-heading">
+            <span className="public-kicker">Un flusso semplice</span>
+            <h2>Tu continui a pubblicare.<br />Il tuo spazio continua a crescere.</h2>
+          </header>
+          <div className="public-process-grid">
+            <article><span>01</span><div className="process-icon"><i className="process-nodes" /></div><h3>Collega i canali</h3><p>Indichi i profili e le fonti che raccontano davvero la tua attività.</p></article>
+            <article><span>02</span><div className="process-icon"><i className="process-spark" /></div><h3>L’AI dà struttura</h3><p>Comprende argomenti e obiettivi, poi trasforma i contenuti in pagine utili.</p></article>
+            <article><span>03</span><div className="process-icon"><i className="process-window" /></div><h3>Il sito prende vita</h3><p>Articoli, percorsi e informazioni diventano uno spazio pubblico sempre aggiornato.</p></article>
+          </div>
+        </section>
+
+        <section className="public-showcase" id="layout-unico">
+          <div className="showcase-copy">
+            <span className="public-kicker">Un formato. Infinite identità.</span>
+            <h2>La stessa regia.<br />Mai lo stesso carattere.</h2>
+            <p>Un’architettura proprietaria, perfezionata per tutti. L’identità dell’attività decide atmosfera, contenuti, percorsi e azione principale.</p>
+            <div className="showcase-tabs" role="tablist" aria-label="Esempi di sito">
+              {Object.entries(examples).map(([key, item]) => (
+                <button key={key} role="tab" aria-selected={activeExample === key} onClick={() => setActiveExample(key)}>
+                  <i />{item.tab}<span>→</span>
+                </button>
               ))}
             </div>
           </div>
-        </div>
-      </section>
 
-      {/* Social Proof Bar */}
-      <div style={{ position: 'relative', zIndex: 1, borderTop: '1px solid var(--border)', borderBottom: '1px solid var(--border)', background: 'rgba(11, 15, 25, 0.6)', backdropFilter: 'blur(10px)', padding: '20px 24px', textAlign: 'center' }}>
-        <div style={{ display: 'flex', gap: '32px', justifyContent: 'center', alignItems: 'center', flexWrap: 'wrap', fontSize: '14px', color: 'var(--text-muted)', fontWeight: 600 }}>
-          <span>⭐⭐⭐⭐⭐ <strong style={{ color: 'var(--text)' }}>4.9/5</strong> dalle recensioni</span>
-          <span style={{ opacity: 0.3 }}>|</span>
-          <span>🚀 <strong style={{ color: 'var(--text)' }}>500+</strong> creator già connessi</span>
-          <span style={{ opacity: 0.3 }}>|</span>
-          <span style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-            {['instagram','tiktok','youtube','facebook'].map(p => <img key={p} src={SOCIAL[p]?.icon} alt={p} style={{ width: 18, height: 18, opacity: 0.7 }} />)}
-          </span>
-        </div>
-      </div>
-
-      {/* Features Section */}
-      <section id="features" style={{ position: 'relative', zIndex: 1, maxWidth: '1100px', margin: '0 auto', padding: '100px 24px' }}>
-        <div style={{ textAlign: 'center', marginBottom: '64px' }}>
-          <div style={{ display: 'inline-block', background: 'var(--primary-light)', color: 'var(--primary)', borderRadius: '50px', padding: '5px 16px', fontSize: '13px', fontWeight: 700, marginBottom: '16px' }}>COME FUNZIONA</div>
-          <h2 style={{ fontSize: 'clamp(28px, 4vw, 48px)', fontWeight: 800, letterSpacing: '-1px', marginBottom: '16px' }}>L'AI lavora, tu cresci.</h2>
-          <p style={{ fontSize: '18px', color: 'var(--text-muted)', maxWidth: '520px', margin: '0 auto' }}>Tre step automatici, zero fatica manuale.</p>
-        </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '24px' }}>
-          {[
-            { icon: '🤖', gradient: 'linear-gradient(135deg, #EEF2FF, #F3E8FF)', iconBg: 'linear-gradient(135deg, #6366F1, #8B5CF6)', title: 'Pilota Automatico', desc: 'Collega i tuoi account. Ogni post, reel e video viene intercettato e trascritto dalla nostra AI in automatico — 24 ore su 24, 7 giorni su 7, senza alcun click da parte tua.' },
-            { icon: '🚀', gradient: 'linear-gradient(135deg, #ECFEFF, #EEF2FF)', iconBg: 'linear-gradient(135deg, #06B6D4, #6366F1)', title: 'SEO a Vita', desc: 'I post social spariscono in 24 ore dal feed. Noi li trasformiamo in articoli strutturati che Google indicizza e che ti portano traffico organico per anni, senza pagare un euro di pubblicità.' },
-            { icon: '💸', gradient: 'linear-gradient(135deg, #F0FDF4, #ECFEFF)', iconBg: 'linear-gradient(135deg, #10B981, #06B6D4)', title: 'Zero ADS per Sempre', desc: 'Smetti di pagare Zuckerberg e Google per farti vedere. Costruisci un pubblico organico e proprietario sul tuo sito, che nessun algoritmo può toglierti e nessuna crisi di budget può fermare.' },
-          ].map((feature, i) => (
-            <div key={i} className="card" style={{ background: feature.gradient, border: '1px solid rgba(99,102,241,0.12)', padding: '40px 32px' }}>
-              <div style={{ width: '56px', height: '56px', borderRadius: '16px', background: feature.iconBg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '28px', marginBottom: '24px', boxShadow: '0 8px 24px rgba(0,0,0,0.12)' }}>{feature.icon}</div>
-              <h3 style={{ fontSize: '22px', fontWeight: 800, marginBottom: '14px' }}>{feature.title}</h3>
-              <p style={{ color: 'var(--text-muted)', lineHeight: 1.7, fontSize: '15px' }}>{feature.desc}</p>
+          <div className={`signature-preview theme-${example.theme}`} aria-live="polite">
+            <div className="signature-topbar"><strong>{example.name}</strong><div><span>Storia</span><span>Contenuti</span><b>Contatti</b></div></div>
+            <div className="signature-visual">
+              <div className="signature-landscape" aria-hidden="true"><i /><i /><i /></div>
+              <div className="signature-overlay" />
+              <div className="signature-content"><small>{example.label}</small><h3>{example.title.split('\n').map((line, i) => <React.Fragment key={line}>{i > 0 && <br />}{line}</React.Fragment>)}</h3><p>{example.description}</p><button>{example.action} <span>→</span></button></div>
             </div>
-          ))}
-        </div>
-      </section>
+            <div className="signature-paths">
+              <small>DA DOVE VUOI COMINCIARE?</small>
+              <div>{example.paths.map((path, index) => <span key={path}><i>0{index + 1}</i>{path}<b>↗</b></span>)}</div>
+            </div>
+            <div className="signature-stories">{example.stories.map((story, index) => <article key={story}><div className={`story-art story-${index + 1}`} /><small>DALLE STORIE</small><strong>{story}</strong><span>Leggi →</span></article>)}</div>
+          </div>
+        </section>
 
-      {/* CTA Footer */}
-      <section style={{ position: 'relative', zIndex: 1, margin: '0 24px 80px', borderRadius: '32px', overflow: 'hidden', background: 'var(--gradient)', boxShadow: '0 24px 80px rgba(99,102,241,0.30)' }}>
-        <div aria-hidden="true" style={{ position: 'absolute', inset: 0, pointerEvents: 'none', background: 'radial-gradient(ellipse 60% 80% at 80% 50%, rgba(255,255,255,0.08) 0%, transparent 70%)' }} />
-        <div style={{ position: 'relative', padding: 'clamp(48px, 8vw, 96px) 32px', textAlign: 'center' }}>
-          <h2 style={{ fontSize: 'clamp(28px, 4vw, 52px)', fontWeight: 800, color: '#fff', letterSpacing: '-1px', marginBottom: '20px' }}>Pronti a smettere<br />di lavorare per i social?</h2>
-          <p style={{ fontSize: '18px', color: 'rgba(255,255,255,0.80)', marginBottom: '40px', maxWidth: '480px', margin: '0 auto 40px' }}>Unisciti a centinaia di creator che hanno già automatizzato la loro presenza online. Il tuo primo sito è gratis.</p>
-          <button id="footer-cta" className="btn" onClick={() => { if (isLoggedIn) window.location.href = '/dashboard'; else onGetStarted(); }} style={{ background: '#fff', color: 'var(--primary)', fontSize: '17px', padding: '16px 40px', borderRadius: '50px', fontWeight: 800, boxShadow: '0 8px 32px rgba(0,0,0,0.15)', border: 'none' }}>
-            {isLoggedIn ? 'Vai alla Dashboard →' : '✨ Inizia Gratis — Nessuna carta richiesta'}
-          </button>
-        </div>
-      </section>
+        <section className="public-principles">
+          <div><span className="public-kicker">Costruito per durare</span><h2>Non un feed copiato.<br />Una presenza digitale.</h2></div>
+          <div className="principle-list">
+            <article><span>01</span><div><h3>Identità, non decorazione</h3><p>Colori, tono e immagini nascono dall’attività reale.</p></div></article>
+            <article><span>02</span><div><h3>Contenuti facili da ritrovare</h3><p>Ogni pubblicazione entra in argomenti, percorsi e pagine collegate.</p></div></article>
+            <article><span>03</span><div><h3>Un’azione sempre chiara</h3><p>Prenotare, contattare, leggere o visitare: il sito accompagna verso il passo giusto.</p></div></article>
+            <article><span>04</span><div><h3>Web aperto e proprietario</h3><p>Una casa pubblica per ciò che oggi vive soltanto dentro le piattaforme.</p></div></article>
+          </div>
+        </section>
 
-      {/* Footer */}
-      <footer style={{ position: 'relative', zIndex: 1, padding: '32px 24px', textAlign: 'center', color: 'var(--text-faint)', fontSize: '13px', borderTop: '1px solid var(--border)' }}>
-        <div style={{ marginBottom: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontWeight: 800, color: 'var(--text-muted)', fontSize: '14px' }}><img src="/logo.png?v=2" alt="" style={{ width: 30, height: 30, objectFit: 'contain' }} /><span>LinkSeoWeb</span></div>
-        <p><a href="/scopri" style={{ color: 'inherit' }}>Esplora attività e contenuti</a> · © 2026 LinkSeoWeb. Tutti i diritti riservati. · Piano gratuito · Fino a 3 social</p>
+        <section className="public-network-cta">
+          <div className="network-rings" aria-hidden="true"><i /><i /><i /></div>
+          <span className="public-kicker">Il prossimo spazio può essere il tuo</span>
+          <h2>Trasforma ciò che hai già pubblicato in qualcosa che continua a lavorare per te.</h2>
+          <div>
+            <button className="public-button public-button-light" onClick={primaryAction}>{isLoggedIn ? 'Vai alla dashboard' : 'Crea il tuo spazio'} <ArrowIcon /></button>
+            <a href="/scopri">Esplora gli spazi già online</a>
+          </div>
+        </section>
+      </main>
+
+      <footer className="public-footer">
+        <BrandMark compact />
+        <p>Dai social a uno spazio che resta.</p>
+        <nav><a href="/scopri">Esplora la rete</a><a href="/privacy">Privacy</a><a href="/terms">Termini</a><a href="/accedi">Accedi</a></nav>
+        <small>© {new Date().getFullYear()} All Social To Web</small>
       </footer>
     </div>
   );

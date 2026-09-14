@@ -6,7 +6,7 @@ export function ProductGuide({ posts = [], sources = [], siteUrl, onNavigate }) 
   const [input, setInput] = useState('');
   const [waiting, setWaiting] = useState(false);
   const [messages, setMessages] = useState([
-    { role: 'guide', text: 'Ciao, sono LIA, l’assistente AI di LinkSeoWeb. Posso ragionare con te sui contenuti, sul sito e sui dati reali del tuo account. Da dove vuoi partire?' },
+    { role: 'guide', text: 'Ciao, sono LIA, l’assistente AI di All Social To Web. Posso ragionare con te sui contenuti, sul sito e sui dati reali del tuo account. Da dove vuoi partire?' },
   ]);
 
   const facts = useMemo(() => {
