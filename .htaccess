@@ -25,6 +25,44 @@ RewriteRule ^(?:scraper|storage)(?:/|$) - [R=404,L]
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteRule ^assets/ - [R=404,L]
 
+# Routing pubblico: queste regole devono precedere il fallback della SPA.
+# La home e le pagine dell'app restano React; gli slug degli utenti vengono
+# renderizzati sul server, quindi funzionano anche per visitatori non autenticati.
+RewriteRule ^sitemap\.xml$ public/sitemap.php [L,QSA]
+RewriteRule ^scopri/sitemap\.xml$ public/discover.php?action=sitemap [L,QSA]
+RewriteRule ^scopri/tema/([^/]+)/?$ public/discover.php?topic=$1 [L,QSA]
+RewriteRule ^scopri/?$ public/discover.php [L,QSA]
+
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteCond %{REQUEST_URI} !^/(api|cron|db|frontend|public|node_modules|assets|accedi|login|dashboard|admin|connect|generating|scopri|privacy|terms|termini)(/|$) [NC]
+RewriteRule ^([^/]+)/sitemap\.xml$ public/site.php?slug=$1&action=sitemap [L,QSA]
+
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteCond %{REQUEST_URI} !^/(api|cron|db|frontend|public|node_modules|assets|accedi|login|dashboard|admin|connect|generating|scopri|privacy|terms|termini)(/|$) [NC]
+RewriteRule ^([^/]+)/feed\.xml$ public/site.php?slug=$1&action=feed [L,QSA]
+
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteCond %{REQUEST_URI} !^/(api|cron|db|frontend|public|node_modules|assets|accedi|login|dashboard|admin|connect|generating|scopri|privacy|terms|termini)(/|$) [NC]
+RewriteRule ^([^/]+)/llms\.txt$ public/site.php?slug=$1&action=llms [L,QSA]
+
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteCond %{REQUEST_URI} !^/(api|cron|db|frontend|public|node_modules|assets|accedi|login|dashboard|admin|connect|generating|scopri|privacy|terms|termini)(/|$) [NC]
+RewriteRule ^([^/]+)/categoria/([^/]+)/?$ public/site.php?slug=$1&tag=$2 [L,QSA]
+
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteCond %{REQUEST_URI} !^/(api|cron|db|frontend|public|node_modules|assets|accedi|login|dashboard|admin|connect|generating|scopri|privacy|terms|termini)(/|$) [NC]
+RewriteRule ^([^/]+)/?$ public/site.php?slug=$1 [L,QSA]
+
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteCond %{REQUEST_URI} !^/(api|cron|db|frontend|public|node_modules|assets|accedi|login|dashboard|admin|connect|generating|scopri|privacy|terms|termini)(/|$) [NC]
+RewriteRule ^([^/]+)/([^/]+)/?$ public/site.php?slug=$1&post=$2 [L,QSA]
+
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteRule ^ index.html [L]
