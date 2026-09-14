@@ -1142,7 +1142,32 @@ h3 { font-size: 18px; font-weight: 600; }
   }
 
   .pro-site-builder__workspace {
-    grid-template-columns: minmax(280px, 44vw) minmax(360px, 1fr) !important;
+    display: block !important;
+    overflow-y: auto;
+  }
+
+  .pro-site-builder__workspace > nav {
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    flex-direction: row !important;
+    align-items: stretch !important;
     overflow-x: auto;
+    border-right: 0 !important;
+    border-bottom: 1px solid rgba(255,255,255,.1);
+  }
+
+  .pro-site-builder__workspace > nav button {
+    flex: 0 0 56px;
+  }
+
+  .pro-site-builder__workspace > aside {
+    overflow: visible !important;
+    border-right: 0 !important;
+    border-bottom: 1px solid rgba(255,255,255,.1);
+  }
+
+  .pro-site-builder__workspace > main {
+    min-height: 72svh;
   }
 }

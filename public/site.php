@@ -600,6 +600,12 @@ if (!empty($_GET['preview_data'])) {
     if ($decodedPreview !== false) {
         $previewData = json_decode($decodedPreview, true);
         if (is_array($previewData)) {
+            if (isset($previewData['title'])) {
+                $displayTitle = humanizeDisplayName((string)$previewData['title']);
+                $title = h($displayTitle);
+            }
+            if (isset($previewData['bio'])) $bio = h((string)$previewData['bio']);
+            if (isset($previewData['hero_tagline'])) $heroTagline = h((string)$previewData['hero_tagline']);
             $archetype = $previewData['design_archetype'] ?? $previewData['theme'] ?? $archetype;
             $accentColor = $previewData['color_palette']['primary'] ?? $previewData['accent_color'] ?? $accentColor;
             $customCss = $previewData['custom_css'] ?? $customCss;
@@ -643,6 +649,15 @@ $heroMode     = $layoutRecipe['hero'] ?? '';
 $navMode      = $layoutRecipe['nav'] ?? '';
 $cardsMode    = $layoutRecipe['cards'] ?? '';
 $densityMode  = $layoutRecipe['density'] ?? '';
+$defaultSectionOrder = ['hero', 'latest', 'topics', 'info'];
+$requestedSectionOrder = isset($layoutRecipe['section_order']) && is_array($layoutRecipe['section_order']) ? $layoutRecipe['section_order'] : [];
+$sectionOrder = array_values(array_unique(array_merge(array_values(array_intersect($requestedSectionOrder, $defaultSectionOrder)), $defaultSectionOrder)));
+$hiddenSections = isset($layoutRecipe['hidden_sections']) && is_array($layoutRecipe['hidden_sections']) ? array_values(array_intersect($layoutRecipe['hidden_sections'], $defaultSectionOrder)) : [];
+$sectionPosition = static function (string $key) use ($sectionOrder): int {
+    $position = array_search($key, $sectionOrder, true);
+    return $position === false ? 99 : (int)$position;
+};
+$sectionHiddenClass = static fn(string $key): string => in_array($key, $hiddenSections, true) ? ' studio-section-hidden' : '';
 $primaryModel = $baseModels[0] ?? '';
 $secondaryModel = $baseModels[1] ?? '';
 
@@ -2595,7 +2610,7 @@ header('Link: <' . $siteUrl . '/feed.xml>; rel="alternate"; type="application/at
     .has-custom-theme .network-signature-brand img { width:20px; height:20px; }
     .has-custom-theme .network-signature-brand strong { font-size:0; }
     .has-custom-theme .network-signature-brand strong::after { content:'Creato con All Social To Web'; font-size:.7rem; font-weight:700; }
-    body.has-custom-theme .navbar { width:100%!important; min-height:0; margin:0!important; padding:.75rem max(1rem,calc((100vw - <?= h($contentWidth) ?>)/2))!important; color:var(--text); border:0; border-radius:0!important; background:transparent!important; box-shadow:none!important; backdrop-filter:none!important; position:absolute; top:0; left:0; z-index:120; pointer-events:none; }
+    body.has-custom-theme[class*="living-mode-"]:not(.has-living-home) .navbar { width:100%!important; min-height:0; margin:0!important; padding:.75rem max(1rem,calc((100vw - <?= h($contentWidth) ?>)/2))!important; color:var(--text); border:0; border-radius:0!important; background:transparent!important; box-shadow:none!important; backdrop-filter:none!important; position:absolute; top:0; left:0; z-index:120; pointer-events:none; }
     .has-custom-theme .nav-brand,.has-custom-theme .nav-links a { color:var(--text); }
     .has-custom-theme .nav-brand { min-height:42px; padding:.35rem .65rem; border:1px solid var(--border); border-radius:999px; background:color-mix(in srgb,var(--card-bg) 88%,transparent); box-shadow:0 8px 28px rgba(0,0,0,.09); backdrop-filter:blur(14px); font-size:.9rem; pointer-events:auto; }
     .has-custom-theme .nav-brand-image { width:36px; height:36px; border-radius:9px; object-fit:contain; }
@@ -2607,10 +2622,18 @@ header('Link: <' . $siteUrl . '/feed.xml>; rel="alternate"; type="application/at
     .has-custom-theme .nav-overlay { display:none!important; position:fixed!important; inset:0; background:rgba(0,0,0,.42); pointer-events:auto; }
     .has-custom-theme .nav-overlay.open { display:block!important; }
     body.has-custom-theme.is-public-home > main.container { padding-top:0!important; }
+    .has-custom-theme.nav-mode-minimal .navbar { justify-content:flex-end; }
+    .has-custom-theme.nav-mode-minimal .nav-brand { display:none; }
+    .has-custom-theme.nav-mode-transparent .nav-brand,.has-custom-theme.nav-mode-transparent .nav-toggle { border-color:transparent; background:transparent; box-shadow:none; backdrop-filter:none; }
+    .has-custom-theme.nav-mode-centered .navbar { justify-content:center; }
+    .has-custom-theme.nav-mode-centered .nav-toggle { position:absolute; right:max(1rem,calc((100vw - <?= h($contentWidth) ?>)/2)); }
+    body.has-custom-theme.nav-mode-solid .navbar { left:50%; width:max-content!important; padding:.4rem!important; transform:translateX(-50%); gap:.35rem; border:1px solid var(--border)!important; border-radius:999px!important; background:color-mix(in srgb,var(--card-bg) 90%,transparent)!important; box-shadow:0 10px 34px rgba(0,0,0,.12)!important; backdrop-filter:blur(16px)!important; pointer-events:auto; }
+    body.has-custom-theme.nav-mode-solid .nav-brand,body.has-custom-theme.nav-mode-solid .nav-toggle { border:0; background:transparent; box-shadow:none; backdrop-filter:none; }
     .has-custom-theme .container { width:min(100%,<?= h($contentWidth) ?>); max-width:none; padding:1rem 1.25rem 3rem; }
     .has-custom-theme .footer { background:var(--text); color:var(--bg); }
     .has-custom-theme .footer a { color:var(--bg); }
-    .has-custom-theme .universal-home { width:min(100%,<?= h($contentWidth) ?>); }
+    .has-custom-theme .universal-home { display:flex; width:min(100%,<?= h($contentWidth) ?>); flex-direction:column; }
+    .has-custom-theme .studio-section-hidden { display:none!important; }
     .has-custom-theme .universal-hero h1,.has-custom-theme .universal-section-heading h2,.has-custom-theme .universal-stats strong { color:var(--text); }
     .has-custom-theme .universal-hero-copy>p,.has-custom-theme .universal-identity,.has-custom-theme .universal-stats span,.has-custom-theme .universal-meta,.has-custom-theme .universal-card p { color:var(--text-muted); }
     .has-custom-theme .universal-eyebrow,.has-custom-theme .universal-section-heading>a,.has-custom-theme .universal-read,.has-custom-theme .universal-card h3 a:hover { color:var(--accent); }
@@ -3088,7 +3111,7 @@ ob_start();
   ?>
 
   <div class="universal-home">
-    <section class="universal-hero" aria-labelledby="universal-home-title">
+    <section class="universal-hero<?= $sectionHiddenClass('hero') ?>" style="order:<?= $sectionPosition('hero') ?>" aria-labelledby="universal-home-title">
       <div class="universal-hero-copy">
         <span class="universal-eyebrow">Contenuti e canali ufficiali</span>
         <?php if ($brandVisualMode === 'cover' && $coverUrl): ?><div class="universal-brand-cover"><img src="<?= h($coverUrl) ?>" alt="Immagine rappresentativa di <?= h($displayTitle) ?>" loading="eager" fetchpriority="high"></div><?php endif; ?>
@@ -3117,7 +3140,7 @@ ob_start();
     </section>
 
     <?php if (!empty($homeLatest)): ?>
-    <section class="universal-section" id="ultimi" aria-labelledby="universal-latest-title">
+    <section class="universal-section<?= $sectionHiddenClass('latest') ?>" style="order:<?= $sectionPosition('latest') ?>" id="ultimi" aria-labelledby="universal-latest-title">
       <header class="universal-section-heading"><div><span class="universal-eyebrow">Aggiornamenti</span><h2 id="universal-latest-title">Ultimi contenuti</h2></div><?php if (isset($foundationPagesBySlug['contenuti'])): ?><a href="<?= $siteUrl ?>/contenuti">Vedi tutto →</a><?php endif; ?></header>
       <div class="universal-card-grid">
         <?php foreach ($homeLatest as $p): $purl = $siteUrl . '/' . h($p['slug'] ?? ''); ?>
@@ -3131,14 +3154,14 @@ ob_start();
     <?php endif; ?>
 
     <?php if (!empty($tagCounts)): ?>
-    <nav class="universal-section universal-topics" id="categorie" aria-labelledby="universal-topics-title">
+    <nav class="universal-section universal-topics<?= $sectionHiddenClass('topics') ?>" style="order:<?= $sectionPosition('topics') ?>" id="categorie" aria-labelledby="universal-topics-title">
       <div class="universal-section-heading"><div><span class="universal-eyebrow">Esplora</span><h2 id="universal-topics-title">Argomenti</h2></div></div>
       <div class="universal-topic-list"><?php arsort($tagCounts); foreach (array_slice($tagCounts, 0, 8, true) as $tag => $tagCount): ?><a href="<?= $siteUrl ?>/categoria/<?= rawurlencode(networkTopicSlug($tag)) ?>"><span><?= h(humanizeDisplayName($tag)) ?></span><strong><?= (int)$tagCount ?></strong></a><?php endforeach; ?></div>
     </nav>
     <?php endif; ?>
 
     <?php if (!empty($foundationPagesBySlug)): ?>
-    <section class="universal-section universal-info" aria-labelledby="universal-info-title">
+    <section class="universal-section universal-info<?= $sectionHiddenClass('info') ?>" style="order:<?= $sectionPosition('info') ?>" aria-labelledby="universal-info-title">
       <header class="universal-section-heading"><div><span class="universal-eyebrow">Informazioni utili</span><h2 id="universal-info-title">Conosci meglio <?= $title ?></h2></div></header>
       <div class="universal-info-grid"><?php $homeInfoCount = 0; foreach ($preferredFoundationPages as $pageSlug => $label): if (!isset($foundationPagesBySlug[$pageSlug]) || $homeInfoCount >= 4) continue; $page = $foundationPagesBySlug[$pageSlug]; $homeInfoCount++; ?><a href="<?= $siteUrl . '/' . rawurlencode($pageSlug) ?>"><span><?= h($label) ?></span><p><?= h($page['meta_description'] ?? $page['intro'] ?? '') ?></p><strong>Approfondisci →</strong></a><?php endforeach; ?></div>
     </section>
@@ -3494,6 +3517,35 @@ if (!$single && !$foundationPage && $view === '' && !$activeTag && !$useHospital
 
 <script nonce="<?= h($cspNonce) ?>">
 document.addEventListener('DOMContentLoaded', () => {
+  if (new URLSearchParams(window.location.search).get('studio_preview') === '1' && window.parent !== window) {
+    const studioTargets = [
+      ['menu', '.navbar, .site-nav, header nav'],
+      ['header', '.universal-hero, .hero, .hospitality-hero, #hero-slider'],
+      ['content', '.universal-section, .post-grid, .topic-section, .media-preview'],
+      ['structure', '.foundation-directory, .universal-info-grid'],
+    ];
+    studioTargets.forEach(([section, selector]) => {
+      document.querySelectorAll(selector).forEach(element => {
+        element.dataset.studioSection = section;
+        element.style.cursor = 'pointer';
+        element.addEventListener('mouseenter', () => {
+          element.style.outline = '3px solid #2563eb';
+          element.style.outlineOffset = '-3px';
+        });
+        element.addEventListener('mouseleave', () => {
+          element.style.outline = '';
+          element.style.outlineOffset = '';
+        });
+      });
+    });
+    document.addEventListener('click', event => {
+      const target = event.target.closest('[data-studio-section]');
+      if (!target) return;
+      event.preventDefault();
+      event.stopPropagation();
+      window.parent.postMessage({ type:'sts-studio-select', section:target.dataset.studioSection }, window.location.origin);
+    }, true);
+  }
   document.querySelectorAll('.nav-brand img').forEach(image => {
     const showBrandFallback = () => {
       image.style.display = 'none';

@@ -5,6 +5,7 @@ import { QuillEditor } from '../components/QuillEditor';
 import { AdminScreen } from './AdminScreen';
 import { SpazioVivoLab } from '../components/SpazioVivoLab';
 import { ProductGuide } from '../components/ProductGuide';
+import { ProSiteBuilder } from '../components/ProSiteBuilder';
 const STUDIO_DEFAULTS = {
   font_heading: 'Outfit',
   font_body: 'Inter',
@@ -1779,12 +1780,15 @@ const [importMsg, setImportMsg] = useState(null);
       const previewData = encodeStudioPreviewData({
         ...deferredStudio,
         design_archetype: deferredStudio.design_archetype || selectedTheme,
+        title: siteTitleDraft,
+        bio: profileDraft,
+        hero_tagline: heroTagline,
       });
       setStudioPreviewUrl(`${siteUrl}?studio_preview=1&preview_data=${previewData}`);
     }, 120);
 
     return () => window.clearTimeout(timer);
-  }, [deferredStudio, selectedTheme, siteUrl, studioWorkspaceOpen]);
+  }, [deferredStudio, selectedTheme, siteUrl, studioWorkspaceOpen, siteTitleDraft, profileDraft, heroTagline]);
 
   async function saveTemplateStudio() {
     setSavingTemplateStudio(true);
@@ -3844,7 +3848,9 @@ const [importMsg, setImportMsg] = useState(null);
               </div>
             )}
 
-            {studioWorkspaceOpen && (
+            <ProSiteBuilder user={user} open={studioWorkspaceOpen && !isAdmin} onClose={() => setStudioWorkspaceOpen(false)} />
+
+            {studioWorkspaceOpen && isAdmin && (
               <div style={{ position: 'fixed', inset: 0, background: 'rgba(4,10,22,0.92)', zIndex: 10000, display: 'flex', flexDirection: 'column', backdropFilter: 'blur(18px)' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', padding: '18px 24px', borderBottom: '1px solid rgba(255,255,255,0.08)', background: 'rgba(10,16,30,0.92)' }}>
                   <div>
