@@ -584,6 +584,7 @@ $palSecondary = $palette['secondary'] ?? '#5C54C4';
 $palBg        = $palette['background']?? '#FAFAFA';
 $palSurface   = $palette['surface']   ?? '#FFFFFF';
 $palText      = $palette['text']      ?? '#1a1a24';
+$palTextMuted = $palette['text_muted'] ?? '#667085';
 
 // ── Override per Anteprima (preview_theme oppure preview_index) ──────────────
 if (isset($_GET['preview_theme'])) {
@@ -637,6 +638,7 @@ $palSecondary = $palette['secondary'] ?? '#5C54C4';
 $palBg        = $palette['background']?? '#FAFAFA';
 $palSurface   = $palette['surface']   ?? '#FFFFFF';
 $palText      = $palette['text']      ?? '#1a1a24';
+$palTextMuted = $palette['text_muted'] ?? '#667085';
 $heroMode     = $layoutRecipe['hero'] ?? '';
 $navMode      = $layoutRecipe['nav'] ?? '';
 $cardsMode    = $layoutRecipe['cards'] ?? '';
@@ -685,29 +687,6 @@ $glassmorphism = !empty($uiStyle['glassmorphism']);
 $contentWidth = $densityMode === 'compact' ? '1040px' : ($densityMode === 'balanced' ? '1160px' : '1240px');
 $heroPadding = $densityMode === 'compact' ? '6rem 1.5rem 4rem' : ($densityMode === 'balanced' ? '7rem 1.5rem 5rem' : '9rem 1.5rem 6rem');
 $gridMin = $cardsMode === 'cinematic' ? '360px' : ($cardsMode === 'product' ? '300px' : '320px');
-
-// Identita visiva unica All Social To Web: leggibile, veloce e riconoscibile.
-$archetype = 'network-standard';
-$customCss = '';
-$fontHeading = 'Inter';
-$fontBody = 'Inter';
-$palPrimary = '#5B5CE2';
-$palSecondary = '#4038B7';
-$palBg = '#F6F7FB';
-$palSurface = '#FFFFFF';
-$palText = '#182033';
-$heroMode = 'product';
-$navMode = 'solid';
-$cardsMode = 'product';
-$densityMode = 'balanced';
-$primaryModel = 'tech-clarity';
-$secondaryModel = '';
-$radius = '18px';
-$cardShadow = '0 12px 36px rgba(24,32,51,0.08)';
-$glassmorphism = false;
-$contentWidth = '1160px';
-$heroPadding = '6rem 1.5rem 4rem';
-$gridMin = '300px';
 
 // ── Post per lo Slider (Top 3) ───────────────────────────────────────────────
 $sliderPosts = [];
@@ -798,9 +777,7 @@ $hospitalityIdentityText = mb_strtolower(implode(' ', [
     (string)($understanding['business_model'] ?? ''),
     implode(' ', (array)($understanding['declared_strategy']['priority_services'] ?? [])),
 ]));
-$useHospitalityLanding = (bool)preg_match('/\b(agritur|ristor|hospitality|hotel|resort|b&b|bed and breakfast|osteria|trattoria|locanda|vacanz|soggiorn)\w*/u', $hospitalityIdentityText);
-// Il rendering pubblico usa una sola identita editoriale per tutti i profili.
-$useHospitalityLanding = false;
+$useHospitalityLanding = str_starts_with($archetype, 'hospitality-story');
 $hospitalityHeroImage = normalizeMediaUrl($mediaPosts[0]['media_url'] ?? '') ?: $coverUrl;
 $hospitalityHeroCopy = trim((string)($heroTagline ?: $bio));
 if (mb_strlen($hospitalityHeroCopy) > 280) {
@@ -1660,9 +1637,10 @@ $dynamicBaseCss = "
   :root { 
       --accent: {$palPrimary}; 
       --accent-secondary: {$palSecondary}; 
-      --bg: {$palBg}; 
-      --text: {$palText}; 
-      --card-bg: {$palSurface}; 
+      --bg: {$palBg};
+      --text: {$palText};
+      --text-muted: {$palTextMuted};
+      --card-bg: {$palSurface};
       --border: rgba(0,0,0,0.05); 
       --radius: {$radius}; 
   }
@@ -2597,6 +2575,100 @@ header('Link: <' . $siteUrl . '/feed.xml>; rel="alternate"; type="application/at
     body .single-post>.media.media-align-center{margin-left:auto!important;margin-right:auto!important}
     body .single-post>.media.media-align-right{margin-left:auto!important;margin-right:0!important}
     @media(max-width:760px){.is-hospitality-site .network-trust{display:none}.is-hospitality-site .container{padding:1rem}.is-hospitality-site .hospitality-hero{min-height:calc(100svh - 105px);padding:5rem 1.15rem 2.5rem}.is-hospitality-site .hospitality-hero h1{font-size:clamp(3.4rem,16vw,5.8rem)}.is-hospitality-site .foundation-header{min-height:62vh;border-radius:16px;padding:1.5rem}.is-hospitality-site .foundation-header h1{font-size:clamp(3.1rem,15vw,5rem)}.is-hospitality-site .foundation-content-grid{grid-template-columns:1fr}.is-hospitality-site .breadcrumb{padding:.5rem .25rem}.is-hospitality-site .hospitality-media-strip{grid-template-columns:1fr 1fr}}
+
+    /* Catalogo temi: la struttura resta accessibile, la direzione visiva cambia davvero. */
+    .has-custom-theme {
+      --accent:<?= h($palPrimary) ?>;
+      --accent-secondary:<?= h($palSecondary) ?>;
+      --bg:<?= h($palBg) ?>;
+      --card-bg:<?= h($palSurface) ?>;
+      --text:<?= h($palText) ?>;
+      --text-muted:<?= h($palTextMuted) ?>;
+      --border:color-mix(in srgb,var(--text) 14%,transparent);
+      --radius:<?= h($radius) ?>;
+      background:var(--bg); color:var(--text);
+    }
+    .has-custom-theme .network-bar { padding:.42rem 1rem; background:var(--text); color:var(--bg); }
+    .has-custom-theme .network-signature { width:min(100%,<?= h($contentWidth) ?>); justify-content:flex-end; }
+    .has-custom-theme .network-product-name,.has-custom-theme .network-trust { display:none; }
+    .has-custom-theme .network-signature-brand { color:var(--bg); opacity:.78; }
+    .has-custom-theme .network-signature-brand img { width:20px; height:20px; }
+    .has-custom-theme .network-signature-brand strong { font-size:0; }
+    .has-custom-theme .network-signature-brand strong::after { content:'Creato con All Social To Web'; font-size:.7rem; font-weight:700; }
+    .has-custom-theme .navbar { color:var(--text); border-color:var(--border); }
+    .has-custom-theme .nav-brand,.has-custom-theme .nav-links a { color:var(--text); }
+    .has-custom-theme.nav-mode-solid .navbar { background:var(--card-bg)!important; }
+    .has-custom-theme.nav-mode-transparent .navbar { background:transparent!important; box-shadow:none; }
+    .has-custom-theme.nav-mode-floating .navbar { width:min(calc(100% - 24px),<?= h($contentWidth) ?>); margin:12px auto 0; border:1px solid var(--border); border-radius:999px; background:var(--card-bg)!important; }
+    .has-custom-theme .container { width:min(100%,<?= h($contentWidth) ?>); max-width:none; }
+    .has-custom-theme .footer { background:var(--text); color:var(--bg); }
+    .has-custom-theme .footer a { color:var(--bg); }
+    .has-custom-theme .universal-home { width:min(100%,<?= h($contentWidth) ?>); }
+    .has-custom-theme .universal-hero h1,.has-custom-theme .universal-section-heading h2,.has-custom-theme .universal-stats strong { color:var(--text); }
+    .has-custom-theme .universal-hero-copy>p,.has-custom-theme .universal-identity,.has-custom-theme .universal-stats span,.has-custom-theme .universal-meta,.has-custom-theme .universal-card p { color:var(--text-muted); }
+    .has-custom-theme .universal-eyebrow,.has-custom-theme .universal-section-heading>a,.has-custom-theme .universal-read,.has-custom-theme .universal-card h3 a:hover { color:var(--accent); }
+    .has-custom-theme .universal-identity img,.has-custom-theme .universal-brand-cover { border-color:var(--border); border-radius:var(--radius); background:var(--card-bg); }
+    .has-custom-theme .universal-button { border-color:var(--border); border-radius:var(--radius); background:var(--card-bg); color:var(--text); }
+    .has-custom-theme .universal-button:hover { border-color:var(--accent); color:var(--accent); }
+    .has-custom-theme .universal-button-primary { border-color:var(--accent); background:var(--accent); color:var(--card-bg); }
+    .has-custom-theme .universal-button-primary:hover { background:var(--accent-secondary); color:var(--text); }
+    .has-custom-theme .universal-lead { border-radius:calc(var(--radius) * 1.35); background:linear-gradient(145deg,var(--text),var(--accent-secondary)); box-shadow:<?= h($cardShadow) ?>; }
+    .has-custom-theme .universal-lead-no-image { background:linear-gradient(145deg,var(--text),var(--accent)); }
+    .has-custom-theme .universal-section { border-color:var(--border); }
+    .has-custom-theme .universal-card { border-color:var(--border); border-radius:var(--radius); background:var(--card-bg); box-shadow:<?= h($cardShadow) ?>; }
+    .has-custom-theme .universal-card h3 a { color:var(--text); }
+    .has-custom-theme .universal-topic-list a { border-color:var(--border); border-radius:var(--radius); background:var(--card-bg); color:var(--text); }
+    .has-custom-theme .universal-topic-list a:hover { border-color:var(--accent); color:var(--accent); }
+    .has-custom-theme .universal-topic-list strong { background:var(--accent-secondary); color:var(--text); }
+    .has-custom-theme .universal-info-grid a { border:1px solid var(--border); border-radius:var(--radius); background:var(--text); color:var(--card-bg); }
+    .has-custom-theme .universal-info-grid a>span { color:var(--card-bg); }
+    .has-custom-theme .universal-info-grid p { color:color-mix(in srgb,var(--card-bg) 76%,transparent); }
+    .has-custom-theme .universal-info-grid strong { color:color-mix(in srgb,var(--card-bg) 82%,var(--accent)); }
+    .has-custom-theme .content-archive,.has-custom-theme .foundation-page { color:var(--text); }
+    .has-custom-theme .archive-intro,.has-custom-theme .foundation-header { background:linear-gradient(135deg,var(--text),var(--accent)); }
+    .has-custom-theme .category-index,.has-custom-theme .media-preview,.has-custom-theme .foundation-directory,.has-custom-theme .foundation-section,.has-custom-theme .official-channels,.has-custom-theme .content-method { border-color:var(--border); background:var(--card-bg); color:var(--text); }
+    .has-custom-theme .foundation-card,.has-custom-theme .official-channel,.has-custom-theme .media-preview-card { border-color:var(--border); background:var(--bg); color:var(--text); }
+    .has-custom-theme .foundation-section p,.has-custom-theme .content-method { color:var(--text-muted); }
+    .has-custom-theme .network-kicker,.has-custom-theme .foundation-card strong,.has-custom-theme .official-channel span,.has-custom-theme .evidence-links a { color:var(--accent); }
+
+    .has-custom-theme.hero-mode-editorial .universal-hero { grid-template-columns:1fr; padding-top:clamp(4rem,9vw,8rem); }
+    .has-custom-theme.hero-mode-editorial .universal-hero-copy { max-width:920px; }
+    .has-custom-theme.hero-mode-editorial .universal-lead { width:min(82%,920px); min-height:430px; justify-self:end; }
+    .has-custom-theme.hero-mode-immersive:not(.is-hospitality-site) .universal-hero { width:calc(100% - 24px); margin:1rem auto 3rem; padding:clamp(3rem,7vw,6rem); border-radius:calc(var(--radius) * 1.5); background:linear-gradient(135deg,var(--text),color-mix(in srgb,var(--text) 70%,var(--accent))); color:var(--bg); }
+    .has-custom-theme.hero-mode-immersive:not(.is-hospitality-site) .universal-hero h1,.has-custom-theme.hero-mode-immersive:not(.is-hospitality-site) .universal-hero-copy>p,.has-custom-theme.hero-mode-immersive:not(.is-hospitality-site) .universal-identity { color:var(--bg); }
+    .has-custom-theme.hero-mode-human .universal-hero { grid-template-columns:minmax(0,1.2fr) minmax(300px,.8fr); }
+    .has-custom-theme.hero-mode-human .universal-lead { transform:rotate(1.2deg); }
+    .has-custom-theme.hero-mode-product .universal-hero-copy { text-align:center; }
+    .has-custom-theme.hero-mode-product .universal-actions,.has-custom-theme.hero-mode-product .universal-stats,.has-custom-theme.hero-mode-product .universal-identity { justify-content:center; }
+
+    .has-custom-theme.cards-mode-bold .universal-card,.has-custom-theme.cards-mode-bold .universal-topic-list a { border:2px solid var(--text); box-shadow:7px 7px 0 var(--accent); }
+    .has-custom-theme.cards-mode-bold .universal-card h3 { text-transform:uppercase; line-height:1.05; }
+    .has-custom-theme.cards-mode-editorial .universal-card-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+    .has-custom-theme.cards-mode-editorial .universal-card:first-child { grid-row:span 2; }
+    .has-custom-theme.cards-mode-editorial .universal-card:first-child .universal-card-media .media :where(img,video,iframe) { aspect-ratio:4/3; }
+    .has-custom-theme.cards-mode-cinematic .universal-card-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+    .has-custom-theme.cards-mode-cinematic .universal-card { position:relative; min-height:380px; justify-content:flex-end; background:var(--text); color:var(--card-bg); }
+    .has-custom-theme.cards-mode-cinematic .universal-card-media { position:absolute; inset:0; opacity:.58; }
+    .has-custom-theme.cards-mode-cinematic .universal-card-media .media,.has-custom-theme.cards-mode-cinematic .universal-card-media .media :where(img,video,iframe) { width:100%; height:100%; aspect-ratio:auto; }
+    .has-custom-theme.cards-mode-cinematic .universal-card-body { position:relative; z-index:1; justify-content:flex-end; background:linear-gradient(0deg,color-mix(in srgb,var(--text) 94%,transparent),transparent); }
+    .has-custom-theme.cards-mode-cinematic .universal-card h3 a,.has-custom-theme.cards-mode-cinematic .universal-card p,.has-custom-theme.cards-mode-cinematic .universal-meta,.has-custom-theme.cards-mode-cinematic .universal-read { color:var(--card-bg); }
+    .has-custom-theme.cards-mode-soft .universal-card { border:0; }
+    .has-custom-theme.cards-mode-product .universal-card { transition:transform .25s ease,border-color .25s ease; }
+    .has-custom-theme.cards-mode-product .universal-card:hover { transform:translateY(-5px); border-color:var(--accent); }
+    .has-custom-theme.density-mode-compact .universal-section { padding:2.2rem 0; }
+    .has-custom-theme.density-mode-compact .universal-card-grid { gap:.8rem; }
+    .has-custom-theme.density-mode-airy .universal-section { padding:clamp(3.5rem,8vw,6.5rem) 0; }
+
+    @media(max-width:900px){
+      .has-custom-theme.hero-mode-editorial .universal-lead { width:100%; }
+      .has-custom-theme.hero-mode-human .universal-hero { grid-template-columns:1fr; }
+    }
+    @media(max-width:620px){
+      .has-custom-theme.nav-mode-floating .navbar { border-radius:18px; }
+      .has-custom-theme.hero-mode-immersive:not(.is-hospitality-site) .universal-hero { width:100%; margin-top:0; padding:2rem 1rem 3rem; border-radius:0; }
+      .has-custom-theme.cards-mode-editorial .universal-card-grid,.has-custom-theme.cards-mode-cinematic .universal-card-grid { grid-template-columns:1fr; }
+      .has-custom-theme.cards-mode-editorial .universal-card:first-child { grid-row:auto; }
+    }
   </style>
 </head>
 <?php
@@ -2614,8 +2686,11 @@ header('Link: <' . $siteUrl . '/feed.xml>; rel="alternate"; type="application/at
   }
 ?>
 <?php // La home pubblica usa sempre la struttura editoriale universale. ?>
-<?php $isLivingHome = false; ?>
-<body class="theme-<?= h($archetype) ?> layout-<?= $layoutVariant ?> living-mode-<?= h($livingSpaceMode) ?><?= $isLivingHome ? ' has-living-home' : '' ?><?= $useHospitalityLanding ? ' is-hospitality-site' : '' ?>">
+<?php
+  $isLivingHome = false;
+  $hasCustomTheme = $archetype !== 'network-standard' && (!empty($aiData) || !empty($_GET['preview_data']));
+?>
+<body class="theme-<?= h(networkTopicSlug($archetype)) ?> layout-<?= $layoutVariant ?> living-mode-<?= h($livingSpaceMode) ?><?= $isLivingHome ? ' has-living-home' : '' ?><?= $useHospitalityLanding ? ' is-hospitality-site' : '' ?><?= $hasCustomTheme ? ' has-custom-theme' : '' ?> theme-family-<?= h(networkTopicSlug($primaryModel ?: 'standard')) ?> hero-mode-<?= h(networkTopicSlug($heroMode ?: 'product')) ?> nav-mode-<?= h(networkTopicSlug($navMode ?: 'solid')) ?> cards-mode-<?= h(networkTopicSlug($cardsMode ?: 'product')) ?> density-mode-<?= h(networkTopicSlug($densityMode ?: 'balanced')) ?>">
 <a class="skip-link" href="#main-content">Vai al contenuto principale</a>
 <div class="network-bar">
   <div class="network-signature">

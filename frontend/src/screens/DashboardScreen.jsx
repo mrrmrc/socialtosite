@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useDeferredValue, useRef } from 'react';
-import { apiFetch, SOCIAL, SITE_LAYOUTS, detectPlatformFromUrl } from '../utils/api';
+import { apiFetch, SOCIAL, SITE_LAYOUTS, SITE_LAYOUT_CATEGORIES, detectPlatformFromUrl } from '../utils/api';
 import { SocialIcon } from '../components/SocialIcon';
 import { QuillEditor } from '../components/QuillEditor';
 import { AdminScreen } from './AdminScreen';
@@ -186,6 +186,19 @@ function encodeStudioPreviewData(data) {
     console.error('Errore serializzazione preview studio:', error);
     return '';
   }
+}
+
+function siteLayoutToStudioData(layout) {
+  return {
+    design_archetype: layout.id,
+    font_heading: layout.font_heading,
+    font_body: layout.font_body,
+    color_palette: layout.color_palette,
+    ui_style: layout.ui_style,
+    layout_recipe: layout.layout_recipe,
+    base_models: layout.base_models,
+    custom_css: '',
+  };
 }
 
 function buildEditorialIdeas(posts, understanding, visibility = {}) {
@@ -490,6 +503,8 @@ const [importMsg, setImportMsg] = useState(null);
   const [roleMissionDraft, setRoleMissionDraft] = useState('');
   const [strategyDraft, setStrategyDraft] = useState('');
   const [selectedTheme, setSelectedTheme] = useState('classic');
+  const [themeCategory, setThemeCategory] = useState('Tutti');
+  const [themeQuery, setThemeQuery] = useState('');
     const [previewingTheme, setPreviewingTheme] = useState(null);
     const [regeneratingMenu, setRegeneratingMenu] = useState(false);
   const [savingProfile, setSavingProfile] = useState(false);
@@ -548,6 +563,12 @@ const [importMsg, setImportMsg] = useState(null);
   const [passwordMsg, setPasswordMsg] = useState(null);
   const deferredStudio = useDeferredValue(templateStudio);
   const siteUrl = `${window.location.origin}/${user?.slug}`;
+  const normalizedThemeQuery = themeQuery.trim().toLocaleLowerCase('it');
+  const visibleSiteLayouts = SITE_LAYOUTS.filter(layout => {
+    const matchesCategory = themeCategory === 'Tutti' || layout.category === themeCategory;
+    const searchable = `${layout.name} ${layout.desc} ${layout.category}`.toLocaleLowerCase('it');
+    return matchesCategory && (!normalizedThemeQuery || searchable.includes(normalizedThemeQuery));
+  });
 
   async function changeOwnPassword(e) {
     e.preventDefault();
@@ -1567,13 +1588,26 @@ const [importMsg, setImportMsg] = useState(null);
   }
 
   async function chooseTheme(theme) {
-    setSelectedTheme(theme);
+    const layout = SITE_LAYOUTS.find(item => item.id === theme);
+    if (!layout) {
+      setScanMsg({ ok: false, text: 'Il tema selezionato non è più disponibile.' });
+      return;
+    }
+    const presetData = siteLayoutToStudioData(layout);
+    setSelectedTheme(layout.id);
     try {
       await apiFetch('/api/index.php?action=site-update', {
         method: 'POST',
-        body: JSON.stringify({ theme })
+        body: JSON.stringify({
+          theme: layout.id,
+          design_archetype: layout.id,
+          accent_color: layout.color_palette.primary,
+          accent_secondary: layout.color_palette.secondary,
+          custom_css: '',
+          site_ai_data: presetData,
+        })
       }, token);
-      setTemplateStudio(prev => normalizeStudioData(prev, theme));
+      setTemplateStudio(normalizeStudioData(presetData, layout.id));
       await loadData();
     } catch (err) {
       setScanMsg({ ok: false, text: err.message });
@@ -1660,16 +1694,7 @@ const [importMsg, setImportMsg] = useState(null);
   }
 
   function loadPresetIntoStudio(layout) {
-    const presetData = {
-      design_archetype: layout.id,
-      font_heading: layout.font_heading,
-      font_body: layout.font_body,
-      color_palette: layout.color_palette,
-      ui_style: layout.ui_style,
-      layout_recipe: layout.layout_recipe,
-      base_models: layout.base_models,
-      custom_css: '',
-    };
+    const presetData = siteLayoutToStudioData(layout);
     openStudioWorkspace(presetData, `Template base: ${layout.name}`);
   }
 
@@ -2764,9 +2789,9 @@ const [importMsg, setImportMsg] = useState(null);
         {tab === 'experience' && (
           <div style={{ display: 'grid', gap: '1rem' }}>
             <section className="card" style={{ padding: 'clamp(1.25rem, 3vw, 2rem)', background: 'linear-gradient(135deg, var(--surface), var(--primary-light))', border: '1px solid var(--border)' }}>
-              <span style={{ display: 'inline-flex', padding: '6px 10px', borderRadius: '999px', background: 'var(--teal-light)', color: 'var(--teal)', fontSize: '12px', fontWeight: 850 }}>STRUTTURA OTTIMIZZATA ATTIVA</span>
-              <h2 style={{ margin: '0.8rem 0 0.55rem', color: 'var(--text)', fontSize: 'clamp(24px, 4vw, 36px)', lineHeight: 1.08 }}>Un sito semplice da capire, su ogni dispositivo</h2>
-              <p style={{ maxWidth: '760px', margin: 0, color: 'var(--text-muted)', fontSize: '15px', lineHeight: 1.7 }}>La grafica non viene più reinventata dall’AI. Tutti i siti usano la stessa architettura editoriale, progettata per leggibilità, navigazione da tastiera, contrasto, mobile e accesso rapido agli articoli. Restano personali il tuo logo, i testi, le immagini e i contenuti.</p>
+              <span style={{ display: 'inline-flex', padding: '6px 10px', borderRadius: '999px', background: 'var(--teal-light)', color: 'var(--teal)', fontSize: '12px', fontWeight: 850 }}>100 TEMI · STRUTTURA OTTIMIZZATA</span>
+              <h2 style={{ margin: '0.8rem 0 0.55rem', color: 'var(--text)', fontSize: 'clamp(24px, 4vw, 36px)', lineHeight: 1.08 }}>Il tuo stile, senza perdere chiarezza</h2>
+              <p style={{ maxWidth: '760px', margin: 0, color: 'var(--text-muted)', fontSize: '15px', lineHeight: 1.7 }}>Scegli tra layout realmente diversi per settore, atmosfera e modo di presentare i contenuti. Ogni tema conserva una base accessibile e responsive, mentre cambiano gerarchie, tipografia, palette, navigazione e composizione delle schede.</p>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', marginTop: '1.25rem' }}>
                 <a className="btn btn-primary" href={siteUrl} target="_blank" rel="noopener">Apri il sito pubblico ↗</a>
                 <button className="btn btn-outline" type="button" onClick={() => document.getElementById('visual-identity')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}>Scegli logo o immagine</button>
@@ -3652,16 +3677,44 @@ const [importMsg, setImportMsg] = useState(null);
             <div className="glass-modal" style={{ marginTop: '2rem' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
                 <div>
-                  <h3 style={{ marginBottom: '0.5rem', fontSize: '20px' }}>Libreria Modelli (Manual Selection)</h3>
+                  <h3 style={{ marginBottom: '0.5rem', fontSize: '20px' }}>Catalogo temi professionali</h3>
                   <p style={{ color: 'var(--text-muted)', fontSize: '14px', margin: 0, fontWeight: 500 }}>
-                    Scegli uno dei 20 temi premium e clicca "Applica". Il tuo sito verrà aggiornato immediatamente.
+                    100 proposte originali organizzate per attività. Guarda l’anteprima sui tuoi contenuti prima di applicare il tema.
                   </p>
                 </div>
               </div>
 
+              <div style={{ display: 'grid', gap: '1rem', marginBottom: '1.5rem' }}>
+                <input
+                  className="form-control"
+                  type="search"
+                  value={themeQuery}
+                  onChange={(event) => setThemeQuery(event.target.value)}
+                  placeholder="Cerca un tema, un settore o uno stile…"
+                  aria-label="Cerca nel catalogo temi"
+                  style={{ maxWidth: '520px' }}
+                />
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }} aria-label="Filtra i temi per categoria">
+                  {SITE_LAYOUT_CATEGORIES.map(category => (
+                    <button
+                      key={category}
+                      type="button"
+                      className={themeCategory === category ? 'btn btn-primary' : 'btn btn-outline'}
+                      onClick={() => setThemeCategory(category)}
+                      style={{ padding: '8px 12px', fontSize: '12px' }}
+                    >
+                      {category}
+                    </button>
+                  ))}
+                </div>
+                <div style={{ color: 'var(--text-muted)', fontSize: '12px', fontWeight: 700 }}>
+                  {visibleSiteLayouts.length} {visibleSiteLayouts.length === 1 ? 'tema disponibile' : 'temi disponibili'}
+                </div>
+              </div>
+
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1.5rem' }}>
-                {SITE_LAYOUTS.map(layout => (
-                  <div key={layout.id} 
+                {visibleSiteLayouts.map(layout => (
+                  <div key={layout.id}
                     style={{ 
                       border: selectedTheme === layout.id ? '2px solid var(--primary)' : '1px solid var(--border-strong)', 
                       borderRadius: 'var(--radius)', 
@@ -3672,11 +3725,16 @@ const [importMsg, setImportMsg] = useState(null);
                       transition: 'all 0.3s ease', 
                       boxShadow: selectedTheme === layout.id ? '0 0 20px rgba(0, 240, 255, 0.2)' : 'none' 
                     }} 
-                    onClick={() => { setPreviewingTheme(layout.id); setActivePreviewUrl(`${siteUrl}?preview_theme=${layout.id}`); }}>
+                    onClick={() => {
+                      const previewData = encodeStudioPreviewData(siteLayoutToStudioData(layout));
+                      setPreviewingTheme(layout.id);
+                      setActivePreviewUrl(`${siteUrl}?preview_data=${previewData}`);
+                    }}>
                     
                     {selectedTheme === layout.id && <div style={{ position: 'absolute', top: 16, right: 16, background: 'var(--primary)', color: '#000', borderRadius: '50%', width: 28, height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '16px', fontWeight: 800, boxShadow: '0 0 10px rgba(0,240,255,0.5)' }}>✓</div>}
                     
                     <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>{layout.emoji}</div>
+                    <div style={{ display: 'inline-flex', marginBottom: '8px', padding: '4px 8px', borderRadius: '999px', background: 'var(--surface)', color: 'var(--primary)', fontSize: '10px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.06em' }}>{layout.category}</div>
                     <div style={{ fontWeight: 800, fontSize: '18px', marginBottom: '8px', color: 'var(--text)' }}>{layout.name}</div>
                     <div style={{ fontSize: '14px', color: 'var(--text-muted)', marginBottom: '1.5rem', minHeight: '40px', lineHeight: 1.5, fontWeight: 500 }}>{layout.desc}</div>
                     
@@ -3694,6 +3752,11 @@ const [importMsg, setImportMsg] = useState(null);
                     </div>
                   </div>
                 ))}
+                {visibleSiteLayouts.length === 0 && (
+                  <div className="card" style={{ gridColumn: '1 / -1', padding: '2.5rem', textAlign: 'center', color: 'var(--text-muted)' }}>
+                    Nessun tema corrisponde ai filtri. Prova un’altra categoria o cancella la ricerca.
+                  </div>
+                )}
               </div>
             </div>
 

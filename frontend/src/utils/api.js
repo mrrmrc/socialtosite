@@ -1,4 +1,4 @@
-import { SITE_LAYOUTS } from './siteLayouts';
+import { SITE_LAYOUTS, SITE_LAYOUT_CATEGORIES } from './siteLayouts';
 
 export const API_BASE = window.API_BASE || '';
 
@@ -36,7 +36,7 @@ export const SOCIAL = {
   website: { icon: 'https://cdn.simpleicons.org/googleearth/4285F4', label: 'Sito Web', color: '#4285F4' },
 };
 
-export { SITE_LAYOUTS };
+export { SITE_LAYOUTS, SITE_LAYOUT_CATEGORIES };
 
 export function detectPlatformFromUrl(url) {
   try {
