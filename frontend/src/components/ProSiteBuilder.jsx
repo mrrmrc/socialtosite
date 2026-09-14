@@ -41,6 +41,15 @@ const DENSITY_CHOICES = [
   { id:'airy', title:'Arioso', desc:'Più spazio e respiro' },
 ];
 
+const EDITOR_STEPS = [
+  { id:'themes', label:'Stile', icon:'✨', help:'Scegli una base pronta' },
+  { id:'header', label:'Testata', icon:'▣', help:'Decidi come inizi la pagina' },
+  { id:'menu', label:'Menu', icon:'☰', help:'Scegli la navigazione' },
+  { id:'content', label:'Contenuti', icon:'▦', help:'Disponi articoli e foto' },
+  { id:'colors', label:'Colori e font', icon:'●', help:'Personalizza l’aspetto' },
+  { id:'advanced', label:'Avanzate', icon:'⚙', help:'Solo se ti servono' },
+];
+
 function normalize(raw, fallback='tech-clarity') {
   const preset = SITE_LAYOUTS.find(x => x.id === fallback) || SITE_LAYOUTS[0];
   const src = raw && typeof raw === 'object' ? raw : {};
@@ -96,6 +105,9 @@ export function ProSiteBuilder({ user, open, onClose }) {
   const [message, setMessage] = useState('');
   const [previewTick, setPreviewTick] = useState(0);
   const [previewLoading, setPreviewLoading] = useState(false);
+  const [savedStyle, setSavedStyle] = useState(DEFAULT_STYLE);
+  const [draggedStep, setDraggedStep] = useState(null);
+  const [stepOrder, setStepOrder] = useState(() => EDITOR_STEPS.map(x => x.id));
   const debounceRef = useRef(null);
   const token = typeof window !== 'undefined' ? localStorage.getItem('sts_token') : '';
 
@@ -106,7 +118,9 @@ export function ProSiteBuilder({ user, open, onClose }) {
       setSite(current);
       let ai = null;
       try { ai = typeof current.site_ai_data === 'string' ? JSON.parse(current.site_ai_data) : current.site_ai_data; } catch {}
-      setStyle(normalize(ai, current.theme || 'tech-clarity'));
+      const normalized = normalize(ai, current.theme || 'tech-clarity');
+      setStyle(normalized);
+      setSavedStyle(normalized);
     }).catch(err => setMessage(err.message));
   }, [open, token]);
 
@@ -123,6 +137,22 @@ export function ProSiteBuilder({ user, open, onClose }) {
 
   const setNested = (group, key, value) => setStyle(prev => ({ ...prev, [group]: { ...prev[group], [key]: value } }));
   const applyTheme = preset => setStyle(prev => normalize({ ...preset, custom_css: prev.custom_css || '' }, preset.id));
+  const dirty = useMemo(() => JSON.stringify(style) !== JSON.stringify(savedStyle), [style, savedStyle]);
+
+  function moveStep(targetId) {
+    if (!draggedStep || draggedStep === targetId) return;
+    setStepOrder(order => {
+      const next = order.filter(id => id !== draggedStep);
+      next.splice(next.indexOf(targetId), 0, draggedStep);
+      return next;
+    });
+    setDraggedStep(null);
+  }
+
+  function closeBuilder() {
+    if (dirty && !window.confirm('Hai modifiche non salvate. Vuoi davvero uscire?')) return;
+    onClose();
+  }
 
   async function save() {
     setSaving(true); setMessage('');
@@ -137,44 +167,43 @@ export function ProSiteBuilder({ user, open, onClose }) {
           site_ai_data: style
         })
       }, token);
-      setMessage('✓ Modifiche pubblicate sul tuo sito.');
+      setSavedStyle(style);
+      setMessage('✓ Tema personalizzato salvato e pubblicato sul tuo sito.');
     } catch (e) { setMessage(e.message); }
     setSaving(false);
   }
 
   if (!open) return null;
 
-  const nav = [
-    ['themes','1. Stile'],
-    ['header','2. Testata'],
-    ['menu','3. Menu'],
-    ['content','4. Contenuti'],
-    ['colors','5. Colori'],
-    ['advanced','Avanzate'],
-  ];
+  const orderedSteps = stepOrder.map(id => EDITOR_STEPS.find(item => item.id === id)).filter(Boolean);
 
   return (
-    <div style={{position:'fixed',inset:0,zIndex:30000,background:'#07101d',color:'#fff',display:'grid',gridTemplateRows:'68px 1fr'}}>
+    <div className="pro-site-builder" style={{position:'fixed',inset:0,zIndex:30000,background:'#07101d',color:'#fff',display:'grid',gridTemplateRows:'74px 1fr'}}>
       <header style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'0 18px',borderBottom:'1px solid rgba(255,255,255,.1)',background:'#0b1424',gap:14}}>
         <div>
-          <strong style={{fontSize:19}}>Studio del sito</strong>
-          <span style={{marginLeft:10,opacity:.55,fontSize:12}}>Le modifiche compaiono subito nell’anteprima. Salva solo quando ti convincono.</span>
+          <strong style={{fontSize:19}}>Modifica il tuo sito</strong>
+          <span style={{marginLeft:10,opacity:.65,fontSize:12}}>{dirty ? '● Hai modifiche da salvare' : '✓ Tutto salvato'}</span>
         </div>
         <div style={{display:'flex',gap:8,alignItems:'center'}}>
           <a href={siteUrl} target="_blank" rel="noreferrer" style={{...ghostBtn,textDecoration:'none'}}>Apri sito attuale</a>
           <button onClick={save} disabled={saving} style={primaryBtn}>{saving?'Pubblicazione…':'Salva e pubblica'}</button>
-          <button onClick={onClose} style={ghostBtn}>Chiudi</button>
+          <button onClick={closeBuilder} style={ghostBtn}>Esci</button>
         </div>
       </header>
 
-      <div style={{display:'grid',gridTemplateColumns:'410px minmax(0,1fr)',minHeight:0}}>
+      <div className="pro-site-builder__workspace" style={{display:'grid',gridTemplateColumns:'410px minmax(0,1fr)',minHeight:0}}>
         <aside style={{overflowY:'auto',padding:16,borderRight:'1px solid rgba(255,255,255,.1)',background:'#0b1424'}}>
           <div style={{padding:'12px 13px',borderRadius:13,background:'rgba(37,99,235,.12)',border:'1px solid rgba(96,165,250,.18)',marginBottom:14,fontSize:12,lineHeight:1.5,color:'#dbeafe'}}>
-            <strong>Non serve conoscere il web design.</strong><br/>Scegli ciò che ti piace. Ogni opzione modifica direttamente la pagina che vedi a destra.
+            <strong>È semplice: scegli, guarda, salva.</strong><br/>Ogni clic aggiorna la pagina a destra. Nulla diventa pubblico finché non premi “Salva e pubblica”.
           </div>
 
-          <div style={{display:'grid',gridTemplateColumns:'repeat(2,1fr)',gap:6,marginBottom:18}}>
-            {nav.map(([id,label]) => <button key={id} onClick={()=>setSection(id)} style={{...tabBtn,...(section===id?activeTab:{})}}>{label}</button>)}
+          <div style={{marginBottom:18}}>
+            <div style={{fontSize:10,opacity:.55,margin:'0 0 8px 2px',letterSpacing:'.06em',textTransform:'uppercase'}}>Trascina per riordinare gli strumenti</div>
+            <div style={{display:'grid',gap:6}}>
+              {orderedSteps.map((item,index) => <button key={item.id} draggable onDragStart={()=>setDraggedStep(item.id)} onDragOver={e=>e.preventDefault()} onDrop={()=>moveStep(item.id)} onClick={()=>setSection(item.id)} style={{...tabBtn,...(section===item.id?activeTab:{}),display:'grid',gridTemplateColumns:'24px 1fr auto',alignItems:'center',textAlign:'left',padding:'10px 11px'}}>
+                <span aria-hidden="true" style={{fontSize:15}}>{item.icon}</span><span><strong style={{display:'block'}}>{index+1}. {item.label}</strong><small style={{display:'block',opacity:.65,fontWeight:500,marginTop:2}}>{item.help}</small></span><span title="Trascina" style={{opacity:.45,fontSize:17}}>↕</span>
+              </button>)}
+            </div>
           </div>
 
           {section==='themes' && <>
@@ -220,7 +249,8 @@ export function ProSiteBuilder({ user, open, onClose }) {
               <label style={{...field,display:'flex',alignItems:'center',justifyContent:'space-between'}}><span>Effetto vetro</span><input type="checkbox" checked={!!style.ui_style.glassmorphism} onChange={e=>setNested('ui_style','glassmorphism',e.target.checked)}/></label>
               <label style={field}><span>CSS personalizzato</span><textarea value={style.custom_css} onChange={e=>setStyle(p=>({...p,custom_css:e.target.value}))} placeholder="Solo per utenti esperti" style={{...input,minHeight:180,fontFamily:'monospace',resize:'vertical'}}/></label>
             </div>
-            <button onClick={()=>setStyle(DEFAULT_STYLE)} style={{...ghostBtn,width:'100%',marginTop:14}}>Ripristina il design predefinito</button>
+            <button onClick={()=>setStyle(normalize(savedStyle))} disabled={!dirty} style={{...ghostBtn,width:'100%',marginTop:14,opacity:dirty?1:.45}}>Annulla le modifiche non salvate</button>
+            <button onClick={()=>setStyle(DEFAULT_STYLE)} style={{...ghostBtn,width:'100%',marginTop:8}}>Ripristina il design predefinito</button>
           </>}
 
           {message && <div style={{marginTop:14,padding:11,borderRadius:10,background:'rgba(91,140,255,.12)',fontSize:13}}>{message}</div>}

@@ -142,6 +142,9 @@ function normalizeStudioData(raw, selectedTheme = 'tech-clarity') {
   const palette = source.color_palette || {};
   const uiStyle = source.ui_style || {};
   const recipe = source.layout_recipe || {};
+  const defaultSections = ['hero', 'latest', 'topics', 'info'];
+  const requestedSections = Array.isArray(recipe.section_order) ? recipe.section_order : [];
+  const sectionOrder = [...requestedSections.filter(key => defaultSections.includes(key)), ...defaultSections.filter(key => !requestedSections.includes(key))];
   const baseModels = Array.isArray(source.base_models)
     ? source.base_models
     : source.base_models ? [source.base_models] : (preset?.base_models || STUDIO_DEFAULTS.base_models);
@@ -169,6 +172,8 @@ function normalizeStudioData(raw, selectedTheme = 'tech-clarity') {
       nav: recipe.nav || preset?.layout_recipe?.nav || STUDIO_DEFAULTS.layout_recipe.nav,
       cards: recipe.cards || preset?.layout_recipe?.cards || STUDIO_DEFAULTS.layout_recipe.cards,
       density: recipe.density || preset?.layout_recipe?.density || STUDIO_DEFAULTS.layout_recipe.density,
+      section_order: sectionOrder,
+      hidden_sections: Array.isArray(recipe.hidden_sections) ? recipe.hidden_sections.filter(key => defaultSections.includes(key)) : [],
     },
     base_models: baseModels.slice(0, 2),
     custom_css: source.custom_css || '',
@@ -529,6 +534,7 @@ const [importMsg, setImportMsg] = useState(null);
   const [studioWorkspaceOpen, setStudioWorkspaceOpen] = useState(false);
   const [studioSourceLabel, setStudioSourceLabel] = useState('Workspace corrente');
   const [studioControlsOpen, setStudioControlsOpen] = useState(true);
+  const [draggingStudioSection, setDraggingStudioSection] = useState('');
   const [studioPreviewUrl, setStudioPreviewUrl] = useState('');
   const [editorialEngine, setEditorialEngine] = useState({ settings: { enabled: true, auto_run: true, min_posts: 8, strict_indexing_mode: true }, dna: {}, memory: {}, state: {}, last_run: null });
   const [editorialEngineBusy, setEditorialEngineBusy] = useState(false);
@@ -1738,6 +1744,31 @@ const [importMsg, setImportMsg] = useState(null);
     });
   }
 
+  function moveStudioSection(sectionKey, targetKey) {
+    if (!sectionKey || !targetKey || sectionKey === targetKey) return;
+    const order = [...(templateStudio.layout_recipe?.section_order || ['hero', 'latest', 'topics', 'info'])];
+    const from = order.indexOf(sectionKey);
+    const to = order.indexOf(targetKey);
+    if (from < 0 || to < 0) return;
+    order.splice(to, 0, order.splice(from, 1)[0]);
+    updateStudio('layout_recipe.section_order', order);
+  }
+
+  function nudgeStudioSection(sectionKey, direction) {
+    const order = [...(templateStudio.layout_recipe?.section_order || ['hero', 'latest', 'topics', 'info'])];
+    const from = order.indexOf(sectionKey);
+    const to = from + direction;
+    if (from < 0 || to < 0 || to >= order.length) return;
+    [order[from], order[to]] = [order[to], order[from]];
+    updateStudio('layout_recipe.section_order', order);
+  }
+
+  function toggleStudioSection(sectionKey) {
+    const hidden = new Set(templateStudio.layout_recipe?.hidden_sections || []);
+    if (hidden.has(sectionKey)) hidden.delete(sectionKey); else hidden.add(sectionKey);
+    updateStudio('layout_recipe.hidden_sections', [...hidden]);
+  }
+
   useEffect(() => {
     if (!studioWorkspaceOpen) {
       setStudioPreviewUrl('');
@@ -1759,6 +1790,9 @@ const [importMsg, setImportMsg] = useState(null);
     setSavingTemplateStudio(true);
     try {
       const payload = {
+        title: siteTitleDraft.trim(),
+        bio: profileDraft,
+        hero_tagline: heroTagline,
         theme: templateStudio.design_archetype || selectedTheme,
         design_archetype: templateStudio.design_archetype || selectedTheme,
         accent_color: templateStudio.color_palette?.primary || accentColor,
@@ -3894,6 +3928,69 @@ const [importMsg, setImportMsg] = useState(null);
                       </div>
 
                       <div style={{ height: 'calc(100% - 104px)', overflowY: 'auto', padding: '20px', display: 'grid', gap: '1rem' }}>
+                        <div className="card" style={{ padding: '1.25rem', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)' }}>
+                          <h4 style={{ marginBottom: '.35rem', color: '#fff' }}>Testi principali</h4>
+                          <p style={{ margin: '0 0 1rem', color: 'rgba(255,255,255,.6)', fontSize: '12px' }}>Scrivi ciò che il visitatore deve capire subito.</p>
+                          <div className="form-group">
+                            <label className="label">Nome del sito</label>
+                            <input type="text" value={siteTitleDraft} onChange={e => setSiteTitleDraft(e.target.value)} placeholder="Nome attività" />
+                          </div>
+                          <div className="form-group">
+                            <label className="label">Titolo di apertura</label>
+                            <input type="text" value={heroTagline} onChange={e => setHeroTagline(e.target.value)} placeholder="La promessa principale del sito" />
+                          </div>
+                          <div className="form-group" style={{ marginBottom: 0 }}>
+                            <label className="label">Breve presentazione</label>
+                            <textarea value={profileDraft} onChange={e => setProfileDraft(e.target.value)} rows={3} placeholder="Spiega in poche parole chi sei e cosa offri" style={{ width: '100%', resize: 'vertical' }} />
+                          </div>
+                        </div>
+
+                        <div className="card" style={{ padding: '1.25rem', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)' }}>
+                          <h4 style={{ marginBottom: '.35rem', color: '#fff' }}>Struttura della pagina</h4>
+                          <p style={{ margin: '0 0 1rem', color: 'rgba(255,255,255,.6)', fontSize: '12px' }}>Trascina i blocchi per riordinarli. L’occhio mostra o nasconde una sezione.</p>
+                          <div style={{ display: 'grid', gap: '8px' }}>
+                            {(templateStudio.layout_recipe?.section_order || ['hero', 'latest', 'topics', 'info']).map((sectionKey, index, order) => {
+                              const labels = { hero: ['✦', 'Apertura'], latest: ['▦', 'Ultimi contenuti'], topics: ['#', 'Argomenti'], info: ['◎', 'Informazioni'] };
+                              const hidden = (templateStudio.layout_recipe?.hidden_sections || []).includes(sectionKey);
+                              return (
+                                <div
+                                  key={sectionKey}
+                                  draggable
+                                  onDragStart={() => setDraggingStudioSection(sectionKey)}
+                                  onDragEnd={() => setDraggingStudioSection('')}
+                                  onDragOver={e => e.preventDefault()}
+                                  onDrop={() => { moveStudioSection(draggingStudioSection, sectionKey); setDraggingStudioSection(''); }}
+                                  style={{ display: 'grid', gridTemplateColumns: '32px 1fr auto auto auto', gap: '6px', alignItems: 'center', minHeight: '48px', padding: '7px 8px', borderRadius: '12px', border: draggingStudioSection === sectionKey ? '1px solid var(--primary)' : '1px solid rgba(255,255,255,.1)', background: hidden ? 'rgba(255,255,255,.025)' : 'rgba(255,255,255,.07)', color: hidden ? 'rgba(255,255,255,.42)' : '#fff', cursor: 'grab' }}
+                                >
+                                  <span aria-hidden="true" style={{ textAlign: 'center', fontSize: '18px' }}>⠿</span>
+                                  <strong style={{ fontSize: '13px' }}>{labels[sectionKey]?.[0]} {labels[sectionKey]?.[1]}</strong>
+                                  <button type="button" aria-label={`Sposta ${labels[sectionKey]?.[1]} in alto`} disabled={index === 0} onClick={() => nudgeStudioSection(sectionKey, -1)} style={{ width: 30, height: 30, border: 0, borderRadius: '8px', background: 'rgba(255,255,255,.08)', color: '#fff', cursor: 'pointer' }}>↑</button>
+                                  <button type="button" aria-label={`Sposta ${labels[sectionKey]?.[1]} in basso`} disabled={index === order.length - 1} onClick={() => nudgeStudioSection(sectionKey, 1)} style={{ width: 30, height: 30, border: 0, borderRadius: '8px', background: 'rgba(255,255,255,.08)', color: '#fff', cursor: 'pointer' }}>↓</button>
+                                  <button type="button" aria-label={`${hidden ? 'Mostra' : 'Nascondi'} ${labels[sectionKey]?.[1]}`} onClick={() => toggleStudioSection(sectionKey)} style={{ width: 34, height: 30, border: 0, borderRadius: '8px', background: hidden ? 'rgba(255,255,255,.05)' : 'rgba(0,240,255,.12)', color: '#fff', cursor: 'pointer' }}>{hidden ? '○' : '●'}</button>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+
+                        <div className="card" style={{ padding: '1.25rem', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)' }}>
+                          <h4 style={{ marginBottom: '.8rem', color: '#fff' }}>Aspetto rapido</h4>
+                          <label className="label">Menu</label>
+                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px', marginBottom: '1rem' }}>
+                            {[['minimal', 'Solo menu'], ['transparent', 'Essenziale'], ['floating', 'Flottante'], ['centered', 'Centrato'], ['solid', 'Compatto']].map(([value, label]) => (
+                              <button key={value} type="button" onClick={() => updateStudio('layout_recipe.nav', value)} style={{ minHeight: 42, padding: '8px', borderRadius: '10px', border: templateStudio.layout_recipe?.nav === value ? '2px solid var(--primary)' : '1px solid rgba(255,255,255,.12)', background: templateStudio.layout_recipe?.nav === value ? 'rgba(0,240,255,.12)' : 'rgba(255,255,255,.04)', color: '#fff', cursor: 'pointer', fontWeight: 700 }}>{label}</button>
+                            ))}
+                          </div>
+                          <label className="label">Colore principale</label>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                            <input type="color" value={templateStudio.color_palette?.primary || '#2563eb'} onChange={e => updateStudio('color_palette.primary', e.target.value)} style={{ width: 52, height: 44, padding: 3 }} />
+                            <span style={{ color: 'rgba(255,255,255,.7)', fontSize: '12px' }}>Aggiornamento immediato nell’anteprima</span>
+                          </div>
+                        </div>
+
+                        <details style={{ border: '1px solid rgba(255,255,255,.1)', borderRadius: '16px', padding: '12px', background: 'rgba(255,255,255,.025)' }}>
+                          <summary style={{ color: '#fff', cursor: 'pointer', fontWeight: 800, padding: '4px' }}>Impostazioni avanzate</summary>
+                          <div style={{ display: 'grid', gap: '1rem', marginTop: '12px' }}>
                         <div className="card" style={{ padding: '1.25rem', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
                           <h4 style={{ marginBottom: '1rem', color: '#fff' }}>Template di partenza</h4>
                           <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '0.75rem', maxHeight: '220px', overflowY: 'auto', paddingRight: '4px' }}>
@@ -4041,6 +4138,8 @@ const [importMsg, setImportMsg] = useState(null);
                             style={{ width: '100%', minHeight: '180px', resize: 'vertical', padding: '12px 16px', border: '1px solid var(--border-strong)', borderRadius: 'var(--radius-sm)', background: 'var(--bg)', fontFamily: 'inherit', fontSize: '14px', color: 'var(--text)' }}
                           />
                         </div>
+                          </div>
+                        </details>
                       </div>
                     </div>
                   )}

@@ -1124,3 +1124,25 @@ h3 { font-size: 18px; font-weight: 600; }
   .public-showcase { padding:4.5rem .7rem; }.showcase-copy { padding:0 .3rem; }.showcase-tabs { display:flex; overflow:auto; scrollbar-width:none; }.showcase-tabs button { flex:0 0 auto; grid-template-columns:10px auto; }.signature-preview { border-radius:13px; }.signature-topbar div span { display:none; }.signature-visual { min-height:360px; }.signature-content { width:100%; padding:4.5rem 1.2rem 1.5rem; }.signature-content h3 { font-size:clamp(2.6rem,13vw,4rem); }.signature-paths { grid-template-columns:1fr; }.signature-paths > div { display:flex; overflow:auto; }.signature-paths span { flex:0 0 auto; min-width:145px; }.signature-stories { grid-template-columns:1fr; }.signature-stories article:nth-child(2) { display:none; }
   .public-principles { padding-left:1rem; padding-right:1rem; }.public-network-cta { min-height:560px; }.public-network-cta > div:last-child { flex-direction:column; }.public-footer { grid-template-columns:1fr; }.public-footer nav { grid-column:1; grid-row:auto; flex-wrap:wrap; }.public-footer small { grid-column:1; }
 }
+/* Site builder: on narrow screens controls stay usable and the preview remains visible. */
+@media (max-width: 860px) {
+  .pro-site-builder {
+    grid-template-rows: auto 1fr !important;
+  }
+
+  .pro-site-builder > header {
+    align-items: flex-start !important;
+    padding: 12px !important;
+    flex-direction: column;
+  }
+
+  .pro-site-builder > header > div:last-child {
+    width: 100%;
+    overflow-x: auto;
+  }
+
+  .pro-site-builder__workspace {
+    grid-template-columns: minmax(280px, 44vw) minmax(360px, 1fr) !important;
+    overflow-x: auto;
+  }
+}
