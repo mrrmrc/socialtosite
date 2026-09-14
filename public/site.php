@@ -2595,7 +2595,7 @@ header('Link: <' . $siteUrl . '/feed.xml>; rel="alternate"; type="application/at
     .has-custom-theme .network-signature-brand img { width:20px; height:20px; }
     .has-custom-theme .network-signature-brand strong { font-size:0; }
     .has-custom-theme .network-signature-brand strong::after { content:'Creato con All Social To Web'; font-size:.7rem; font-weight:700; }
-    .has-custom-theme .navbar { width:100%!important; min-height:0; margin:0!important; padding:.75rem max(1rem,calc((100vw - <?= h($contentWidth) ?>)/2))!important; color:var(--text); border:0; border-radius:0!important; background:transparent!important; box-shadow:none; position:absolute; top:0; left:0; z-index:120; pointer-events:none; }
+    body.has-custom-theme .navbar { width:100%!important; min-height:0; margin:0!important; padding:.75rem max(1rem,calc((100vw - <?= h($contentWidth) ?>)/2))!important; color:var(--text); border:0; border-radius:0!important; background:transparent!important; box-shadow:none!important; backdrop-filter:none!important; position:absolute; top:0; left:0; z-index:120; pointer-events:none; }
     .has-custom-theme .nav-brand,.has-custom-theme .nav-links a { color:var(--text); }
     .has-custom-theme .nav-brand { min-height:42px; padding:.35rem .65rem; border:1px solid var(--border); border-radius:999px; background:color-mix(in srgb,var(--card-bg) 88%,transparent); box-shadow:0 8px 28px rgba(0,0,0,.09); backdrop-filter:blur(14px); font-size:.9rem; pointer-events:auto; }
     .has-custom-theme .nav-brand-image { width:36px; height:36px; border-radius:9px; object-fit:contain; }
@@ -2604,7 +2604,9 @@ header('Link: <' . $siteUrl . '/feed.xml>; rel="alternate"; type="application/at
     .has-custom-theme .nav-links { display:none; position:fixed; top:0; right:0; width:min(340px,88vw); height:100svh; flex-direction:column; gap:.35rem; padding:5rem 1.25rem 2rem; border-left:1px solid var(--border); background:var(--card-bg); box-shadow:-20px 0 60px rgba(0,0,0,.18); z-index:105; }
     .has-custom-theme .nav-links.open { display:flex; }
     .has-custom-theme .nav-links a { padding:.9rem 1rem; border-bottom:1px solid var(--border); font-size:1rem; }
-    .has-custom-theme .nav-overlay.open { display:block; }
+    .has-custom-theme .nav-overlay { display:none!important; position:fixed!important; inset:0; background:rgba(0,0,0,.42); pointer-events:auto; }
+    .has-custom-theme .nav-overlay.open { display:block!important; }
+    body.has-custom-theme.is-public-home > main.container { padding-top:0!important; }
     .has-custom-theme .container { width:min(100%,<?= h($contentWidth) ?>); max-width:none; padding:1rem 1.25rem 3rem; }
     .has-custom-theme .footer { background:var(--text); color:var(--bg); }
     .has-custom-theme .footer a { color:var(--bg); }
@@ -2694,8 +2696,9 @@ header('Link: <' . $siteUrl . '/feed.xml>; rel="alternate"; type="application/at
 <?php
   $isLivingHome = false;
   $hasCustomTheme = $archetype !== 'network-standard' && (!empty($aiData) || !empty($_GET['preview_data']));
+  $isPublicHome = !$single && !$foundationPage && $view === '' && !$activeTag;
 ?>
-<body class="theme-<?= h(networkTopicSlug($archetype)) ?> layout-<?= $layoutVariant ?> living-mode-<?= h($livingSpaceMode) ?><?= $isLivingHome ? ' has-living-home' : '' ?><?= $useHospitalityLanding ? ' is-hospitality-site' : '' ?><?= $hasCustomTheme ? ' has-custom-theme' : '' ?> theme-family-<?= h(networkTopicSlug($primaryModel ?: 'standard')) ?> hero-mode-<?= h(networkTopicSlug($heroMode ?: 'product')) ?> nav-mode-<?= h(networkTopicSlug($navMode ?: 'solid')) ?> cards-mode-<?= h(networkTopicSlug($cardsMode ?: 'product')) ?> density-mode-<?= h(networkTopicSlug($densityMode ?: 'balanced')) ?>">
+<body class="theme-<?= h(networkTopicSlug($archetype)) ?> layout-<?= $layoutVariant ?> living-mode-<?= h($livingSpaceMode) ?><?= $isLivingHome ? ' has-living-home' : '' ?><?= $isPublicHome ? ' is-public-home' : '' ?><?= $useHospitalityLanding ? ' is-hospitality-site' : '' ?><?= $hasCustomTheme ? ' has-custom-theme' : '' ?> theme-family-<?= h(networkTopicSlug($primaryModel ?: 'standard')) ?> hero-mode-<?= h(networkTopicSlug($heroMode ?: 'product')) ?> nav-mode-<?= h(networkTopicSlug($navMode ?: 'solid')) ?> cards-mode-<?= h(networkTopicSlug($cardsMode ?: 'product')) ?> density-mode-<?= h(networkTopicSlug($densityMode ?: 'balanced')) ?>">
 <a class="skip-link" href="#main-content">Vai al contenuto principale</a>
 <div class="network-bar">
   <div class="network-signature">
