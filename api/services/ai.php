@@ -1978,10 +1978,13 @@ Testi da analizzare:
             . "REGOLE:\n"
             . "1. Analizza l'ultima richiesta dell'utente.\n"
             . "2. Se l'utente chiede modifiche visive o strutturali (es. \"voglio un sito più scuro\", \"cambia il font\", \"usa un layout a barra laterale\", \"voglio uno stile elegante\"), deduci i migliori valori per le proprietà di stile che devono cambiare.\n"
-            . "3. Restituisci SEMPRE un JSON con la seguente struttura:\n"
+            . "3. Restituisci SEMPRE un oggetto JSON valido. NON usare markdown, non usare elenchi puntati e non scrivere testo fuori dal JSON.\n"
+            . "ESEMPIO DI RISPOSTA CORRETTA:\n"
             . "{\n"
-            . "  \"reply\": \"Il testo della tua risposta all'utente (in italiano, tono amichevole e professionale, descrivi cosa hai cambiato o chiedi dettagli).\",\n"
-            . "  \"proposed_style\": { ... } // Opzionale. Includi qui SOLO le chiavi di stile (nidificate) che vuoi sovrascrivere o proporre. Mappale esattamente sulla struttura JSON fornita. Se non c'è nulla da cambiare, ometti questo campo o lascialo vuoto.\n"
+            . "  \"reply\": \"Ho impostato un tema blu simile a Facebook e aggiornato i font.\",\n"
+            . "  \"proposed_style\": {\n"
+            . "    \"color_palette\": { \"primary\": \"#1877f2\", \"secondary\": \"#e4e6eb\" }\n"
+            . "  }\n"
             . "}\n\n"
             . "OPZIONI VALIDE PER ALCUNI CAMPI (layout_recipe e ui_style):\n"
             . "- layout_recipe.structure: 'classic', 'split', 'sidebar'\n"
@@ -1992,10 +1995,10 @@ Testi da analizzare:
             . "- ui_style.glassmorphism: true, false\n\n"
             . "CONVERSAZIONE (STORICO):\n"
             . implode("\n", $conversation) . "\n\n"
-            . "Rispondi SOLO con il blocco JSON valido e nient'altro.";
+            . "RISPONDI ORA ESCLUSIVAMENTE CON IL BLOCCO JSON. INIZIA SUBITO CON { E NON SCRIVERE ALTRO:";
 
         $reply = trim(self::gemini([['text' => $prompt]], [
-            'temperature' => 0.6,
+            'temperature' => 0.2,
             'maxOutputTokens' => 1024,
             '_timeout' => 45,
         ]));
