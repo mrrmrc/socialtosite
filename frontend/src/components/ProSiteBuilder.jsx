@@ -20,7 +20,7 @@ const DEFAULT_STYLE = {
   },
   ui_style: { radius: '16px', card_shadow: '0 10px 30px rgba(15,23,42,0.08)', glassmorphism: false },
   layout_recipe: {
-    hero: 'product', nav: 'solid', cards: 'product', density: 'balanced',
+    structure: 'classic', hero: 'product', nav: 'solid', cards: 'product', density: 'balanced',
     section_order: ['hero', 'latest', 'topics', 'info'], hidden_sections: [],
   },
   base_models: ['tech-clarity'],
@@ -57,6 +57,12 @@ const DENSITY_CHOICES = [
   { id: 'airy',     icon: '▪   ▪', title: 'Arioso',    desc: 'Più spazio e respiro' },
 ];
 
+const STRUCTURE_CHOICES = [
+  { id: 'classic', icon: '☰', title: 'Classica', desc: 'Intestazione in alto, contenuto al centro.' },
+  { id: 'split', icon: '◫', title: 'Divisa (Split)', desc: 'Testata visiva e contenuto a scorrimento laterale.' },
+  { id: 'sidebar', icon: '◧', title: 'Menu laterale', desc: 'Barra di navigazione laterale fissa.' },
+];
+
 const SECTION_BLOCKS = [
   { id: 'hero',   icon: '✦', title: 'Apertura',         desc: 'Presentazione e contenuto in evidenza' },
   { id: 'latest', icon: '▦', title: 'Ultimi contenuti', desc: 'Articoli e aggiornamenti recenti' },
@@ -65,9 +71,10 @@ const SECTION_BLOCKS = [
 ];
 
 const TOOLS = [
-  { id: 'themes',    icon: '✨', label: 'Stile',     help: 'Scegli una base pronta' },
+  { id: 'lia',       icon: '✨', label: 'Aiuto AI', help: 'Chiedi a LIA di modificare il sito' },
+  { id: 'themes',    icon: '🎨', label: 'Stile',     help: 'Scegli una base pronta' },
   { id: 'texts',     icon: 'T',  label: 'Testi',     help: 'Modifica ciò che si legge' },
-  { id: 'structure', icon: '⠿',  label: 'Blocchi',   help: 'Trascina e riordina la pagina' },
+  { id: 'structure', icon: '⠿',  label: 'Struttura', help: 'Macro layout e ordine sezioni' },
   { id: 'header',    icon: '▣',  label: 'Testata',   help: 'Decidi come inizi la pagina' },
   { id: 'menu',      icon: '☰',  label: 'Menu',      help: 'Scegli la navigazione' },
   { id: 'content',   icon: '▦',  label: 'Contenuti', help: 'Disponi articoli e foto' },
@@ -318,6 +325,11 @@ export function ProSiteBuilder({ user, open, onClose }) {
   const [draggedBlock, setDraggedBlock] = useState(null);
   const [panelVisible, setPanelVisible] = useState(true);
   const [saveSuccess, setSaveSuccess] = useState(false);
+  
+  const [liaMessages, setLiaMessages] = useState([{role: 'assistant', text: 'Ciao! Sono LIA, la tua assistente design. Dimmi pure come vorresti che fosse il sito e proverò a impostare stile e colori per te!'}]);
+  const [liaInput, setLiaInput] = useState('');
+  const [liaLoading, setLiaLoading] = useState(false);
+  
   const debounceRef = useRef(null);
   const previewRef = useRef(null);
   const token = typeof window !== 'undefined' ? localStorage.getItem('sts_token') : '';
@@ -433,6 +445,55 @@ export function ProSiteBuilder({ user, open, onClose }) {
     } catch (e) { setMessage(e.message); }
     setSaving(false);
   }
+
+  const handleLiaSubmit = async (e) => {
+    e.preventDefault();
+    const text = liaInput.trim();
+    if (!text || liaLoading) return;
+    
+    setLiaInput('');
+    const newMessages = [...liaMessages, { role: 'user', text }];
+    setLiaMessages(newMessages);
+    setLiaLoading(true);
+
+    try {
+      const res = await apiFetch('/api/index.php?action=lia-builder', {
+        method: 'POST',
+        body: JSON.stringify({
+          messages: newMessages,
+          style: style
+        })
+      }, token);
+      
+      if (res.ok && res.response) {
+        setLiaMessages([...newMessages, { role: 'assistant', text: res.response.reply }]);
+        
+        if (res.response.proposed_style && Object.keys(res.response.proposed_style).length > 0) {
+           setStyle(prev => {
+              const next = { ...prev };
+              const merge = (target, source) => {
+                 for (const key in source) {
+                    if (source[key] && typeof source[key] === 'object' && !Array.isArray(source[key])) {
+                       target[key] = target[key] || {};
+                       merge(target[key], source[key]);
+                    } else {
+                       target[key] = source[key];
+                    }
+                 }
+              };
+              merge(next, res.response.proposed_style);
+              return next;
+           });
+        }
+      } else {
+        setLiaMessages([...newMessages, { role: 'assistant', text: "Scusa, non sono riuscita a elaborare la richiesta." }]);
+      }
+    } catch (err) {
+      setLiaMessages([...newMessages, { role: 'assistant', text: "Errore di connessione." }]);
+    } finally {
+      setLiaLoading(false);
+    }
+  };
 
   if (!open) return null;
 
@@ -651,6 +712,57 @@ export function ProSiteBuilder({ user, open, onClose }) {
               {/* Panel content */}
               <div className="psb-panel-inner" key={section} style={{ padding: '18px 18px 80px', display: 'grid', gap: 12 }}>
 
+                {/* ── LIA ── */}
+                {section === 'lia' && <>
+                  <SectionHeader help="Descrivi come vorresti il sito, i colori, lo stile, o la struttura. Ci penso io.">
+                    Assistente AI LIA
+                  </SectionHeader>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 20 }}>
+                    {liaMessages.map((msg, i) => (
+                      <div key={i} style={{
+                        alignSelf: msg.role === 'user' ? 'flex-end' : 'flex-start',
+                        background: msg.role === 'user' ? 'rgba(37,99,235,.2)' : 'rgba(255,255,255,.05)',
+                        border: msg.role === 'user' ? '1px solid rgba(96,165,250,.3)' : '1px solid rgba(255,255,255,.1)',
+                        padding: '10px 14px', borderRadius: 12, maxWidth: '90%',
+                        fontSize: 13, lineHeight: 1.5, color: msg.role === 'user' ? '#bfdbfe' : '#e2e8f0',
+                      }}>
+                        {msg.role === 'assistant' && <strong style={{display: 'block', marginBottom: 4, color: '#93c5fd', fontSize: 11}}>LIA ✨</strong>}
+                        {msg.text}
+                      </div>
+                    ))}
+                    {liaLoading && (
+                      <div style={{ alignSelf: 'flex-start', fontSize: 12, color: 'rgba(255,255,255,.5)' }}>
+                        LIA sta elaborando...
+                      </div>
+                    )}
+                  </div>
+                  <form onSubmit={handleLiaSubmit} style={{ display: 'flex', gap: 8 }}>
+                    <input
+                      type="text"
+                      value={liaInput}
+                      onChange={e => setLiaInput(e.target.value)}
+                      placeholder="Es. fammi un sito verde acqua..."
+                      disabled={liaLoading}
+                      style={{
+                        flex: 1, padding: '10px 14px', borderRadius: 10,
+                        border: '1px solid rgba(255,255,255,.1)', background: 'rgba(0,0,0,.2)',
+                        color: '#fff', outline: 'none'
+                      }}
+                    />
+                    <button
+                      type="submit"
+                      disabled={liaLoading || !liaInput.trim()}
+                      style={{
+                        padding: '0 16px', borderRadius: 10, cursor: liaLoading || !liaInput.trim() ? 'not-allowed' : 'pointer',
+                        background: liaLoading || !liaInput.trim() ? 'rgba(255,255,255,.1)' : '#2563eb',
+                        color: '#fff', border: 'none', fontWeight: 600,
+                      }}
+                    >
+                      Invia
+                    </button>
+                  </form>
+                </>}
+
                 {/* ── Themes ── */}
                 {section === 'themes' && <>
                   <SectionHeader help="Un tema cambia colori, carattere, testata, menu e stile dei contenuti. Poi puoi personalizzarlo nei passaggi successivi.">
@@ -701,6 +813,16 @@ export function ProSiteBuilder({ user, open, onClose }) {
 
                 {/* ── Structure ── */}
                 {section === 'structure' && <>
+                  <SectionHeader help="Decidi l'architettura principale del sito.">
+                    Struttura Generale
+                  </SectionHeader>
+                  <div style={{ display: 'grid', gap: 8, marginBottom: 24 }}>
+                    {STRUCTURE_CHOICES.map(x => (
+                      <ChoiceCard key={x.id} {...x} active={style.layout_recipe.structure === x.id}
+                        onClick={() => setNested('layout_recipe', 'structure', x.id)} />
+                    ))}
+                  </div>
+
                   <SectionHeader help="Trascina i blocchi nell'ordine che preferisci. L'occhio mostra o nasconde una sezione senza eliminarla.">
                     Componi la pagina
                   </SectionHeader>

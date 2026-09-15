@@ -2700,15 +2700,6 @@ header('Link: <' . $siteUrl . '/feed.xml>; rel="alternate"; type="application/at
       .has-custom-theme.cards-mode-editorial .universal-card:first-child { grid-row:auto; }
     }
   </style>
-</head>
-<?php
-  $layoutVariant = 'classic';
-  
-  // Unsplash Placeholder
-  $unsplashKeyword = $archetype;
-  if ($archetype === 'classic') $unsplashKeyword = 'corporate,office';
-  if ($archetype === 'realestate') $unsplashKeyword = 'house,interior';
-  if ($archetype === 'wedding') $unsplashKeyword = 'wedding,flowers';
   if ($archetype === 'restaurant') $unsplashKeyword = 'food,restaurant';
   $placeholderImage = "https://images.unsplash.com/photo-1542314831-c53cd4b85ca4?auto=format&fit=crop&w=1600&q=80";
   if (in_array($archetype, ['wedding', 'realestate', 'restaurant', 'fitness', 'darkphoto', 'medical', 'agency', 'startup', 'lawyer'])) {

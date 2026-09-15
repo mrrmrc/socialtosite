@@ -1957,6 +1957,61 @@ Testi da analizzare:
             return '';
         }
     }
+
+    public static function liaBuilderReply(array $currentStyle, array $messages): array {
+        $conversation = [];
+        foreach (array_slice($messages, -12) as $message) {
+            if (!is_array($message)) continue;
+            $role = ($message['role'] ?? '') === 'assistant' ? 'LIA' : 'UTENTE';
+            $text = trim((string)($message['text'] ?? ''));
+            if ($text === '') continue;
+            $conversation[] = $role . ': ' . mb_substr($text, 0, 1200);
+        }
+
+        $styleJson = json_encode($currentStyle, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+
+        $prompt = "Sei LIA, l'assistente AI integrata nel costruttore di siti web (Site Builder) di All Social To Web.\n"
+            . "Il tuo compito è aiutare l'utente a configurare il design del sito, offrendo consigli di stile, scegliendo font, palette colori e modificando la struttura del layout in base alle sue richieste espresse in linguaggio naturale.\n"
+            . "Devi rispondere in formato JSON rigoroso.\n\n"
+            . "Attualmente il sito ha questa configurazione di stile (JSON):\n"
+            . $styleJson . "\n\n"
+            . "REGOLE:\n"
+            . "1. Analizza l'ultima richiesta dell'utente.\n"
+            . "2. Se l'utente chiede modifiche visive o strutturali (es. \"voglio un sito più scuro\", \"cambia il font\", \"usa un layout a barra laterale\", \"voglio uno stile elegante\"), deduci i migliori valori per le proprietà di stile che devono cambiare.\n"
+            . "3. Restituisci SEMPRE un JSON con la seguente struttura:\n"
+            . "{\n"
+            . "  \"reply\": \"Il testo della tua risposta all'utente (in italiano, tono amichevole e professionale, descrivi cosa hai cambiato o chiedi dettagli).\",\n"
+            . "  \"proposed_style\": { ... } // Opzionale. Includi qui SOLO le chiavi di stile (nidificate) che vuoi sovrascrivere o proporre. Mappale esattamente sulla struttura JSON fornita. Se non c'è nulla da cambiare, ometti questo campo o lascialo vuoto.\n"
+            . "}\n\n"
+            . "OPZIONI VALIDE PER ALCUNI CAMPI (layout_recipe e ui_style):\n"
+            . "- layout_recipe.structure: 'classic', 'split', 'sidebar'\n"
+            . "- layout_recipe.hero: 'product', 'split', 'editorial', 'immersive', 'human'\n"
+            . "- layout_recipe.nav: 'minimal', 'floating', 'centered', 'solid', 'transparent'\n"
+            . "- layout_recipe.cards: 'editorial', 'product', 'cinematic', 'soft', 'bold'\n"
+            . "- layout_recipe.density: 'compact', 'balanced', 'airy'\n"
+            . "- ui_style.glassmorphism: true, false\n\n"
+            . "CONVERSAZIONE (STORICO):\n"
+            . implode("\n", $conversation) . "\n\n"
+            . "Rispondi SOLO con il blocco JSON valido e nient'altro.";
+
+        $reply = trim(self::gemini([['text' => $prompt]], [
+            'temperature' => 0.6,
+            'maxOutputTokens' => 1024,
+            'responseMimeType' => 'application/json',
+            '_timeout' => 45,
+        ]));
+        
+        if ($reply === '') throw new Exception('Il modello non ha restituito una risposta');
+        
+        $decoded = json_decode($reply, true);
+        if (!is_array($decoded)) {
+            $reply = trim(preg_replace('/^```(?:json)?\s*|\s*```$/i', '', $reply));
+            $decoded = json_decode($reply, true);
+        }
+        if (!is_array($decoded)) throw new Exception('Risposta LIA non valida (JSON invalido)');
+        
+        return $decoded;
+    }
 }
 
 

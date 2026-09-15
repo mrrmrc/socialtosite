@@ -1547,6 +1547,30 @@ if ($action === 'lia-chat' && $method === 'POST') {
     }
 }
 
+if ($action === 'lia-builder' && $method === 'POST') {
+    try {
+        require_once __DIR__ . '/services/ai.php';
+        $b = body();
+        $incoming = is_array($b['messages'] ?? null) ? $b['messages'] : [];
+        $style = is_array($b['style'] ?? null) ? $b['style'] : [];
+        $messages = [];
+        foreach (array_slice($incoming, -12) as $message) {
+            if (!is_array($message)) continue;
+            $role = ($message['role'] ?? '') === 'assistant' ? 'assistant' : 'user';
+            $text = trim(strip_tags((string)($message['text'] ?? '')));
+            if ($text === '') continue;
+            $messages[] = ['role' => $role, 'text' => mb_substr($text, 0, 1200)];
+        }
+        if (!$messages || end($messages)['role'] !== 'user') jsonError('Scrivi una domanda per LIA', 422);
+
+        $reply = AI::liaBuilderReply($style, $messages);
+        json(['ok' => true, 'response' => $reply]);
+    } catch (Throwable $e) {
+        if (class_exists('Logger')) Logger::warn('lia', 'Risposta LIA Builder non riuscita', ['user_id' => $userId, 'error' => $e->getMessage()]);
+        jsonError('LIA non riesce a rispondere in questo momento. Riprova tra poco.', 502);
+    }
+}
+
 // Nasconde in modo persistente una proposta editoriale per l'utente corrente.
 if ($action === 'dismiss-content-idea' && $method === 'POST') {
     ensureSiteSchemaUpgrades();
