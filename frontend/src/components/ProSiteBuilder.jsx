@@ -489,7 +489,7 @@ export function ProSiteBuilder({ user, open, onClose }) {
         setLiaMessages([...newMessages, { role: 'assistant', text: "Scusa, non sono riuscita a elaborare la richiesta." }]);
       }
     } catch (err) {
-      setLiaMessages([...newMessages, { role: 'assistant', text: "Errore di connessione." }]);
+      setLiaMessages([...newMessages, { role: 'assistant', text: err.message || "Errore di connessione." }]);
     } finally {
       setLiaLoading(false);
     }

@@ -1567,7 +1567,7 @@ if ($action === 'lia-builder' && $method === 'POST') {
         json(['ok' => true, 'response' => $reply]);
     } catch (Throwable $e) {
         if (class_exists('Logger')) Logger::warn('lia', 'Risposta LIA Builder non riuscita', ['user_id' => $userId, 'error' => $e->getMessage()]);
-        jsonError('LIA non riesce a rispondere in questo momento. Riprova tra poco.', 502);
+        jsonError('LIA: ' . $e->getMessage(), 502);
     }
 }
 

@@ -1997,7 +1997,6 @@ Testi da analizzare:
         $reply = trim(self::gemini([['text' => $prompt]], [
             'temperature' => 0.6,
             'maxOutputTokens' => 1024,
-            'responseMimeType' => 'application/json',
             '_timeout' => 45,
         ]));
         
