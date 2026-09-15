@@ -2002,12 +2002,11 @@ Testi da analizzare:
         
         if ($reply === '') throw new Exception('Il modello non ha restituito una risposta');
         
-        $decoded = json_decode($reply, true);
+        $decoded = self::decodeJsonObject($reply);
         if (!is_array($decoded)) {
-            $reply = trim(preg_replace('/^```(?:json)?\s*|\s*```$/i', '', $reply));
-            $decoded = json_decode($reply, true);
+            $excerpt = mb_substr($reply, 0, 150);
+            throw new Exception("JSON invalido: " . $excerpt);
         }
-        if (!is_array($decoded)) throw new Exception('Risposta LIA non valida (JSON invalido)');
         
         return $decoded;
     }
