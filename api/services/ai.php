@@ -2000,12 +2000,12 @@ Testi da analizzare:
             . "- ui_style.glassmorphism: true, false\n\n"
             . "CONVERSAZIONE (STORICO):\n"
             . implode("\n", $conversation) . "\n\n"
-            . "REGOLE JSON ULTRA-RIGOROSE: 1) NESSUNA virgola finale (trailing comma). 2) NESSUN \"a capo\" (newline) non escapato all'interno delle stringhe di testo.\n"
-            . "RISPONDI ORA ESCLUSIVAMENTE CON IL BLOCCO JSON. INIZIA SUBITO CON { E NON SCRIVERE ALTRO:";
+            . "Rispondi unicamente con l'oggetto JSON richiesto.";
 
         $reply = trim(self::gemini([['text' => $prompt]], [
-            'temperature' => 0.2,
+            'temperature' => 0.4,
             'maxOutputTokens' => 1024,
+            'responseMimeType' => 'application/json',
             '_timeout' => 45,
         ]));
         
