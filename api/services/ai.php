@@ -646,6 +646,11 @@ Restituisci SOLO la nuova memoria aggiornata (testo semplice), nient'altro.";
 
     private static function decodeJsonObject(string $text): ?array {
         $clean = trim((string)preg_replace('/^```(?:json)?\s*|\s*```$/i', '', trim($text)));
+        
+        // Sanitizzazione d'emergenza per errori comuni degli LLM
+        $clean = str_replace(["\r", "\n", "\t"], " ", $clean);
+        $clean = preg_replace('/,\s*([\}\]])/', '$1', $clean);
+        
         $decoded = json_decode($clean, true);
         if (is_array($decoded)) return $decoded;
 
@@ -1995,6 +2000,7 @@ Testi da analizzare:
             . "- ui_style.glassmorphism: true, false\n\n"
             . "CONVERSAZIONE (STORICO):\n"
             . implode("\n", $conversation) . "\n\n"
+            . "REGOLE JSON ULTRA-RIGOROSE: 1) NESSUNA virgola finale (trailing comma). 2) NESSUN \"a capo\" (newline) non escapato all'interno delle stringhe di testo.\n"
             . "RISPONDI ORA ESCLUSIVAMENTE CON IL BLOCCO JSON. INIZIA SUBITO CON { E NON SCRIVERE ALTRO:";
 
         $reply = trim(self::gemini([['text' => $prompt]], [
