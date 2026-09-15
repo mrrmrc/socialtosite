@@ -645,6 +645,7 @@ $palBg        = $palette['background']?? '#FAFAFA';
 $palSurface   = $palette['surface']   ?? '#FFFFFF';
 $palText      = $palette['text']      ?? '#1a1a24';
 $palTextMuted = $palette['text_muted'] ?? '#667085';
+$layoutVariant = $layoutRecipe['structure'] ?? 'classic';
 $heroMode     = $layoutRecipe['hero'] ?? '';
 $navMode      = $layoutRecipe['nav'] ?? '';
 $cardsMode    = $layoutRecipe['cards'] ?? '';
@@ -2700,6 +2701,7 @@ header('Link: <' . $siteUrl . '/feed.xml>; rel="alternate"; type="application/at
       .has-custom-theme.cards-mode-editorial .universal-card:first-child { grid-row:auto; }
     }
   </style>
+<?php
   if ($archetype === 'restaurant') $unsplashKeyword = 'food,restaurant';
   $placeholderImage = "https://images.unsplash.com/photo-1542314831-c53cd4b85ca4?auto=format&fit=crop&w=1600&q=80";
   if (in_array($archetype, ['wedding', 'realestate', 'restaurant', 'fitness', 'darkphoto', 'medical', 'agency', 'startup', 'lawyer'])) {
