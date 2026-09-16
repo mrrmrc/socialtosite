@@ -1976,7 +1976,7 @@ Testi da analizzare:
 
         $styleJson = json_encode($currentStyle, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
 
-        $prompt = "Sei LIA, l'assistente AI integrata nel costruttore di siti web (Site Builder) di All Social To Web.\n"
+        $basePrompt = "Sei LIA, l'assistente AI integrata nel costruttore di siti web (Site Builder) di All Social To Web.\n"
             . "Il tuo compito è aiutare l'utente a configurare il design del sito, offrendo consigli di stile, scegliendo font, palette colori e modificando la struttura del layout in base alle sue richieste espresse in linguaggio naturale.\n"
             . "Devi rispondere in formato JSON rigoroso.\n\n"
             . "Attualmente il sito ha questa configurazione di stile (JSON):\n"
@@ -1984,7 +1984,9 @@ Testi da analizzare:
             . "REGOLE:\n"
             . "1. Analizza l'ultima richiesta dell'utente.\n"
             . "2. Se l'utente chiede modifiche visive o strutturali (es. \"voglio un sito più scuro\", \"cambia il font\", \"usa un layout a barra laterale\", \"voglio uno stile elegante\"), deduci i migliori valori per le proprietà di stile che devono cambiare.\n"
-            . "3. Restituisci SEMPRE un oggetto JSON valido. NON usare markdown, non usare elenchi puntati e non scrivere testo fuori dal JSON.\n"
+            . "3. Nel campo \"proposed_style\" includi SOLO le proprietà che cambiano davvero, mai l'intero oggetto style: risposte brevi e mirate, mai più di 6-8 proprietà per volta.\n"
+            . "4. Il campo \"reply\" deve contenere al massimo 1-2 frasi brevi (sotto le 200 caratteri), mai un elenco.\n"
+            . "5. Restituisci SEMPRE un oggetto JSON valido e COMPLETO (parentesi chiuse correttamente). NON usare markdown, non usare elenchi puntati e non scrivere testo fuori dal JSON.\n"
             . "ESEMPIO DI RISPOSTA CORRETTA:\n"
             . "{\n"
             . "  \"reply\": \"Ho impostato un tema blu simile a Facebook e aggiornato i font.\",\n"
@@ -2003,23 +2005,42 @@ Testi da analizzare:
             . implode("\n", $conversation) . "\n\n"
             . "Rispondi unicamente con l'oggetto JSON richiesto.";
 
-        $reply = trim(self::gemini([['text' => $prompt]], [
+        $generationConfig = [
             'temperature' => 0.4,
-            'maxOutputTokens' => 2048,
+            'maxOutputTokens' => 3072,
             'thinkingConfig' => ['thinkingBudget' => 512],
             'responseMimeType' => 'application/json',
             '_timeout' => 45,
-        ]));
-        
-        if ($reply === '') throw new Exception('Il modello non ha restituito una risposta');
-        
-        $decoded = self::decodeJsonObject($reply);
-        if (!is_array($decoded)) {
-            $excerpt = mb_substr($reply, 0, 150);
-            throw new Exception("JSON invalido: " . $excerpt);
+        ];
+
+        $firstText = trim(self::gemini([['text' => $basePrompt]], $generationConfig));
+        $decoded = $firstText !== '' ? self::decodeJsonObject($firstText) : null;
+        if (is_array($decoded)) return $decoded;
+
+        if (class_exists('Logger')) {
+            Logger::warn('lia-builder', 'Prima risposta JSON non valida, riprovo', [
+                'raw' => mb_substr($firstText, 0, 4000),
+            ]);
         }
-        
-        return $decoded;
+
+        $repairPrompt = $basePrompt
+            . "\n\n═══ CORREZIONE OBBLIGATORIA ═══\n"
+            . "Il tentativo precedente non era JSON valido o è stato troncato. Rigenera la risposta da capo, "
+            . "più corta e con meno proprietà in proposed_style, e assicurati che il JSON sia completo e ben formato.";
+        $secondText = trim(self::gemini([['text' => $repairPrompt]], array_merge($generationConfig, [
+            'temperature' => 0.25,
+        ])));
+        $decoded = $secondText !== '' ? self::decodeJsonObject($secondText) : null;
+        if (is_array($decoded)) return $decoded;
+
+        if (class_exists('Logger')) {
+            Logger::warn('lia-builder', 'Seconda risposta JSON non valida', [
+                'raw' => mb_substr($secondText, 0, 4000),
+            ]);
+        }
+
+        $excerpt = mb_substr($secondText !== '' ? $secondText : $firstText, 0, 200);
+        throw new Exception("JSON invalido dopo due tentativi: " . $excerpt);
     }
 }
 
