@@ -205,7 +205,7 @@ jobs:
           echo "Release files: $(find release -type f | wc -l)"
 
       - name: Upload release to VPS via FTP/FTPS
-        timeout-minutes: 10
+        timeout-minutes: 20
         env:
           FTP_HOST: ${{ secrets.FTP_HOST }}
           FTP_USER: ${{ secrets.FTP_USER }}
@@ -237,7 +237,7 @@ jobs:
           rm -f \"$FTP_REMOTE_DIR/api/cron/fetch_seo.php\";
           rm -f \"$FTP_REMOTE_DIR/api/middleware/crypto.php\";
           rm -f \"$FTP_REMOTE_DIR/api/services/social_oauth.php\";
-          mirror -R --delete --no-perms --parallel=3 --exclude-glob config/config.php --exclude-glob config/keys.php --exclude '^(public/media|scraper|storage)(/.*)?$' release/ \"$FTP_REMOTE_DIR\";
+          mirror -R --delete --no-perms --parallel=5 --exclude-glob config/config.php --exclude-glob config/keys.php --exclude '^(public/media|scraper|storage)(/.*)?$' release/ \"$FTP_REMOTE_DIR\";
           "
 
       - name: Verify deployed release on production
