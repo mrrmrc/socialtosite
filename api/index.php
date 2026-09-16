@@ -1764,7 +1764,7 @@ if ($action === 'create-idea-draft' && $method === 'POST') {
         $monthStart = date('Y-m-01 00:00:00');
         $postsThisMonth = DB::fetch('SELECT COUNT(*) as c FROM posts WHERE user_id=? AND imported_at >= ?', [$userId, $monthStart])['c'] ?? 0;
         if ($postsThisMonth >= 10) {
-            jsonError('Hai raggiunto il limite di 10 articoli mensili per il piano Base. Effettua l\'upgrade per continuare.');
+            jsonError('Hai già creato i 10 articoli inclusi questo mese nel piano Base. Il conteggio riparte il mese prossimo, oppure puoi passare a un piano superiore quando vuoi.');
         }
     }
 

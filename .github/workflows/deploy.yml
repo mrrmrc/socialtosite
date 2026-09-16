@@ -242,14 +242,22 @@ jobs:
             rclone deletefile ":ftp:$FTP_REMOTE_DIR/$legacy" 2>/dev/null || true
           done
 
+          # This server accepts roughly 6 concurrent FTP connections (the lftp
+          # setup that shipped successfully used connection-limit 6). rclone
+          # opens one connection per checker AND one per transfer with no cap
+          # of its own, so --ftp-concurrency has to bound the total. With
+          # --check-first the comparison pass finishes before any upload
+          # starts, so the cap only needs to clear max(checkers,transfers)+1.
           rclone sync release/ ":ftp:$FTP_REMOTE_DIR" \
             --exclude 'config/config.php' \
             --exclude 'config/keys.php' \
             --exclude 'public/media/**' \
             --exclude 'scraper/**' \
             --exclude 'storage/**' \
-            --transfers=8 \
-            --checkers=16 \
+            --check-first \
+            --ftp-concurrency=6 \
+            --transfers=4 \
+            --checkers=4 \
             --contimeout=15s \
             --timeout=30s \
             --retries=5 \

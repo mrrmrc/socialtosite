@@ -1514,7 +1514,11 @@ const [importMsg, setImportMsg] = useState(null);
               : 'Articolo scritto dall’AI e aperto nell’editor. Rivedilo prima di pubblicare.',
           });
     } catch (error) {
-      setSyncMsg({ ok: false, text: error.name === 'AbortError' ? 'La richiesta ha impiegato troppo tempo. Riprova: il pulsante è stato sbloccato.' : error.message });
+      const isMonthlyLimit = /articoli.*piano Base/i.test(error.message || '');
+      setSyncMsg({
+        ok: isMonthlyLimit,
+        text: error.name === 'AbortError' ? 'La richiesta ha impiegato troppo tempo. Riprova: il pulsante è stato sbloccato.' : error.message,
+      });
     } finally {
       window.clearTimeout(timeoutId);
       setPreparingIdea(-1);
@@ -2917,8 +2921,10 @@ const [importMsg, setImportMsg] = useState(null);
                           <div><strong>{channel.content_count}</strong><span>acquisiti</span></div>
                           <div><strong>{channel.published_count}</strong><span>pubblicati</span></div>
                           <div><strong>{channel.draft_count}</strong><span>in bozza</span></div>
-                          <div><strong>{channel.processing_count}</strong><span>in elaborazione</span></div>
-                          <div className={channel.failed_count > 0 ? 'has-errors' : ''}><strong>{channel.failed_count}</strong><span>da riprovare</span></div>
+                          <div><strong>{channel.processing_count}</strong><span>{isBasePlan ? "l'AI ci sta lavorando" : 'in elaborazione'}</span></div>
+                          {(!isBasePlan || channel.failed_count > 0) && (
+                            <div className={channel.failed_count > 0 ? 'has-errors' : ''}><strong>{channel.failed_count}</strong><span>{isBasePlan ? 'da correggere' : 'da riprovare'}</span></div>
+                          )}
                           <div className="last"><strong>{channel.last_content_at ? new Date(channel.last_content_at).toLocaleDateString('it-IT') : 'Mai'}</strong><span>ultimo contenuto</span></div>
                         </div>
 
