@@ -166,18 +166,16 @@ function ToolIcon({ tool, active, onClick }) {
         width: 60,
         height: 60,
         borderRadius: 16,
-        border: active ? '1.5px solid rgba(96,165,250,.6)' : '1.5px solid transparent',
-        background: active
-          ? 'linear-gradient(135deg, rgba(37,99,235,.35), rgba(37,99,235,.15))'
-          : 'transparent',
-        color: active ? '#93c5fd' : 'rgba(255,255,255,.48)',
+        border: active ? '2px solid var(--primary)' : '2px solid transparent',
+        background: active ? 'var(--primary-light)' : 'transparent',
+        color: active ? 'var(--primary)' : 'var(--text-muted)',
         cursor: 'pointer',
         display: 'grid',
         placeItems: 'center',
         gap: 2,
         padding: '7px 3px',
         transition: 'all .18s ease',
-        boxShadow: active ? '0 0 0 3px rgba(37,99,235,.12), inset 0 1px 0 rgba(255,255,255,.06)' : 'none',
+        boxShadow: 'none',
         position: 'relative',
       }}
     >
@@ -204,30 +202,28 @@ function ChoiceCard({ active, icon, title, desc, badge, onClick }) {
       style={{
         width: '100%', textAlign: 'left', display: 'grid',
         gridTemplateColumns: '44px 1fr', gap: 12,
-        padding: '13px 14px', borderRadius: 14, cursor: 'pointer', color: '#fff',
-        border: active ? '1.5px solid rgba(96,165,250,.7)' : '1px solid rgba(255,255,255,.1)',
-        background: active
-          ? 'linear-gradient(135deg, rgba(37,99,235,.28), rgba(37,99,235,.1))'
-          : 'rgba(255,255,255,.03)',
-        boxShadow: active ? '0 0 0 3px rgba(37,99,235,.1)' : 'none',
+        padding: '13px 14px', borderRadius: 14, cursor: 'pointer', color: 'var(--text)',
+        border: active ? '2px solid var(--primary)' : '2px solid var(--border)',
+        background: active ? 'var(--primary-light)' : 'var(--surface)',
+        boxShadow: 'none',
         transition: 'all .15s ease',
       }}
     >
       <span style={{
         width: 44, height: 44, borderRadius: 11,
         display: 'grid', placeItems: 'center',
-        background: active ? 'rgba(37,99,235,.25)' : 'rgba(255,255,255,.07)',
-        fontSize: 20, color: active ? '#93c5fd' : '#fff',
+        background: active ? 'var(--primary)' : 'var(--gray-light)',
+        fontSize: 20, color: active ? '#fff' : 'var(--text)',
         transition: 'all .15s ease',
       }}>{icon}</span>
       <span>
         <span style={{ display: 'flex', alignItems: 'center', gap: 7, flexWrap: 'wrap' }}>
-          <strong style={{ fontSize: 13, color: active ? '#dbeafe' : '#fff' }}>{title}</strong>
+          <strong style={{ fontSize: 13, color: active ? 'var(--primary-dark)' : 'var(--text)' }}>{title}</strong>
           {badge && (
             <em style={{
               fontStyle: 'normal', fontSize: 9, fontWeight: 800, letterSpacing: '.05em',
               padding: '3px 7px', borderRadius: 999,
-              background: 'linear-gradient(135deg, #2563eb, #1d4ed8)', color: '#fff',
+              background: 'linear-gradient(135deg, #2563eb, #1d4ed8)', color: 'var(--text)',
             }}>CONSIGLIATO</em>
           )}
         </span>
@@ -242,7 +238,7 @@ function ChoiceCard({ active, icon, title, desc, badge, onClick }) {
 function SectionHeader({ children, help }) {
   return (
     <div style={{ marginBottom: 18 }}>
-      <h3 style={{ margin: '0 0 5px', fontSize: 16, fontWeight: 800, color: '#f1f5f9' }}>{children}</h3>
+      <h3 style={{ margin: '0 0 5px', fontSize: 16, fontWeight: 800, color: 'var(--text)' }}>{children}</h3>
       <p style={{ margin: 0, opacity: .52, fontSize: 12, lineHeight: 1.5 }}>{help}</p>
     </div>
   );
@@ -253,8 +249,8 @@ function ColorRow({ label, value, onChange }) {
     <label style={{
       display: 'flex', alignItems: 'center', justifyContent: 'space-between',
       gap: 10, padding: '10px 14px', borderRadius: 12,
-      background: 'rgba(255,255,255,.04)', border: '1px solid rgba(255,255,255,.08)',
-      fontSize: 12, fontWeight: 700, color: '#cbd5e1', cursor: 'pointer',
+      background: 'var(--gray-light)', border: '2px solid var(--border-strong)',
+      fontSize: 12, fontWeight: 700, color: 'var(--text)', cursor: 'pointer',
       transition: 'background .12s ease',
     }}>
       <span>{label}</span>
@@ -288,8 +284,8 @@ function FontSelect({ label, value, onChange }) {
         onChange={e => onChange(e.target.value)}
         style={{
           padding: '10px 12px', borderRadius: 10,
-          border: '1px solid rgba(255,255,255,.12)',
-          background: 'rgba(255,255,255,.06)', color: '#fff',
+          border: '2px solid var(--border-strong)',
+          background: 'var(--surface)', color: 'var(--text)',
           fontSize: 13, fontWeight: 600,
           appearance: 'none',
           backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='rgba(255,255,255,0.5)' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E")`,
@@ -307,14 +303,14 @@ function FontSelect({ label, value, onChange }) {
 function PanelInput({ label, value, onChange, placeholder, multiline }) {
   const shared = {
     width: '100%', padding: '10px 12px', borderRadius: 10,
-    border: '1px solid rgba(255,255,255,.1)',
-    background: 'rgba(255,255,255,.05)', color: '#fff',
+    border: '2px solid var(--border)',
+    background: 'var(--bg)', color: 'var(--text)',
     fontSize: 13, fontWeight: 500, outline: 'none',
     transition: 'border-color .15s ease',
   };
   return (
     <label style={{ display: 'grid', gap: 7 }}>
-      <span style={{ fontSize: 11, fontWeight: 800, color: 'rgba(255,255,255,.5)', textTransform: 'uppercase', letterSpacing: '.06em' }}>
+      <span style={{ fontSize: 11, fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '.06em' }}>
         {label}
       </span>
       {multiline ? (
@@ -610,21 +606,21 @@ export function ProSiteBuilder({ user, open, onClose }) {
         @keyframes psb-pulse { 0%,100% { opacity:1; } 50% { opacity:.5; } }
         @keyframes psb-spin { to { transform:rotate(360deg); } }
         @keyframes psb-success { 0% { transform:scale(0.8); opacity:0; } 60% { transform:scale(1.05); } 100% { transform:scale(1); opacity:1; } }
-        .psb-tool-btn:hover { background: rgba(255,255,255,.06) !important; color: rgba(255,255,255,.8) !important; }
-        .psb-choice:hover { background: rgba(255,255,255,.06) !important; border-color: rgba(255,255,255,.18) !important; }
-        .psb-theme-card:hover { border-color: rgba(96,165,250,.4) !important; background: rgba(255,255,255,.04) !important; transform: translateY(-2px); }
-        .psb-block-row:hover { border-color: rgba(255,255,255,.18) !important; background: rgba(255,255,255,.07) !important; }
-        .psb-color-row:hover { background: rgba(255,255,255,.07) !important; }
+        .psb-tool-btn:hover { background: var(--gray-light) !important; color: rgba(255,255,255,.8) !important; }
+        .psb-choice:hover { background: var(--gray-light) !important; border-color: var(--primary) !important; }
+        .psb-theme-card:hover { border-color: rgba(96,165,250,.4) !important; background: var(--gray-light) !important; transform: translateY(-2px); }
+        .psb-block-row:hover { border-color: var(--primary) !important; background: var(--gray-light) !important; }
+        .psb-color-row:hover { background: var(--gray-light) !important; }
         .psb-panel-inner { animation: psb-fadein .2s ease; }
-        .psb-density-btn:hover { border-color: rgba(255,255,255,.25) !important; background: rgba(255,255,255,.07) !important; }
+        .psb-density-btn:hover { border-color: rgba(255,255,255,.25) !important; background: var(--gray-light) !important; }
       `}</style>
 
       <div
         className="pro-site-builder"
         style={{
           position: 'fixed', inset: 0, zIndex: 30000,
-          background: '#060d1a',
-          color: '#fff',
+          background: 'var(--bg)',
+          color: 'var(--text)',
           display: 'grid',
           gridTemplateRows: '64px 1fr',
           fontFamily: "'Inter', 'Outfit', system-ui, sans-serif",
@@ -634,8 +630,8 @@ export function ProSiteBuilder({ user, open, onClose }) {
         <header style={{
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
           padding: '0 20px', gap: 14,
-          borderBottom: '1px solid rgba(255,255,255,.08)',
-          background: 'rgba(8,15,30,.95)',
+          borderBottom: '2px solid var(--border-strong)',
+          background: 'var(--surface)',
           backdropFilter: 'blur(20px)',
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
@@ -645,8 +641,8 @@ export function ProSiteBuilder({ user, open, onClose }) {
               title="Chiudi Studio"
               style={{
                 width: 36, height: 36, borderRadius: 10,
-                border: '1px solid rgba(255,255,255,.1)',
-                background: 'rgba(255,255,255,.05)', color: 'rgba(255,255,255,.7)',
+                border: '2px solid var(--border)',
+                background: 'var(--bg)', color: 'var(--text)',
                 cursor: 'pointer', display: 'grid', placeItems: 'center', fontSize: 18,
                 transition: 'all .15s ease',
               }}
@@ -696,8 +692,8 @@ export function ProSiteBuilder({ user, open, onClose }) {
               rel="noreferrer"
               style={{
                 padding: '8px 14px', borderRadius: 10,
-                border: '1px solid rgba(255,255,255,.12)',
-                background: 'rgba(255,255,255,.05)', color: 'rgba(255,255,255,.75)',
+                border: '2px solid var(--border-strong)',
+                background: 'var(--bg)', color: 'var(--text)',
                 textDecoration: 'none', fontSize: 13, fontWeight: 600,
                 display: 'flex', alignItems: 'center', gap: 5,
                 transition: 'all .15s ease',
@@ -713,10 +709,8 @@ export function ProSiteBuilder({ user, open, onClose }) {
               style={{
                 padding: '8px 18px', borderRadius: 10,
                 border: 'none',
-                background: dirty
-                  ? 'linear-gradient(135deg, #2563eb, #1d4ed8)'
-                  : 'rgba(255,255,255,.08)',
-                color: dirty ? '#fff' : 'rgba(255,255,255,.35)',
+                background: dirty ? 'var(--primary)' : 'var(--gray-light)',
+                color: dirty ? '#fff' : 'var(--text-muted)',
                 fontWeight: 800, fontSize: 13, cursor: dirty ? 'pointer' : 'not-allowed',
                 display: 'flex', alignItems: 'center', gap: 7,
                 boxShadow: dirty ? '0 4px 16px rgba(37,99,235,.35)' : 'none',
@@ -739,8 +733,8 @@ export function ProSiteBuilder({ user, open, onClose }) {
             style={{
               display: 'flex', flexDirection: 'column', alignItems: 'center',
               gap: 4, padding: '12px 6px',
-              borderRight: '1px solid rgba(255,255,255,.07)',
-              background: 'rgba(4,9,20,.9)',
+              borderRight: '2px solid var(--border-strong)',
+              background: 'var(--surface)',
               overflowY: 'auto',
             }}
           >
@@ -761,9 +755,9 @@ export function ProSiteBuilder({ user, open, onClose }) {
                 onClick={() => setPanelVisible(v => !v)}
                 style={{
                   width: 60, height: 44, borderRadius: 12,
-                  border: '1px solid rgba(255,255,255,.08)',
-                  background: panelVisible ? 'rgba(255,255,255,.06)' : 'transparent',
-                  color: 'rgba(255,255,255,.4)', cursor: 'pointer',
+                  border: '2px solid var(--border-strong)',
+                  background: panelVisible ? 'var(--surface)' : 'transparent',
+                  color: 'var(--text-muted)', cursor: 'pointer',
                   fontSize: 16, display: 'grid', placeItems: 'center',
                   transition: 'all .15s ease',
                 }}
@@ -777,8 +771,8 @@ export function ProSiteBuilder({ user, open, onClose }) {
             {/* ── Detail Panel ── */}
             <aside style={{
               overflowY: 'auto', overflowX: 'hidden',
-              borderRight: '1px solid rgba(255,255,255,.07)',
-              background: 'rgba(7,14,28,.96)',
+              borderRight: '2px solid var(--border-strong)',
+              background: 'var(--surface)',
               opacity: panelVisible ? 1 : 0,
               transition: 'opacity .2s ease',
             }}>
@@ -786,8 +780,8 @@ export function ProSiteBuilder({ user, open, onClose }) {
               <div style={{
                 position: 'sticky', top: 0, zIndex: 2,
                 padding: '16px 18px',
-                background: 'rgba(7,14,28,.96)',
-                borderBottom: '1px solid rgba(255,255,255,.07)',
+                background: 'var(--surface)',
+                borderBottom: '1px solid var(--gray-light)',
                 backdropFilter: 'blur(16px)',
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -798,7 +792,7 @@ export function ProSiteBuilder({ user, open, onClose }) {
                     flexShrink: 0,
                   }}>{activeTool?.icon}</span>
                   <div>
-                    <div style={{ fontWeight: 800, fontSize: 15, color: '#f1f5f9' }}>{activeTool?.label}</div>
+                    <div style={{ fontWeight: 800, fontSize: 15, color: 'var(--text)' }}>{activeTool?.label}</div>
                     <div style={{ fontSize: 11, opacity: .5, marginTop: 1 }}>{activeTool?.help}</div>
                   </div>
                 </div>
@@ -807,7 +801,7 @@ export function ProSiteBuilder({ user, open, onClose }) {
                 <div style={{
                   marginTop: 12, padding: '9px 12px', borderRadius: 10,
                   background: 'rgba(37,99,235,.1)', border: '1px solid rgba(96,165,250,.15)',
-                  fontSize: 11, lineHeight: 1.5, color: '#bfdbfe',
+                  fontSize: 11, lineHeight: 1.5, color: 'var(--primary-dark)',
                 }}>
                   <strong>Clicca direttamente sul sito</strong> nell'anteprima per passare subito allo strumento giusto.
                 </div>
@@ -835,7 +829,7 @@ export function ProSiteBuilder({ user, open, onClose }) {
                       </div>
                     ))}
                     {liaLoading && (
-                      <div style={{ alignSelf: 'flex-start', fontSize: 12, color: 'rgba(255,255,255,.5)' }}>
+                      <div style={{ alignSelf: 'flex-start', fontSize: 12, color: 'var(--text-muted)' }}>
                         LIA sta elaborando...
                       </div>
                     )}
@@ -849,8 +843,8 @@ export function ProSiteBuilder({ user, open, onClose }) {
                       disabled={liaLoading}
                       style={{
                         flex: 1, padding: '10px 14px', borderRadius: 10,
-                        border: '1px solid rgba(255,255,255,.1)', background: 'rgba(0,0,0,.2)',
-                        color: '#fff', outline: 'none'
+                        border: '2px solid var(--border)', background: 'rgba(0,0,0,.2)',
+                        color: 'var(--text)', outline: 'none'
                       }}
                     />
                     <button
@@ -859,7 +853,7 @@ export function ProSiteBuilder({ user, open, onClose }) {
                       style={{
                         padding: '0 16px', borderRadius: 10, cursor: liaLoading || !liaInput.trim() ? 'not-allowed' : 'pointer',
                         background: liaLoading || !liaInput.trim() ? 'rgba(255,255,255,.1)' : '#2563eb',
-                        color: '#fff', border: 'none', fontWeight: 600,
+                        color: 'var(--text)', border: 'none', fontWeight: 600,
                       }}
                     >
                       Invia
@@ -881,7 +875,7 @@ export function ProSiteBuilder({ user, open, onClose }) {
                         style={{
                           width: '100%', textAlign: 'left',
                           display: 'grid', gridTemplateColumns: '44px 1fr', gap: 12,
-                          padding: '14px 14px', borderRadius: 14, cursor: 'pointer', color: '#fff',
+                          padding: '14px 14px', borderRadius: 14, cursor: 'pointer', color: 'var(--text)',
                           border: style.design_archetype === p.id
                             ? '1.5px solid rgba(96,165,250,.7)'
                             : '1px solid rgba(255,255,255,.08)',
@@ -985,9 +979,9 @@ export function ProSiteBuilder({ user, open, onClose }) {
                                 onClick={action}
                                 style={{
                                   width: 28, height: 28, padding: 0,
-                                  border: '1px solid rgba(255,255,255,.1)',
+                                  border: '2px solid var(--border)',
                                   borderRadius: 8,
-                                  background: 'rgba(255,255,255,.05)',
+                                  background: 'var(--bg)',
                                   color: disabled ? 'rgba(255,255,255,.2)' : '#fff',
                                   cursor: disabled ? 'not-allowed' : 'pointer',
                                   fontSize: 13, display: 'grid', placeItems: 'center',
@@ -1007,14 +1001,14 @@ export function ProSiteBuilder({ user, open, onClose }) {
                     style={{
                       marginTop: 10, width: '100%', padding: '10px 12px', borderRadius: 12,
                       border: '1px dashed rgba(255,255,255,.22)', background: 'transparent',
-                      color: 'rgba(255,255,255,.7)', cursor: 'pointer', fontSize: 13, fontWeight: 700,
+                      color: 'var(--text)', cursor: 'pointer', fontSize: 13, fontWeight: 700,
                     }}
                   >
                     + Aggiungi sezione
                   </button>
 
                   {sectionDraft && (
-                    <div style={{ marginTop: 14, padding: 14, borderRadius: 14, border: '1px solid rgba(255,255,255,.12)', background: 'rgba(255,255,255,.03)', display: 'grid', gap: 10 }}>
+                    <div style={{ marginTop: 14, padding: 14, borderRadius: 14, border: '2px solid var(--border-strong)', background: 'rgba(255,255,255,.03)', display: 'grid', gap: 10 }}>
                       <PanelInput
                         label="Titolo sezione"
                         value={sectionDraft.title}
@@ -1041,7 +1035,7 @@ export function ProSiteBuilder({ user, open, onClose }) {
                           disabled={!sectionDraft.title.trim()}
                           style={{
                             flex: 1, padding: '10px 12px', borderRadius: 10, border: 'none',
-                            background: 'linear-gradient(135deg,#2563eb,#1d4ed8)', color: '#fff', fontWeight: 700,
+                            background: 'linear-gradient(135deg,#2563eb,#1d4ed8)', color: 'var(--text)', fontWeight: 700,
                             cursor: sectionDraft.title.trim() ? 'pointer' : 'not-allowed',
                             opacity: sectionDraft.title.trim() ? 1 : .5,
                           }}
@@ -1051,7 +1045,7 @@ export function ProSiteBuilder({ user, open, onClose }) {
                         <button
                           type="button"
                           onClick={cancelSectionDraft}
-                          style={{ padding: '10px 12px', borderRadius: 10, border: '1px solid rgba(255,255,255,.15)', background: 'transparent', color: '#fff', cursor: 'pointer' }}
+                          style={{ padding: '10px 12px', borderRadius: 10, border: '1px solid rgba(255,255,255,.15)', background: 'transparent', color: 'var(--text)', cursor: 'pointer' }}
                         >
                           Annulla
                         </button>
@@ -1106,7 +1100,7 @@ export function ProSiteBuilder({ user, open, onClose }) {
                     ))}
                   </div>
 
-                  <div style={{ marginTop: 8, paddingTop: 16, borderTop: '1px solid rgba(255,255,255,.07)' }}>
+                  <div style={{ marginTop: 8, paddingTop: 16, borderTop: '1px solid var(--gray-light)' }}>
                     <SectionHeader help="Regola quanto spazio lasci tra gli elementi.">
                       Quanto deve essere ariosa la pagina?
                     </SectionHeader>
@@ -1123,7 +1117,7 @@ export function ProSiteBuilder({ user, open, onClose }) {
                               : '1px solid rgba(255,255,255,.1)',
                             background: style.layout_recipe.density === x.id
                               ? 'rgba(37,99,235,.2)' : 'rgba(255,255,255,.03)',
-                            color: '#fff', display: 'grid', gap: 3, textAlign: 'center', fontSize: 11,
+                            color: 'var(--text)', display: 'grid', gap: 3, textAlign: 'center', fontSize: 11,
                             transition: 'all .15s ease',
                           }}
                         >
@@ -1152,8 +1146,8 @@ export function ProSiteBuilder({ user, open, onClose }) {
                       <label key={k} className="psb-color-row" style={{
                         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                         gap: 10, padding: '10px 14px', borderRadius: 12, cursor: 'pointer',
-                        background: 'rgba(255,255,255,.04)', border: '1px solid rgba(255,255,255,.08)',
-                        fontSize: 12, fontWeight: 700, color: '#cbd5e1',
+                        background: 'var(--gray-light)', border: '2px solid var(--border-strong)',
+                        fontSize: 12, fontWeight: 700, color: 'var(--text)',
                         transition: 'background .12s ease',
                       }}>
                         <span>{l}</span>
@@ -1178,7 +1172,7 @@ export function ProSiteBuilder({ user, open, onClose }) {
                     ))}
                   </div>
 
-                  <div style={{ marginTop: 8, paddingTop: 16, borderTop: '1px solid rgba(255,255,255,.07)' }}>
+                  <div style={{ marginTop: 8, paddingTop: 16, borderTop: '1px solid var(--gray-light)' }}>
                     <SectionHeader help="Puoi lasciare tranquillamente quelli scelti dal tema.">
                       Carattere del testo
                     </SectionHeader>
@@ -1215,8 +1209,8 @@ export function ProSiteBuilder({ user, open, onClose }) {
                   <label style={{
                     display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                     padding: '12px 14px', borderRadius: 12,
-                    background: 'rgba(255,255,255,.04)', border: '1px solid rgba(255,255,255,.08)',
-                    cursor: 'pointer', fontSize: 13, fontWeight: 700, color: '#cbd5e1',
+                    background: 'var(--gray-light)', border: '2px solid var(--border-strong)',
+                    cursor: 'pointer', fontSize: 13, fontWeight: 700, color: 'var(--text)',
                   }}>
                     <span>
                       <span style={{ display: 'block', fontSize: 13, fontWeight: 700 }}>Effetto vetro</span>
@@ -1245,7 +1239,7 @@ export function ProSiteBuilder({ user, open, onClose }) {
 
                   {/* Custom CSS */}
                   <div style={{ display: 'grid', gap: 7 }}>
-                    <span style={{ fontSize: 11, fontWeight: 800, color: 'rgba(255,255,255,.5)', textTransform: 'uppercase', letterSpacing: '.06em' }}>
+                    <span style={{ fontSize: 11, fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '.06em' }}>
                       CSS personalizzato
                     </span>
                     <textarea
@@ -1255,8 +1249,8 @@ export function ProSiteBuilder({ user, open, onClose }) {
                       rows={8}
                       style={{
                         width: '100%', padding: '10px 12px', borderRadius: 10,
-                        border: '1px solid rgba(255,255,255,.1)',
-                        background: 'rgba(255,255,255,.04)', color: '#a5f3fc',
+                        border: '2px solid var(--border)',
+                        background: 'var(--gray-light)', color: '#a5f3fc',
                         fontSize: 12, fontFamily: "'Fira Code', 'Courier New', monospace",
                         resize: 'vertical', lineHeight: 1.6, outline: 'none',
                       }}
@@ -1271,8 +1265,8 @@ export function ProSiteBuilder({ user, open, onClose }) {
                       disabled={!dirty}
                       style={{
                         padding: '10px', borderRadius: 10,
-                        border: '1px solid rgba(255,255,255,.12)',
-                        background: 'rgba(255,255,255,.04)', color: dirty ? '#fff' : 'rgba(255,255,255,.25)',
+                        border: '2px solid var(--border-strong)',
+                        background: 'var(--gray-light)', color: dirty ? '#fff' : 'rgba(255,255,255,.25)',
                         fontWeight: 700, fontSize: 12, cursor: dirty ? 'pointer' : 'not-allowed',
                         transition: 'all .15s ease',
                       }}
@@ -1309,8 +1303,8 @@ export function ProSiteBuilder({ user, open, onClose }) {
                 position: 'absolute', left: 28, top: 28, zIndex: 3,
                 display: 'flex', alignItems: 'center', gap: 8,
                 padding: '7px 12px', borderRadius: 999,
-                background: 'rgba(4,9,20,.88)', border: '1px solid rgba(255,255,255,.08)',
-                fontSize: 11, fontWeight: 600, color: '#cbd5e1',
+                background: 'rgba(4,9,20,.88)', border: '2px solid var(--border-strong)',
+                fontSize: 11, fontWeight: 600, color: 'var(--text)',
                 boxShadow: '0 6px 20px rgba(0,0,0,.3)',
                 backdropFilter: 'blur(16px)',
               }}>
@@ -1326,7 +1320,7 @@ export function ProSiteBuilder({ user, open, onClose }) {
               <div style={{
                 position: 'absolute', right: 28, top: 28, zIndex: 3,
                 padding: '7px 12px', borderRadius: 999,
-                background: 'rgba(4,9,20,.88)', border: '1px solid rgba(255,255,255,.08)',
+                background: 'rgba(4,9,20,.88)', border: '2px solid var(--border-strong)',
                 fontSize: 11, fontWeight: 600, color: 'rgba(255,255,255,.55)',
                 backdropFilter: 'blur(16px)',
               }}>
