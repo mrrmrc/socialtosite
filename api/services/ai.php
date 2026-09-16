@@ -155,6 +155,66 @@ class AI {
         return $result;
     }
 
+    // ── Revisione critica del design (Senior Art Director) ─────────────────
+    // Il contrasto garantito sopra risolve solo la leggibilità: non dice
+    // nulla su coerenza, equilibrio ed eleganza del risultato. Questo secondo
+    // passaggio rilegge la CONFIGURAZIONE (non uno screenshot: qui non esiste
+    // un servizio di rendering/screenshot server-side) con l'occhio critico
+    // di un art director senior e corregge le incoerenze che trova, con lo
+    // stesso schema "genera → critica → correggi" già usato per gli articoli
+    // in harmonize(). Non sostituisce una vera revisione visiva, ma coglie
+    // molte più cose della sola leggibilità: archetipo/colori scollegati,
+    // combinazioni da "sito AI generico", densità sbagliata per il contenuto.
+    private static function applyDesignCritique(array $result, string $profileSummary, string $roleMission): array {
+        $reviewable = array_intersect_key($result, array_flip([
+            'design_archetype', 'font_heading', 'font_body', 'color_palette',
+            'ui_style', 'layout_recipe', 'base_models', 'hero_tagline', 'cta_text',
+        ]));
+        $resultJson = json_encode($reviewable, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+
+        $prompt = "Sei un Senior Art Director che revisiona il lavoro di un designer junior prima che vada in produzione.\n"
+            . "Profilo del cliente: {$profileSummary}\n"
+            . "Missione/ruolo: {$roleMission}\n\n"
+            . "CONFIGURAZIONE DI DESIGN DA REVISIONARE (JSON):\n{$resultJson}\n\n"
+            . "Controlla con occhio critico e severo, esattamente come faresti su un lavoro vero:\n"
+            . "1. COERENZA: l'archetipo/base_models scelto e' coerente con color_palette, layout_recipe e ui_style? Un archetipo 'scuro/cinematic' deve avere sfondo scuro, card e superfici scure coerenti fra loro, non un mix di elementi chiari e scuri senza logica.\n"
+            . "2. LOOK AI GENERICO: evita neon gratuiti, viola predefinito, gradienti casuali, glassmorphism invadente, card che sembrano semplicemente 'invertite' senza un vero criterio estetico, o qualunque combinazione che sembri un template intercambiabile.\n"
+            . "3. EQUILIBRIO: radius, ombre (card_shadow) e densita' sono adeguati al tono dell'archetipo (es. un tema editoriale elegante non dovrebbe avere ombre pesanti da neo-brutalismo)?\n"
+            . "4. PROFESSIONALITA': il risultato nel complesso sembra curato da un vero studio di design, non un accostamento casuale di scelte tecnicamente valide ma esteticamente scollegate?\n\n"
+            . "Se trovi problemi, correggili. Se la configurazione e' gia' valida, restituiscila invariata.\n"
+            . "Rispondi SOLO con JSON in questo formato:\n"
+            . '{"issues": ["problema individuato in italiano", "..."], "corrected": { <stessa struttura del JSON originale, con SOLO le chiavi che hai modificato> }}';
+
+        try {
+            $text = self::gemini([['text' => $prompt]], [
+                'responseMimeType' => 'application/json',
+                'temperature' => 0.4,
+                'maxOutputTokens' => 3072,
+            ]);
+        } catch (Throwable $e) {
+            return self::applyContrastGuarantee($result);
+        }
+        $text = preg_replace('/```json|```/', '', trim($text));
+        $review = json_decode($text, true);
+        if (!is_array($review) || empty($review['corrected']) || !is_array($review['corrected'])) {
+            return self::applyContrastGuarantee($result);
+        }
+
+        $corrected = $review['corrected'];
+        foreach (['color_palette', 'ui_style', 'layout_recipe'] as $nestedKey) {
+            if (isset($corrected[$nestedKey]) && is_array($corrected[$nestedKey]) && isset($result[$nestedKey]) && is_array($result[$nestedKey])) {
+                $corrected[$nestedKey] = array_merge($result[$nestedKey], $corrected[$nestedKey]);
+            }
+        }
+        $result = array_merge($result, $corrected);
+        if (isset($result['color_palette']) && is_array($result['color_palette'])) {
+            $result['color_palette'] = self::normalizeColorPalette($result['color_palette']);
+        }
+        // La revisione puo' aver cambiato i colori: la garanzia di contrasto
+        // resta l'ultima parola, sempre, qualunque cosa succeda sopra.
+        return self::applyContrastGuarantee($result);
+    }
+
     private static function inferVerticalContext(string $profileSummary, string $roleMission, string $contentStrategy): array {
         $text = mb_strtolower(trim($profileSummary . ' ' . $roleMission . ' ' . $contentStrategy));
         $verticals = [
@@ -1736,7 +1796,7 @@ Testi da analizzare:
         if (empty($result['layout_recipe']) || !is_array($result['layout_recipe'])) {
             $result['layout_recipe'] = ['hero' => 'editorial', 'nav' => 'transparent', 'cards' => 'editorial', 'density' => 'airy'];
         }
-        return self::applyContrastGuarantee($result);
+        return self::applyDesignCritique($result, $profileSummary, $roleMission);
     }
 
     // ── AGENTE CAPOREDATTORE (Orchestrazione Contenuti) ─────────────────────
