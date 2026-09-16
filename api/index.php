@@ -1482,6 +1482,43 @@ if ($action === 'site-ai' && $method === 'POST') {
     }
 }
 
+// GET profile-understanding / POST profile-analyze / POST profile-answer
+// L'agente che verifica se le informazioni raccolte dai social dell'utente
+// lo rappresentano davvero: profila, misura una confidenza, e genera domande
+// concrete quando qualcosa e' ambiguo o manca. Esisteva gia' nel codice
+// (ProfileAnalyzer) ma non era mai stato collegato a nessuna azione ne' a
+// nessuna schermata.
+if ($action === 'profile-understanding' && $method === 'GET') {
+    require_once __DIR__ . '/services/profile_analyzer.php';
+    json(['ok' => true, 'profile' => ProfileAnalyzer::profile($userId), 'questions' => ProfileAnalyzer::questions($userId)]);
+}
+
+if ($action === 'profile-analyze' && $method === 'POST') {
+    require_once __DIR__ . '/services/profile_analyzer.php';
+    try {
+        $profile = ProfileAnalyzer::analyze($userId);
+        json(['ok' => true, 'profile' => $profile, 'questions' => ProfileAnalyzer::questions($userId)]);
+    } catch (Throwable $e) {
+        jsonError('Analisi profilo non riuscita: ' . $e->getMessage());
+    }
+}
+
+if ($action === 'profile-answer' && $method === 'POST') {
+    require_once __DIR__ . '/services/profile_analyzer.php';
+    $b = body();
+    $questionId = (int)($b['question_id'] ?? 0);
+    $answer = (string)($b['answer'] ?? '');
+    if ($questionId <= 0) jsonError('Domanda non valida', 422);
+    try {
+        $profile = ProfileAnalyzer::answer($userId, $questionId, $answer);
+        json(['ok' => true, 'profile' => $profile, 'questions' => ProfileAnalyzer::questions($userId)]);
+    } catch (InvalidArgumentException $e) {
+        jsonError($e->getMessage(), 422);
+    } catch (Throwable $e) {
+        jsonError('Non sono riuscita a salvare la risposta: ' . $e->getMessage());
+    }
+}
+
 // ÔöÇÔöÇ POST chief-editor (Orchestrazione Contenuti) ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
 if ($action === 'chief-editor' && $method === 'POST') {
     try {

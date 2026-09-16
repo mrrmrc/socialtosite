@@ -80,13 +80,23 @@ final class ProfileAnalyzer
         return self::analyze($userId);
     }
 
+    // Legge dalle tabelle realmente popolate dalla pipeline di sync live
+    // (social_sources/posts). Le tabelle content_sources/raw_contents esistono
+    // nello schema ma appartengono a una pipeline di importazione parallela
+    // mai collegata a nulla: usarle qui avrebbe sempre restituito zero righe.
     public static function analyze(int $userId): array
     {
         self::ensureSchema();
-        $contents = DB::fetchAll("SELECT c.id, c.platform, c.title, c.body_text, c.published_at, s.label source_label, s.url source_profile_url FROM raw_contents c JOIN content_sources s ON s.id=c.source_id WHERE c.user_id=? ORDER BY COALESCE(c.published_at,c.imported_at) DESC LIMIT 120", [$userId]);
-        $sources = DB::fetchAll('SELECT id,platform,label,url,source_profile FROM content_sources WHERE user_id=? ORDER BY id ASC', [$userId]);
-        $sourceCount = (int)(DB::fetch('SELECT COUNT(*) total FROM content_sources WHERE user_id=?', [$userId])['total'] ?? 0);
-        $contentCount = (int)(DB::fetch('SELECT COUNT(*) total FROM raw_contents WHERE user_id=?', [$userId])['total'] ?? 0);
+        $contents = DB::fetchAll(
+            "SELECT id, platform, COALESCE(edited_title, generated_title) AS title,
+                    COALESCE(edited_excerpt, generated_excerpt, LEFT(COALESCE(edited_body, generated_body, raw_content), 1800)) AS body_text,
+                    published_at, platform AS source_label, source_url AS source_profile_url
+               FROM posts WHERE user_id=? ORDER BY COALESCE(published_at, imported_at) DESC LIMIT 120",
+            [$userId]
+        );
+        $sources = DB::fetchAll('SELECT id, platform, label, url, topic_summary FROM social_sources WHERE user_id=? AND active=1 ORDER BY id ASC', [$userId]);
+        $sourceCount = count($sources);
+        $contentCount = (int)(DB::fetch('SELECT COUNT(*) total FROM posts WHERE user_id=?', [$userId])['total'] ?? 0);
         if (!$contents) {
             DB::query("INSERT INTO user_content_profiles (user_id,status,source_count,content_count) VALUES (?,'pending',?,?) ON DUPLICATE KEY UPDATE status='pending',source_count=VALUES(source_count),content_count=VALUES(content_count),error_message=NULL", [$userId, $sourceCount, $contentCount]);
             return self::profile($userId) ?? [];
@@ -103,8 +113,7 @@ final class ProfileAnalyzer
             'text' => mb_substr((string)$row['body_text'], 0, 1800),
         ], $contents);
         $sourceProfiles = array_map(static function (array $source): array {
-            $metadata = json_decode((string)($source['source_profile'] ?? ''), true);
-            return ['source_id' => (int)$source['id'], 'platform' => $source['platform'], 'label' => $source['label'], 'url' => $source['url'], 'public_profile' => is_array($metadata) ? $metadata : []];
+            return ['source_id' => (int)$source['id'], 'platform' => $source['platform'], 'label' => $source['label'], 'url' => $source['url'], 'topic_summary' => (string)($source['topic_summary'] ?? '')];
         }, $sources);
 
         DB::query("INSERT INTO user_content_profiles (user_id,status,source_count,content_count) VALUES (?,'analyzing',?,?) ON DUPLICATE KEY UPDATE status='analyzing',source_count=VALUES(source_count),content_count=VALUES(content_count),error_message=NULL", [$userId, $sourceCount, $contentCount]);

@@ -1668,6 +1668,118 @@ const [importMsg, setImportMsg] = useState(null);
     setGeneratingSite(false);
   }
 
+  // --- Agente di comprensione profilo (ProfileAnalyzer) ---
+  // Capisce se le informazioni raccolte dai social rappresentano davvero
+  // l'utente, con una confidenza esplicita, e fa domande concrete quando
+  // qualcosa è ambiguo o manca — invece di indovinare in silenzio.
+  const [profileUnderstanding, setProfileUnderstanding] = useState(null);
+  const [profileQuestions, setProfileQuestions] = useState([]);
+  const [profileAnalyzing, setProfileAnalyzing] = useState(false);
+  const [profileLoaded, setProfileLoaded] = useState(false);
+  const [answerDrafts, setAnswerDrafts] = useState({});
+  const [answeringId, setAnsweringId] = useState(null);
+
+  async function loadProfileUnderstanding() {
+    try {
+      const res = await apiFetch('/api/index.php?action=profile-understanding', {}, token);
+      setProfileUnderstanding(res.profile || null);
+      setProfileQuestions(res.questions || []);
+    } catch (err) { /* silenzioso: pannello facoltativo */ }
+    setProfileLoaded(true);
+  }
+
+  async function analyzeProfile() {
+    setProfileAnalyzing(true);
+    try {
+      const res = await apiFetch('/api/index.php?action=profile-analyze', { method: 'POST' }, token);
+      setProfileUnderstanding(res.profile || null);
+      setProfileQuestions(res.questions || []);
+    } catch (err) {
+      setSyncMsg({ ok: false, text: err.message || 'Analisi profilo non riuscita.' });
+    }
+    setProfileAnalyzing(false);
+  }
+
+  async function submitProfileAnswer(questionId) {
+    const answer = (answerDrafts[questionId] || '').trim();
+    if (!answer) return;
+    setAnsweringId(questionId);
+    try {
+      const res = await apiFetch('/api/index.php?action=profile-answer', {
+        method: 'POST',
+        body: JSON.stringify({ question_id: questionId, answer })
+      }, token);
+      setProfileUnderstanding(res.profile || null);
+      setProfileQuestions(res.questions || []);
+      setAnswerDrafts(prev => ({ ...prev, [questionId]: '' }));
+    } catch (err) {
+      setSyncMsg({ ok: false, text: err.message || 'Non sono riuscita a salvare la risposta.' });
+    }
+    setAnsweringId(null);
+  }
+
+  function renderProfileUnderstandingPanel() {
+    const status = profileUnderstanding?.status;
+    const openQuestions = profileQuestions.filter(q => q.status === 'open');
+    return (
+      <section className="card" style={{ padding: '1.5rem', display: 'grid', gap: '1rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap', alignItems: 'flex-start' }}>
+          <div>
+            <span className="section-eyebrow">Quanto ti capisce l'AI</span>
+            <h2 style={{ margin: '0.35rem 0 0.5rem' }}>🔎 Comprensione del tuo profilo</h2>
+            <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '14px', lineHeight: 1.6 }}>
+              Analizza cosa pubblichi sui social collegati e verifica se il ritratto che ne ricava rappresenta davvero te. Se qualcosa non è chiaro, te lo chiede invece di inventarlo.
+            </p>
+          </div>
+          <button className="btn btn-outline" onClick={analyzeProfile} disabled={profileAnalyzing}>
+            {profileAnalyzing ? '⟳ Sto analizzando...' : status ? '↻ Rianalizza' : '🔎 Analizza il mio profilo'}
+          </button>
+        </div>
+
+        {status && status !== 'pending' && status !== 'analyzing' && status !== 'error' && (
+          <div style={{ display: 'grid', gap: 8, padding: '1rem', borderRadius: 'var(--radius)', background: 'var(--surface)', border: '1px solid var(--border)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', fontWeight: 800, color: 'var(--text)' }}>
+              <span>Confidenza dell'AI su questo profilo</span>
+              <span>{Math.round((profileUnderstanding.confidence || 0) * 100)}%</span>
+            </div>
+            <div style={{ height: '8px', background: 'var(--bg)', borderRadius: '999px', overflow: 'hidden', border: '1px solid var(--border)' }}>
+              <div style={{ width: `${Math.round((profileUnderstanding.confidence || 0) * 100)}%`, height: '100%', background: 'linear-gradient(90deg, var(--primary), var(--teal))' }} />
+            </div>
+            {profileUnderstanding.summary && <p style={{ margin: '0.4rem 0 0', fontSize: '14px', color: 'var(--text)', lineHeight: 1.6 }}>{profileUnderstanding.summary}</p>}
+          </div>
+        )}
+        {status === 'error' && (
+          <div style={{ color: 'var(--red)', fontSize: '13px' }}>{profileUnderstanding.error_message || 'Analisi non riuscita, riprova.'}</div>
+        )}
+        {status === 'pending' && (
+          <div style={{ color: 'var(--text-muted)', fontSize: '13px' }}>Nessuna analisi ancora. Collega un social e premi "Analizza il mio profilo".</div>
+        )}
+
+        {openQuestions.length > 0 && (
+          <div style={{ display: 'grid', gap: '0.75rem' }}>
+            <strong style={{ fontSize: '13px' }}>L'AI ha bisogno di chiarimenti da te:</strong>
+            {openQuestions.map(q => (
+              <div key={q.id} style={{ padding: '1rem', borderRadius: 'var(--radius)', border: '1px solid var(--border)', display: 'grid', gap: 8 }}>
+                <div style={{ fontWeight: 700, fontSize: '14px' }}>{q.question}</div>
+                {q.reason && <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{q.reason}</div>}
+                <textarea
+                  className="form-control"
+                  rows={2}
+                  value={answerDrafts[q.id] || ''}
+                  onChange={e => setAnswerDrafts(prev => ({ ...prev, [q.id]: e.target.value }))}
+                  placeholder="La tua risposta..."
+                />
+                <button className="btn btn-primary" style={{ justifySelf: 'start' }} onClick={() => submitProfileAnswer(q.id)} disabled={answeringId === q.id || !(answerDrafts[q.id] || '').trim()}>
+                  {answeringId === q.id ? '⟳ Salvo...' : 'Rispondi'}
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+    );
+  }
+
   function renderAiGenerateCard() {
     const hasContent = posts.length > 0;
     return (
@@ -1680,6 +1792,9 @@ const [importMsg, setImportMsg] = useState(null);
               ? 'Lascia che l\'AI scriva titolo, presentazione e stile del sito partendo da quello che pubblichi sui social. Puoi rifarlo quante volte vuoi.'
               : 'Appena avrai collegato un social e ci saranno dei contenuti, l\'AI potrà scrivere titolo, presentazione e stile del tuo sito da sola.'}
           </p>
+          <button type="button" onClick={() => setTab('strategy')} style={{ marginTop: 8, background: 'none', border: 'none', padding: 0, color: 'var(--primary)', fontSize: '13px', fontWeight: 700, cursor: 'pointer', textDecoration: 'underline' }}>
+            Vedi e modifica il profilo che l'AI usa per generare il sito →
+          </button>
         </div>
         <label style={{ display: 'grid', gap: 6 }}>
           <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-muted)' }}>Hai un sito a cui ispirarti? (facoltativo)</span>
@@ -2001,6 +2116,10 @@ const [importMsg, setImportMsg] = useState(null);
     if (!user?.role || user.role !== 'admin') return;
     if ((tab === 'admin' || tab === 'general') && adminPrompts.length === 0) loadAdminPrompts();
   }, [tab, user, adminPrompts.length]);
+
+  useEffect(() => {
+    if (tab === 'strategy' && !profileLoaded) loadProfileUnderstanding();
+  }, [tab, profileLoaded]);
 
   useEffect(() => {
     if (!adminPrompts.length) return;
@@ -2556,6 +2675,8 @@ const [importMsg, setImportMsg] = useState(null);
               uploadingLogo={uploadingLogo}
               sourcesCount={sources.length}
             />}
+
+            {tab === 'strategy' && renderProfileUnderstandingPanel()}
 
             {false && <div id="strategy-legacy" className="card" style={{ padding: '1.5rem', background: 'var(--surface)', border: '1px solid var(--primary)' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1.25rem', alignItems: 'flex-start', flexWrap: 'wrap' }}>
