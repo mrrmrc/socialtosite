@@ -244,4 +244,29 @@ jobs:
             echo "::error::FTP completed but production is not serving release $RELEASE. Check FTP_REMOTE_DIR / VPS volume mapping."
             exit 1
           }
-          echo "deployvps verified: $RELEASE is live on https://allsocialtoweb.com/"
+
+          # deploy-info.json alone doesn't prove the app actually works: the FTP
+          # mirror uploads many files in parallel over 8 connections and is not
+          # atomic, so a single dropped transfer (e.g. the main JS bundle) can
+          # leave index.html referencing a file that 404s while everything else
+          # looks fine. Fetch the real homepage and confirm every asset it
+          # references actually loads before calling the deploy good.
+          html_url="https://allsocialtoweb.com/?ts=${GITHUB_RUN_ID}"
+          html="$(curl -kfsS --retry 4 --retry-delay 3 "$html_url")"
+          assets="$(printf '%s' "$html" | grep -oE '/assets/[^"]+\.(js|css)' | sort -u)"
+          if [ -z "$assets" ]; then
+            echo "::error::Could not find any /assets/*.js or *.css reference in the deployed homepage."
+            exit 1
+          fi
+          echo "Checking deployed assets:"
+          failed=0
+          while IFS= read -r asset; do
+            code="$(curl -kso /dev/null -w '%{http_code}' --retry 3 --retry-delay 2 "https://allsocialtoweb.com${asset}")"
+            echo "  $code  $asset"
+            [ "$code" = "200" ] || failed=1
+          done <<< "$assets"
+          if [ "$failed" -eq 1 ]; then
+            echo "::error::One or more assets referenced by the deployed homepage are not reachable. The FTP upload likely dropped a file mid-transfer; re-run this workflow."
+            exit 1
+          fi
+          echo "deployvps verified: $RELEASE is live on https://allsocialtoweb.com/ and all referenced assets load."
