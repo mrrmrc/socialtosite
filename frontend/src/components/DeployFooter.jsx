@@ -23,12 +23,12 @@ export function DeployFooter() {
     <>
       <style>{`
         .sts-deploy-footer {
-          position: fixed; left: 10px; bottom: 8px; z-index: 40;
+          position: fixed; left: 50%; bottom: 8px; transform: translateX(-50%); z-index: 40;
           font-size: 10px; font-weight: 600; letter-spacing: .02em;
           color: rgba(148,163,184,.7); background: rgba(15,23,42,.55);
           padding: 4px 9px; border-radius: 999px; pointer-events: none;
           backdrop-filter: blur(6px); font-family: 'SFMono-Regular', Menlo, monospace;
-          user-select: none;
+          user-select: none; white-space: nowrap;
         }
         @media (max-width: 640px) { .sts-deploy-footer { display: none; } }
       `}</style>
