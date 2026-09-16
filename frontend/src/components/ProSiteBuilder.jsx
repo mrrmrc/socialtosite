@@ -495,22 +495,26 @@ export function ProSiteBuilder({ user, open, onClose }) {
     onClose();
   }
 
+  async function persistStyle(nextStyle, nextContent) {
+    await apiFetch('/api/index.php?action=site-update', {
+      method: 'POST',
+      body: JSON.stringify({
+        theme: nextStyle.design_archetype,
+        design_archetype: nextStyle.design_archetype,
+        accent_color: nextStyle.color_palette.primary,
+        custom_css: nextStyle.custom_css || '',
+        site_ai_data: nextStyle,
+        title: nextContent.title.trim(),
+        hero_tagline: nextContent.hero_tagline,
+        bio: nextContent.bio,
+      }),
+    }, token);
+  }
+
   async function save() {
     setSaving(true); setMessage(''); setSaveSuccess(false);
     try {
-      await apiFetch('/api/index.php?action=site-update', {
-        method: 'POST',
-        body: JSON.stringify({
-          theme: style.design_archetype,
-          design_archetype: style.design_archetype,
-          accent_color: style.color_palette.primary,
-          custom_css: style.custom_css || '',
-          site_ai_data: style,
-          title: content.title.trim(),
-          hero_tagline: content.hero_tagline,
-          bio: content.bio,
-        }),
-      }, token);
+      await persistStyle(style, content);
       setSavedStyle(style);
       setSavedContent(content);
       setSaveSuccess(true);
@@ -542,38 +546,47 @@ export function ProSiteBuilder({ user, open, onClose }) {
         setLiaMessages([...newMessages, { role: 'assistant', text: res.response.reply }]);
         
         if (res.response.proposed_style && Object.keys(res.response.proposed_style).length > 0) {
-           setStyle(prev => {
-              const next = { ...prev };
-              const proposed = { ...res.response.proposed_style };
+           const next = { ...style };
+           const proposed = { ...res.response.proposed_style };
 
-              // custom_sections va unito per id (upsert), mai sostituito in blocco:
-              // altrimenti una sezione aggiunta manualmente in un turno precedente
-              // verrebbe cancellata dalla proposta successiva di LIA.
-              if (Array.isArray(proposed.custom_sections)) {
-                 const incoming = proposed.custom_sections.filter(cs => cs && typeof cs === 'object' && typeof cs.id === 'string' && cs.id && !RESERVED_SECTION_IDS.includes(cs.id));
-                 const byId = new Map(next.custom_sections.map(cs => [cs.id, cs]));
-                 for (const cs of incoming) byId.set(cs.id, { ...byId.get(cs.id), ...cs });
-                 next.custom_sections = [...byId.values()];
-                 const newIds = incoming.map(cs => cs.id).filter(id => !next.layout_recipe.section_order.includes(id));
-                 if (newIds.length) {
-                    next.layout_recipe = { ...next.layout_recipe, section_order: [...next.layout_recipe.section_order, ...newIds] };
-                 }
-                 delete proposed.custom_sections;
+           // custom_sections va unito per id (upsert), mai sostituito in blocco:
+           // altrimenti una sezione aggiunta manualmente in un turno precedente
+           // verrebbe cancellata dalla proposta successiva di LIA.
+           if (Array.isArray(proposed.custom_sections)) {
+              const incoming = proposed.custom_sections.filter(cs => cs && typeof cs === 'object' && typeof cs.id === 'string' && cs.id && !RESERVED_SECTION_IDS.includes(cs.id));
+              const byId = new Map(next.custom_sections.map(cs => [cs.id, cs]));
+              for (const cs of incoming) byId.set(cs.id, { ...byId.get(cs.id), ...cs });
+              next.custom_sections = [...byId.values()];
+              const newIds = incoming.map(cs => cs.id).filter(id => !next.layout_recipe.section_order.includes(id));
+              if (newIds.length) {
+                 next.layout_recipe = { ...next.layout_recipe, section_order: [...next.layout_recipe.section_order, ...newIds] };
               }
+              delete proposed.custom_sections;
+           }
 
-              const merge = (target, source) => {
-                 for (const key in source) {
-                    if (source[key] && typeof source[key] === 'object' && !Array.isArray(source[key])) {
-                       target[key] = target[key] || {};
-                       merge(target[key], source[key]);
-                    } else {
-                       target[key] = source[key];
-                    }
+           const merge = (target, source) => {
+              for (const key in source) {
+                 if (source[key] && typeof source[key] === 'object' && !Array.isArray(source[key])) {
+                    target[key] = target[key] || {};
+                    merge(target[key], source[key]);
+                 } else {
+                    target[key] = source[key];
                  }
-              };
-              merge(next, proposed);
-              return next;
-           });
+              }
+           };
+           merge(next, proposed);
+           setStyle(next);
+
+           // Le modifiche proposte da LIA sono gia' "accettate" nel momento in cui
+           // compaiono: pubblicarle subito evita che restino solo nell'anteprima se
+           // l'utente chiude il pannello senza ricordarsi di premere "Salva".
+           try {
+              await persistStyle(next, content);
+              setSavedStyle(next);
+              setSavedContent(content);
+           } catch (persistErr) {
+              setMessage('Ho aggiornato lo stile ma non sono riuscita a pubblicarlo: ' + (persistErr.message || 'errore sconosciuto') + '. Premi "Salva e pubblica" per riprovare.');
+           }
         }
       } else {
         setLiaMessages([...newMessages, { role: 'assistant', text: "Scusa, non sono riuscita a elaborare la richiesta." }]);

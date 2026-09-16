@@ -1401,8 +1401,17 @@ if ($action === 'site-ai' && $method === 'POST') {
         $availableTags = array_unique($allTags);
         $tagsContext = implode(', ', $availableTags);
 
-        $result = normalizeSiteAiResult(AI::siteAiGenerateWithUnderstanding($summary, $role, $strategy, $recentPosts, $tagsContext, $site['site_understanding'] ?? null));
+        $b = body();
+        $referenceUrl = trim((string)($b['reference_url'] ?? ''));
 
+        $result = normalizeSiteAiResult(AI::siteAiGenerateWithUnderstanding($summary, $role, $strategy, $recentPosts, $tagsContext, $site['site_understanding'] ?? null, $referenceUrl));
+
+        // Azione esplicita richiesta dall'utente ("Genera/Rigenera il mio sito con l'AI"):
+        // il risultato fresco dell'AI deve sempre sostituire titolo/footer, anche quando
+        // il campo esistente e' una stringa vuota o un placeholder (non NULL, quindi ??
+        // non basterebbe: sovrascriverebbe solo se il valore in DB fosse letteralmente NULL).
+        $freshTitle = trim((string)($result['title'] ?? ''));
+        $freshFooter = trim((string)($result['footer_text'] ?? ''));
         DB::execute(
             'UPDATE sites SET
                 title=?, bio=?, role_mission=?,
@@ -1411,7 +1420,7 @@ if ($action === 'site-ai' && $method === 'POST') {
                 cover_url=COALESCE(NULLIF(?, \'\'), cover_url), site_ai_data=?
              WHERE user_id=?',
             [
-                $site['title'] ?? ($result['title'] ?? ''),
+                $freshTitle !== '' ? $freshTitle : ($site['title'] ?? ''),
                 $result['bio'] ?? '',
                 $result['role_mission'] ?? $role,
                 $result['theme'] ?? 'classic',
@@ -1420,7 +1429,7 @@ if ($action === 'site-ai' && $method === 'POST') {
                 $result['accent_secondary'] ?? '',
                 $result['header_layout'] ?? 'standard',
                 isset($result['menu_links']) ? json_encode($result['menu_links'], JSON_UNESCAPED_UNICODE) : '',
-                $site['footer_text'] ?? ($result['footer_text'] ?? ''),
+                $freshFooter !== '' ? $freshFooter : ($site['footer_text'] ?? ''),
                 $result['custom_css'] ?? '',
                 $result['hero_tagline'] ?? '',
                 $result['cta_text'] ?? '',

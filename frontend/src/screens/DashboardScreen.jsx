@@ -1637,6 +1637,56 @@ const [importMsg, setImportMsg] = useState(null);
   const [designingSite, setDesigningSite] = useState(false);
   const [activePreviewUrl, setActivePreviewUrl] = useState(null);
   const [previewThemeId, setPreviewThemeId] = useState('classic');
+  const [generatingSite, setGeneratingSite] = useState(false);
+  const [referenceUrlDraft, setReferenceUrlDraft] = useState('');
+
+  async function generateSiteWithAi() {
+    setGeneratingSite(true);
+    try {
+      await apiFetch('/api/index.php?action=site-ai', {
+        method: 'POST',
+        body: JSON.stringify({ reference_url: referenceUrlDraft.trim() })
+      }, token);
+      await loadData();
+      setSyncMsg({ ok: true, text: 'Il tuo sito è stato generato dall\'AI. Guardalo qui sotto o aprilo dal link in alto.' });
+    } catch (err) {
+      setSyncMsg({ ok: false, text: err.message || 'Non sono riuscita a generare il sito.' });
+    }
+    setGeneratingSite(false);
+  }
+
+  function renderAiGenerateCard() {
+    const hasContent = posts.length > 0;
+    return (
+      <section className="card" style={{ padding: '1.5rem', display: 'grid', gap: '1rem', border: '1px solid var(--primary)' }}>
+        <div>
+          <span className="section-eyebrow">Fatto per te dall'AI</span>
+          <h2 style={{ margin: '0.35rem 0 0.5rem' }}>✨ Genera il mio sito con l'AI</h2>
+          <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '14px', lineHeight: 1.6 }}>
+            {hasContent
+              ? 'Lascia che l\'AI scriva titolo, presentazione e stile del sito partendo da quello che pubblichi sui social. Puoi rifarlo quante volte vuoi.'
+              : 'Appena avrai collegato un social e ci saranno dei contenuti, l\'AI potrà scrivere titolo, presentazione e stile del tuo sito da sola.'}
+          </p>
+        </div>
+        <label style={{ display: 'grid', gap: 6 }}>
+          <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-muted)' }}>Hai un sito a cui ispirarti? (facoltativo)</span>
+          <input
+            className="form-control"
+            type="url"
+            value={referenceUrlDraft}
+            onChange={e => setReferenceUrlDraft(e.target.value)}
+            placeholder="https://esempio.it"
+            disabled={!hasContent || generatingSite}
+          />
+        </label>
+        <div>
+          <button className="btn btn-primary" onClick={generateSiteWithAi} disabled={!hasContent || generatingSite}>
+            {generatingSite ? '⟳ Sto generando il sito...' : hasContent ? '✨ Genera il mio sito' : '✨ Genera il mio sito (collega prima un social)'}
+          </button>
+        </div>
+      </section>
+    );
+  }
 
   function openThemePreview(layout) {
     const previewData = encodeStudioPreviewData(siteLayoutToStudioData(layout));
@@ -2382,6 +2432,8 @@ const [importMsg, setImportMsg] = useState(null);
                   </div>
                 </section>
 
+                {renderAiGenerateCard()}
+
                 <section className="base-summary" aria-label="Stato del sito">
                   <button onClick={() => selectNavigation({ id: 'sources' })}><strong>{activeChannelCount}</strong><span>Social collegato</span></button>
                   <button onClick={() => selectNavigation({ id: 'site' })}><strong>{posts.length}</strong><span>Contenuti acquisiti</span></button>
@@ -2415,6 +2467,9 @@ const [importMsg, setImportMsg] = useState(null);
                 <article><span>3</span><div><strong>{publishedPosts.length} articoli online</strong><small>Apribili e controllabili sul sito pubblico</small></div></article>
               </div>
             </section>
+
+            {renderAiGenerateCard()}
+
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1.25rem' }}>
               {[
                 { n: networkPublishedPages, l: 'Pagine pubblicate', c: 'var(--primary)' },
