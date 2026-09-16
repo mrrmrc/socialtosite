@@ -42,13 +42,13 @@ jobs:
           echo "deployvps: main -> build -> FTP/FTPS -> production"
           echo "Docker rebuild/restart/copy is NOT part of deployvps."
 
-      - name: Install rclone
+      - name: Install lftp
         timeout-minutes: 8
         shell: bash
         run: |
           set -euo pipefail
-          if command -v rclone >/dev/null 2>&1; then
-            echo "rclone is already available"
+          if command -v lftp >/dev/null 2>&1; then
+            echo "lftp is already available"
             exit 0
           fi
           # GitHub's Azure mirror can occasionally stall for many minutes.
@@ -59,14 +59,14 @@ jobs:
           fi
           apt_options=(-o Acquire::Retries=5 -o Acquire::http::Timeout=20 -o Acquire::https::Timeout=20)
           for attempt in 1 2 3; do
-            if sudo apt-get "${apt_options[@]}" update && sudo apt-get "${apt_options[@]}" install -y --fix-missing rclone; then
+            if sudo apt-get "${apt_options[@]}" update && sudo apt-get "${apt_options[@]}" install -y --fix-missing lftp; then
               exit 0
             fi
             if [ "$attempt" -eq 3 ]; then
-              echo "::error::Unable to install rclone after $attempt attempts."
+              echo "::error::Unable to install lftp after $attempt attempts."
               exit 1
             fi
-            echo "::warning::rclone installation attempt $attempt failed; clearing the package cache before retrying."
+            echo "::warning::lftp installation attempt $attempt failed; clearing the package cache before retrying."
             sudo apt-get clean
             sleep $((attempt * 5))
           done
@@ -205,7 +205,7 @@ jobs:
           echo "Release files: $(find release -type f | wc -l)"
 
       - name: Upload release to VPS via FTP/FTPS
-        timeout-minutes: 15
+        timeout-minutes: 20
         env:
           FTP_HOST: ${{ secrets.FTP_HOST }}
           FTP_USER: ${{ secrets.FTP_USER }}
@@ -218,51 +218,33 @@ jobs:
           : "${FTP_USER:?Set repository secret FTP_USER}"
           : "${FTP_PASS:?Set repository secret FTP_PASS}"
           FTP_REMOTE_DIR="${FTP_REMOTE_DIR:-.}"
-          FTP_REMOTE_DIR="${FTP_REMOTE_DIR#/}"
 
           echo "deployvps FTP host: $FTP_HOST"
           echo "deployvps remote directory: $FTP_REMOTE_DIR"
 
-          # rclone keeps "how many files am I comparing to decide what to
-          # delete" (--checkers) separate from "how many files am I actually
-          # uploading at once" (--transfers) — lftp's mirror conflates both
-          # into one connection-limit/parallel budget, which is almost
-          # certainly why turning that single knob down to fix dropped files
-          # also tanked overall speed. No segmented per-file transfer here
-          # either, so a single file can't come out half-written.
-          export RCLONE_FTP_HOST="$FTP_HOST"
-          export RCLONE_FTP_USER="$FTP_USER"
-          export RCLONE_FTP_PASS="$(rclone obscure "$FTP_PASS")"
-          export RCLONE_FTP_EXPLICIT_TLS=true
-          export RCLONE_FTP_NO_CHECK_CERTIFICATE=true
-
-          # Deprecated/removed endpoints: delete unconditionally regardless of
-          # whether the sync below would also catch them, same as before.
-          for legacy in api/auth/callback.php api/auth/tiktok_callback.php api/cron/fetch_seo.php api/middleware/crypto.php api/services/social_oauth.php; do
-            rclone deletefile ":ftp:$FTP_REMOTE_DIR/$legacy" 2>/dev/null || true
-          done
-
-          # This server accepts roughly 6 concurrent FTP connections (the lftp
-          # setup that shipped successfully used connection-limit 6). rclone
-          # opens one connection per checker AND one per transfer with no cap
-          # of its own, so --ftp-concurrency has to bound the total. With
-          # --check-first the comparison pass finishes before any upload
-          # starts, so the cap only needs to clear max(checkers,transfers)+1.
-          rclone sync release/ ":ftp:$FTP_REMOTE_DIR" \
-            --exclude 'config/config.php' \
-            --exclude 'config/keys.php' \
-            --exclude 'public/media/**' \
-            --exclude 'scraper/**' \
-            --exclude 'storage/**' \
-            --check-first \
-            --ftp-concurrency=6 \
-            --transfers=4 \
-            --checkers=4 \
-            --contimeout=15s \
-            --timeout=30s \
-            --retries=5 \
-            --low-level-retries=10 \
-            --stats=30s --stats-one-line -v
+          # Back on lftp after two rclone attempts (62aa547, 78be89e) that both
+          # left production untouched, with different connection tuning each
+          # time - so the tuning was never the variable that mattered. This is
+          # the exact configuration that last shipped successfully; it is slow
+          # but it publishes. Do not swap the transfer tool again without
+          # reading the failing step's log first.
+          lftp -c "
+          set ftp:ssl-allow true;
+          set ftp:ssl-force false;
+          set ftp:ssl-protect-data true;
+          set ssl:verify-certificate no;
+          set net:max-retries 5;
+          set net:timeout 30;
+          set net:persist-retries 5;
+          set net:connection-limit 6;
+          open -u \"$FTP_USER\",\"$FTP_PASS\" ftp://$FTP_HOST;
+          rm -f \"$FTP_REMOTE_DIR/api/auth/callback.php\";
+          rm -f \"$FTP_REMOTE_DIR/api/auth/tiktok_callback.php\";
+          rm -f \"$FTP_REMOTE_DIR/api/cron/fetch_seo.php\";
+          rm -f \"$FTP_REMOTE_DIR/api/middleware/crypto.php\";
+          rm -f \"$FTP_REMOTE_DIR/api/services/social_oauth.php\";
+          mirror -R --delete --no-perms --parallel=5 --exclude-glob config/config.php --exclude-glob config/keys.php --exclude '^(public/media|scraper|storage)(/.*)?$' release/ \"$FTP_REMOTE_DIR\";
+          "
 
       - name: Verify deployed release on production
         shell: bash
