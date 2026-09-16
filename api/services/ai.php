@@ -1677,7 +1677,7 @@ Testi da analizzare:
             . '  },' . "\n"
             . '  "layout_recipe": {' . "\n"
             . '    "hero": "editorial|split|immersive|human|product",' . "\n"
-            . '    "nav": "transparent|solid|floating",' . "\n"
+            . '    "nav": "expanded|transparent|solid|floating",' . "\n"
             . '    "cards": "editorial|bold|soft|product|cinematic",' . "\n"
             . '    "density": "airy|balanced|compact"' . "\n"
             . '  },' . "\n"
@@ -1751,7 +1751,8 @@ Testi da analizzare:
             . "Post recenti pubblicati:\n{recentPosts}\n\n"
             . "Tag REALI attualmente assegnati ai contenuti nel database:\n[{tagsContext}]\n\n"
             . "Genera il JSON completo del sito rispettando il verticale e la scheda di comprensione del business.\n\n"
-            . "VINCOLO DI CONTRASTO (obbligatorio): color_palette.text e color_palette.background devono avere un contrasto forte e leggibile (rapporto WCAG almeno 4.5:1). Se scegli un archetipo scuro lo sfondo deve essere scuro E il testo chiaro; se scegli un archetipo chiaro lo sfondo deve essere chiaro E il testo scuro. Non generare mai testo chiaro su sfondo chiaro ne' testo scuro su sfondo scuro.";
+            . "VINCOLO DI CONTRASTO (obbligatorio): color_palette.text e color_palette.background devono avere un contrasto forte e leggibile (rapporto WCAG almeno 4.5:1). Se scegli un archetipo scuro lo sfondo deve essere scuro E il testo chiaro; se scegli un archetipo chiaro lo sfondo deve essere chiaro E il testo scuro. Non generare mai testo chiaro su sfondo chiaro ne' testo scuro su sfondo scuro.\n\n"
+            . "MENU: usa layout_recipe.nav = 'expanded' come prima scelta quando il sito ha piu' di 2-3 voci di menu, cosi' restano sempre visibili in una barra orizzontale invece di essere nascoste dietro un pulsante. Le altre opzioni ('minimal', 'floating', 'centered', 'solid', 'transparent') nascondono sempre il menu: usale solo se il sito ha pochissime voci o l'archetipo richiede esplicitamente un header minimale.";
     }
 
     public static function siteAiGenerateWithUnderstanding(string $profileSummary, string $roleMission, string $contentStrategy, string $recentPosts = '', string $tagsContext = '', $understanding = null, string $referenceUrl = ''): array {
@@ -2223,7 +2224,7 @@ Testi da analizzare:
             . "OPZIONI VALIDE PER ALCUNI CAMPI (layout_recipe e ui_style):\n"
             . "- layout_recipe.structure: 'classic', 'split', 'sidebar'\n"
             . "- layout_recipe.hero: 'product', 'split', 'editorial', 'immersive', 'human'\n"
-            . "- layout_recipe.nav: 'minimal', 'floating', 'centered', 'solid', 'transparent'\n"
+            . "- layout_recipe.nav: 'expanded' (barra orizzontale con tutte le voci di menu sempre visibili, come un sito tradizionale — preferiscila di default quando ci sono piu' voci di menu), 'minimal', 'floating', 'centered', 'solid', 'transparent' (queste ultime nascondono sempre il menu dietro un pulsante)\n"
             . "- layout_recipe.cards: 'editorial', 'product', 'cinematic', 'soft', 'bold'\n"
             . "- layout_recipe.density: 'compact', 'balanced', 'airy'\n"
             . "- ui_style.glassmorphism: true, false\n\n"

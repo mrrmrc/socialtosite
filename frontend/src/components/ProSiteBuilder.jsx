@@ -37,7 +37,8 @@ const HERO_CHOICES = [
 ];
 
 const NAV_CHOICES = [
-  { id: 'minimal',     icon: '☰', title: 'Solo pulsante',   desc: 'Nessuna barra: resta soltanto un pulsante menu discreto.', recommended: true },
+  { id: 'expanded',    icon: '▭', title: 'Barra estesa',     desc: 'Tutte le voci di menu sempre visibili in orizzontale, come un sito tradizionale. Su mobile si riduce a un pulsante.', recommended: true },
+  { id: 'minimal',     icon: '☰', title: 'Solo pulsante',   desc: 'Nessuna barra: resta soltanto un pulsante menu discreto.' },
   { id: 'floating',    icon: '◉', title: 'Flottante',        desc: 'Nome e menu diventano due piccoli controlli sospesi.' },
   { id: 'centered',    icon: '⌾', title: 'Centrato',         desc: 'Identità al centro e apertura menu separata.' },
   { id: 'solid',       icon: '▬', title: 'Compatto',         desc: 'Nome e menu raccolti in una piccola capsula.' },

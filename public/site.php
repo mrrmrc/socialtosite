@@ -2670,6 +2670,16 @@ header('Link: <' . $siteUrl . '/feed.xml>; rel="alternate"; type="application/at
     .has-custom-theme.nav-mode-centered .nav-toggle { position:absolute; right:max(1rem,calc((100vw - <?= h($contentWidth) ?>)/2)); }
     body.has-custom-theme.nav-mode-solid .navbar { left:50%; width:max-content!important; padding:.4rem!important; transform:translateX(-50%); gap:.35rem; border:1px solid var(--border)!important; border-radius:999px!important; background:color-mix(in srgb,var(--card-bg) 90%,transparent)!important; box-shadow:0 10px 34px rgba(0,0,0,.12)!important; backdrop-filter:blur(16px)!important; pointer-events:auto; }
     body.has-custom-theme.nav-mode-solid .nav-brand,body.has-custom-theme.nav-mode-solid .nav-toggle { border:0; background:transparent; box-shadow:none; backdrop-filter:none; }
+    .has-custom-theme.nav-mode-expanded .nav-toggle,.has-custom-theme.nav-mode-expanded .nav-overlay { display:none; }
+    .has-custom-theme.nav-mode-expanded .nav-links { display:flex; position:static; flex-direction:row; align-items:center; width:auto; height:auto; margin-left:auto; padding:0; border:0; background:transparent; box-shadow:none; gap:1.75rem; z-index:auto; }
+    .has-custom-theme.nav-mode-expanded .nav-links a { padding:.4rem 0; border-bottom:0; font-size:.92rem; font-weight:650; white-space:nowrap; }
+    @media(max-width:900px){
+      .has-custom-theme.nav-mode-expanded .nav-toggle { display:block; }
+      .has-custom-theme.nav-mode-expanded .nav-links { display:none; position:fixed; top:0; right:0; width:min(340px,88vw); height:100svh; margin-left:0; flex-direction:column; gap:.35rem; padding:5rem 1.25rem 2rem; border-left:1px solid var(--border); background:var(--card-bg); box-shadow:-20px 0 60px rgba(0,0,0,.18); z-index:105; }
+      .has-custom-theme.nav-mode-expanded .nav-links.open { display:flex; }
+      .has-custom-theme.nav-mode-expanded .nav-links a { padding:.9rem 1rem; border-bottom:1px solid var(--border); font-size:1rem; }
+      .has-custom-theme.nav-mode-expanded .nav-overlay.open { display:block!important; }
+    }
     .has-custom-theme .container { width:min(100%,<?= h($contentWidth) ?>); max-width:none; padding:1rem 1.25rem 3rem; }
     .has-custom-theme .footer { background:var(--text); color:var(--bg); }
     .has-custom-theme .footer a { color:var(--bg); }
