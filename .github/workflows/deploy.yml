@@ -14,6 +14,16 @@ on:
         required: true
         type: string
 
+# Two deploys must never upload to the same remote directory at once: an
+# overlapping mirror --delete from a second run racing the first is a very
+# plausible cause of the "one file dropped mid-transfer" failures seen when
+# pushes land close together. Queue instead of running concurrently; never
+# cancel a deploy that's mid-FTP-transfer, that would itself leave a broken
+# partial upload live.
+concurrency:
+  group: deployvps-production
+  cancel-in-progress: false
+
 jobs:
   deploy:
     if: >-
