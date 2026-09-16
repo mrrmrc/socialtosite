@@ -725,52 +725,35 @@ export function ProSiteBuilder({ user, open, onClose }) {
         </header>
 
         {/* ── Workspace ── */}
-        <div style={{ display: 'grid', gridTemplateColumns: '72px 1fr', minHeight: 0 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '0 1fr', minHeight: 0, position: 'relative' }}>
 
-          {/* ── Tool Sidebar ── */}
-          <nav
-            aria-label="Strumenti di modifica"
-            style={{
-              display: 'flex', flexDirection: 'column', alignItems: 'center',
-              gap: 4, padding: '12px 6px',
-              borderRight: '2px solid var(--border-strong)',
-              background: 'var(--surface)',
-              overflowY: 'auto',
-            }}
-          >
-            {TOOLS.map(tool => (
-              <ToolIcon
-                key={tool.id}
-                tool={tool}
-                active={section === tool.id}
-                onClick={() => setSection(tool.id)}
-              />
-            ))}
+          {/* Show Panel Button when hidden */}
+          {!panelVisible && (
+            <button
+              type="button"
+              onClick={() => setPanelVisible(true)}
+              style={{
+                position: 'absolute', top: 20, left: 20, zIndex: 10,
+                padding: '12px 18px', borderRadius: 12,
+                background: 'var(--primary)', color: '#fff',
+                border: 'none', fontWeight: 800, fontSize: 14, cursor: 'pointer',
+                boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                display: 'flex', alignItems: 'center', gap: 8
+              }}
+            >
+              <span>🛠</span> Strumenti
+            </button>
+          )}
 
-            <div style={{ marginTop: 'auto', paddingTop: 8, width: '100%', display: 'grid', gap: 4 }}>
-              {/* Panel toggle */}
-              <button
-                type="button"
-                title={panelVisible ? 'Nascondi pannello' : 'Mostra pannello'}
-                onClick={() => setPanelVisible(v => !v)}
-                style={{
-                  width: 60, height: 44, borderRadius: 12,
-                  border: '2px solid var(--border-strong)',
-                  background: panelVisible ? 'var(--surface)' : 'transparent',
-                  color: 'var(--text-muted)', cursor: 'pointer',
-                  fontSize: 16, display: 'grid', placeItems: 'center',
-                  transition: 'all .15s ease',
-                }}
-              >{panelVisible ? '◁' : '▷'}</button>
-            </div>
-          </nav>
+          {/* ── Tool Sidebar (Hidden to preserve depth) ── */}
+          <nav style={{ display: 'none' }}></nav>
 
           {/* ── Main Area ── */}
-          <div style={{ display: 'grid', gridTemplateColumns: panelVisible ? '340px 1fr' : '0 1fr', minHeight: 0, transition: 'grid-template-columns .25s ease' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: panelVisible ? '380px 1fr' : '0 1fr', minHeight: 0, transition: 'grid-template-columns .25s ease' }}>
 
             {/* ── Detail Panel ── */}
             <aside style={{
-              overflowY: 'auto', overflowX: 'hidden',
+              overflowY: 'hidden', overflowX: 'hidden', display: 'flex', flexDirection: 'column',
               borderRight: '2px solid var(--border-strong)',
               background: 'var(--surface)',
               opacity: panelVisible ? 1 : 0,
@@ -778,37 +761,57 @@ export function ProSiteBuilder({ user, open, onClose }) {
             }}>
               {/* Panel header */}
               <div style={{
-                position: 'sticky', top: 0, zIndex: 2,
-                padding: '16px 18px',
+                flexShrink: 0,
                 background: 'var(--surface)',
-                borderBottom: '1px solid var(--gray-light)',
-                backdropFilter: 'blur(16px)',
+                borderBottom: '1px solid var(--border-strong)',
+                display: 'flex', flexDirection: 'column'
               }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <span style={{
-                    width: 34, height: 34, borderRadius: 10,
-                    background: 'rgba(37,99,235,.2)', border: '1px solid rgba(96,165,250,.2)',
-                    display: 'grid', placeItems: 'center', fontSize: 18, color: '#93c5fd',
-                    flexShrink: 0,
-                  }}>{activeTool?.icon}</span>
-                  <div>
-                    <div style={{ fontWeight: 800, fontSize: 15, color: 'var(--text)' }}>{activeTool?.label}</div>
-                    <div style={{ fontSize: 11, opacity: .5, marginTop: 1 }}>{activeTool?.help}</div>
-                  </div>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 18px' }}>
+                  <div style={{ fontWeight: 800, fontSize: 16, color: 'var(--text)' }}>Strumenti di Modifica</div>
+                  <button type="button" onClick={() => setPanelVisible(false)} style={{
+                    background: 'transparent', border: 'none', color: 'var(--text-muted)', fontSize: 20, cursor: 'pointer'
+                  }}>✕</button>
                 </div>
-
-                {/* Click-on-preview hint */}
+                
+                {/* Horizontal Tool Tabs */}
                 <div style={{
-                  marginTop: 12, padding: '9px 12px', borderRadius: 10,
-                  background: 'rgba(37,99,235,.1)', border: '1px solid rgba(96,165,250,.15)',
-                  fontSize: 11, lineHeight: 1.5, color: 'var(--primary-dark)',
+                  display: 'flex', gap: 6, padding: '0 18px 12px',
+                  overflowX: 'auto', WebkitOverflowScrolling: 'touch',
+                  scrollbarWidth: 'none'
                 }}>
-                  <strong>Clicca direttamente sul sito</strong> nell'anteprima per passare subito allo strumento giusto.
+                  {TOOLS.map(tool => (
+                    <button
+                      key={tool.id}
+                      type="button"
+                      onClick={() => setSection(tool.id)}
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: 6,
+                        padding: '8px 14px', borderRadius: 99, flexShrink: 0,
+                        background: section === tool.id ? 'var(--primary)' : 'var(--bg)',
+                        color: section === tool.id ? '#fff' : 'var(--text)',
+                        border: '1px solid ' + (section === tool.id ? 'var(--primary)' : 'var(--border)'),
+                        fontWeight: 600, fontSize: 13, cursor: 'pointer',
+                        transition: 'all .15s ease'
+                      }}
+                    >
+                      <span style={{ fontSize: 16 }}>{tool.icon}</span>
+                      {tool.label}
+                    </button>
+                  ))}
                 </div>
               </div>
 
-              {/* Panel content */}
-              <div className="psb-panel-inner" key={section} style={{ padding: '18px 18px 80px', display: 'grid', gap: 12 }}>
+              {/* Click-on-preview hint */}
+              <div style={{
+                margin: '12px 18px 0', padding: '9px 12px', borderRadius: 10,
+                background: 'var(--primary-light)', border: '1px solid var(--primary)',
+                fontSize: 11, lineHeight: 1.5, color: 'var(--primary-dark)', flexShrink: 0,
+              }}>
+                <strong>Clicca direttamente sul sito</strong> nell'anteprima per passare subito allo strumento giusto.
+              </div>
+
+              {/* Panel content scrollable */}
+              <div className="psb-panel-inner" key={section} style={{ flex: 1, overflowY: 'auto', padding: '18px 18px 80px', display: 'grid', gap: 12 }}>
 
                 {/* ── LIA ── */}
                 {section === 'lia' && <>
@@ -819,12 +822,12 @@ export function ProSiteBuilder({ user, open, onClose }) {
                     {liaMessages.map((msg, i) => (
                       <div key={i} style={{
                         alignSelf: msg.role === 'user' ? 'flex-end' : 'flex-start',
-                        background: msg.role === 'user' ? 'rgba(37,99,235,.2)' : 'rgba(255,255,255,.05)',
-                        border: msg.role === 'user' ? '1px solid rgba(96,165,250,.3)' : '1px solid rgba(255,255,255,.1)',
+                        background: msg.role === 'user' ? 'var(--primary-light)' : 'var(--bg)',
+                        border: msg.role === 'user' ? '1px solid var(--primary)' : '1px solid var(--border)',
                         padding: '10px 14px', borderRadius: 12, maxWidth: '90%',
-                        fontSize: 13, lineHeight: 1.5, color: msg.role === 'user' ? '#bfdbfe' : '#e2e8f0',
+                        fontSize: 13, lineHeight: 1.5, color: 'var(--text)',
                       }}>
-                        {msg.role === 'assistant' && <strong style={{display: 'block', marginBottom: 4, color: '#93c5fd', fontSize: 11}}>LIA ✨</strong>}
+                        {msg.role === 'assistant' && <strong style={{display: 'block', marginBottom: 4, color: 'var(--primary-dark)', fontSize: 11}}>LIA ✨</strong>}
                         {msg.text}
                       </div>
                     ))}
@@ -843,7 +846,7 @@ export function ProSiteBuilder({ user, open, onClose }) {
                       disabled={liaLoading}
                       style={{
                         flex: 1, padding: '10px 14px', borderRadius: 10,
-                        border: '2px solid var(--border)', background: 'rgba(0,0,0,.2)',
+                        border: '2px solid var(--border)', background: 'var(--surface)',
                         color: 'var(--text)', outline: 'none'
                       }}
                     />
