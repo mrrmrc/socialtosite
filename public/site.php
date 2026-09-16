@@ -523,6 +523,23 @@ if (!empty($chronologicalPosts)) {
 if (!empty($tagCounts)) {
     $menuLinks[] = ['label' => 'Argomenti', 'url' => '/#categorie'];
 }
+// Decodifica anticipata e isolata di site_ai_data, solo per esporre in nav
+// le sezioni personalizzate della homepage (il parsing completo avviene piu
+// avanti in $aiData, dopo gli override di preview).
+$navAiData = !empty($site['site_ai_data']) ? json_decode($site['site_ai_data'], true) : [];
+if (!is_array($navAiData)) $navAiData = [];
+$navCustomSections = isset($navAiData['custom_sections']) && is_array($navAiData['custom_sections']) ? $navAiData['custom_sections'] : [];
+$navHiddenSections = isset($navAiData['layout_recipe']['hidden_sections']) && is_array($navAiData['layout_recipe']['hidden_sections']) ? $navAiData['layout_recipe']['hidden_sections'] : [];
+foreach ($navCustomSections as $csEntry) {
+    if (count($menuLinks) >= 5) break;
+    if (!is_array($csEntry)) continue;
+    $csId = strtolower(trim((string)($csEntry['id'] ?? '')));
+    $csTitle = trim((string)($csEntry['title'] ?? ''));
+    if ($csId === '' || $csTitle === '' || !preg_match('/^[a-z0-9][a-z0-9-]{0,63}$/', $csId)) continue;
+    if (in_array($csId, ['hero', 'latest', 'topics', 'info'], true)) continue;
+    if (in_array($csId, $navHiddenSections, true)) continue;
+    $menuLinks[] = ['label' => $csTitle, 'url' => '/#' . $csId];
+}
 $preferredFoundationPages = [
     'cosa-offriamo' => 'Cosa offriamo',
     'chi-siamo' => 'Chi siamo',
@@ -650,10 +667,30 @@ $heroMode     = $layoutRecipe['hero'] ?? '';
 $navMode      = $layoutRecipe['nav'] ?? '';
 $cardsMode    = $layoutRecipe['cards'] ?? '';
 $densityMode  = $layoutRecipe['density'] ?? '';
+// ── Sezioni personalizzate della homepage (custom_sections) ────────────
+$rawCustomSections = isset($aiData['custom_sections']) && is_array($aiData['custom_sections']) ? $aiData['custom_sections'] : [];
+$reservedSectionIds = ['hero', 'latest', 'topics', 'info'];
+$customSections = [];
+foreach ($rawCustomSections as $entry) {
+    if (!is_array($entry)) continue;
+    $csId = strtolower(trim((string)($entry['id'] ?? '')));
+    if ($csId === '' || !preg_match('/^[a-z0-9][a-z0-9-]{0,63}$/', $csId)) continue;
+    if (in_array($csId, $reservedSectionIds, true)) continue;
+    $csTitle = trim((string)($entry['title'] ?? ''));
+    if ($csTitle === '') continue;
+    $customSections[$csId] = [
+        'id' => $csId,
+        'title' => $csTitle,
+        'body' => (string)($entry['body'] ?? ''),
+        'image_url' => normalizeMediaUrl((string)($entry['image_url'] ?? '')),
+    ];
+}
+
 $defaultSectionOrder = ['hero', 'latest', 'topics', 'info'];
+$knownSectionIds = array_merge($defaultSectionOrder, array_keys($customSections));
 $requestedSectionOrder = isset($layoutRecipe['section_order']) && is_array($layoutRecipe['section_order']) ? $layoutRecipe['section_order'] : [];
-$sectionOrder = array_values(array_unique(array_merge(array_values(array_intersect($requestedSectionOrder, $defaultSectionOrder)), $defaultSectionOrder)));
-$hiddenSections = isset($layoutRecipe['hidden_sections']) && is_array($layoutRecipe['hidden_sections']) ? array_values(array_intersect($layoutRecipe['hidden_sections'], $defaultSectionOrder)) : [];
+$sectionOrder = array_values(array_unique(array_merge(array_values(array_intersect($requestedSectionOrder, $knownSectionIds)), $defaultSectionOrder, array_keys($customSections))));
+$hiddenSections = isset($layoutRecipe['hidden_sections']) && is_array($layoutRecipe['hidden_sections']) ? array_values(array_intersect($layoutRecipe['hidden_sections'], $knownSectionIds)) : [];
 $sectionPosition = static function (string $key) use ($sectionOrder): int {
     $position = array_search($key, $sectionOrder, true);
     return $position === false ? 99 : (int)$position;
@@ -2297,6 +2334,8 @@ header('Link: <' . $siteUrl . '/feed.xml>; rel="alternate"; type="application/at
     .universal-info-grid a > span { color:#fff; font-size:1.15rem; font-weight:850; }
     .universal-info-grid p { margin:.7rem 0 1rem; color:#D7DBE7; font-size:.9rem; line-height:1.6; }
     .universal-info-grid strong { margin-top:auto; color:#D9D6FF; font-size:.85rem; }
+    .universal-custom-media { margin:0 0 1.5rem; border-radius:16px; overflow:hidden; }
+    .universal-custom-media img { display:block; width:100%; max-height:420px; object-fit:cover; }
     .theme-network-standard .single-post { max-width:780px; border:1px solid #E3E6EF; border-radius:18px; box-shadow:none; }
     .theme-network-standard .single-post h1 { font-size:clamp(2.1rem,5vw,3.8rem); line-height:1.08; letter-spacing:-.045em; text-wrap:balance; }
     .theme-network-standard .body-content { color:#263149; font-size:1.125rem; line-height:1.8; opacity:1; }
@@ -2655,6 +2694,7 @@ header('Link: <' . $siteUrl . '/feed.xml>; rel="alternate"; type="application/at
     .has-custom-theme .universal-info-grid a>span { color:var(--card-bg); }
     .has-custom-theme .universal-info-grid p { color:color-mix(in srgb,var(--card-bg) 76%,transparent); }
     .has-custom-theme .universal-info-grid strong { color:color-mix(in srgb,var(--card-bg) 82%,var(--accent)); }
+    .has-custom-theme .universal-custom-media { border-radius:var(--radius); }
     .has-custom-theme .content-archive,.has-custom-theme .foundation-page { color:var(--text); }
     .has-custom-theme .archive-intro,.has-custom-theme .foundation-header { background:linear-gradient(135deg,var(--text),var(--accent)); }
     .has-custom-theme .category-index,.has-custom-theme .media-preview,.has-custom-theme .foundation-directory,.has-custom-theme .foundation-section,.has-custom-theme .official-channels,.has-custom-theme .content-method { border-color:var(--border); background:var(--card-bg); color:var(--text); }
@@ -3159,6 +3199,14 @@ ob_start();
       <div class="universal-info-grid"><?php $homeInfoCount = 0; foreach ($preferredFoundationPages as $pageSlug => $label): if (!isset($foundationPagesBySlug[$pageSlug]) || $homeInfoCount >= 4) continue; $page = $foundationPagesBySlug[$pageSlug]; $homeInfoCount++; ?><a href="<?= $siteUrl . '/' . rawurlencode($pageSlug) ?>"><span><?= h($label) ?></span><p><?= h($page['meta_description'] ?? $page['intro'] ?? '') ?></p><strong>Approfondisci →</strong></a><?php endforeach; ?></div>
     </section>
     <?php endif; ?>
+
+    <?php if (!empty($customSections)): foreach ($customSections as $cs): ?>
+    <section class="universal-section<?= $sectionHiddenClass($cs['id']) ?>" style="order:<?= $sectionPosition($cs['id']) ?>" id="<?= h($cs['id']) ?>" aria-labelledby="universal-custom-<?= h($cs['id']) ?>-title">
+      <header class="universal-section-heading"><div><h2 id="universal-custom-<?= h($cs['id']) ?>-title"><?= h($cs['title']) ?></h2></div></header>
+      <?php if ($cs['image_url'] !== ''): ?><div class="universal-custom-media"><img src="<?= h($cs['image_url']) ?>" alt="" loading="lazy"></div><?php endif; ?>
+      <div class="body-content"><?= bodyHtml($cs['body']) ?></div>
+    </section>
+    <?php endforeach; endif; ?>
   </div>
 
   <?php if (false): // Modalità sperimentali disattivate: il pubblico usa il layout universale. ?>

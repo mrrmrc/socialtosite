@@ -25,6 +25,7 @@ const DEFAULT_STYLE = {
   },
   base_models: ['tech-clarity'],
   custom_css: '',
+  custom_sections: [],
 };
 
 const HERO_CHOICES = [
@@ -70,6 +71,8 @@ const SECTION_BLOCKS = [
   { id: 'info',   icon: '◎', title: 'Informazioni',     desc: 'Servizi, contatti e approfondimenti' },
 ];
 
+const RESERVED_SECTION_IDS = SECTION_BLOCKS.map(item => item.id);
+
 const TOOLS = [
   { id: 'lia',       icon: '✨', label: 'Aiuto AI', help: 'Chiedi a LIA di modificare il sito' },
   { id: 'themes',    icon: '🎨', label: 'Stile',     help: 'Scegli una base pronta' },
@@ -91,11 +94,15 @@ const BUILDER_LAYOUTS = SITE_LAYOUTS.filter(
 function normalize(raw, fallback = 'tech-clarity') {
   const preset = SITE_LAYOUTS.find(x => x.id === fallback) || SITE_LAYOUTS[0];
   const src = raw && typeof raw === 'object' ? raw : {};
-  const defaultOrder = SECTION_BLOCKS.map(item => item.id);
+  const customSections = Array.isArray(src.custom_sections)
+    ? src.custom_sections.filter(cs => cs && typeof cs === 'object' && typeof cs.id === 'string' && cs.id && !RESERVED_SECTION_IDS.includes(cs.id))
+      .map(cs => ({ id: cs.id, title: String(cs.title || ''), body: String(cs.body || ''), image_url: String(cs.image_url || '') }))
+    : [];
+  const knownIds = [...RESERVED_SECTION_IDS, ...customSections.map(cs => cs.id)];
   const requestedOrder = Array.isArray(src.layout_recipe?.section_order) ? src.layout_recipe.section_order : [];
   const sectionOrder = [
-    ...requestedOrder.filter(id => defaultOrder.includes(id)),
-    ...defaultOrder.filter(id => !requestedOrder.includes(id)),
+    ...requestedOrder.filter(id => knownIds.includes(id)),
+    ...knownIds.filter(id => !requestedOrder.includes(id)),
   ];
   return {
     design_archetype: src.design_archetype || preset?.id || DEFAULT_STYLE.design_archetype,
@@ -109,12 +116,32 @@ function normalize(raw, fallback = 'tech-clarity') {
       ...(src.layout_recipe || {}),
       section_order: sectionOrder,
       hidden_sections: Array.isArray(src.layout_recipe?.hidden_sections)
-        ? src.layout_recipe.hidden_sections.filter(id => defaultOrder.includes(id))
+        ? src.layout_recipe.hidden_sections.filter(id => knownIds.includes(id))
         : [],
     },
     base_models: Array.isArray(src.base_models) ? src.base_models : (preset?.base_models || [preset?.id].filter(Boolean)),
     custom_css: src.custom_css || '',
+    custom_sections: customSections,
   };
+}
+
+const ACCENT_MAP = { à: 'a', á: 'a', è: 'e', é: 'e', ì: 'i', í: 'i', ò: 'o', ó: 'o', ù: 'u', ú: 'u' };
+
+function slugify(text) {
+  const folded = String(text || '').toLowerCase().replace(/[àáèéìíòóùú]/g, ch => ACCENT_MAP[ch] || ch);
+  return folded
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 64) || 'sezione';
+}
+
+function uniqueSectionId(title, existingIds) {
+  let base = slugify(title);
+  if (RESERVED_SECTION_IDS.includes(base)) base = `${base}-custom`;
+  let id = base;
+  let n = 2;
+  while (existingIds.includes(id)) { id = `${base}-${n}`; n++; }
+  return id;
 }
 
 function encodePreview(data) {
@@ -323,6 +350,7 @@ export function ProSiteBuilder({ user, open, onClose }) {
   const [content, setContent] = useState({ title: '', hero_tagline: '', bio: '' });
   const [savedContent, setSavedContent] = useState({ title: '', hero_tagline: '', bio: '' });
   const [draggedBlock, setDraggedBlock] = useState(null);
+  const [sectionDraft, setSectionDraft] = useState(null);
   const [panelVisible, setPanelVisible] = useState(true);
   const [saveSuccess, setSaveSuccess] = useState(false);
   
@@ -417,6 +445,51 @@ export function ProSiteBuilder({ user, open, onClose }) {
     setNested('layout_recipe', 'hidden_sections', [...hidden]);
   }
 
+  function startAddSection() {
+    setSectionDraft({ id: null, title: '', body: '', image_url: '', isNew: true });
+  }
+
+  function startEditSection(cs) {
+    setSectionDraft({ id: cs.id, title: cs.title, body: cs.body, image_url: cs.image_url || '', isNew: false });
+  }
+
+  function cancelSectionDraft() {
+    setSectionDraft(null);
+  }
+
+  function saveSectionDraft() {
+    const title = sectionDraft.title.trim();
+    if (!title) return;
+    if (sectionDraft.isNew) {
+      const id = uniqueSectionId(title, style.layout_recipe.section_order);
+      setStyle(prev => ({
+        ...prev,
+        custom_sections: [...prev.custom_sections, { id, title, body: sectionDraft.body, image_url: sectionDraft.image_url.trim() }],
+        layout_recipe: { ...prev.layout_recipe, section_order: [...prev.layout_recipe.section_order, id] },
+      }));
+    } else {
+      setStyle(prev => ({
+        ...prev,
+        custom_sections: prev.custom_sections.map(cs =>
+          cs.id === sectionDraft.id ? { ...cs, title, body: sectionDraft.body, image_url: sectionDraft.image_url.trim() } : cs),
+      }));
+    }
+    setSectionDraft(null);
+  }
+
+  function removeCustomSection(id) {
+    setStyle(prev => ({
+      ...prev,
+      custom_sections: prev.custom_sections.filter(cs => cs.id !== id),
+      layout_recipe: {
+        ...prev.layout_recipe,
+        section_order: prev.layout_recipe.section_order.filter(x => x !== id),
+        hidden_sections: (prev.layout_recipe.hidden_sections || []).filter(x => x !== id),
+      },
+    }));
+    setSectionDraft(prev => (prev && prev.id === id ? null : prev));
+  }
+
   function closeBuilder() {
     if (dirty && !window.confirm('Hai modifiche non salvate. Vuoi davvero uscire?')) return;
     onClose();
@@ -471,6 +544,23 @@ export function ProSiteBuilder({ user, open, onClose }) {
         if (res.response.proposed_style && Object.keys(res.response.proposed_style).length > 0) {
            setStyle(prev => {
               const next = { ...prev };
+              const proposed = { ...res.response.proposed_style };
+
+              // custom_sections va unito per id (upsert), mai sostituito in blocco:
+              // altrimenti una sezione aggiunta manualmente in un turno precedente
+              // verrebbe cancellata dalla proposta successiva di LIA.
+              if (Array.isArray(proposed.custom_sections)) {
+                 const incoming = proposed.custom_sections.filter(cs => cs && typeof cs === 'object' && typeof cs.id === 'string' && cs.id && !RESERVED_SECTION_IDS.includes(cs.id));
+                 const byId = new Map(next.custom_sections.map(cs => [cs.id, cs]));
+                 for (const cs of incoming) byId.set(cs.id, { ...byId.get(cs.id), ...cs });
+                 next.custom_sections = [...byId.values()];
+                 const newIds = incoming.map(cs => cs.id).filter(id => !next.layout_recipe.section_order.includes(id));
+                 if (newIds.length) {
+                    next.layout_recipe = { ...next.layout_recipe, section_order: [...next.layout_recipe.section_order, ...newIds] };
+                 }
+                 delete proposed.custom_sections;
+              }
+
               const merge = (target, source) => {
                  for (const key in source) {
                     if (source[key] && typeof source[key] === 'object' && !Array.isArray(source[key])) {
@@ -481,7 +571,7 @@ export function ProSiteBuilder({ user, open, onClose }) {
                     }
                  }
               };
-              merge(next, res.response.proposed_style);
+              merge(next, proposed);
               return next;
            });
         }
@@ -828,8 +918,19 @@ export function ProSiteBuilder({ user, open, onClose }) {
                   </SectionHeader>
                   <div style={{ display: 'grid', gap: 8 }}>
                     {style.layout_recipe.section_order.map((blockId, index, order) => {
-                      const block = SECTION_BLOCKS.find(item => item.id === blockId);
+                      const customSection = style.custom_sections.find(cs => cs.id === blockId);
+                      const block = SECTION_BLOCKS.find(item => item.id === blockId)
+                        || (customSection ? { id: customSection.id, icon: '★', title: customSection.title || 'Sezione', desc: 'Sezione personalizzata' } : null);
                       const hidden = (style.layout_recipe.hidden_sections || []).includes(blockId);
+                      const actions = [
+                        ['↑', 'Su', () => nudgeBlock(blockId, -1), index === 0],
+                        ['↓', 'Giù', () => nudgeBlock(blockId, 1), index === order.length - 1],
+                        [hidden ? '○' : '●', hidden ? 'Mostra' : 'Nascondi', () => toggleBlock(blockId), false],
+                        ...(customSection ? [
+                          ['✎', 'Modifica', () => startEditSection(customSection), false],
+                          ['🗑', 'Elimina', () => { if (window.confirm(`Eliminare la sezione "${customSection.title}"?`)) removeCustomSection(blockId); }, false],
+                        ] : []),
+                      ];
                       return (
                         <div
                           key={blockId}
@@ -860,11 +961,8 @@ export function ProSiteBuilder({ user, open, onClose }) {
                               {block?.desc}
                             </small>
                           </span>
-                          <span style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 28px)', gap: 3 }}>
-                            {[['↑', 'Su', () => nudgeBlock(blockId, -1), index === 0],
-                              ['↓', 'Giù', () => nudgeBlock(blockId, 1), index === order.length - 1],
-                              [hidden ? '○' : '●', hidden ? 'Mostra' : 'Nascondi', () => toggleBlock(blockId), false],
-                            ].map(([icon, title, action, disabled]) => (
+                          <span style={{ display: 'grid', gridTemplateColumns: `repeat(${actions.length}, 28px)`, gap: 3 }}>
+                            {actions.map(([icon, title, action, disabled]) => (
                               <button
                                 key={title}
                                 type="button"
@@ -888,6 +986,64 @@ export function ProSiteBuilder({ user, open, onClose }) {
                       );
                     })}
                   </div>
+
+                  <button
+                    type="button"
+                    onClick={startAddSection}
+                    style={{
+                      marginTop: 10, width: '100%', padding: '10px 12px', borderRadius: 12,
+                      border: '1px dashed rgba(255,255,255,.22)', background: 'transparent',
+                      color: 'rgba(255,255,255,.7)', cursor: 'pointer', fontSize: 13, fontWeight: 700,
+                    }}
+                  >
+                    + Aggiungi sezione
+                  </button>
+
+                  {sectionDraft && (
+                    <div style={{ marginTop: 14, padding: 14, borderRadius: 14, border: '1px solid rgba(255,255,255,.12)', background: 'rgba(255,255,255,.03)', display: 'grid', gap: 10 }}>
+                      <PanelInput
+                        label="Titolo sezione"
+                        value={sectionDraft.title}
+                        onChange={v => setSectionDraft(prev => ({ ...prev, title: v }))}
+                        placeholder="Es. Camere"
+                      />
+                      <PanelInput
+                        label="Testo"
+                        value={sectionDraft.body}
+                        onChange={v => setSectionDraft(prev => ({ ...prev, body: v }))}
+                        placeholder="Racconta questa sezione ai tuoi visitatori..."
+                        multiline
+                      />
+                      <PanelInput
+                        label="Immagine (URL, facoltativa)"
+                        value={sectionDraft.image_url}
+                        onChange={v => setSectionDraft(prev => ({ ...prev, image_url: v }))}
+                        placeholder="https://..."
+                      />
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        <button
+                          type="button"
+                          onClick={saveSectionDraft}
+                          disabled={!sectionDraft.title.trim()}
+                          style={{
+                            flex: 1, padding: '10px 12px', borderRadius: 10, border: 'none',
+                            background: 'linear-gradient(135deg,#2563eb,#1d4ed8)', color: '#fff', fontWeight: 700,
+                            cursor: sectionDraft.title.trim() ? 'pointer' : 'not-allowed',
+                            opacity: sectionDraft.title.trim() ? 1 : .5,
+                          }}
+                        >
+                          Salva sezione
+                        </button>
+                        <button
+                          type="button"
+                          onClick={cancelSectionDraft}
+                          style={{ padding: '10px 12px', borderRadius: 10, border: '1px solid rgba(255,255,255,.15)', background: 'transparent', color: '#fff', cursor: 'pointer' }}
+                        >
+                          Annulla
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </>}
 
                 {/* ── Header ── */}
