@@ -195,7 +195,7 @@ jobs:
           echo "Release files: $(find release -type f | wc -l)"
 
       - name: Upload release to VPS via FTP/FTPS
-        timeout-minutes: 5
+        timeout-minutes: 10
         env:
           FTP_HOST: ${{ secrets.FTP_HOST }}
           FTP_USER: ${{ secrets.FTP_USER }}
@@ -217,19 +217,17 @@ jobs:
           set ftp:ssl-force false;
           set ftp:ssl-protect-data true;
           set ssl:verify-certificate no;
-          set net:max-retries 3;
-          set net:timeout 20;
-          set net:persist-retries 3;
-          set mirror:parallel-transfer-count 8;
-          set mirror:use-pget-n 4;
-          set net:connection-limit 10;
+          set net:max-retries 5;
+          set net:timeout 30;
+          set net:persist-retries 5;
+          set net:connection-limit 6;
           open -u \"$FTP_USER\",\"$FTP_PASS\" ftp://$FTP_HOST;
           rm -f \"$FTP_REMOTE_DIR/api/auth/callback.php\";
           rm -f \"$FTP_REMOTE_DIR/api/auth/tiktok_callback.php\";
           rm -f \"$FTP_REMOTE_DIR/api/cron/fetch_seo.php\";
           rm -f \"$FTP_REMOTE_DIR/api/middleware/crypto.php\";
           rm -f \"$FTP_REMOTE_DIR/api/services/social_oauth.php\";
-          mirror -R --delete --no-perms --parallel=8 --use-pget-n=4 --exclude-glob config/config.php --exclude-glob config/keys.php --exclude '^(public/media|scraper|storage)(/.*)?$' release/ \"$FTP_REMOTE_DIR\";
+          mirror -R --delete --no-perms --parallel=3 --exclude-glob config/config.php --exclude-glob config/keys.php --exclude '^(public/media|scraper|storage)(/.*)?$' release/ \"$FTP_REMOTE_DIR\";
           "
 
       - name: Verify deployed release on production
