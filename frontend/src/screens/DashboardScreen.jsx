@@ -1639,9 +1639,21 @@ const [importMsg, setImportMsg] = useState(null);
   const [previewThemeId, setPreviewThemeId] = useState('classic');
   const [generatingSite, setGeneratingSite] = useState(false);
   const [referenceUrlDraft, setReferenceUrlDraft] = useState('');
+  const [generationStep, setGenerationStep] = useState(0);
+  const GENERATION_STEPS = [
+    'Sto leggendo i tuoi contenuti social...',
+    'Sto capendo il tuo stile...',
+    'Sto scegliendo colori e font leggibili...',
+    'Sto scrivendo titolo e presentazione...',
+    'Sto sistemando gli ultimi dettagli...',
+  ];
 
   async function generateSiteWithAi() {
     setGeneratingSite(true);
+    setGenerationStep(0);
+    const stepTimer = setInterval(() => {
+      setGenerationStep(prev => (prev + 1) % GENERATION_STEPS.length);
+    }, 2200);
     try {
       await apiFetch('/api/index.php?action=site-ai', {
         method: 'POST',
@@ -1652,6 +1664,7 @@ const [importMsg, setImportMsg] = useState(null);
     } catch (err) {
       setSyncMsg({ ok: false, text: err.message || 'Non sono riuscita a generare il sito.' });
     }
+    clearInterval(stepTimer);
     setGeneratingSite(false);
   }
 
@@ -1681,8 +1694,18 @@ const [importMsg, setImportMsg] = useState(null);
         </label>
         <div>
           <button className="btn btn-primary" onClick={generateSiteWithAi} disabled={!hasContent || generatingSite}>
-            {generatingSite ? '⟳ Sto generando il sito...' : hasContent ? '✨ Genera il mio sito' : '✨ Genera il mio sito (collega prima un social)'}
+            {generatingSite ? `⟳ ${GENERATION_STEPS[generationStep]}` : hasContent ? '✨ Genera il mio sito' : '✨ Genera il mio sito (collega prima un social)'}
           </button>
+          {generatingSite && (
+            <>
+              <style>{`
+                @keyframes stsGenPulse { 0% { transform: translateX(-40%); } 100% { transform: translateX(140%); } }
+                .sts-gen-progress { position: relative; overflow: hidden; height: 4px; border-radius: 999px; background: var(--gray-light); margin-top: 10px; }
+                .sts-gen-progress-bar { position: absolute; top: 0; left: 0; width: 40%; height: 100%; border-radius: 999px; background: var(--primary); animation: stsGenPulse 1.1s ease-in-out infinite; }
+              `}</style>
+              <div className="sts-gen-progress"><div className="sts-gen-progress-bar" /></div>
+            </>
+          )}
         </div>
       </section>
     );

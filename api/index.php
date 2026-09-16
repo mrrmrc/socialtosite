@@ -776,6 +776,36 @@ if ($action === 'admin-delete-user' && $method === 'POST') {
 if ($action === 'admin-prompts' && $method === 'GET') {
     requireAdmin($isAdmin);
     $prompts = DB::fetchAll('SELECT * FROM agent_prompts');
+    // Alcuni agenti importanti (es. il Direttore Artistico che genera il sito
+    // con l'AI) non hanno ancora una riga finche' nessuno li personalizza: se
+    // mancano dalla lista, un admin non puo' nemmeno scoprire che esistono.
+    // Li mostriamo comunque, con etichetta e prompt di default, cosi' restano
+    // visibili e modificabili fin dal primo accesso.
+    $knownAgents = [
+        'site_ai' => [
+            'label' => '✨ Agente Grafico (genera il sito con l\'AI)',
+            'description' => 'Sceglie titolo, testi, palette, font e layout quando l\'utente clicca "Genera il mio sito con l\'AI".',
+        ],
+    ];
+    $presentNames = array_column($prompts, 'agent_name');
+    foreach ($knownAgents as $agentName => $meta) {
+        if (in_array($agentName, $presentNames, true)) continue;
+        require_once __DIR__ . '/services/ai.php';
+        $prompts[] = [
+            'id' => 0,
+            'agent_name' => $agentName,
+            'instructions' => AI::siteAiDefaultPrompt(),
+            'label' => $meta['label'],
+            'description' => $meta['description'],
+        ];
+    }
+    foreach ($prompts as &$promptRow) {
+        if (isset($knownAgents[$promptRow['agent_name']])) {
+            $promptRow['label'] = $promptRow['label'] ?? $knownAgents[$promptRow['agent_name']]['label'];
+            $promptRow['description'] = $promptRow['description'] ?? $knownAgents[$promptRow['agent_name']]['description'];
+        }
+    }
+    unset($promptRow);
     json(['prompts' => $prompts]);
 }
 
@@ -854,7 +884,15 @@ if ($action === 'admin-update-prompt' && $method === 'POST') {
     $agentName = $b['agent_name'] ?? '';
     $instructions = $b['instructions'] ?? '';
     if (!$agentName || !$instructions) jsonError('Dati mancanti');
-    DB::execute('UPDATE agent_prompts SET instructions=? WHERE agent_name=?', [$instructions, $agentName]);
+    // Upsert: alcuni agenti (es. site_ai) non hanno ancora una riga la prima
+    // volta che un admin li personalizza dall'interfaccia (vengono mostrati
+    // con un prompt di default sintetico finche' nessuno salva). Un semplice
+    // UPDATE non creerebbe mai quella riga.
+    DB::execute(
+        'INSERT INTO agent_prompts (agent_name, instructions) VALUES (?, ?)
+         ON DUPLICATE KEY UPDATE instructions = VALUES(instructions)',
+        [$agentName, $instructions]
+    );
     json(['ok' => true]);
 }
 

@@ -92,6 +92,69 @@ class AI {
         return $normalized;
     }
 
+    // ── Contrasto colori (WCAG) ─────────────────────────────────────────────
+    // Le palette generate in un colpo solo dal modello possono risultare
+    // internamente incoerenti (es. archetipo "scuro" scelto insieme a uno
+    // sfondo chiaro, con testo pensato per lo sfondo scuro): il risultato è
+    // testo praticamente invisibile. Questi helper misurano il contrasto reale
+    // così da poterlo correggere invece di scoprirlo dal sito pubblicato.
+    public static function relativeLuminance(string $hex): float {
+        $hex = ltrim(trim($hex), '#');
+        if (strlen($hex) === 3) $hex = $hex[0] . $hex[0] . $hex[1] . $hex[1] . $hex[2] . $hex[2];
+        if (strlen($hex) !== 6 || !ctype_xdigit($hex)) return 0.5;
+        $channel = static function (int $value) {
+            $c = $value / 255;
+            return $c <= 0.03928 ? $c / 12.92 : (($c + 0.055) / 1.055) ** 2.4;
+        };
+        $r = $channel((int)hexdec(substr($hex, 0, 2)));
+        $g = $channel((int)hexdec(substr($hex, 2, 2)));
+        $b = $channel((int)hexdec(substr($hex, 4, 2)));
+        return 0.2126 * $r + 0.7152 * $g + 0.0722 * $b;
+    }
+
+    public static function contrastRatio(string $hex1, string $hex2): float {
+        $l1 = self::relativeLuminance($hex1);
+        $l2 = self::relativeLuminance($hex2);
+        $lighter = max($l1, $l2);
+        $darker = min($l1, $l2);
+        return ($lighter + 0.05) / ($darker + 0.05);
+    }
+
+    // Soglia WCAG AA per testo normale. Sotto questa soglia il testo e'
+    // considerato difficile o impossibile da leggere per una persona media.
+    public static function hasSufficientContrast(string $hex1, string $hex2, float $minRatio = 4.5): bool {
+        return self::contrastRatio($hex1, $hex2) >= $minRatio;
+    }
+
+    // Dato uno sfondo, restituisce un testo garantito leggibile (nero o
+    // bianco quasi puro, qualunque sia lo sfondo) come ultima rete di
+    // sicurezza quando anche un tentativo di correzione via AI fallisce.
+    public static function safeTextFor(string $backgroundHex): string {
+        return self::relativeLuminance($backgroundHex) > 0.5 ? '#14181F' : '#F5F6FA';
+    }
+
+    // Ultima rete di sicurezza deterministica: una palette generata in un
+    // colpo solo puo' risultare internamente incoerente (es. archetipo scuro
+    // scelto insieme a testo chiaro E sfondo chiaro, invisibile). Non chiede
+    // di nuovo al modello: corregge subito, gratis, senza latenza aggiuntiva,
+    // cosi' nessun sito puo' mai andare online con testo illeggibile.
+    private static function applyContrastGuarantee(array $result): array {
+        if (!isset($result['color_palette']) || !is_array($result['color_palette'])) return $result;
+        $palette = $result['color_palette'];
+        $bg = (string)($palette['background'] ?? $palette['bg'] ?? '#FFFFFF');
+        $text = (string)($palette['text'] ?? '#111111');
+        if (!self::hasSufficientContrast($text, $bg)) {
+            $palette['text'] = self::safeTextFor($bg);
+        }
+        $surface = (string)($palette['surface'] ?? $palette['card_bg'] ?? $bg);
+        $textMuted = (string)($palette['text_muted'] ?? $palette['text'] ?? '#666666');
+        if ($textMuted !== '' && !self::hasSufficientContrast($textMuted, $surface, 3.0)) {
+            $palette['text_muted'] = self::safeTextFor($surface);
+        }
+        $result['color_palette'] = $palette;
+        return $result;
+    }
+
     private static function inferVerticalContext(string $profileSummary, string $roleMission, string $contentStrategy): array {
         $text = mb_strtolower(trim($profileSummary . ' ' . $roleMission . ' ' . $contentStrategy));
         $verticals = [
@@ -1565,7 +1628,8 @@ Testi da analizzare:
             . '  "cta_text": "Call to action",' . "\n"
             . '  "custom_css": "CSS aggiuntivo opzionale (max 500 char) per micro-animazioni o hover states unici."' . "\n"
             . "}\n\n"
-            . "Il design deve sembrare scelto da un art director. Parti dalla libreria modelli fornita, non da estetiche AI generiche.";
+            . "Il design deve sembrare scelto da un art director. Parti dalla libreria modelli fornita, non da estetiche AI generiche.\n\n"
+            . "VINCOLO DI CONTRASTO (obbligatorio): color_palette.text e color_palette.background devono avere un contrasto forte e leggibile (rapporto WCAG almeno 4.5:1). Se scegli un archetipo scuro lo sfondo deve essere scuro E il testo chiaro; se scegli un archetipo chiaro lo sfondo deve essere chiaro E il testo scuro. Non generare mai testo chiaro su sfondo chiaro ne' testo scuro su sfondo scuro.";
 
         $prompt = self::getAgentPrompt('site_ai', $fallback);
         $prompt .= self::buildDesignLibraryPrompt();
@@ -1611,23 +1675,30 @@ Testi da analizzare:
         if (empty($result['layout_recipe']) || !is_array($result['layout_recipe'])) {
             $result['layout_recipe'] = ['hero' => 'editorial', 'nav' => 'transparent', 'cards' => 'editorial', 'density' => 'airy'];
         }
-        return $result;
+        return self::applyContrastGuarantee($result);
     }
 
-    public static function siteAiGenerateWithUnderstanding(string $profileSummary, string $roleMission, string $contentStrategy, string $recentPosts = '', string $tagsContext = '', $understanding = null, string $referenceUrl = ''): array {
-        $brief = self::buildUnderstandingBrief($understanding);
-        if ($brief === '') return self::siteAiGenerate($profileSummary, $roleMission, $contentStrategy, $recentPosts, $tagsContext);
-
-        $fallback = "Sei un Direttore Artistico (Art Director) e Caporedattore di altissimo livello.\n"
+    // Prompt di default dell'agente 'site_ai' (il "Direttore Artistico" che
+    // genera l'intero sito con l'AI). Esposto come metodo pubblico cosi' che
+    // l'area admin possa mostrarlo/gestirlo anche quando in agent_prompts non
+    // esiste ancora una riga personalizzata per questo agente.
+    public static function siteAiDefaultPrompt(): string {
+        return "Sei un Direttore Artistico (Art Director) e Caporedattore di altissimo livello.\n"
             . "Il tuo compito: analizzare il profilo utente e definire un Archetipo di Design dinamico, generando la configurazione UI Premium su misura.\n\n"
             . "Profilo:\n{profileSummary}\n\n"
             . "Ruolo e Missione:\n{roleMission}\n\n"
             . "Strategia contenuti:\n{contentStrategy}\n\n"
             . "Post recenti pubblicati:\n{recentPosts}\n\n"
             . "Tag REALI attualmente assegnati ai contenuti nel database:\n[{tagsContext}]\n\n"
-            . "Genera il JSON completo del sito rispettando il verticale e la scheda di comprensione del business.";
+            . "Genera il JSON completo del sito rispettando il verticale e la scheda di comprensione del business.\n\n"
+            . "VINCOLO DI CONTRASTO (obbligatorio): color_palette.text e color_palette.background devono avere un contrasto forte e leggibile (rapporto WCAG almeno 4.5:1). Se scegli un archetipo scuro lo sfondo deve essere scuro E il testo chiaro; se scegli un archetipo chiaro lo sfondo deve essere chiaro E il testo scuro. Non generare mai testo chiaro su sfondo chiaro ne' testo scuro su sfondo scuro.";
+    }
 
-        $prompt = self::getAgentPrompt('site_ai', $fallback);
+    public static function siteAiGenerateWithUnderstanding(string $profileSummary, string $roleMission, string $contentStrategy, string $recentPosts = '', string $tagsContext = '', $understanding = null, string $referenceUrl = ''): array {
+        $brief = self::buildUnderstandingBrief($understanding);
+        if ($brief === '') return self::siteAiGenerate($profileSummary, $roleMission, $contentStrategy, $recentPosts, $tagsContext);
+
+        $prompt = self::getAgentPrompt('site_ai', self::siteAiDefaultPrompt());
         $prompt .= self::buildDesignLibraryPrompt();
         $prompt .= self::buildDesignRecommendationPrompt($profileSummary, $roleMission, $contentStrategy);
         $prompt .= self::buildVerticalDesignDirective($profileSummary, $roleMission, $contentStrategy);
@@ -1665,7 +1736,7 @@ Testi da analizzare:
         if (empty($result['layout_recipe']) || !is_array($result['layout_recipe'])) {
             $result['layout_recipe'] = ['hero' => 'editorial', 'nav' => 'transparent', 'cards' => 'editorial', 'density' => 'airy'];
         }
-        return $result;
+        return self::applyContrastGuarantee($result);
     }
 
     // ── AGENTE CAPOREDATTORE (Orchestrazione Contenuti) ─────────────────────
