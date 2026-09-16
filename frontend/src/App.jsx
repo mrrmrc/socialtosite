@@ -3,6 +3,7 @@ import { AuthScreen } from './screens/AuthScreen';
 import { DashboardScreen } from './screens/DashboardScreen';
 import { LandingScreen } from './screens/LandingScreen';
 import { LegalScreen } from './screens/LegalScreen';
+import { DeployFooter } from './components/DeployFooter';
 import './index.css';
 
 export default function App() {
@@ -28,21 +29,28 @@ export default function App() {
     setUser(null);
   }
 
+  let screen;
   if (pathname === '/') {
-    return (
+    screen = (
       <LandingScreen
         isLoggedIn={!!token && !!user}
         onGetStarted={() => { window.location.href = '/accedi'; }}
       />
     );
+  } else if (pathname === '/privacy') {
+    screen = <LegalScreen type="privacy" />;
+  } else if (pathname === '/terms' || pathname === '/termini') {
+    screen = <LegalScreen type="terms" />;
+  } else if (!token || !user) {
+    screen = <AuthScreen onAuth={handleAuth} />;
+  } else {
+    screen = <DashboardScreen token={token} user={user} onLogout={handleLogout} />;
   }
 
-  if (pathname === '/privacy') return <LegalScreen type="privacy" />;
-  if (pathname === '/terms' || pathname === '/termini') return <LegalScreen type="terms" />;
-
-  if (!token || !user) {
-    return <AuthScreen onAuth={handleAuth} />;
-  }
-
-  return <DashboardScreen token={token} user={user} onLogout={handleLogout} />;
+  return (
+    <>
+      {screen}
+      <DeployFooter />
+    </>
+  );
 }
