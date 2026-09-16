@@ -516,7 +516,8 @@ class AI {
 
         $reply = trim(self::gemini([['text' => $prompt]], [
             'temperature' => 0.72,
-            'maxOutputTokens' => 900,
+            'maxOutputTokens' => 1600,
+            'thinkingConfig' => ['thinkingBudget' => 512],
             '_timeout' => 60,
         ]));
         if ($reply === '') throw new Exception('Il modello non ha restituito una risposta');
@@ -2004,7 +2005,8 @@ Testi da analizzare:
 
         $reply = trim(self::gemini([['text' => $prompt]], [
             'temperature' => 0.4,
-            'maxOutputTokens' => 1024,
+            'maxOutputTokens' => 2048,
+            'thinkingConfig' => ['thinkingBudget' => 512],
             'responseMimeType' => 'application/json',
             '_timeout' => 45,
         ]));
