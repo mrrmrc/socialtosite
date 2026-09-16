@@ -24,10 +24,16 @@ const examples = {
   },
 };
 
-function BrandMark({ compact = false }) {
+// Stesso simbolo del brand ovunque nel prodotto (landing pubblica e
+// dashboard): prima erano due loghi diversi (un'immagine statica nella
+// dashboard, questo marchio disegnato in CSS qui). iconOnly lascia al
+// chiamante il testo/sottotitolo, per non dover rifare il markup esistente.
+export function BrandMark({ compact = false, iconOnly = false }) {
+  const icon = <span className="astw-mark" aria-hidden="true"><i /><i /><i /></span>;
+  if (iconOnly) return icon;
   return (
     <span className={`astw-brand${compact ? ' is-compact' : ''}`}>
-      <span className="astw-mark" aria-hidden="true"><i /><i /><i /></span>
+      {icon}
       <span><strong>All Social</strong><b>To Web</b></span>
     </span>
   );

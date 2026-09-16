@@ -6,6 +6,7 @@ import { AdminScreen } from './AdminScreen';
 import { SpazioVivoLab } from '../components/SpazioVivoLab';
 import { ProductGuide } from '../components/ProductGuide';
 import { ProSiteBuilder } from '../components/ProSiteBuilder';
+import { BrandMark } from './LandingScreen';
 const STUDIO_DEFAULTS = {
   font_heading: 'Outfit',
   font_body: 'Inter',
@@ -2353,7 +2354,10 @@ const [importMsg, setImportMsg] = useState(null);
   const visibleNavigationGroups = isBasePlan && user?.role !== 'admin'
     ? navigationGroups.map(group => ({
         ...group,
-        items: group.items.filter(item => ['overview', 'site', 'settings', 'sources', 'account'].includes(item.id)),
+        items: group.items.filter(item =>
+          ['overview', 'site', 'settings', 'sources', 'account'].includes(item.id) ||
+          (item.id === 'seo' && item.section === 'ideas')
+        ),
       }))
     : navigationGroups;
   const flatNavigation = visibleNavigationGroups.flatMap(group => group.items.map(item => ({ ...item, group: group.label })));
@@ -2473,7 +2477,7 @@ const [importMsg, setImportMsg] = useState(null);
       )}
       <aside className="desktop-sidebar" style={{ visibility: studioWorkspaceOpen ? 'hidden' : 'visible', pointerEvents: studioWorkspaceOpen ? 'none' : 'auto' }}>
         <div className="sidebar-brand">
-          <img src="/logo-cropped.png?v=2" alt="All Social To Web" />
+          <BrandMark iconOnly />
           <div><strong>All Social To Web</strong><span>{isBasePlan ? 'Il tuo sito' : 'Area di lavoro'}</span></div>
         </div>
         {user?.role !== 'admin' && !isBasePlan && (
@@ -2515,7 +2519,7 @@ const [importMsg, setImportMsg] = useState(null);
 
       <div className="dashboard-main" style={studioWorkspaceOpen ? { marginLeft: 0 } : undefined}>
         <div className="mobile-top-header">
-          <div className="mobile-brand"><img src="/logo-cropped.png?v=2" alt="" /><strong>All Social To Web</strong></div>
+          <div className="mobile-brand"><BrandMark iconOnly /><strong>All Social To Web</strong></div>
           <button className="mobile-menu-trigger" onClick={() => setMobileMenuOpen(true)} aria-label="Apri menu">☰</button>
         </div>
 
