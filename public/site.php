@@ -3775,5 +3775,24 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 });
 </script>
+<?php
+  // Timestamp/versione dell'ultimo deploy, sempre visibile su ogni sito
+  // pubblico generato — non solo nella dashboard. deploy-info.json viene
+  // generato dalla pipeline deployvps e pubblicato alla radice del sito;
+  // release/public/site.php e' un livello sotto, da qui '..'.
+  $deployInfo = null;
+  $deployInfoPath = __DIR__ . '/../deploy-info.json';
+  if (is_file($deployInfoPath)) {
+    $deployInfoRaw = @file_get_contents($deployInfoPath);
+    if ($deployInfoRaw !== false) {
+      $deployInfoDecoded = json_decode($deployInfoRaw, true);
+      if (is_array($deployInfoDecoded)) $deployInfo = $deployInfoDecoded;
+    }
+  }
+?>
+<?php if ($deployInfo && !empty($deployInfo['release'])): ?>
+<style>.sts-deploy-footer{position:fixed;left:10px;bottom:8px;z-index:40;font-size:10px;font-weight:600;letter-spacing:.02em;color:rgba(148,163,184,.7);background:rgba(15,23,42,.55);padding:4px 9px;border-radius:999px;pointer-events:none;backdrop-filter:blur(6px);font-family:'SFMono-Regular',Menlo,monospace}@media(max-width:640px){.sts-deploy-footer{display:none}}</style>
+<div class="sts-deploy-footer" aria-hidden="true"><?= h($deployInfo['release']) ?> · <?= h($deployInfo['deployed_at'] ?? '') ?><?= !empty($deployInfo['timezone']) ? ' ' . h($deployInfo['timezone']) : '' ?></div>
+<?php endif; ?>
 </body>
 </html>
