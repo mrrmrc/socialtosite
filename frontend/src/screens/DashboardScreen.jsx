@@ -2411,14 +2411,38 @@ const [importMsg, setImportMsg] = useState(null);
   );
   const renderAccountHub = () => (
     <div className="settings-hub">
-      <section className="settings-hub-intro"><span>Configurazione</span><h2>Le impostazioni, in un unico posto</h2><p>Qui trovi profilo dell'attività, identità del sito e sicurezza dell'account.</p></section>
-      <div className="settings-hub-grid">
+      <section className="settings-hub-intro">
+        <span>Configurazione</span>
+        <h2>Impostazioni account</h2>
+        <p>Qui trovi profilo dell'attività, identità del sito e sicurezza dell'account.</p>
+      </section>
+      <div className="settings-hub-grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '2rem' }}>
         {[
           ['Profilo attività','Obiettivi, pubblico, servizi e territorio','strategy','✓'],
           ['Identità del sito','Logo e immagine rappresentativa','experience','◇'],
-          ['Tema e anteprima','Scegli il layout e provalo sui tuoi contenuti','settings','▦'],
           ['Sicurezza','Password e sessioni del tuo account','security','⌾'],
-        ].map(([title,description,target,icon]) => <button key={target} onClick={() => setTab(target)}><span>{icon}</span><div><strong>{title}</strong><small>{description}</small></div><i>→</i></button>)}
+        ].map(([title,description,target,icon]) => (
+          <button key={target} onClick={() => setTab(target)} style={{ 
+            display: 'flex', 
+            alignItems: 'center', 
+            textAlign: 'left', 
+            background: 'var(--surface)', 
+            border: '2px solid var(--border-strong)', 
+            padding: '24px', 
+            borderRadius: 'var(--radius-lg)', 
+            cursor: 'pointer', 
+            gap: '20px', 
+            transition: 'all 0.2s', 
+            boxShadow: '0 4px 10px rgba(0,0,0,0.02)'
+          }}>
+            <span style={{ fontSize: '32px', color: 'var(--primary)', flexShrink: 0, width: '48px', height: '48px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--primary-light)', borderRadius: '12px' }}>{icon}</span>
+            <div style={{ flex: 1 }}>
+              <strong style={{ display: 'block', fontSize: '20px', color: 'var(--text)', marginBottom: '4px', fontWeight: 800 }}>{title}</strong>
+              <small style={{ display: 'block', fontSize: '15px', color: 'var(--text-muted)', lineHeight: 1.4 }}>{description}</small>
+            </div>
+            <i style={{ fontStyle: 'normal', fontSize: '24px', color: 'var(--text-muted)', opacity: 0.5 }}>→</i>
+          </button>
+        ))}
       </div>
     </div>
   );
@@ -2768,53 +2792,51 @@ const [importMsg, setImportMsg] = useState(null);
               </section>
 
               {/* Form Aggiungi Canale */}
-              <details className="card channel-add-panel" open={allChannels.length === 0}>
-                <summary>+ Aggiungi un nuovo canale</summary>
-                <div className="channel-add-body">
-                <h2 style={{ marginBottom: '0.5rem', fontSize: '18px' }}>➕ Aggiungi un canale</h2>
-                <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '1.25rem' }}>
-                  Incolla l'URL pubblico di un sito, profilo, canale o singolo post. I social vengono acquisiti tramite Refetch(er), senza login dell'utente.
+              <div className="card channel-add-panel" style={{ padding: '24px', border: '2px solid var(--border)', background: 'var(--surface)', borderRadius: 'var(--radius-lg)' }}>
+                <h2 style={{ marginBottom: '0.75rem', fontSize: '24px', fontWeight: 800 }}>➕ Aggiungi un nuovo canale</h2>
+                <p style={{ fontSize: '16px', color: 'var(--text-muted)', marginBottom: '1.5rem', lineHeight: 1.5 }}>
+                  Incolla l'URL pubblico di un sito, profilo, canale o singolo post. I contenuti verranno acquisiti automaticamente.
                 </p>
-                <form onSubmit={handleAddChannel} style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                <form onSubmit={handleAddChannel} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                   <div style={{ position: 'relative' }}>
                     <input
                       className="channel-url-input"
                       type="url"
-                      placeholder="https://www.instagram.com/nome/"
+                      placeholder="Esempio: https://www.instagram.com/nome/"
                       value={addUrl}
                       onChange={e => { setAddUrl(e.target.value); setAddMsg(null); }}
-                      style={{ paddingLeft: detectedPlatform ? '40px' : '16px', transition: 'padding 0.2s' }}
+                      style={{ paddingLeft: detectedPlatform ? '52px' : '20px', transition: 'padding 0.2s', paddingRight: '20px', paddingTop: '16px', paddingBottom: '16px', fontSize: '18px', width: '100%', borderRadius: '12px', border: '2px solid var(--border-strong)' }}
                     />
                     {detectedPlatform && (
-                      <span style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}>
-                        <img src={SOCIAL[detectedPlatform]?.icon || ''} alt="" style={{ width: 18, height: 18 }} />
+                      <span style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}>
+                        <img src={SOCIAL[detectedPlatform]?.icon || ''} alt="" style={{ width: 24, height: 24 }} />
                       </span>
                     )}
                   </div>
                   {detectedPlatform && (
-                    <div style={{ fontSize: '12px', color: 'var(--text-muted)', padding: '6px 10px', background: 'var(--purple-light)', borderRadius: 'var(--radius-sm)' }}>
+                    <div style={{ fontSize: '14px', color: 'var(--text-muted)', padding: '10px 14px', background: 'var(--purple-light)', borderRadius: 'var(--radius-sm)', fontWeight: 600 }}>
                       ✓ {SOCIAL[detectedPlatform]?.label || 'Fonte'} riconosciuto
                     </div>
                   )}
                   <input
                     type="text"
-                    placeholder="Etichetta (opzionale) — Es: Sito aziendale"
+                    placeholder="Etichetta opzionale (es. Profilo Personale)"
                     value={addLabel}
                     onChange={e => setAddLabel(e.target.value)}
+                    style={{ padding: '16px 20px', fontSize: '16px', width: '100%', borderRadius: '12px', border: '1px solid var(--border-strong)' }}
                   />
-                  <button type="submit" className="btn btn-primary" disabled={addLoading || !addUrl.trim()} style={{ alignSelf: 'flex-start', padding: '10px 24px' }}>
-                    {addLoading ? '⟳ Aggiunta in corso...' : '+ Aggiungi fonte'}
-                  </button>
-                </form>
-                {addMsg && (
-                  <div style={{ marginTop: '12px', padding: '10px 14px', borderRadius: 'var(--radius-sm)', fontSize: '13px',
-                    background: addMsg.ok ? 'var(--teal-light)' : 'var(--red-light)',
-                    color: addMsg.ok ? '#0F6E56' : 'var(--red)' }}>
-                    {addMsg.text}
+                  <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                    <button type="submit" disabled={addLoading || !addUrl.trim()} className="btn btn-primary" style={{ padding: '14px 24px', fontSize: '18px', fontWeight: 800 }}>
+                      {addLoading ? 'Aggiunta in corso...' : 'Aggiungi canale adesso'}
+                    </button>
+                    {addMsg && (
+                      <span style={{ fontSize: '14px', fontWeight: 600, color: addMsg.ok ? 'var(--teal)' : 'var(--red)', background: addMsg.ok ? 'var(--teal-light)' : 'var(--red-light)', padding: '10px 16px', borderRadius: 'var(--radius)' }}>
+                        {addMsg.text}
+                      </span>
+                    )}
                   </div>
-                )}
+                </form>
               </div>
-              </details>
 
               {/* Lista canali attivi */}
               <div className="card">
@@ -3074,181 +3096,104 @@ const [importMsg, setImportMsg] = useState(null);
           });
           return (
           <div>
-            <div style={{ marginBottom: '1.5rem', background: 'var(--surface)', padding: '1rem', borderRadius: 'var(--radius)', border: '1px solid var(--border)', display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center', boxShadow: '0 4px 6px rgba(0,0,0,0.02)' }}>
-              <input type="text" placeholder="🔍 Cerca contenuti per titolo o testo..." style={{ flex: '1 1 250px', border: '1px solid var(--border-strong)', padding: '10px 16px', borderRadius: '20px', background: 'var(--bg)' }} onChange={(e) => {
+            {/* Header Ricerca e Filtri */}
+            <div style={{ marginBottom: '2rem', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <input type="text" placeholder="🔍 Cerca contenuti per parola chiave..." style={{ width: '100%', border: '2px solid var(--border-strong)', padding: '16px 24px', borderRadius: 'var(--radius-lg)', background: 'var(--surface)', fontSize: '18px' }} onChange={(e) => {
                 const term = e.target.value.toLowerCase();
                 if (term) setDashboardFilter('search-' + term);
                 else setDashboardFilter('all');
               }} />
-              <select onChange={(e) => setDashboardFilter(e.target.value)} value={dashboardFilter.startsWith('search-') ? 'all' : dashboardFilter} style={{ flex: '0 1 200px', padding: '10px 16px', fontSize: '13px', borderRadius: '20px', border: '1px solid var(--border-strong)', background: 'var(--bg)' }}>
-                <option value="all">Tutti i contenuti</option>
-                <optgroup label="Stato">
-                  <option value="published-1">Pubblicati</option>
-                  <option value="published-0">Bozze</option>
-                </optgroup>
-                <optgroup label="Social">
-                  {allPlatforms.map(p => <option key={p} value={`platform-${p}`}>{SOCIAL[p]?.label || p}</option>)}
-                </optgroup>
-                <optgroup label="Tag">
-                  {allTags.map(t => <option key={t} value={`tag-${t}`}>Tag: {t}</option>)}
-                </optgroup>
-              </select>
-            </div>
-            <div style={{ display: 'flex', gap: '8px', marginBottom: '1rem', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap' }}>
-              <div style={{ display: 'flex', gap: '8px' }}>
-                <a href={siteUrl} target="_blank" rel="noopener"
-                  style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '8px 14px', background: 'var(--purple)', color: '#fff', borderRadius: 'var(--radius-sm)', textDecoration: 'none', fontSize: '13px', fontWeight: 500 }}>
-                  ✦ Apri lo Spazio Vivo
-                </a>
-                <a href={`${siteUrl}/sitemap.xml`} target="_blank" rel="noopener"
-                  style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '8px 14px', background: 'var(--surface)', border: '1px solid var(--border-strong)', color: 'var(--text)', borderRadius: 'var(--radius-sm)', textDecoration: 'none', fontSize: '13px' }}>
-                  🗺 Sitemap XML
-                </a>
-              </div>
-              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                {pendingPosts.length > 0 && (
-                  <button className="btn btn-primary" onClick={() => processPendingLoop(false)}>
-                    ↻ Elabora {pendingPosts.length} contenuti
-                  </button>
-                )}
-                {selectedPosts.length > 0 && (
-                  <button onClick={bulkDeletePosts} style={{ background: 'var(--red)', color: 'white', border: 'none', padding: '8px 14px', borderRadius: 'var(--radius-sm)', fontSize: '13px', cursor: 'pointer', fontWeight: 500 }}>
-                    🗑 Elimina {selectedPosts.length} selezionati
-                  </button>
-                )}
-                <div style={{ display: 'flex', background: 'var(--bg)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-strong)', overflow: 'hidden' }}>
-                  <button onClick={() => setViewMode('grid')} style={{ background: viewMode === 'grid' ? 'var(--gray-light)' : 'transparent', border: 'none', padding: '6px 12px', cursor: 'pointer' }}>🔲</button>
-                  <button onClick={() => setViewMode('table')} style={{ background: viewMode === 'table' ? 'var(--gray-light)' : 'transparent', border: 'none', padding: '6px 12px', cursor: 'pointer' }}>📄</button>
-                </div>
+              
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
+                <button onClick={() => setDashboardFilter('all')} style={{ padding: '10px 20px', borderRadius: '30px', fontSize: '15px', fontWeight: 600, border: 'none', background: dashboardFilter === 'all' ? 'var(--primary)' : 'var(--surface)', color: dashboardFilter === 'all' ? 'white' : 'var(--text)', boxShadow: '0 2px 5px rgba(0,0,0,0.05)', cursor: 'pointer' }}>Tutti i contenuti</button>
+                <button onClick={() => setDashboardFilter('published-1')} style={{ padding: '10px 20px', borderRadius: '30px', fontSize: '15px', fontWeight: 600, border: 'none', background: dashboardFilter === 'published-1' ? 'var(--teal)' : 'var(--surface)', color: dashboardFilter === 'published-1' ? 'white' : 'var(--text)', boxShadow: '0 2px 5px rgba(0,0,0,0.05)', cursor: 'pointer' }}>Pubblicati</button>
+                <button onClick={() => setDashboardFilter('published-0')} style={{ padding: '10px 20px', borderRadius: '30px', fontSize: '15px', fontWeight: 600, border: 'none', background: dashboardFilter === 'published-0' ? 'var(--amber)' : 'var(--surface)', color: dashboardFilter === 'published-0' ? 'white' : 'var(--text)', boxShadow: '0 2px 5px rgba(0,0,0,0.05)', cursor: 'pointer' }}>Bozze / In elaborazione</button>
               </div>
             </div>
 
+            {/* Azioni Veloci */}
+            <div style={{ display: 'flex', gap: '12px', marginBottom: '2rem', flexWrap: 'wrap' }}>
+              <a href={siteUrl} target="_blank" rel="noopener"
+                className="btn btn-primary" style={{ padding: '14px 24px', fontSize: '16px', fontWeight: 800 }}>
+                ✦ Apri Sito Pubblico
+              </a>
+              {pendingPosts.length > 0 && (
+                <button className="btn btn-outline" onClick={() => processPendingLoop(false)} style={{ padding: '14px 24px', fontSize: '16px', fontWeight: 800 }}>
+                  ↻ Elabora {pendingPosts.length} nuovi arrivi
+                </button>
+              )}
+              {selectedPosts.length > 0 && (
+                <button onClick={bulkDeletePosts} style={{ background: 'var(--red)', color: 'white', border: 'none', padding: '14px 24px', borderRadius: 'var(--radius)', fontSize: '16px', cursor: 'pointer', fontWeight: 800 }}>
+                  🗑 Elimina {selectedPosts.length} selezionati
+                </button>
+              )}
+            </div>
+
+            {/* Lista Contenuti (Forzata in Grid View) */}
             {filteredPosts.length === 0 ? (
               <div className="card" style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '4rem 2rem' }}>
-                <div style={{ fontSize: '48px', marginBottom: '1rem', opacity: 0.5 }}>📭</div>
-                <h3 style={{ fontSize: '18px' }}>Nessun contenuto trovato</h3>
-                <p style={{ fontSize: '14px', marginTop: '0.5rem' }}>Prova a cambiare i filtri di ricerca o clicca "Aggiorna ora".</p>
+                <div style={{ fontSize: '64px', marginBottom: '1rem', opacity: 0.5 }}>📭</div>
+                <h3 style={{ fontSize: '24px', fontWeight: 800, color: 'var(--text)' }}>Nessun contenuto trovato</h3>
+                <p style={{ fontSize: '18px', marginTop: '0.5rem' }}>Non ci sono articoli per i filtri selezionati.</p>
               </div>
-            ) : viewMode === 'grid' ? (
+            ) : (
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1fr))', gap: '2rem', width: '100%' }}>
                 {filteredPosts.map(post => (
-                  <div key={post.id} className="article-card">
+                  <div key={post.id} className="article-card" style={{ border: '2px solid var(--border-strong)', boxShadow: '0 8px 24px rgba(0,0,0,0.04)' }}>
                     
                     {/* Header: Sorgente Social */}
-                    <div className="article-card-header">
+                    <div className="article-card-header" style={{ padding: '16px 24px', borderBottom: '1px solid var(--border-strong)' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                        {/* Checkbox di selezione multipla */}
-                        <input type="checkbox" checked={selectedPosts.includes(post.id)} onChange={() => togglePostSelection(post.id)} style={{ transform: 'scale(1.3)', cursor: 'pointer', margin: 0 }} />
-                        <div style={{ background: 'var(--surface)', padding: '6px', borderRadius: '50%', boxShadow: 'var(--shadow-sm)', flexShrink: 0, display: 'flex' }}>
-                          <SocialIcon platform={post.platform} size={20} />
+                        <input type="checkbox" checked={selectedPosts.includes(post.id)} onChange={() => togglePostSelection(post.id)} style={{ transform: 'scale(1.5)', cursor: 'pointer', margin: 0 }} />
+                        <div style={{ background: 'var(--surface)', padding: '8px', borderRadius: '50%', boxShadow: 'var(--shadow-sm)', flexShrink: 0, display: 'flex' }}>
+                          <SocialIcon platform={post.platform} size={24} />
                         </div>
-                        <span style={{ fontWeight: 800, fontSize: '14px', color: 'var(--text)', textTransform: 'capitalize' }}>{SOCIAL[post.platform]?.label || post.platform}</span>
-                        {/* Badge Stato (Nascoso/Bozza) */}
-                        {Number(post.seo_score) < 0 ? (
-                          <span className={`article-processing-badge ${postProcessingStatus(post) === 'failed' ? 'is-error' : ''}`}>
-                            {postProcessingLabel(post)}
-                          </span>
-                        ) : (
-                          <span className={`article-publication-status ${Number(post.published) === 1 ? 'is-published' : 'is-draft'}`}>
-                            {Number(post.published) === 1 ? 'PUBBLICATO' : 'BOZZA'}
-                          </span>
-                        )}
-                        {Number(post.noindex) === 1 && <span style={{ background: 'var(--red-light)', color: 'var(--red)', padding: '4px 10px', borderRadius: '20px', fontSize: '11px', fontWeight: 800, whiteSpace: 'nowrap' }}>NOINDEX</span>}
+                        <span style={{ fontWeight: 800, fontSize: '16px', color: 'var(--text)', textTransform: 'capitalize' }}>{SOCIAL[post.platform]?.label || post.platform}</span>
                       </div>
                       
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        {String(post.media_type || '').toUpperCase() === 'VIDEO' && <span style={{ background: 'var(--primary-light)', color: 'var(--primary-dark)', padding: '4px 10px', borderRadius: '20px', fontSize: '11px', fontWeight: 700, whiteSpace: 'nowrap' }}>🎥 VIDEO</span>}
-                        {Number(post.seo_score) < 0 ? (postProcessingStatus(post) === 'processing' ? <span className="article-processing-pulse" title="Elaborazione realmente in corso" /> : null) : (
-                          <div style={{ width: '32px', height: '32px', borderRadius: '50%', flexShrink: 0, background: post.seo_score >= 80 ? 'var(--teal-light)' : (post.seo_score >= 50 ? 'var(--amber-light)' : 'var(--red-light)'), color: post.seo_score >= 80 ? 'var(--teal)' : (post.seo_score >= 50 ? 'var(--amber)' : 'var(--red)'), display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: '12px', border: `2px solid ${post.seo_score >= 80 ? 'var(--teal)' : (post.seo_score >= 50 ? 'var(--amber)' : 'var(--red)')}`, boxShadow: '0 4px 10px rgba(0,0,0,0.05)' }} title={`Score SEO: ${post.seo_score}`}>
-                            {post.seo_score}
-                          </div>
-                        )}
+                      {/* Badge Stato (Nascoso/Bozza) */}
+                      <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                         {Number(post.seo_score) < 0 ? (
+                           <span className={`article-processing-badge ${postProcessingStatus(post) === 'failed' ? 'is-error' : ''}`} style={{ fontSize: '12px', padding: '6px 12px' }}>
+                             {postProcessingLabel(post)}
+                           </span>
+                         ) : (
+                           <span className={`article-publication-status ${Number(post.published) === 1 ? 'is-published' : 'is-draft'}`} style={{ fontSize: '12px', padding: '6px 12px' }}>
+                             {Number(post.published) === 1 ? 'PUBBLICATO' : 'BOZZA'}
+                           </span>
+                         )}
                       </div>
                     </div>
                     
                     {/* Contenuto Testuale */}
                     <div style={{ padding: '24px', flex: 1, display: 'flex', flexDirection: 'column' }}>
-                      <h4 style={{ fontSize: '18px', fontWeight: 800, marginBottom: '12px', lineHeight: 1.4, color: 'var(--text)' }}>
+                      <h4 style={{ fontSize: '20px', fontWeight: 800, marginBottom: '16px', lineHeight: 1.4, color: 'var(--text)' }}>
                         {post.generated_title || (post.raw_content ? post.raw_content.substring(0, 80) : 'Nuovo contenuto')}
                       </h4>
-                      <div style={{ fontSize: '14px', color: 'var(--text-muted)', display: '-webkit-box', WebkitLineClamp: 4, WebkitBoxOrient: 'vertical', overflow: 'hidden', lineHeight: 1.6, fontWeight: 500 }}>
+                      <div style={{ fontSize: '16px', color: 'var(--text-muted)', display: '-webkit-box', WebkitLineClamp: 4, WebkitBoxOrient: 'vertical', overflow: 'hidden', lineHeight: 1.6, fontWeight: 500 }}>
                         {post.generated_excerpt || (post.generated_body ? post.generated_body.substring(0, 200) : Number(post.seo_score) < 0 ? postProcessingStatus(post) === 'failed' ? (post.processing_error || String(post.agent_notes || '').replace(/^Errore:\s*/, '')) : postProcessingStatus(post) === 'processing' ? 'Creazione articolo in corso.' : "Contenuto acquisito, pronto per essere elaborato." : '')}
                       </div>
-
-                      {post.tags?.length > 0 && (
-                        <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: 'auto', paddingTop: '20px' }}>
-                          {post.tags.slice(0, 4).map(t => <span key={t} style={{ color: 'var(--primary-dark)', background: 'var(--primary-light)', padding: '4px 10px', borderRadius: '6px', fontSize: '12px', fontWeight: 700 }}>#{t}</span>)}
-                        </div>
-                      )}
                     </div>
 
                     {/* Azioni Fondo Card */}
-                    {Number(post.seo_score) < 0 && <div className={`article-processing-note ${postProcessingStatus(post) === 'failed' ? 'is-error' : ''}`}>{postProcessingStatus(post) === 'failed' ? 'Il tentativo precedente non è riuscito. Usa Riprova per riavviare la lavorazione.' : postProcessingStatus(post) === 'processing' ? 'La creazione è già in corso: aprire questa pagina non la riavvia.' : 'Non è in lavorazione. Premi Elabora ora per avviarla.'}</div>}
-                    <div className="article-card-footer">
-                      {Number(post.seo_score) < 0 && <button className="article-retry-button" disabled={postProcessingStatus(post) === 'processing'} onClick={() => retryPendingPost(post.id)}>{postProcessingStatus(post) === 'processing' ? '⏳ IN CORSO' : postProcessingStatus(post) === 'failed' ? '↻ RIPROVA' : '▶ ELABORA ORA'}</button>}
-                      <button disabled={Number(post.seo_score) < 0} onClick={() => openPostEditor(post)} style={{ flex: '1', padding: '10px', fontSize: '13px', fontWeight: 800, borderRadius: 'var(--radius-sm)', background: 'var(--primary)', color: '#fff', border: 'none', cursor: 'pointer', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '6px', transition: 'all 0.2s', boxShadow: '0 4px 12px rgba(99,102,241,0.3)' }}>
-                        ✏️ MODIFICA
-                      </button>
-                      <button className={`article-publish-button ${Number(post.published) === 1 ? 'is-published' : 'is-draft'}`} disabled={Number(post.seo_score) < 0 || publishingPostId === post.id} onClick={() => togglePublishPost(post.id, post.published)}>
-                        {publishingPostId === post.id ? 'AGGIORNAMENTO…' : Number(post.published) === 1 ? 'RIMUOVI DAL SITO' : 'PUBBLICA SUL SITO'}
-                      </button>
-                      <button onClick={() => deletePost(post.id)} title="Elimina" style={{ padding: '10px', borderRadius: 'var(--radius-sm)', border: 'none', fontSize: '16px', cursor: 'pointer', background: 'var(--red-light)', color: 'var(--red)', border: '1px solid rgba(239,68,68,0.3)', transition: 'all 0.2s', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-                        ❌
-                      </button>
+                    <div className="article-card-footer" style={{ padding: '20px 24px', background: 'var(--surface)', borderTop: '1px solid var(--border)', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                      {Number(post.seo_score) < 0 ? (
+                         <button className="btn btn-outline" style={{ gridColumn: '1 / -1', padding: '14px', fontSize: '15px' }} disabled={postProcessingStatus(post) === 'processing'} onClick={() => retryPendingPost(post.id)}>
+                            {postProcessingStatus(post) === 'processing' ? '⏳ IN CORSO' : postProcessingStatus(post) === 'failed' ? '↻ RIPROVA' : '▶ ELABORA ORA'}
+                         </button>
+                      ) : (
+                         <>
+                           <button onClick={() => openPostEditor(post)} className="btn btn-outline" style={{ padding: '12px', fontSize: '15px' }}>
+                             ✏️ MODIFICA
+                           </button>
+                           <button className={`article-publish-button ${Number(post.published) === 1 ? 'is-published' : 'is-draft'}`} style={{ padding: '12px', fontSize: '15px', gridColumn: 'span 1' }} disabled={publishingPostId === post.id} onClick={() => togglePublishPost(post.id, post.published)}>
+                             {publishingPostId === post.id ? 'ATTENDI…' : Number(post.published) === 1 ? 'NASCONDI' : 'PUBBLICA'}
+                           </button>
+                         </>
+                      )}
                     </div>
                   </div>
                 ))}
-              </div>
-            ) : (
-              <div className="glass-modal" style={{ padding: '0', overflowX: 'auto', background: 'rgba(0,0,0,0.2)' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', color: 'var(--text)' }}>
-                  <thead style={{ background: 'rgba(255,255,255,0.05)', borderBottom: '1px solid var(--border)' }}>
-                    <tr>
-                      <th style={{ padding: '16px', width: '40px' }}>
-                        <input type="checkbox" checked={selectedPosts.length === filteredPosts.length && filteredPosts.length > 0} onChange={() => selectAllPosts(filteredPosts)} style={{ cursor: 'pointer', transform: 'scale(1.2)' }} />
-                      </th>
-                      <th style={{ padding: '16px', fontSize: '14px', color: 'var(--text-muted)', fontWeight: 800, textTransform: 'uppercase' }}>Status</th>
-                      <th style={{ padding: '16px', fontSize: '14px', color: 'var(--text-muted)', fontWeight: 800, textTransform: 'uppercase' }}>Titolo</th>
-                      <th style={{ padding: '16px', fontSize: '14px', color: 'var(--text-muted)', fontWeight: 800, textTransform: 'uppercase' }}>Social</th>
-                      <th style={{ padding: '16px', fontSize: '14px', color: 'var(--text-muted)', fontWeight: 800, textTransform: 'uppercase' }}>SEO</th>
-                      <th style={{ padding: '16px', fontSize: '14px', color: 'var(--text-muted)', fontWeight: 800, textTransform: 'uppercase' }}>Azioni</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredPosts.map(post => (
-                      <tr key={post.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', transition: 'background 0.2s ease' }} onMouseOver={e => e.currentTarget.style.background = 'rgba(255,255,255,0.02)'} onMouseOut={e => e.currentTarget.style.background = 'transparent'}>
-                        <td style={{ padding: '16px' }}>
-                          <input type="checkbox" checked={selectedPosts.includes(post.id)} onChange={() => togglePostSelection(post.id)} style={{ cursor: 'pointer', transform: 'scale(1.2)' }} />
-                        </td>
-                        <td style={{ padding: '16px' }}>
-                           {Number(post.seo_score) < 0 ? <span className={`article-processing-badge ${postProcessingStatus(post) === 'failed' ? 'is-error' : ''}`}>{postProcessingLabel(post)}</span> : <span className={`article-publication-status ${Number(post.published) === 1 ? 'is-published' : 'is-draft'}`}>{Number(post.published) === 1 ? 'PUBBLICATO' : 'BOZZA'}</span>}
-                        </td>
-                        <td style={{ padding: '16px', fontWeight: 600, fontSize: '15px' }}>
-                          {post.generated_title || (post.raw_content ? `${post.raw_content.substring(0, 40)}...` : 'Contenuto acquisito')}
-                          {Number(post.noindex) === 1 && <span style={{ display: 'inline-block', marginLeft: '8px', padding: '3px 7px', borderRadius: '999px', background: 'var(--red-light)', color: 'var(--red)', fontSize: '10px', fontWeight: 800 }}>NOINDEX</span>}
-                        </td>
-                        <td style={{ padding: '16px' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', fontWeight: 600 }}>
-                            <SocialIcon platform={post.platform} size={20} /> {SOCIAL[post.platform]?.label}
-                          </div>
-                        </td>
-                        <td style={{ padding: '16px' }}>
-                          <span style={{ background: post.seo_score >= 80 ? 'rgba(0,255,150,0.1)' : (post.seo_score >= 50 ? 'rgba(255,149,0,0.1)' : 'rgba(255,0,50,0.1)'), color: post.seo_score >= 80 ? 'var(--teal)' : (post.seo_score >= 50 ? 'var(--amber)' : 'var(--red)'), padding: '6px 12px', borderRadius: '20px', fontSize: '13px', fontWeight: 800, border: `1px solid ${post.seo_score >= 80 ? 'rgba(0,255,150,0.2)' : (post.seo_score >= 50 ? 'rgba(255,149,0,0.2)' : 'rgba(255,0,50,0.2)')}` }}>
-                            {Number(post.seo_score) < 0 ? '—' : post.seo_score}
-                          </span>
-                        </td>
-                        <td style={{ padding: '16px' }}>
-                          <div style={{ display: 'flex', gap: '10px' }}>
-                            {Number(post.seo_score) < 0 && <button disabled={postProcessingStatus(post) === 'processing'} onClick={() => retryPendingPost(post.id)} className="article-retry-button">{postProcessingStatus(post) === 'processing' ? '⏳ In corso' : postProcessingStatus(post) === 'failed' ? '↻ Riprova' : '▶ Elabora'}</button>}
-                            {Number(post.seo_score) >= 0 && <button onClick={() => openPostEditor(post)} style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', color: 'var(--text)', padding: '6px 12px', borderRadius: '6px', cursor: 'pointer', fontSize: '13px', fontWeight: 600 }}>✏️ Modifica</button>}
-                            {Number(post.seo_score) >= 0 && <button className={`article-publish-button is-compact ${Number(post.published) === 1 ? 'is-published' : 'is-draft'}`} disabled={publishingPostId === post.id} onClick={() => togglePublishPost(post.id, post.published)}>{publishingPostId === post.id ? 'Aggiornamento…' : Number(post.published) === 1 ? 'Rimuovi dal sito' : 'Pubblica sul sito'}</button>}
-                            <button onClick={() => deletePost(post.id)} style={{ background: 'rgba(255,0,50,0.1)', border: '1px solid rgba(255,0,50,0.3)', color: 'var(--red)', padding: '6px 12px', borderRadius: '6px', cursor: 'pointer', fontSize: '13px', fontWeight: 600 }}>❌ Elimina</button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
               </div>
             )}
           </div>
@@ -3913,7 +3858,7 @@ const [importMsg, setImportMsg] = useState(null);
                 </div>
               </div>
 
-              <div style={{ display: 'grid', gap: '1rem', marginBottom: '1.5rem' }}>
+              <div style={{ display: 'grid', gap: '1.5rem', marginBottom: '2rem' }}>
                 <input
                   className="form-control"
                   type="search"
@@ -3921,22 +3866,34 @@ const [importMsg, setImportMsg] = useState(null);
                   onChange={(event) => setThemeQuery(event.target.value)}
                   placeholder="Cerca un tema, un settore o uno stile…"
                   aria-label="Cerca nel catalogo temi"
-                  style={{ maxWidth: '520px' }}
+                  style={{ width: '100%', padding: '16px 24px', fontSize: '18px', borderRadius: 'var(--radius-lg)', border: '2px solid var(--border-strong)', background: 'var(--surface)' }}
                 />
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }} aria-label="Filtra i temi per categoria">
+                
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px' }} aria-label="Filtra i temi per categoria">
                   {SITE_LAYOUT_CATEGORIES.map(category => (
                     <button
                       key={category}
                       type="button"
-                      className={themeCategory === category ? 'btn btn-primary' : 'btn btn-outline'}
                       onClick={() => setThemeCategory(category)}
-                      style={{ padding: '8px 12px', fontSize: '12px' }}
+                      style={{ 
+                        padding: '12px 24px', 
+                        fontSize: '16px', 
+                        fontWeight: 800,
+                        borderRadius: '30px', 
+                        border: 'none',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s',
+                        background: themeCategory === category ? 'var(--primary)' : 'var(--surface)',
+                        color: themeCategory === category ? '#fff' : 'var(--text)',
+                        boxShadow: '0 4px 10px rgba(0,0,0,0.05)'
+                      }}
                     >
                       {category}
                     </button>
                   ))}
                 </div>
-                <div style={{ color: 'var(--text-muted)', fontSize: '12px', fontWeight: 700 }}>
+                
+                <div style={{ color: 'var(--text-muted)', fontSize: '16px', fontWeight: 800 }}>
                   {visibleSiteLayouts.length} {visibleSiteLayouts.length === 1 ? 'tema disponibile' : 'temi disponibili'}
                 </div>
               </div>
