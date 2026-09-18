@@ -1830,7 +1830,11 @@ const [importMsg, setImportMsg] = useState(null);
   function openThemePreview(layout) {
     const previewData = encodeStudioPreviewData(siteLayoutToStudioData(layout));
     setPreviewingTheme(layout.id);
-    setActivePreviewUrl(`${siteUrl}?preview_data=${previewData}`);
+    setActivePreviewUrl(previewData);
+    setTimeout(() => {
+      const form = document.getElementById('theme-preview-form');
+      if (form) form.submit();
+    }, 50);
   }
 
   function moveThemePreview(direction) {
@@ -1973,7 +1977,11 @@ const [importMsg, setImportMsg] = useState(null);
         bio: profileDraft,
         hero_tagline: heroTagline,
       });
-      setStudioPreviewUrl(`${siteUrl}?studio_preview=1&preview_data=${previewData}`);
+      setStudioPreviewUrl(previewData);
+      setTimeout(() => {
+        const form = document.getElementById('admin-sts-preview-form');
+        if (form) form.submit();
+      }, 50);
     }, 120);
 
     return () => window.clearTimeout(timer);
@@ -3948,11 +3956,25 @@ const [importMsg, setImportMsg] = useState(null);
             {/* Iframe Anteprima Modale */}
             {activePreviewUrl && (
               <div role="dialog" aria-modal="true" aria-label="Anteprima tema" style={{ position: 'fixed', inset: 0, background: '#080a0f', zIndex: 11000 }}>
-                <iframe
-                  title={`Anteprima ${previewingLayout?.name || 'tema'}`}
-                  src={activePreviewUrl}
-                  style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', background: '#fff', border: 'none' }}
-                />
+                {activePreviewUrl.startsWith('http') ? (
+                  <iframe
+                    title={`Anteprima ${previewingLayout?.name || 'tema'}`}
+                    src={activePreviewUrl}
+                    style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', background: '#fff', border: 'none' }}
+                  />
+                ) : (
+                  <>
+                    <form id="theme-preview-form" target="theme_preview_frame" method="POST" action={`${siteUrl}?studio_preview=1`} style={{display: 'none'}}>
+                      <input type="hidden" name="preview_data" value={activePreviewUrl} />
+                    </form>
+                    <iframe
+                      name="theme_preview_frame"
+                      title={`Anteprima ${previewingLayout?.name || 'tema'}`}
+                      src={`${siteUrl}?studio_preview=1`}
+                      style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', background: '#fff', border: 'none' }}
+                    />
+                  </>
+                )}
                 <div style={{ position: 'absolute', left: '50%', bottom: 'max(14px, env(safe-area-inset-bottom))', transform: 'translateX(-50%)', zIndex: 2, display: 'flex', alignItems: 'center', gap: '6px', width: 'max-content', maxWidth: 'calc(100% - 20px)', padding: '7px', border: '1px solid rgba(255,255,255,.12)', borderRadius: '999px', background: 'rgba(10,12,18,.92)', color: '#fff', boxShadow: '0 12px 38px rgba(0,0,0,.35)', backdropFilter: 'blur(18px)' }}>
                   <button type="button" aria-label="Tema precedente" onClick={() => moveThemePreview(-1)} style={{ width: 38, height: 38, flex: '0 0 38px', border: 0, borderRadius: '50%', background: 'rgba(255,255,255,.1)', color: '#fff', cursor: 'pointer', fontSize: '24px', lineHeight: 1 }}>‹</button>
                   <div style={{ minWidth: 0, width: 'clamp(44px, 16vw, 190px)', padding: '0 4px', overflow: 'hidden' }}>
@@ -4021,10 +4043,14 @@ const [importMsg, setImportMsg] = useState(null);
 
                 <div style={{ position: 'relative', minHeight: 0, flex: 1, overflow: 'hidden', background: 'linear-gradient(180deg, rgba(8,14,28,0.96), rgba(16,24,42,0.96))' }}>
                   <div style={{ position: 'absolute', inset: '20px', borderRadius: '28px', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.08)', boxShadow: '0 30px 80px rgba(0,0,0,0.35)', background: '#0b1220' }}>
+                    <form id="admin-sts-preview-form" target="admin_preview_frame" method="POST" action={`${siteUrl}?studio_preview=1`} style={{display: 'none'}}>
+                      <input type="hidden" name="preview_data" value={studioPreviewUrl} />
+                    </form>
                     {studioPreviewUrl ? (
                       <iframe
+                        name="admin_preview_frame"
                         title="Anteprima live studio"
-                        src={studioPreviewUrl}
+                        src={`${siteUrl}?studio_preview=1`}
                         style={{ width: '100%', height: '100%', border: 'none', background: '#fff' }}
                       />
                     ) : (
