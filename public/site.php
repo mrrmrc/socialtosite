@@ -609,8 +609,9 @@ if (isset($_GET['preview_theme'])) {
     $customCss = '';
     $accentColor = '';
 }
-if (!empty($_GET['preview_data'])) {
-    $encodedPreview = strtr((string)$_GET['preview_data'], '-_', '+/');
+if (!empty($_POST['preview_data']) || !empty($_GET['preview_data'])) {
+    $rawPreviewData = $_POST['preview_data'] ?? $_GET['preview_data'];
+    $encodedPreview = strtr((string)$rawPreviewData, '-_', '+/');
     $padding = strlen($encodedPreview) % 4;
     if ($padding > 0) $encodedPreview .= str_repeat('=', 4 - $padding);
     $decodedPreview = base64_decode($encodedPreview, true);
@@ -2762,7 +2763,7 @@ header('Link: <' . $siteUrl . '/feed.xml>; rel="alternate"; type="application/at
 <?php // La home pubblica usa sempre la struttura editoriale universale. ?>
 <?php
   $isLivingHome = false;
-  $hasCustomTheme = $archetype !== 'network-standard' && (!empty($aiData) || !empty($_GET['preview_data']));
+  $hasCustomTheme = $archetype !== 'network-standard' && (!empty($aiData) || !empty($_GET['preview_data']) || !empty($_POST['preview_data']));
   $isPublicHome = !$single && !$foundationPage && $view === '' && !$activeTag;
 ?>
 <body class="theme-<?= h(networkTopicSlug($archetype)) ?> layout-<?= $layoutVariant ?> living-mode-<?= h($livingSpaceMode) ?><?= $isLivingHome ? ' has-living-home' : '' ?><?= $isPublicHome ? ' is-public-home' : '' ?><?= $useHospitalityLanding ? ' is-hospitality-site' : '' ?><?= $hasCustomTheme ? ' has-custom-theme' : '' ?> theme-family-<?= h(networkTopicSlug($primaryModel ?: 'standard')) ?> hero-mode-<?= h(networkTopicSlug($heroMode ?: 'product')) ?> nav-mode-<?= h(networkTopicSlug($navMode ?: 'solid')) ?> cards-mode-<?= h(networkTopicSlug($cardsMode ?: 'product')) ?> density-mode-<?= h(networkTopicSlug($densityMode ?: 'balanced')) ?>">

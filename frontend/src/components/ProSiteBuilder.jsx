@@ -378,12 +378,16 @@ export function ProSiteBuilder({ user, open, onClose }) {
       .catch(err => setMessage(err.message));
   }, [open, token]);
 
-  // Debounced preview update
+  const previewDataString = useMemo(() => encodePreview({ ...style, ...content }), [style, content]);
+
   useEffect(() => {
     if (!open) return;
     setPreviewLoading(true);
     clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => setPreviewTick(x => x + 1), 150);
+    debounceRef.current = setTimeout(() => {
+      const form = document.getElementById('sts-preview-form');
+      if (form) form.submit();
+    }, 150);
     return () => clearTimeout(debounceRef.current);
   }, [style, content, open]);
 
@@ -401,10 +405,6 @@ export function ProSiteBuilder({ user, open, onClose }) {
   const siteUrl = useMemo(
     () => `${window.location.origin}/${user?.slug || site?.slug || ''}`.replace(/\/$/, ''),
     [user?.slug, site?.slug],
-  );
-  const previewUrl = useMemo(
-    () => `${siteUrl}?studio_preview=1&preview_data=${encodePreview({ ...style, ...content })}&v=${previewTick}`,
-    [siteUrl, style, content, previewTick],
   );
 
   const setNested = useCallback((group, key, value) =>
@@ -602,6 +602,18 @@ export function ProSiteBuilder({ user, open, onClose }) {
   return (
     <>
       <style>{`
+        .pro-site-builder {
+          --bg: #060d1a;
+          --surface: rgba(8,15,30,0.95);
+          --text: #ffffff;
+          --text-muted: rgba(255,255,255,0.55);
+          --border: rgba(255,255,255,0.1);
+          --border-strong: rgba(255,255,255,0.15);
+          --primary: #3b82f6;
+          --primary-light: rgba(37,99,235,0.25);
+          --primary-dark: #93c5fd;
+          --gray-light: rgba(255,255,255,0.06);
+        }
         @keyframes psb-fadein { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
         @keyframes psb-pulse { 0%,100% { opacity:1; } 50% { opacity:.5; } }
         @keyframes psb-spin { to { transform:rotate(360deg); } }
@@ -1331,11 +1343,14 @@ export function ProSiteBuilder({ user, open, onClose }) {
               </div>
 
               {/* iframe */}
+              <form id="sts-preview-form" target="preview_frame" method="POST" action={`${siteUrl}?studio_preview=1`} style={{display: 'none'}}>
+                <input type="hidden" name="preview_data" value={previewDataString} />
+              </form>
               <iframe
+                name="preview_frame"
                 ref={previewRef}
                 onLoad={() => setPreviewLoading(false)}
                 title="Anteprima live del sito"
-                src={previewUrl}
                 style={{
                   width: '100%', height: '100%', border: 0,
                   borderRadius: 16, background: '#fff',
