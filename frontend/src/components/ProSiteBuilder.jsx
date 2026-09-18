@@ -603,22 +603,22 @@ export function ProSiteBuilder({ user, open, onClose }) {
     <>
       <style>{`
         .pro-site-builder {
-          --bg: #060d1a;
-          --surface: rgba(8,15,30,0.95);
-          --text: #ffffff;
-          --text-muted: rgba(255,255,255,0.55);
-          --border: rgba(255,255,255,0.1);
-          --border-strong: rgba(255,255,255,0.15);
-          --primary: #3b82f6;
-          --primary-light: rgba(37,99,235,0.25);
-          --primary-dark: #93c5fd;
-          --gray-light: rgba(255,255,255,0.06);
+          --bg: #f3f0e8;
+          --surface: rgba(255,255,255,0.97);
+          --text: #171917;
+          --text-muted: #4a4d49;
+          --border: rgba(23,25,23,0.15);
+          --border-strong: rgba(23,25,23,0.30);
+          --primary: #6d5ce7;
+          --primary-light: rgba(109,92,231,0.12);
+          --primary-dark: #5a48d1;
+          --gray-light: rgba(23,25,23,0.05);
         }
         @keyframes psb-fadein { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
         @keyframes psb-pulse { 0%,100% { opacity:1; } 50% { opacity:.5; } }
         @keyframes psb-spin { to { transform:rotate(360deg); } }
         @keyframes psb-success { 0% { transform:scale(0.8); opacity:0; } 60% { transform:scale(1.05); } 100% { transform:scale(1); opacity:1; } }
-        .psb-tool-btn:hover { background: var(--gray-light) !important; color: rgba(255,255,255,.8) !important; }
+        .psb-tool-btn:hover { background: var(--gray-light) !important; color: var(--text) !important; }
         .psb-choice:hover { background: var(--gray-light) !important; border-color: var(--primary) !important; }
         .psb-theme-card:hover { border-color: rgba(96,165,250,.4) !important; background: var(--gray-light) !important; transform: translateY(-2px); }
         .psb-block-row:hover { border-color: var(--primary) !important; background: var(--gray-light) !important; }
@@ -677,7 +677,7 @@ export function ProSiteBuilder({ user, open, onClose }) {
               background: dirty ? 'rgba(245,158,11,.1)' : 'rgba(34,197,94,.1)',
               border: `1px solid ${dirty ? 'rgba(245,158,11,.2)' : 'rgba(34,197,94,.18)'}`,
               fontSize: 11, fontWeight: 700,
-              color: dirty ? '#fbbf24' : '#86efac',
+              color: dirty ? '#b45309' : '#0f6e56',
               transition: 'all .3s ease',
             }}>
               <span style={{
@@ -1311,7 +1311,7 @@ export function ProSiteBuilder({ user, open, onClose }) {
             </aside>
 
             {/* ── Preview Pane ── */}
-            <main style={{ position: 'relative', minWidth: 0, background: '#0a0f1e', padding: 16 }}>
+            <main style={{ position: 'relative', minWidth: 0, background: '#dfe5ee', padding: 16 }}>
               {/* Preview status bar */}
               <div style={{
                 position: 'absolute', left: 28, top: 28, zIndex: 3,
@@ -1348,6 +1348,7 @@ export function ProSiteBuilder({ user, open, onClose }) {
               <iframe
                 name="preview_frame"
                 ref={previewRef}
+                src={`${siteUrl}?studio_preview=1&preview_data=${previewDataString}`}
                 onLoad={() => setPreviewLoading(false)}
                 title="Anteprima live del sito"
                 style={{
