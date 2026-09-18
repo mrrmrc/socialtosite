@@ -387,24 +387,38 @@ export function ProSiteBuilder({ user, open, onClose }) {
   );
 
   const [previewHtml, setPreviewHtml] = useState(null);
+  const [previewError, setPreviewError] = useState(null);
 
   useEffect(() => {
     if (!open || !siteUrl) return;
     setPreviewLoading(true);
+    setPreviewError(null);
     clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(async () => {
       try {
+        const targetUrl = `${siteUrl}?studio_preview=1`;
         const formData = new FormData();
         formData.append('preview_data', previewDataString);
-        const response = await fetch(`${siteUrl}?studio_preview=1`, {
+        const response = await fetch(targetUrl, {
           method: 'POST',
           body: formData,
         });
+        if (!response.ok) {
+          setPreviewError(`Errore HTTP ${response.status}`);
+          setPreviewLoading(false);
+          return;
+        }
         let html = await response.text();
+        if (!html || html.length < 100) {
+          setPreviewError('Risposta vuota dal server');
+          setPreviewLoading(false);
+          return;
+        }
         html = html.replace('<head>', `<head><base href="${siteUrl}/">`);
         setPreviewHtml(html);
       } catch (err) {
         console.error('Preview fetch error:', err);
+        setPreviewError(err.message || 'Errore di rete');
       } finally {
         setPreviewLoading(false);
       }
@@ -1359,17 +1373,44 @@ export function ProSiteBuilder({ user, open, onClose }) {
                 👆 Clicca una parte del sito per modificarla
               </div>
 
-              {/* iframe */}
-              <iframe
-                ref={previewRef}
-                srcDoc={previewHtml || ''}
-                title="Anteprima live del sito"
-                style={{
-                  width: '100%', height: '100%', border: 0,
-                  borderRadius: 16, background: '#fff',
-                  boxShadow: '0 30px 80px rgba(0,0,0,.5)',
-                }}
-              />
+              {/* iframe preview */}
+              {previewError ? (
+                <div style={{
+                  width: '100%', height: '100%', display: 'flex', flexDirection: 'column',
+                  alignItems: 'center', justifyContent: 'center', gap: 12,
+                  borderRadius: 16, background: 'rgba(255,60,60,.08)',
+                  border: '1px solid rgba(255,60,60,.2)', color: '#ff6b6b',
+                  fontSize: 14, textAlign: 'center', padding: 24,
+                }}>
+                  <span style={{ fontSize: 32 }}>⚠️</span>
+                  <strong>Anteprima non disponibile</strong>
+                  <span style={{ opacity: .7, fontSize: 12 }}>{previewError}</span>
+                  <span style={{ opacity: .5, fontSize: 11 }}>URL: {siteUrl}?studio_preview=1</span>
+                </div>
+              ) : previewHtml ? (
+                <iframe
+                  ref={previewRef}
+                  srcDoc={previewHtml}
+                  title="Anteprima live del sito"
+                  style={{
+                    width: '100%', height: '100%', border: 0,
+                    borderRadius: 16, background: '#fff',
+                    boxShadow: '0 30px 80px rgba(0,0,0,.5)',
+                  }}
+                />
+              ) : (
+                <div style={{
+                  width: '100%', height: '100%', display: 'flex', flexDirection: 'column',
+                  alignItems: 'center', justifyContent: 'center', gap: 10,
+                  borderRadius: 16, background: 'rgba(255,255,255,.04)',
+                  border: '1px solid rgba(255,255,255,.08)', color: 'rgba(255,255,255,.4)',
+                  fontSize: 13,
+                }}>
+                  <span style={{ fontSize: 28, animation: 'spin 1s linear infinite' }}>⏳</span>
+                  <span>Carico anteprima…</span>
+                  <span style={{ opacity: .5, fontSize: 11 }}>{siteUrl || 'Caricamento sito…'}</span>
+                </div>
+              )}
             </main>
           </div>
         </div>
