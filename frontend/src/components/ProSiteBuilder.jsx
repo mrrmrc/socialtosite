@@ -1348,7 +1348,6 @@ export function ProSiteBuilder({ user, open, onClose }) {
               <iframe
                 name="preview_frame"
                 ref={previewRef}
-                src={`${siteUrl}?studio_preview=1`}
                 onLoad={() => setPreviewLoading(false)}
                 title="Anteprima live del sito"
                 style={{

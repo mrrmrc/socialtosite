@@ -3970,7 +3970,6 @@ const [importMsg, setImportMsg] = useState(null);
                     <iframe
                       name="theme_preview_frame"
                       title={`Anteprima ${previewingLayout?.name || 'tema'}`}
-                      src={`${siteUrl}?studio_preview=1`}
                       style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', background: '#fff', border: 'none' }}
                     />
                   </>
@@ -4050,7 +4049,6 @@ const [importMsg, setImportMsg] = useState(null);
                       <iframe
                         name="admin_preview_frame"
                         title="Anteprima live studio"
-                        src={`${siteUrl}?studio_preview=1`}
                         style={{ width: '100%', height: '100%', border: 'none', background: '#fff' }}
                       />
                     ) : (
