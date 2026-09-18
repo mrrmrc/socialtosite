@@ -380,16 +380,32 @@ export function ProSiteBuilder({ user, open, onClose }) {
 
   const previewDataString = useMemo(() => encodePreview({ ...style, ...content }), [style, content]);
 
+  const [previewHtml, setPreviewHtml] = useState(null);
+
   useEffect(() => {
     if (!open) return;
     setPreviewLoading(true);
     clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => {
-      const form = document.getElementById('sts-preview-form');
-      if (form) form.submit();
+    debounceRef.current = setTimeout(async () => {
+      try {
+        const formData = new FormData();
+        formData.append('preview_data', previewDataString);
+        
+        const response = await fetch(`${siteUrl}?studio_preview=1`, {
+          method: 'POST',
+          body: formData
+        });
+        let html = await response.text();
+        html = html.replace('<head>', `<head><base href="${siteUrl}/">`);
+        setPreviewHtml(html);
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setPreviewLoading(false);
+      }
     }, 150);
     return () => clearTimeout(debounceRef.current);
-  }, [style, content, open]);
+  }, [style, content, open, siteUrl, previewDataString]);
 
   // Click-on-preview to jump to tool
   useEffect(() => {
@@ -1342,13 +1358,9 @@ export function ProSiteBuilder({ user, open, onClose }) {
               </div>
 
               {/* iframe */}
-              <form id="sts-preview-form" target="preview_frame" method="POST" action={`${siteUrl}?studio_preview=1`} style={{display: 'none'}}>
-                <input type="hidden" name="preview_data" value={previewDataString} />
-              </form>
               <iframe
-                name="preview_frame"
                 ref={previewRef}
-                onLoad={() => setPreviewLoading(false)}
+                srcDoc={previewHtml || ''}
                 title="Anteprima live del sito"
                 style={{
                   width: '100%', height: '100%', border: 0,
