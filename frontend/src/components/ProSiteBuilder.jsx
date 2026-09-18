@@ -380,26 +380,31 @@ export function ProSiteBuilder({ user, open, onClose }) {
 
   const previewDataString = useMemo(() => encodePreview({ ...style, ...content }), [style, content]);
 
+  // siteUrl must be defined BEFORE the preview fetch useEffect
+  const siteUrl = useMemo(
+    () => `${window.location.origin}/${user?.slug || site?.slug || ''}`.replace(/\/$/, ''),
+    [user?.slug, site?.slug],
+  );
+
   const [previewHtml, setPreviewHtml] = useState(null);
 
   useEffect(() => {
-    if (!open) return;
+    if (!open || !siteUrl) return;
     setPreviewLoading(true);
     clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(async () => {
       try {
         const formData = new FormData();
         formData.append('preview_data', previewDataString);
-        
         const response = await fetch(`${siteUrl}?studio_preview=1`, {
           method: 'POST',
-          body: formData
+          body: formData,
         });
         let html = await response.text();
         html = html.replace('<head>', `<head><base href="${siteUrl}/">`);
         setPreviewHtml(html);
       } catch (err) {
-        console.error(err);
+        console.error('Preview fetch error:', err);
       } finally {
         setPreviewLoading(false);
       }
@@ -418,10 +423,7 @@ export function ProSiteBuilder({ user, open, onClose }) {
     return () => window.removeEventListener('message', handler);
   }, [open]);
 
-  const siteUrl = useMemo(
-    () => `${window.location.origin}/${user?.slug || site?.slug || ''}`.replace(/\/$/, ''),
-    [user?.slug, site?.slug],
-  );
+
 
   const setNested = useCallback((group, key, value) =>
     setStyle(prev => ({ ...prev, [group]: { ...prev[group], [key]: value } })), []);
