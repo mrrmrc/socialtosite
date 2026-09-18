@@ -75,15 +75,15 @@ const SECTION_BLOCKS = [
 const RESERVED_SECTION_IDS = SECTION_BLOCKS.map(item => item.id);
 
 const TOOLS = [
-  { id: 'lia',       icon: '✨', label: 'Aiuto AI', help: 'Chiedi a LIA di modificare il sito' },
-  { id: 'themes',    icon: '🎨', label: 'Stile',     help: 'Scegli una base pronta' },
-  { id: 'texts',     icon: 'T',  label: 'Testi',     help: 'Modifica ciò che si legge' },
-  { id: 'structure', icon: '⠿',  label: 'Struttura', help: 'Macro layout e ordine sezioni' },
-  { id: 'header',    icon: '▣',  label: 'Testata',   help: 'Decidi come inizi la pagina' },
-  { id: 'menu',      icon: '☰',  label: 'Menu',      help: 'Scegli la navigazione' },
-  { id: 'content',   icon: '▦',  label: 'Contenuti', help: 'Disponi articoli e foto' },
-  { id: 'colors',    icon: '●',  label: 'Colori',    help: 'Personalizza l\'aspetto' },
-  { id: 'advanced',  icon: '⚙',  label: 'Avanzate',  help: 'Solo se ti servono' },
+  { id: 'lia',       icon: '✨', label: 'Chiedi a LIA', help: 'Descrivi la modifica che desideri' },
+  { id: 'themes',    icon: '🎨', label: 'Tema',         help: 'Scegli una base pronta' },
+  { id: 'texts',     icon: 'T',  label: 'Testi',        help: 'Nome, messaggio e presentazione' },
+  { id: 'header',    icon: '▣',  label: 'Apertura',     help: 'Decidi la prima impressione' },
+  { id: 'content',   icon: '▦',  label: 'Contenuti',    help: 'Articoli, foto e sezioni' },
+  { id: 'structure', icon: '⠿',  label: 'Struttura',    help: 'Ordine delle sezioni' },
+  { id: 'menu',      icon: '☰',  label: 'Menu',         help: 'Navigazione del sito' },
+  { id: 'colors',    icon: '●',  label: 'Colori',       help: 'Palette, caratteri e dettagli' },
+  { id: 'advanced',  icon: '⚙',  label: 'Avanzate',     help: 'Opzioni tecniche' },
 ];
 
 const BUILDER_LAYOUTS = SITE_LAYOUTS.filter(
@@ -778,18 +778,17 @@ export function ProSiteBuilder({ user, open, onClose }) {
                 borderBottom: '1px solid var(--border-strong)',
                 display: 'flex', flexDirection: 'column'
               }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 18px' }}>
-                  <div style={{ fontWeight: 800, fontSize: 16, color: 'var(--text)' }}>Strumenti di Modifica</div>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 18px 6px' }}>
+                  <div><div style={{ fontWeight: 800, fontSize: 16, color: 'var(--text)' }}>Modifica il sito</div><div style={{ marginTop: 2, color: 'var(--text-muted)', fontSize: 11 }}>{activeTool?.help}</div></div>
                   <button type="button" onClick={() => setPanelVisible(false)} style={{
                     background: 'transparent', border: 'none', color: 'var(--text-muted)', fontSize: 20, cursor: 'pointer'
                   }}>✕</button>
                 </div>
                 
-                {/* Horizontal Tool Tabs */}
+                {/* Clear, always visible tool choices: no horizontal scrolling. */}
                 <div style={{
-                  display: 'flex', gap: 6, padding: '0 18px 12px',
-                  overflowX: 'auto', WebkitOverflowScrolling: 'touch',
-                  scrollbarWidth: 'none'
+                  display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 6,
+                  padding: '6px 18px 12px',
                 }}>
                   {TOOLS.map(tool => (
                     <button
@@ -797,12 +796,12 @@ export function ProSiteBuilder({ user, open, onClose }) {
                       type="button"
                       onClick={() => setSection(tool.id)}
                       style={{
-                        display: 'flex', alignItems: 'center', gap: 6,
-                        padding: '8px 14px', borderRadius: 99, flexShrink: 0,
+                        display: 'flex', minWidth: 0, flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 3,
+                        minHeight: 58, padding: '7px 4px', borderRadius: 10,
                         background: section === tool.id ? 'var(--primary)' : 'var(--bg)',
                         color: section === tool.id ? '#fff' : 'var(--text)',
                         border: '1px solid ' + (section === tool.id ? 'var(--primary)' : 'var(--border)'),
-                        fontWeight: 600, fontSize: 13, cursor: 'pointer',
+                        fontWeight: 700, fontSize: 10, lineHeight: 1.1, textAlign: 'center', cursor: 'pointer',
                         transition: 'all .15s ease'
                       }}
                     >
