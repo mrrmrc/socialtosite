@@ -90,6 +90,15 @@ final class WebsiteSource {
         return $normalize($left) !== '' && $normalize($left) === $normalize($right);
     }
 
+    // Chiave per riconoscere lo stesso articolo quando feed e sitemap lo
+    // scrivono in modo diverso (http/https, con o senza www, barra finale).
+    private static function urlKey(string $url): string {
+        $url = strtolower(trim($url));
+        $url = preg_replace('~^https?://~', '', $url);
+        $url = preg_replace('~^www\.~', '', (string)$url);
+        return rtrim((string)$url, '/');
+    }
+
     private static function isLikelyPageUrl(string $url): bool {
         $path = strtolower((string)parse_url($url, PHP_URL_PATH));
         if ($path === '' || str_ends_with($path, '/')) return true;
@@ -257,13 +266,28 @@ final class WebsiteSource {
                 }
             } catch (Throwable $e) {}
         }
-        if (!$items) {
+        // Il feed di WordPress espone solo gli ultimi 10 articoli, mentre la
+        // sitemap elenca tutto lo storico. Prima la sitemap veniva letta solo
+        // se il feed non dava nulla, quindi un sito con decine di contenuti si
+        // fermava comunque a dieci. Ora la usiamo anche per completare, cosi'
+        // il limite richiesto e' l'unico tetto reale.
+        if (count($items) < $limit) {
+            $visti = [];
+            foreach ($items as $raccolto) $visti[self::urlKey((string)$raccolto['url'])] = true;
+            // Ogni articolo della sitemap costa una richiesta HTTP a se'. Con
+            // limiti alti si sfora il tempo massimo di esecuzione, quindi ci
+            // fermiamo dopo 90 secondi tenendo quello che abbiamo raccolto.
+            $scadenza = microtime(true) + 90;
             foreach (self::sitemapPageUrls($page['url'], $html, $limit, $sinceDate) as $sitemapEntry) {
+                if (count($items) >= $limit || microtime(true) > $scadenza) break;
                 try {
                     $articleUrl = (string)$sitemapEntry['url'];
+                    if (isset($visti[self::urlKey($articleUrl)])) continue;
                     $article = self::page($articleUrl);
+                    if (isset($visti[self::urlKey($article['url'])])) continue;
                     $caption = trim($article['description'] . "\n\n" . $article['text']) ?: $article['title'];
                     if ($caption === '') continue;
+                    $visti[self::urlKey($article['url'])] = true;
                     $items[] = [
                         'url' => $article['url'],
                         'title' => $article['title'],

@@ -1972,11 +1972,23 @@ const [importMsg, setImportMsg] = useState(null);
   }
 
   const [adminPreviewHtml, setAdminPreviewHtml] = useState(null);
+  const [adminPreviewError, setAdminPreviewError] = useState('');
 
   useEffect(() => {
     if (!studioWorkspaceOpen) {
       setAdminPreviewHtml(null);
       setStudioPreviewUrl('');
+      setAdminPreviewError('');
+      return;
+    }
+
+    // Senza slug l'indirizzo diventa "/undefined", che risponde 404 con 25
+    // caratteri di HTML. Finivano nell'iframe come se fossero il sito, quindi
+    // l'anteprima sembrava solo vuota invece di dire cosa non andava.
+    if (!user?.slug) {
+      setAdminPreviewHtml(null);
+      setStudioPreviewUrl('');
+      setAdminPreviewError('Questo account non ha ancora un indirizzo pubblico, quindi non esiste un sito da mostrare.');
       return;
     }
 
@@ -1993,16 +2005,22 @@ const [importMsg, setImportMsg] = useState(null);
         const formData = new FormData();
         formData.append('preview_data', previewData);
         const res = await fetch(`${siteUrl}?studio_preview=1`, { method: 'POST', body: formData });
-        let html = await res.text();
-        html = html.replace('<head>', `<head><base href="${siteUrl}/">`);
-        setAdminPreviewHtml(html);
+        const html = await res.text();
+        if (!res.ok) {
+          setAdminPreviewHtml(null);
+          setAdminPreviewError(`Il sito ha risposto ${res.status} all'indirizzo ${siteUrl}`);
+          return;
+        }
+        setAdminPreviewError('');
+        setAdminPreviewHtml(html.replace('<head>', `<head><base href="${siteUrl}/">`));
       } catch (err) {
-        console.error(err);
+        setAdminPreviewHtml(null);
+        setAdminPreviewError(err.message || 'Errore di rete durante il caricamento dell\'anteprima.');
       }
     }, 120);
 
     return () => window.clearTimeout(timer);
-  }, [deferredStudio, selectedTheme, siteUrl, studioWorkspaceOpen, siteTitleDraft, profileDraft, heroTagline]);
+  }, [deferredStudio, selectedTheme, siteUrl, studioWorkspaceOpen, siteTitleDraft, profileDraft, heroTagline, user?.slug]);
 
   async function saveTemplateStudio() {
     setSavingTemplateStudio(true);
@@ -4054,10 +4072,15 @@ const [importMsg, setImportMsg] = useState(null);
 
                 <div style={{ position: 'relative', minHeight: 0, flex: 1, overflow: 'hidden', background: 'linear-gradient(180deg, rgba(8,14,28,0.96), rgba(16,24,42,0.96))' }}>
                   <div style={{ position: 'absolute', inset: '20px', borderRadius: '28px', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.08)', boxShadow: '0 30px 80px rgba(0,0,0,0.35)', background: '#0b1220' }}>
-                    {studioPreviewUrl ? (
+                    {adminPreviewError ? (
+                      <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 10, padding: 24, textAlign: 'center', color: 'rgba(255,255,255,0.85)' }}>
+                        <strong style={{ fontSize: 15 }}>Anteprima non disponibile</strong>
+                        <span style={{ fontSize: 13, opacity: 0.75, maxWidth: 460 }}>{adminPreviewError}</span>
+                      </div>
+                    ) : adminPreviewHtml ? (
                       <iframe
                         title="Anteprima live studio"
-                        srcDoc={adminPreviewHtml || ''}
+                        srcDoc={adminPreviewHtml}
                         style={{ width: '100%', height: '100%', border: 'none', background: '#fff' }}
                       />
                     ) : (
@@ -4866,7 +4889,7 @@ const [importMsg, setImportMsg] = useState(null);
         </div>
       )}
 
-      <ProductGuide posts={posts} sources={sources} siteUrl={siteUrl} onNavigate={target => { if (target === 'articles') selectNavigation({ id: 'site' }); }} />
+      <ProductGuide posts={posts} sources={sources} siteUrl={siteUrl} onNavigate={target => selectNavigation({ id: target === 'articles' ? 'site' : target })} />
       
     </div>
   );

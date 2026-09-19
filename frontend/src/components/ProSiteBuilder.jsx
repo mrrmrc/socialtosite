@@ -381,16 +381,26 @@ export function ProSiteBuilder({ user, open, onClose }) {
   const previewDataString = useMemo(() => encodePreview({ ...style, ...content }), [style, content]);
 
   // siteUrl must be defined BEFORE the preview fetch useEffect
+  const siteSlug = user?.slug || site?.slug || '';
   const siteUrl = useMemo(
-    () => `${window.location.origin}/${user?.slug || site?.slug || ''}`.replace(/\/$/, ''),
-    [user?.slug, site?.slug],
+    () => `${window.location.origin}/${siteSlug}`.replace(/\/$/, ''),
+    [siteSlug],
   );
 
   const [previewHtml, setPreviewHtml] = useState(null);
   const [previewError, setPreviewError] = useState(null);
 
   useEffect(() => {
-    if (!open || !siteUrl) return;
+    // Va verificato lo slug, non siteUrl: quest'ultimo contiene sempre almeno
+    // l'origin, quindi non e' mai vuoto. Senza questo controllo la richiesta
+    // finiva sulla radice, che risponde 200 con la pagina dell'applicazione:
+    // superava ogni controllo di errore e mostrava l'app dentro l'anteprima.
+    if (!open) return;
+    if (!siteSlug) {
+      setPreviewError('Questo account non ha ancora un indirizzo pubblico, quindi non esiste un sito da mostrare.');
+      setPreviewLoading(false);
+      return;
+    }
     setPreviewLoading(true);
     setPreviewError(null);
     clearTimeout(debounceRef.current);
@@ -424,7 +434,7 @@ export function ProSiteBuilder({ user, open, onClose }) {
       }
     }, 150);
     return () => clearTimeout(debounceRef.current);
-  }, [style, content, open, siteUrl, previewDataString]);
+  }, [style, content, open, siteUrl, siteSlug, previewDataString]);
 
   // Click-on-preview to jump to tool
   useEffect(() => {
@@ -769,7 +779,11 @@ export function ProSiteBuilder({ user, open, onClose }) {
         </header>
 
         {/* ── Workspace ── */}
-        <div style={{ display: 'grid', gridTemplateColumns: '0 1fr', minHeight: 0, position: 'relative' }}>
+        {/* Una sola colonna. Le due colonne "0 1fr" servivano quando qui
+            c'era una barra strumenti: da quando e' stata rimossa, l'area
+            principale scivolava nella prima colonna larga 0 e l'anteprima
+            veniva renderizzata correttamente ma con larghezza zero. */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr', minHeight: 0, position: 'relative' }}>
 
           {/* Show Panel Button when hidden */}
           {!panelVisible && (
@@ -788,9 +802,6 @@ export function ProSiteBuilder({ user, open, onClose }) {
               <span>🛠</span> Strumenti
             </button>
           )}
-
-          {/* ── Tool Sidebar (Hidden to preserve depth) ── */}
-          <nav style={{ display: 'none' }}></nav>
 
           {/* ── Main Area ── */}
           <div style={{ display: 'grid', gridTemplateColumns: panelVisible ? '380px 1fr' : '0 1fr', minHeight: 0, transition: 'grid-template-columns .25s ease' }}>

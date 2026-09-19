@@ -2,10 +2,26 @@ import React, { useEffect, useState } from 'react';
 import { apiFetch, SOCIAL, detectPlatformFromUrl } from '../utils/api';
 import { SocialIcon } from '../components/SocialIcon';
 
+// Senza una data di partenza il backend importa solo 5 post (ingest.php:633),
+// quindi un sito appena creato nasceva con tre contenuti. Indicando un periodo
+// il limite sale a 100, che e' anche il tetto di spesa per fonte.
+const PERIODI = [
+  { id: '3m', etichetta: 'Ultimi 3 mesi', nota: 'Solo le cose recenti', mesi: 3 },
+  { id: '12m', etichetta: 'Ultimo anno', nota: 'Scelta consigliata', mesi: 12 },
+  { id: 'tutto', etichetta: 'Tutto lo storico', nota: 'Il massimo disponibile', mesi: 240 },
+];
+
+function dataDiPartenza(mesi) {
+  const d = new Date();
+  d.setMonth(d.getMonth() - mesi);
+  return d.toISOString().slice(0, 10);
+}
+
 export function ConnectScreen({ token, onDone }) {
   const [sources, setSources] = useState([]);
   const [url, setUrl] = useState('');
   const [label, setLabel] = useState('');
+  const [periodo, setPeriodo] = useState('12m');
   const [message, setMessage] = useState(null);
   const [busy, setBusy] = useState(false);
 
@@ -31,7 +47,12 @@ export function ConnectScreen({ token, onDone }) {
     try {
       const result = await apiFetch('/api/index.php?action=social-source-upsert', {
         method: 'POST',
-        body: JSON.stringify({ platform, label: label.trim() || SOCIAL[platform]?.label || 'Fonte', url: url.trim() }),
+        body: JSON.stringify({
+          platform,
+          label: label.trim() || SOCIAL[platform]?.label || 'Fonte',
+          url: url.trim(),
+          since_date: dataDiPartenza((PERIODI.find(p => p.id === periodo) || PERIODI[1]).mesi),
+        }),
       }, token);
       const report = result?.scan_report;
       const detail = report ? ` Trovati ${report.found || 0} contenuti; ${report.imported || 0} importati.` : '';
@@ -61,6 +82,33 @@ export function ConnectScreen({ token, onDone }) {
             <label><span style={{ display: 'block', marginBottom: 6 }}>URL pubblico</span><input type="url" required placeholder="https://www.instagram.com/nome/" value={url} onChange={event => setUrl(event.target.value)} style={{ width: '100%' }} /></label>
             {detected && <div style={{ display: 'flex', gap: 8, alignItems: 'center', color: 'var(--text-muted)', fontSize: 13 }}><SocialIcon platform={detected} size={18} /> {SOCIAL[detected]?.label} riconosciuto</div>}
             <label><span style={{ display: 'block', marginBottom: 6 }}>Etichetta (opzionale)</span><input value={label} onChange={event => setLabel(event.target.value)} placeholder="Es. Canale principale" style={{ width: '100%' }} /></label>
+
+            <div>
+              <span style={{ display: 'block', marginBottom: 8 }}>Da quando vuoi recuperare i contenuti?</span>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 10 }}>
+                {PERIODI.map(p => {
+                  const scelto = p.id === periodo;
+                  return (
+                    <button
+                      key={p.id}
+                      type="button"
+                      onClick={() => setPeriodo(p.id)}
+                      aria-pressed={scelto}
+                      style={{
+                        padding: '16px 14px', borderRadius: 14, cursor: 'pointer', textAlign: 'left',
+                        border: scelto ? '2px solid var(--primary)' : '2px solid var(--border-strong)',
+                        background: scelto ? 'var(--primary-light)' : 'var(--surface)',
+                        color: 'var(--text)', font: 'inherit',
+                      }}
+                    >
+                      <span style={{ display: 'block', fontWeight: 700, fontSize: 15 }}>{p.etichetta}</span>
+                      <span style={{ display: 'block', fontSize: 13, color: 'var(--text-muted)', marginTop: 2 }}>{p.nota}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
             <button className="btn btn-primary" disabled={busy}>{busy ? 'Leggo la fonte…' : 'Aggiungi e acquisisci'}</button>
           </form>
         </section>
