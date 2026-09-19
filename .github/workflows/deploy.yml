@@ -42,6 +42,35 @@ jobs:
           echo "deployvps: main -> build -> FTP/FTPS -> production"
           echo "Docker rebuild/restart/copy is NOT part of deployvps."
 
+      - name: Install lftp
+        timeout-minutes: 8
+        shell: bash
+        run: |
+          set -euo pipefail
+          if command -v lftp >/dev/null 2>&1; then
+            echo "lftp is already available"
+            exit 0
+          fi
+          # GitHub's Azure mirror can occasionally stall for many minutes.
+          # Keep the canonical FTP deploy deterministic by using Ubuntu's
+          # public mirror and bounded network retries.
+          if [ -f /etc/apt/apt-mirrors.txt ]; then
+            printf '%s\n' 'https://archive.ubuntu.com/ubuntu/' | sudo tee /etc/apt/apt-mirrors.txt >/dev/null
+          fi
+          apt_options=(-o Acquire::Retries=5 -o Acquire::http::Timeout=20 -o Acquire::https::Timeout=20)
+          for attempt in 1 2 3; do
+            if sudo apt-get "${apt_options[@]}" update && sudo apt-get "${apt_options[@]}" install -y --fix-missing lftp; then
+              exit 0
+            fi
+            if [ "$attempt" -eq 3 ]; then
+              echo "::error::Unable to install lftp after $attempt attempts."
+              exit 1
+            fi
+            echo "::warning::lftp installation attempt $attempt failed; clearing the package cache before retrying."
+            sudo apt-get clean
+            sleep $((attempt * 5))
+          done
+
       - name: Generate release identity
         shell: bash
         run: |
@@ -175,38 +204,47 @@ jobs:
 
           echo "Release files: $(find release -type f | wc -l)"
 
-      # Run 526 measured where the time actually goes: 27s to boot and install
-      # lftp, 13s for PHP checks, Node, build and packaging, and 13m57s to
-      # upload. 2 MB of files over 37 separate TLS handshakes on a slow server
-      # - the bytes were never the problem, the round trips were. This action
-      # keeps a state file on the server and uploads only what changed, so a
-      # normal deploy moves a handful of files instead of all of them. It also
-      # ships its own FTP client, which is why the apt step above is gone.
       - name: Upload release to VPS via FTP/FTPS
         timeout-minutes: 20
-        uses: SamKirkland/FTP-Deploy-Action@v4.4.0
-        with:
-          server: ${{ secrets.FTP_HOST }}
-          username: ${{ secrets.FTP_USER }}
-          password: ${{ secrets.FTP_PASS }}
-          protocol: ftps
-          # The server presents a certificate that does not match the host, the
-          # same reason the lftp config carried ssl:verify-certificate no.
-          security: loose
-          local-dir: release/
-          server-dir: ${{ vars.FTP_REMOTE_DIR }}/
-          log-level: standard
-          # Listed explicitly because setting this replaces the action's own
-          # defaults rather than adding to them.
-          exclude: |
-            **/.git*
-            **/.git*/**
-            **/node_modules/**
-            config/config.php
-            config/keys.php
-            public/media/**
-            scraper/**
-            storage/**
+        env:
+          FTP_HOST: ${{ secrets.FTP_HOST }}
+          FTP_USER: ${{ secrets.FTP_USER }}
+          FTP_PASS: ${{ secrets.FTP_PASS }}
+          FTP_REMOTE_DIR: ${{ vars.FTP_REMOTE_DIR }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          : "${FTP_HOST:?Set repository secret FTP_HOST}"
+          : "${FTP_USER:?Set repository secret FTP_USER}"
+          : "${FTP_PASS:?Set repository secret FTP_PASS}"
+          FTP_REMOTE_DIR="${FTP_REMOTE_DIR:-.}"
+
+          echo "deployvps FTP host: $FTP_HOST"
+          echo "deployvps remote directory: $FTP_REMOTE_DIR"
+
+          # Back on lftp after two rclone attempts (62aa547, 78be89e) that both
+          # left production untouched, with different connection tuning each
+          # time - so the tuning was never the variable that mattered. This is
+          # the exact configuration that last shipped successfully; it is slow
+          # but it publishes. Do not swap the transfer tool again without
+          # reading the failing step's log first.
+          lftp -c "
+          set ftp:ssl-allow true;
+          set ftp:ssl-force false;
+          set ftp:ssl-protect-data true;
+          set ssl:verify-certificate no;
+          set net:max-retries 5;
+          set net:timeout 30;
+          set net:persist-retries 5;
+          set net:connection-limit 6;
+          open -u \"$FTP_USER\",\"$FTP_PASS\" ftp://$FTP_HOST;
+          rm -f \"$FTP_REMOTE_DIR/api/auth/callback.php\";
+          rm -f \"$FTP_REMOTE_DIR/api/auth/tiktok_callback.php\";
+          rm -f \"$FTP_REMOTE_DIR/api/cron/fetch_seo.php\";
+          rm -f \"$FTP_REMOTE_DIR/api/middleware/crypto.php\";
+          rm -f \"$FTP_REMOTE_DIR/api/services/social_oauth.php\";
+          mirror -R --delete --no-perms --parallel=5 --exclude-glob config/config.php --exclude-glob config/keys.php --exclude '^(public/media|scraper|storage)(/.*)?$' release/ \"$FTP_REMOTE_DIR\";
+          "
 
       - name: Verify deployed release on production
         shell: bash
