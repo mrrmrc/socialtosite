@@ -541,6 +541,31 @@ class Ingest {
         return ['ok' => true, 'id' => $postId, 'applied' => $apply, 'proposal' => $result, 'queries' => $queries];
     }
 
+    /**
+     * Annota in linguaggio comprensibile com'e' andata l'ultima scansione di
+     * un canale. Serve perche' un canale che non trova nulla mostrava
+     * "0 - 0 - 0 - Mai", identico a un guasto, senza modo di capire se
+     * l'indirizzo fosse sbagliato, il profilo vuoto o la scansione fallita.
+     */
+    private static function annotaEsitoCanale(int $sourceId, int $trovati, int $importati, string $errore): void {
+        if ($sourceId <= 0) return;
+        if ($errore !== '') {
+            $nota = 'Scansione non riuscita: ' . mb_substr(trim($errore), 0, 180);
+        } elseif ($trovati === 0) {
+            $nota = 'Nessun contenuto pubblico trovato. Il profilo potrebbe essere vuoto o privato, oppure l\'indirizzo non e\' quello giusto.';
+        } elseif ($importati === 0) {
+            $nota = $trovati . ' ' . ($trovati === 1 ? 'contenuto gia\' presente' : 'contenuti gia\' presenti') . ': niente di nuovo da aggiungere.';
+        } else {
+            $nota = $importati . ' ' . ($importati === 1 ? 'nuovo contenuto acquisito' : 'nuovi contenuti acquisiti') . ' su ' . $trovati . ' trovati.';
+        }
+        try {
+            DB::execute('UPDATE social_sources SET last_scan_note=?, last_scan_at=NOW() WHERE id=?', [$nota, $sourceId]);
+        } catch (Throwable $e) {
+            // Le colonne le crea ensureSocialSyncSchema(); se mancassero,
+            // l'annotazione non deve far fallire la scansione.
+        }
+    }
+
     public static function scanSources(int $userId, int $limitPerSource = 5, string $profileOverride = '', string $roleMission = '', string $contentStrategy = '', ?int $sourceId = null, ?string $fallbackSinceDate = null): array {
         $sql = 'SELECT * FROM social_sources WHERE user_id=? AND active=1';
         $params = [$userId];
@@ -676,6 +701,7 @@ class Ingest {
                     }
                 }
                 $report['found'] += count($items);
+                $importatiQui = 0;
                 
                 Logger::info('scan', 'Items trovati da sorgente', [
                     'platform' => $source['platform'],
@@ -706,6 +732,7 @@ class Ingest {
                             continue;
                         }
                         $report['imported']++;
+                        $importatiQui++;
                         if (!empty($ingested['id'])) $report['imported_ids'][] = (int)$ingested['id'];
                         Logger::info('scan', 'Post importato', ['platform' => $source['platform'], 'url' => $sourceUrl, 'db_id' => $ingested['id'] ?? null]);
                         // L'ingestione si ferma qui (bozza creata). L'elaborazione AI avviene in process-pending.
@@ -714,8 +741,10 @@ class Ingest {
                         Logger::error('scan', 'Errore ingestione singolo post', ['platform' => $source['platform'], 'url' => $sourceUrl, 'error' => $e->getMessage()]);
                     }
                 }
+                self::annotaEsitoCanale((int)$source['id'], count($items), $importatiQui, '');
             } catch (Throwable $e) {
                 $report['errors'][] = $source['platform'] . ': ' . $e->getMessage();
+                self::annotaEsitoCanale((int)$source['id'], 0, 0, $e->getMessage());
                 Logger::error('scan', 'Errore sorgente', ['platform' => $source['platform'], 'url' => $source['url'], 'error' => $e->getMessage()]);
             }
         }

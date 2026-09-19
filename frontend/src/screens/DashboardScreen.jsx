@@ -2819,6 +2819,8 @@ const [importMsg, setImportMsg] = useState(null);
               failed_count: Number(s.failed_count || 0),
               last_content_at: s.last_content_at || null,
               topic_summary: s.topic_summary,
+              last_scan_note: s.last_scan_note || '',
+              last_scan_at: s.last_scan_at || null,
             });
           });
 
@@ -2952,6 +2954,20 @@ const [importMsg, setImportMsg] = useState(null);
                           )}
                           <div className="last"><strong>{channel.last_content_at ? new Date(channel.last_content_at).toLocaleDateString('it-IT') : 'Mai'}</strong><span>ultimo contenuto</span></div>
                         </div>
+
+                        {channel.last_scan_note && (
+                          <div style={{
+                            fontSize: '13px', lineHeight: 1.45, padding: '9px 12px', borderRadius: 'var(--radius-sm)',
+                            color: channel.content_count === 0 ? '#8a5a00' : 'var(--text-muted)',
+                            background: channel.content_count === 0 ? '#fff7e6' : 'var(--bg)',
+                            border: `1px solid ${channel.content_count === 0 ? '#f0d089' : 'var(--border)'}`,
+                          }}>
+                            {channel.last_scan_note}
+                            {channel.last_scan_at && (
+                              <span style={{ opacity: .65 }}> · {new Date(String(channel.last_scan_at).replace(' ', 'T')).toLocaleString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+                            )}
+                          </div>
+                        )}
 
                         <details className="channel-settings-details">
                           <summary>Impostazioni di acquisizione</summary>

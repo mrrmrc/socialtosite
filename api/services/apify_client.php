@@ -126,7 +126,7 @@ final class ApifyClient {
     }
 
     private static function itemUrl(array $item): string {
-        return trim((string)($item['url'] ?? $item['postUrl'] ?? $item['link'] ?? $item['videoUrl'] ?? ''));
+        return trim((string)($item['url'] ?? $item['postUrl'] ?? $item['link'] ?? $item['videoUrl'] ?? $item['webVideoUrl'] ?? ''));
     }
 
     private static function normalize(array $result): ?array {
@@ -146,16 +146,47 @@ final class ApifyClient {
         $mediaUrl = trim((string)(
             $result['videoUrl'] ?? $result['hdVideoUrl'] ?? $result['displayUrl'] ?? $result['imageUrl'] ?? $result['thumbnailUrl'] ?? ''
         ));
-        
-        $mediaType = 'text';
-        $typeHint = strtolower((string)($result['type'] ?? $result['mediaType'] ?? ''));
-        if (str_contains($typeHint, 'video') || !empty($result['videoUrl'])) {
-            $mediaType = 'video';
-        } elseif ($mediaUrl !== '' || str_contains($typeHint, 'image') || str_contains($typeHint, 'photo')) {
-            $mediaType = 'image';
+
+        // L'attore Facebook non popola nessuno dei campi piatti qui sopra:
+        // mette foto e video in un array "media", con l'immagine vera dentro
+        // photo_image.uri. Senza leggerlo, ogni post privo di testo veniva
+        // scartato come vuoto ("Nessun testo estratto e nessun media trovato"),
+        // ed e' anche il motivo per cui i video non arrivavano mai alla
+        // trascrizione: analyzePostMedia riceveva un media_url vuoto.
+        $immaginiDaMedia = [];
+        $videoDaMedia = '';
+        $mediaDichiaraVideo = false;
+        foreach (($result['media'] ?? []) as $media) {
+            if (!is_array($media)) continue;
+            $tipoMedia = strtolower((string)($media['__typename'] ?? $media['__isMedia'] ?? ''));
+            if (str_contains($tipoMedia, 'video')) $mediaDichiaraVideo = true;
+            // I nomi del campo video cambiano fra versioni dell'attore: si
+            // prende il primo che contiene davvero un indirizzo.
+            foreach (['playable_url_quality_hd', 'playable_url', 'videoUrl', 'video_url', 'browser_native_hd_url', 'browser_native_sd_url'] as $chiave) {
+                $candidato = $media[$chiave] ?? '';
+                if ($videoDaMedia === '' && is_string($candidato) && str_starts_with($candidato, 'http')) $videoDaMedia = $candidato;
+            }
+            // Attenzione: $media['url'] e' la pagina Facebook della foto, non
+            // il file immagine, quindi non va usata come media.
+            if (!empty($media['photo_image']['uri'])) $immaginiDaMedia[] = (string)$media['photo_image']['uri'];
+            if (!empty($media['thumbnail'])) $immaginiDaMedia[] = (string)$media['thumbnail'];
         }
 
-        $imageUrls = [];
+        $mediaType = 'text';
+        $typeHint = strtolower((string)($result['type'] ?? $result['mediaType'] ?? ''));
+        if (str_contains($typeHint, 'video') || !empty($result['videoUrl']) || $mediaDichiaraVideo || $videoDaMedia !== '') {
+            $mediaType = 'video';
+            if ($mediaUrl === '') $mediaUrl = $videoDaMedia;
+            // Video senza indirizzo riproducibile: si tiene l'anteprima come
+            // immagine, cosi' il post conserva un contenuto analizzabile
+            // invece di essere buttato via.
+            if ($mediaUrl === '' && $immaginiDaMedia) { $mediaUrl = $immaginiDaMedia[0]; $mediaType = 'image'; }
+        } elseif ($mediaUrl !== '' || $immaginiDaMedia || str_contains($typeHint, 'image') || str_contains($typeHint, 'photo')) {
+            $mediaType = 'image';
+            if ($mediaUrl === '' && $immaginiDaMedia) $mediaUrl = $immaginiDaMedia[0];
+        }
+
+        $imageUrls = $immaginiDaMedia;
         foreach (['imageUrl', 'displayUrl', 'thumbnailUrl', 'coverUrl'] as $key) {
             if (!empty($result[$key])) $imageUrls[] = $result[$key];
         }

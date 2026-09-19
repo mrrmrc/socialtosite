@@ -119,6 +119,8 @@ function ensureSocialSyncSchema(): void {
         $columns = [];
         foreach (DB::fetchAll('SHOW COLUMNS FROM social_sources') as $column) $columns[$column['Field']] = true;
         if (!isset($columns['auto_sync'])) DB::execute('ALTER TABLE social_sources ADD COLUMN auto_sync TINYINT NOT NULL DEFAULT 1');
+        if (!isset($columns['last_scan_note'])) DB::execute('ALTER TABLE social_sources ADD COLUMN last_scan_note VARCHAR(255) NULL');
+        if (!isset($columns['last_scan_at'])) DB::execute('ALTER TABLE social_sources ADD COLUMN last_scan_at DATETIME NULL');
     } catch (Throwable $e) {}
 }
 
@@ -1087,10 +1089,21 @@ if ($action === 'site' && $method === 'GET') {
               LIMIT 300',
             [$userId]
         );
-        $sources = DB::fetchAll(
-            'SELECT id, platform, label, url, topic_summary, active, since_date, auto_publish, auto_sync, max_posts FROM social_sources WHERE user_id=? AND active=1 ORDER BY id DESC',
-            [$userId]
-        );
+        // last_scan_note/last_scan_at le aggiunge ensureSocialSyncSchema() qui
+        // sopra, ma se l'ALTER non fosse andato a buon fine questa query
+        // farebbe fallire l'intera dashboard per una colonna accessoria:
+        // meglio ripiegare sull'elenco senza annotazione.
+        try {
+            $sources = DB::fetchAll(
+                'SELECT id, platform, label, url, topic_summary, active, since_date, auto_publish, auto_sync, max_posts, last_scan_note, last_scan_at FROM social_sources WHERE user_id=? AND active=1 ORDER BY id DESC',
+                [$userId]
+            );
+        } catch (Throwable $e) {
+            $sources = DB::fetchAll(
+                'SELECT id, platform, label, url, topic_summary, active, since_date, auto_publish, auto_sync, max_posts FROM social_sources WHERE user_id=? AND active=1 ORDER BY id DESC',
+                [$userId]
+            );
+        }
         $channelStatRows = DB::fetchAll(
             'SELECT platform, COUNT(*) AS content_count, MAX(published_at) AS last_content_at,
                     SUM(CASE WHEN published=1 THEN 1 ELSE 0 END) AS published_count,

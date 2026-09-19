@@ -2653,6 +2653,12 @@ header('Link: <' . $siteUrl . '/feed.xml>; rel="alternate"; type="application/at
     .has-custom-theme .network-signature-brand strong { font-size:0; }
     .has-custom-theme .network-signature-brand strong::after { content:'Creato con All Social To Web'; font-size:.7rem; font-weight:700; }
     body.has-custom-theme[class*="living-mode-"]:not(.has-living-home) .navbar { width:100%!important; min-height:0; margin:0!important; padding:.75rem max(1rem,calc((100vw - <?= h($contentWidth) ?>)/2))!important; color:var(--text); border:0; border-radius:0!important; background:transparent!important; box-shadow:none!important; backdrop-filter:none!important; position:absolute; top:0; left:0; z-index:120; pointer-events:none; }
+    /* La barra e' trasparente ai clic perche' sta sopra l'apertura e non deve
+       rubarle lo spazio cliccabile, ma i suoi comandi devono restare tutti
+       raggiungibili. Prima i clic venivano riaccesi solo da .nav-mode-solid,
+       quindi in ogni altra modalita' - expanded compresa, che e' quella
+       consigliata - il menu risultava visibile ma completamente inerte. */
+    body.has-custom-theme[class*="living-mode-"]:not(.has-living-home) .navbar > * { pointer-events:auto; }
     .has-custom-theme .nav-brand,.has-custom-theme .nav-links a { color:var(--text); }
     .has-custom-theme .nav-brand { min-height:42px; padding:.35rem .65rem; border:1px solid var(--border); border-radius:999px; background:color-mix(in srgb,var(--card-bg) 88%,transparent); box-shadow:0 8px 28px rgba(0,0,0,.09); backdrop-filter:blur(14px); font-size:.9rem; pointer-events:auto; }
     .has-custom-theme .nav-brand-image { width:36px; height:36px; border-radius:9px; object-fit:contain; }
