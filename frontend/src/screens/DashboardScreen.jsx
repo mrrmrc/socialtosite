@@ -4889,7 +4889,7 @@ const [importMsg, setImportMsg] = useState(null);
         </div>
       )}
 
-      <ProductGuide posts={posts} sources={sources} siteUrl={siteUrl} onNavigate={target => selectNavigation({ id: target === 'articles' ? 'site' : target })} />
+      <ProductGuide />
       
     </div>
   );

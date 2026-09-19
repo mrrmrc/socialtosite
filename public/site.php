@@ -3800,10 +3800,18 @@ document.addEventListener('DOMContentLoaded', () => {
       if (is_array($deployInfoDecoded)) $deployInfo = $deployInfoDecoded;
     }
   }
+  // Data in formato europeo. La stringa viene letta a pezzi invece che con
+  // strtotime perche' e' gia' espressa nel fuso di Roma: reinterpretarla
+  // sposterebbe l'orario di un'ora o due.
+  $deployQuando = '';
+  if (!empty($deployInfo['deployed_at']) && preg_match('/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})/', (string)$deployInfo['deployed_at'], $dm)) {
+    $deployQuando = $dm[3] . '/' . $dm[2] . '/' . $dm[1] . ' alle ' . $dm[4] . ':' . $dm[5];
+  }
+  $deployVersione = preg_replace('/^deployvps-/', '', (string)($deployInfo['release'] ?? ''));
 ?>
 <?php if ($deployInfo && !empty($deployInfo['release'])): ?>
-<style>.sts-deploy-footer{position:fixed;left:50%;bottom:8px;transform:translateX(-50%);z-index:40;font-size:10px;font-weight:600;letter-spacing:.02em;color:rgba(148,163,184,.7);background:rgba(15,23,42,.55);padding:4px 9px;border-radius:999px;pointer-events:none;backdrop-filter:blur(6px);font-family:'SFMono-Regular',Menlo,monospace;white-space:nowrap}@media(max-width:640px){.sts-deploy-footer{display:none}}</style>
-<div class="sts-deploy-footer" aria-hidden="true"><?= h($deployInfo['release']) ?> · <?= h($deployInfo['deployed_at'] ?? '') ?><?= !empty($deployInfo['timezone']) ? ' ' . h($deployInfo['timezone']) : '' ?></div>
+<style>.sts-deploy-footer{position:fixed;left:50%;bottom:10px;transform:translateX(-50%);z-index:40;font-size:12px;font-weight:600;color:#e8eefc;background:rgba(15,23,42,.82);padding:6px 14px;border-radius:999px;pointer-events:none;backdrop-filter:blur(8px);font-family:system-ui,-apple-system,'Segoe UI',sans-serif;white-space:nowrap;box-shadow:0 4px 14px rgba(8,10,28,.28)}.sts-deploy-footer b{font-weight:700}.sts-deploy-footer span{opacity:.62;font-weight:500}@media(max-width:640px){.sts-deploy-footer{display:none}}</style>
+<div class="sts-deploy-footer">Aggiornato il <b><?= h($deployQuando ?: (string)($deployInfo['deployed_at'] ?? '')) ?></b> <span>&middot; versione <?= h($deployVersione) ?></span></div>
 <?php endif; ?>
 </body>
 </html>

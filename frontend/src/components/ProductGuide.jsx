@@ -1,10 +1,10 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { apiFetch } from '../utils/api';
 
 // Volto di LIA disegnato a mano: un SVG resta nitido a ogni dimensione, segue
 // i colori del tema e non aggiunge un file da scaricare. Gli occhi sbattono da
 // soli via CSS; "pensa" mentre aspettiamo la risposta.
-export function LiaFace({ size = 40, thinking = false, title }) {
+function LiaFace({ size = 40, thinking = false, title }) {
   return (
     <svg
       className={`lia-face${thinking ? ' is-thinking' : ''}`}
@@ -54,41 +54,26 @@ export function LiaFace({ size = 40, thinking = false, title }) {
   );
 }
 
-const DOMANDE = {
-  generiche: [
-    'Cosa sta succedendo?',
-    'Cosa devo fare adesso?',
-    'Cosa posso migliorare?',
-    'Il sito e’ pronto?',
-  ],
-  comeFaccio: [
-    'Come aggiungo un canale?',
-    'Come pubblico un articolo?',
-    'Come cambio l’aspetto del sito?',
-    'Come recupero piu’ contenuti?',
-  ],
-};
+// Spunti per iniziare, non un menu permanente: spariscono al primo messaggio
+// perche' una chat non deve portarsi dietro pulsanti che non servono piu'.
+// Due generici e due "come faccio a", cosi' resta chiaro che risponde a entrambe.
+const SPUNTI = [
+  'Cosa devo fare adesso?',
+  'Come aggiungo un canale?',
+  'Cosa posso migliorare?',
+  'Come pubblico un articolo?',
+];
 
-export function ProductGuide({ posts = [], sources = [], siteUrl, onNavigate }) {
+export function ProductGuide() {
   const [open, setOpen] = useState(false);
   const [input, setInput] = useState('');
   const [waiting, setWaiting] = useState(false);
-  const [famiglia, setFamiglia] = useState('generiche');
   const [messages, setMessages] = useState([
-    { role: 'guide', text: 'Ciao, sono LIA. Posso spiegarti come si fa una cosa oppure ragionare con te sui tuoi contenuti e sul sito. Chiedimi pure, anche a parole tue.' },
+    { role: 'guide', text: 'Ciao, sono LIA. Chiedimi pure, anche a parole tue.' },
   ]);
 
   const fineChat = useRef(null);
   const campoTesto = useRef(null);
-
-  const facts = useMemo(() => {
-    const acquired = posts.length;
-    const ready = posts.filter(post => Number(post.seo_score) >= 0).length;
-    const published = posts.filter(post => Number(post.published) === 1).length;
-    const pending = posts.filter(post => Number(post.seo_score) < 0 && post.processing_status !== 'processing').length;
-    const processing = posts.filter(post => post.processing_status === 'processing').length;
-    return { acquired, ready, published, pending, processing, sources: sources.length };
-  }, [posts, sources]);
 
   useEffect(() => {
     if (open) campoTesto.current?.focus();
@@ -128,11 +113,6 @@ export function ProductGuide({ posts = [], sources = [], siteUrl, onNavigate }) 
     }
   }
 
-  function vaiA(destinazione) {
-    setOpen(false);
-    onNavigate?.(destinazione);
-  }
-
   return (
     <>
       <button
@@ -157,12 +137,6 @@ export function ProductGuide({ posts = [], sources = [], siteUrl, onNavigate }) 
             <button onClick={() => setOpen(false)} aria-label="Chiudi chat">&times;</button>
           </header>
 
-          <div className="product-guide-facts">
-            <span><strong>{facts.acquired}</strong> acquisiti</span>
-            <span><strong>{facts.ready}</strong> pronti</span>
-            <span><strong>{facts.published}</strong> online</span>
-          </div>
-
           <div className="product-guide-messages" aria-live="polite">
             {messages.map((message, index) => (
               <div className={`is-${message.role}`} key={`${message.role}-${index}`}>{message.text}</div>
@@ -175,30 +149,13 @@ export function ProductGuide({ posts = [], sources = [], siteUrl, onNavigate }) 
             <div ref={fineChat} />
           </div>
 
-          <div className="product-guide-tabs" role="tablist" aria-label="Tipo di domanda">
-            <button
-              role="tab"
-              aria-selected={famiglia === 'generiche'}
-              className={famiglia === 'generiche' ? 'is-active' : ''}
-              onClick={() => setFamiglia('generiche')}
-            >
-              Domande
-            </button>
-            <button
-              role="tab"
-              aria-selected={famiglia === 'comeFaccio'}
-              className={famiglia === 'comeFaccio' ? 'is-active' : ''}
-              onClick={() => setFamiglia('comeFaccio')}
-            >
-              Come faccio a&hellip;
-            </button>
-          </div>
-
-          <div className="product-guide-questions">
-            {DOMANDE[famiglia].map(question => (
-              <button key={question} disabled={waiting} onClick={() => ask(question)}>{question}</button>
-            ))}
-          </div>
+          {messages.length === 1 && !waiting && (
+            <div className="product-guide-questions">
+              {SPUNTI.map(question => (
+                <button key={question} onClick={() => ask(question)}>{question}</button>
+              ))}
+            </div>
+          )}
 
           <form onSubmit={event => { event.preventDefault(); ask(input); }}>
             <input
@@ -211,11 +168,6 @@ export function ProductGuide({ posts = [], sources = [], siteUrl, onNavigate }) 
             />
             <button type="submit" disabled={waiting || !input.trim()}>{waiting ? 'Attendi…' : 'Invia'}</button>
           </form>
-
-          <footer>
-            <button onClick={() => vaiA('articles')}>Vai ai contenuti</button>
-            <a href={siteUrl} target="_blank" rel="noopener">Apri il sito &#8599;</a>
-          </footer>
         </section>
       )}
     </>
