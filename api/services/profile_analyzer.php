@@ -203,7 +203,7 @@ final class ProfileAnalyzer
         try {
             global $userId;
             $tokens = (int)($response['usageMetadata']['totalTokenCount'] ?? max(1,(strlen($payload) + strlen((string)$text)) / 4));
-            DB::execute('INSERT INTO api_usage_logs (user_id,provider,action,tokens_used) VALUES (?,?,?,?)', [isset($userId) ? $userId : null,'gemini','profileAnalysis',$tokens]);
+            DB::execute('INSERT INTO api_usage_logs (user_id,provider,action,tokens_used,estimated_cost) VALUES (?,?,?,?,?)', [isset($userId) ? $userId : null,'gemini','profileAnalysis',$tokens,ProviderConfig::estimatedCost('gemini',$tokens)]);
         } catch (Throwable $e) {}
         $result = json_decode((string)$text, true);
         if (!is_array($result)) throw new RuntimeException('La profilazione AI ha restituito dati non validi.');

@@ -45,6 +45,7 @@ require_once __DIR__ . '/services/editorial_engine.php';
 require_once __DIR__ . '/services/visibility.php';
 require_once __DIR__ . '/services/seo_foundation.php';
 require_once __DIR__ . '/services/reachability.php';
+require_once __DIR__ . '/services/provider_config.php';
 
 function setSyncStatus(int $uid, string $msg): void {
     $dir = __DIR__ . '/../public/temp';
@@ -128,6 +129,12 @@ function ensureAdminSchema(): void {
     static $done = false;
     if ($done) return;
     $done = true;
+    try {
+        DB::execute('CREATE TABLE IF NOT EXISTS agent_prompt_versions (id BIGINT AUTO_INCREMENT PRIMARY KEY,agent_name VARCHAR(50) NOT NULL,instructions LONGTEXT NOT NULL,changed_by INT NULL,created_at DATETIME DEFAULT CURRENT_TIMESTAMP,KEY prompt_agent_date(agent_name,created_at)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4');
+    } catch (Throwable $e) {}
+    try {
+        DB::execute('CREATE TABLE IF NOT EXISTS user_economics (user_id INT PRIMARY KEY,monthly_revenue DECIMAL(12,2) NOT NULL DEFAULT 0,hosting_cost DECIMAL(12,2) NOT NULL DEFAULT 0,other_cost DECIMAL(12,2) NOT NULL DEFAULT 0,notes TEXT NULL,updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4');
+    } catch (Throwable $e) {}
     try {
         DB::execute('CREATE TABLE IF NOT EXISTS api_usage_logs (
             id INT AUTO_INCREMENT PRIMARY KEY,
@@ -323,17 +330,42 @@ if ($action === 'purge-all-posts' && $method === 'POST') {
 if ($action === 'admin-monitoring' && $method === 'GET') {
     requireAdmin($isAdmin);
     ensureAdminSchema();
+    ProviderConfig::ensureSchema();
 
     // Aggregato token totali per utente
-    $usagePerUser = DB::fetchAll('
-        SELECT u.name, u.email, a.user_id, SUM(a.tokens_used) as total_tokens
-        FROM api_usage_logs a
-        LEFT JOIN users u ON a.user_id = u.id
-        GROUP BY a.user_id, u.name, u.email
-        ORDER BY total_tokens DESC
-    ');
+    $usagePerUser = DB::fetchAll("SELECT u.id AS user_id,u.name,u.email,u.plan,
+        COALESCE(a.total_requests,0) AS total_requests,COALESCE(a.total_tokens,0) AS total_tokens,COALESCE(a.estimated_cost,0) AS estimated_cost,
+        (SELECT COUNT(*) FROM posts p WHERE p.user_id=u.id AND p.published=1) AS published_posts,
+        COALESCE(e.monthly_revenue,0) AS monthly_revenue,COALESCE(e.hosting_cost,0) AS hosting_cost,COALESCE(e.other_cost,0) AS other_cost,e.notes
+        FROM users u LEFT JOIN (SELECT user_id,COUNT(*) total_requests,SUM(tokens_used) total_tokens,SUM(estimated_cost) estimated_cost FROM api_usage_logs GROUP BY user_id) a ON a.user_id=u.id
+        LEFT JOIN user_economics e ON e.user_id=u.id ORDER BY total_tokens DESC,u.name");
 
-    $globalUsage = DB::fetch('SELECT SUM(tokens_used) as total FROM api_usage_logs');
+    $globalUsage = DB::fetch('SELECT COUNT(*) AS requests, SUM(tokens_used) AS total, SUM(estimated_cost) AS estimated_cost FROM api_usage_logs');
+    $usageByProvider = DB::fetchAll('SELECT provider, COUNT(*) AS requests, SUM(tokens_used) AS total_tokens, SUM(estimated_cost) AS estimated_cost FROM api_usage_logs GROUP BY provider ORDER BY requests DESC');
+    $usageByAction = DB::fetchAll('SELECT action, provider, COUNT(*) AS requests, SUM(tokens_used) AS total_tokens, SUM(estimated_cost) AS estimated_cost FROM api_usage_logs GROUP BY action, provider ORDER BY requests DESC LIMIT 30');
+    $usageThisMonth = DB::fetch("SELECT COUNT(*) AS requests, SUM(tokens_used) AS total_tokens, SUM(estimated_cost) AS estimated_cost FROM api_usage_logs WHERE created_at >= DATE_FORMAT(NOW(), '%Y-%m-01')");
+    $providerSettings = DB::fetchAll('SELECT provider,label,model,monthly_credit,unit_cost,enabled FROM ai_provider_connections ORDER BY provider');
+
+    $knownAgents = [
+        ['agent_name'=>'profile_analyzer','label'=>'Profile Analyzer','purpose'=>'Comprensione di attività, pubblico e posizionamento','trigger'=>'Dopo acquisizione o aggiornamento profilo'],
+        ['agent_name'=>'content_editor','label'=>'Content Editor','purpose'=>'Trasformazione dei contenuti social in articoli','trigger'=>'Coda editoriale'],
+        ['agent_name'=>'topical_authority_architect','label'=>'Topical Authority Architect','purpose'=>'Approfondimenti esperti e topical authority','trigger'=>'Scelta editoriale per utente'],
+        ['agent_name'=>'seo_reviewer','label'=>'SEO Reviewer','purpose'=>'Controllo di idoneità, intento e metadati','trigger'=>'Prima della pubblicazione'],
+        ['agent_name'=>'chief_editor','label'=>'Chief Editor','purpose'=>'Categorie, menu, featured e coerenza del corpus','trigger'=>'Manuale o dopo aggiornamento corpus'],
+        ['agent_name'=>'editorial_engine','label'=>'Editorial Engine','purpose'=>'Cluster, gap, memoria e prossime azioni','trigger'=>'Dopo sincronizzazione se abilitato'],
+        ['agent_name'=>'seo_specialist','label'=>'SEO Specialist','purpose'=>'Identità, struttura e configurazione SEO','trigger'=>'Setup e rigenerazione sito'],
+        ['agent_name'=>'site_ai','label'=>'Agente grafico / Site AI','purpose'=>'Direzione visiva e configurazione del sito','trigger'=>'Generazione sito richiesta dall’utente'],
+    ];
+    $promptRows = DB::fetchAll('SELECT agent_name, label, description, CHAR_LENGTH(instructions) AS prompt_length FROM agent_prompts');
+    $promptMap = [];
+    foreach ($promptRows as $row) $promptMap[$row['agent_name']] = $row;
+    foreach ($knownAgents as &$agent) {
+        $configured = isset($promptMap[$agent['agent_name']]) && (int)($promptMap[$agent['agent_name']]['prompt_length'] ?? 0) > 0;
+        $agent['prompt_configured'] = $configured;
+        $agent['status'] = $configured ? 'configured' : 'default';
+        $agent['prompt_length'] = (int)($promptMap[$agent['agent_name']]['prompt_length'] ?? 0);
+    }
+    unset($agent);
 
     $cronLogs = DB::fetchAll('
         SELECT * FROM cron_logs
@@ -345,8 +377,35 @@ if ($action === 'admin-monitoring' && $method === 'GET') {
         'ok' => true,
         'api_usage_per_user' => $usagePerUser,
         'global_usage' => $globalUsage['total'] ?? 0,
+        'global_requests' => $globalUsage['requests'] ?? 0,
+        'global_estimated_cost' => $globalUsage['estimated_cost'] ?? 0,
+        'usage_this_month' => $usageThisMonth,
+        'usage_by_provider' => $usageByProvider,
+        'usage_by_action' => $usageByAction,
+        'provider_settings' => $providerSettings,
+        'agents' => $knownAgents,
+        'cost_tracking_ready' => (float)($globalUsage['estimated_cost'] ?? 0) > 0,
         'cron_logs' => $cronLogs
     ]);
+}
+
+if ($action === 'admin-provider-rates' && $method === 'POST') {
+    requireAdmin($isAdmin);
+    ProviderConfig::ensureSchema();
+    $b = body();
+    $provider = strtolower(trim((string)($b['provider'] ?? '')));
+    if (!in_array($provider, ['gemini','apify'], true)) jsonError('Provider non valido', 422);
+    $unitCost = max(0, (float)($b['unit_cost'] ?? 0));
+    $monthlyCredit = ($b['monthly_credit'] ?? '') === '' ? null : max(0, (float)$b['monthly_credit']);
+    DB::execute('UPDATE ai_provider_connections SET unit_cost=?,monthly_credit=? WHERE provider=?', [$unitCost,$monthlyCredit,$provider]);
+    json(['ok'=>true,'provider'=>$provider,'unit_cost'=>$unitCost,'monthly_credit'=>$monthlyCredit]);
+}
+
+if ($action === 'admin-user-economics' && $method === 'POST') {
+    requireAdmin($isAdmin); ensureAdminSchema(); $b=body(); $targetId=(int)($b['user_id']??0);
+    if($targetId<=0) jsonError('Cliente non valido',422);
+    DB::execute('INSERT INTO user_economics(user_id,monthly_revenue,hosting_cost,other_cost,notes) VALUES(?,?,?,?,?) ON DUPLICATE KEY UPDATE monthly_revenue=VALUES(monthly_revenue),hosting_cost=VALUES(hosting_cost),other_cost=VALUES(other_cost),notes=VALUES(notes)',[$targetId,max(0,(float)($b['monthly_revenue']??0)),max(0,(float)($b['hosting_cost']??0)),max(0,(float)($b['other_cost']??0)),trim((string)($b['notes']??''))]);
+    json(['ok'=>true]);
 }
 
 if (in_array($action, ['site-logo-upload', 'site-visual-upload', 'post-media-upload']) && $method === 'POST') {
@@ -559,12 +618,15 @@ if ($action === 'admin-content-mix' && $method === 'GET') {
     // Quanti clienti hanno davvero contenuti: la media su chi ha zero post
     // racconterebbe una cosa falsa.
     $utentiConPost = (int)(DB::fetch('SELECT COUNT(DISTINCT user_id) c FROM posts')['c'] ?? 0);
+    $recentContents = DB::fetchAll("SELECT p.id,p.user_id,u.name,u.email,p.platform,p.media_type,p.processing_status,p.published,p.seo_score,p.generated_title,p.edited_title,p.agent_notes,p.created_at,p.published_at
+        FROM posts p LEFT JOIN users u ON u.id=p.user_id ORDER BY p.id DESC LIMIT 100");
 
     json([
         'totale_contenuti' => $totale,
         'utenti_con_contenuti' => $utentiConPost,
         'per_tipo' => array_values($perTipo),
         'per_piattaforma' => array_values($perPiattaforma),
+        'contenuti_recenti' => $recentContents,
     ]);
 }
 
@@ -777,7 +839,8 @@ if ($action === 'admin-delete-user' && $method === 'POST') {
 
 if ($action === 'admin-prompts' && $method === 'GET') {
     requireAdmin($isAdmin);
-    $prompts = DB::fetchAll('SELECT * FROM agent_prompts');
+    ensureAdminSchema();
+    $prompts = DB::fetchAll('SELECT p.*,(SELECT COUNT(*) FROM agent_prompt_versions v WHERE v.agent_name=p.agent_name) AS version_count FROM agent_prompts p');
     // Alcuni agenti importanti (es. il Direttore Artistico che genera il sito
     // con l'AI) non hanno ancora una riga finche' nessuno li personalizza: se
     // mancano dalla lista, un admin non puo' nemmeno scoprire che esistono.
@@ -860,13 +923,15 @@ if ($action === 'admin-spazio-vivo-lab' && $method === 'GET') {
 
 if ($action === 'admin-editorial-engine' && $method === 'GET') {
     requireAdmin($isAdmin);
-    json(['ok' => true, 'engine' => EditorialEngine::getState($userId)]);
+    $targetId = max(1, (int)($_GET['user_id'] ?? $userId));
+    json(['ok' => true, 'engine' => EditorialEngine::getState($targetId)]);
 }
 
 if ($action === 'admin-editorial-engine-save' && $method === 'POST') {
     requireAdmin($isAdmin);
     $b = body();
-    $settings = EditorialEngine::saveSettings($userId, [
+    $targetId = max(1, (int)($b['user_id'] ?? $userId));
+    $settings = EditorialEngine::saveSettings($targetId, [
         'enabled' => !empty($b['enabled']),
         'auto_run' => !empty($b['auto_run']),
         'min_posts' => max(3, (int)($b['min_posts'] ?? 8)),
@@ -877,7 +942,9 @@ if ($action === 'admin-editorial-engine-save' && $method === 'POST') {
 
 if ($action === 'admin-editorial-engine-run' && $method === 'POST') {
     requireAdmin($isAdmin);
-    json(['ok' => true, 'result' => EditorialEngine::run($userId)]);
+    $b = body();
+    $targetId = max(1, (int)($b['user_id'] ?? $userId));
+    json(['ok' => true, 'result' => EditorialEngine::run($targetId)]);
 }
 
 if ($action === 'admin-update-prompt' && $method === 'POST') {
@@ -886,6 +953,11 @@ if ($action === 'admin-update-prompt' && $method === 'POST') {
     $agentName = $b['agent_name'] ?? '';
     $instructions = $b['instructions'] ?? '';
     if (!$agentName || !$instructions) jsonError('Dati mancanti');
+    ensureAdminSchema();
+    $previousPrompt = DB::fetch('SELECT instructions FROM agent_prompts WHERE agent_name=?', [$agentName]);
+    if ($previousPrompt && trim((string)$previousPrompt['instructions']) !== trim((string)$instructions)) {
+        DB::execute('INSERT INTO agent_prompt_versions (agent_name,instructions,changed_by) VALUES (?,?,?)', [$agentName,$previousPrompt['instructions'],$userId]);
+    }
     // Upsert: alcuni agenti (es. site_ai) non hanno ancora una riga la prima
     // volta che un admin li personalizza dall'interfaccia (vengono mostrati
     // con un prompt di default sintetico finche' nessuno salva). Un semplice
@@ -896,6 +968,22 @@ if ($action === 'admin-update-prompt' && $method === 'POST') {
         [$agentName, $instructions]
     );
     json(['ok' => true]);
+}
+
+if ($action === 'admin-prompt-history' && $method === 'GET') {
+    requireAdmin($isAdmin); ensureAdminSchema();
+    $agentName = trim((string)($_GET['agent_name'] ?? ''));
+    json(['ok'=>true,'versions'=>DB::fetchAll('SELECT id,agent_name,instructions,changed_by,created_at FROM agent_prompt_versions WHERE agent_name=? ORDER BY id DESC LIMIT 30',[$agentName])]);
+}
+
+if ($action === 'admin-prompt-restore' && $method === 'POST') {
+    requireAdmin($isAdmin); ensureAdminSchema(); $b=body();
+    $version=DB::fetch('SELECT * FROM agent_prompt_versions WHERE id=?',[(int)($b['version_id']??0)]);
+    if(!$version) jsonError('Versione non trovata',404);
+    $current=DB::fetch('SELECT instructions FROM agent_prompts WHERE agent_name=?',[$version['agent_name']]);
+    if($current) DB::execute('INSERT INTO agent_prompt_versions(agent_name,instructions,changed_by) VALUES(?,?,?)',[$version['agent_name'],$current['instructions'],$userId]);
+    DB::execute('UPDATE agent_prompts SET instructions=? WHERE agent_name=?',[$version['instructions'],$version['agent_name']]);
+    json(['ok'=>true]);
 }
 
 if ($action === 'social-sources' && $method === 'GET') {
@@ -2169,4 +2257,3 @@ if ($action === 'admin-logs' && $method === 'GET') {
 }
 
 jsonError('Endpoint non trovato', 404);
-

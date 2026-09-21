@@ -589,11 +589,12 @@ class AI {
         global $userId;
         $uid = isset($userId) ? $userId : null;
         try {
-            DB::execute('INSERT INTO api_usage_logs (user_id, provider, action, tokens_used) VALUES (?, ?, ?, ?)', [
+            DB::execute('INSERT INTO api_usage_logs (user_id, provider, action, tokens_used, estimated_cost) VALUES (?, ?, ?, ?, ?)', [
                 $uid,
                 'gemini',
                 'generateContent',
-                $tokensUsed
+                $tokensUsed,
+                ProviderConfig::estimatedCost('gemini', $tokensUsed)
             ]);
         } catch (Throwable $e) {}
         

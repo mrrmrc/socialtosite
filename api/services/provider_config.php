@@ -16,6 +16,7 @@ final class ProviderConfig
             model VARCHAR(120) NULL,
             secret_ciphertext LONGTEXT NULL,
             monthly_credit DECIMAL(12,2) NULL,
+            unit_cost DECIMAL(12,6) NULL,
             enabled TINYINT NOT NULL DEFAULT 1,
             updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
@@ -33,6 +34,9 @@ final class ProviderConfig
         $usageColumns = [];
         foreach (DB::fetchAll('SHOW COLUMNS FROM api_usage_logs') as $column) $usageColumns[$column['Field']] = true;
         if (!isset($usageColumns['estimated_cost'])) DB::execute('ALTER TABLE api_usage_logs ADD COLUMN estimated_cost DECIMAL(12,6) NOT NULL DEFAULT 0 AFTER tokens_used');
+        $providerColumns = [];
+        foreach (DB::fetchAll('SHOW COLUMNS FROM ai_provider_connections') as $column) $providerColumns[$column['Field']] = true;
+        if (!isset($providerColumns['unit_cost'])) DB::execute('ALTER TABLE ai_provider_connections ADD COLUMN unit_cost DECIMAL(12,6) NULL AFTER monthly_credit');
         DB::execute("INSERT IGNORE INTO ai_provider_connections (provider,label,model) VALUES
             ('gemini','Google Gemini',NULL),
             ('apify','Apify',NULL)");
@@ -98,5 +102,14 @@ final class ProviderConfig
         $model = preg_replace('#^models/#i', '', $model) ?? $model;
         if (strtolower($model) === 'gemini-2.5-flash') return 'gemini-3.6-flash';
         return $model;
+    }
+
+    public static function estimatedCost(string $provider, int $tokens = 0): float
+    {
+        self::ensureSchema();
+        $row = DB::fetch('SELECT unit_cost FROM ai_provider_connections WHERE provider=?', [$provider]);
+        $rate = max(0, (float)($row['unit_cost'] ?? 0));
+        if ($rate <= 0) return 0.0;
+        return $provider === 'gemini' ? round(($tokens / 1000000) * $rate, 6) : round($rate, 6);
     }
 }

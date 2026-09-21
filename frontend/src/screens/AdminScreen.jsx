@@ -41,8 +41,21 @@ const LAYOUT_LABELS = SITE_LAYOUTS.reduce((acc, layout) => {
   return acc;
 }, {});
 
+function ProviderRateCard({ provider, busy, onSave }) {
+  const [unitCost, setUnitCost] = useState(provider.unit_cost || '');
+  const [monthlyCredit, setMonthlyCredit] = useState(provider.monthly_credit || '');
+  useEffect(() => { setUnitCost(provider.unit_cost || ''); setMonthlyCredit(provider.monthly_credit || ''); }, [provider.unit_cost, provider.monthly_credit]);
+  return <article><div><strong>{provider.label || provider.provider}</strong><span>{provider.provider === 'gemini' ? 'Costo per milione di token' : 'Costo medio per esecuzione'}</span></div><label><span>Tariffa €</span><input type="number" min="0" step="0.000001" value={unitCost} onChange={e=>setUnitCost(e.target.value)} /></label><label><span>Budget mensile €</span><input type="number" min="0" step="0.01" value={monthlyCredit} onChange={e=>setMonthlyCredit(e.target.value)} /></label><button className="btn btn-outline" disabled={busy} onClick={()=>onSave(provider.provider,unitCost,monthlyCredit)}>{busy?'Salvo…':'Salva tariffa'}</button></article>;
+}
+
+function UserEconomicsRow({ user, busy, onSave, formatCost }) {
+  const [revenue,setRevenue]=useState(user.monthly_revenue||''); const [hosting,setHosting]=useState(user.hosting_cost||''); const [other,setOther]=useState(user.other_cost||'');
+  const ai=Number(user.estimated_cost||0), margin=Number(revenue||0)-Number(hosting||0)-Number(other||0)-ai;
+  return <tr><td><strong>{user.name||user.email}</strong><small>{user.email} · {user.plan||'—'}</small></td><td>{user.total_requests}<small>{Number(user.total_tokens||0).toLocaleString('it-IT')} token</small></td><td>{user.published_posts}</td><td>{formatCost(ai)}</td><td><input type="number" min="0" step="0.01" value={revenue} onChange={e=>setRevenue(e.target.value)}/></td><td><input type="number" min="0" step="0.01" value={hosting} onChange={e=>setHosting(e.target.value)}/></td><td><input type="number" min="0" step="0.01" value={other} onChange={e=>setOther(e.target.value)}/></td><td><strong style={{color:margin>=0?'var(--teal)':'var(--red)'}}>{formatCost(margin)}</strong></td><td><button className="btn btn-outline" disabled={busy} onClick={()=>onSave(user.user_id,revenue,hosting,other)}>{busy?'…':'Salva'}</button></td></tr>;
+}
+
 export function AdminScreen({ token, currentUser, adminPrompts, updatePrompt }) {
-  const [adminTab, setAdminTab] = useState('users');
+  const [adminTab, setAdminTab] = useState('overview');
   const [users, setUsers] = useState([]);
   const [logs, setLogs] = useState([]);
   const [processes, setProcesses] = useState([]);
@@ -55,14 +68,17 @@ export function AdminScreen({ token, currentUser, adminPrompts, updatePrompt }) 
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [contentMix, setContentMix] = useState(null);
+  const [contentSearch, setContentSearch] = useState('');
   const [monitoringData, setMonitoringData] = useState(null);
+  const [adminActionBusy, setAdminActionBusy] = useState('');
+  const [promptHistory, setPromptHistory] = useState({});
 
   useEffect(() => {
     if (adminTab === 'users' || adminTab === 'control-room') loadUsers();
     if (adminTab === 'logs') loadLogs();
     if (adminTab === 'processes') loadProcesses();
     if (adminTab === 'content-mix') loadContentMix();
-    if (adminTab === 'monitoring') loadMonitoring();
+    if (['overview', 'agents', 'economics', 'monitoring'].includes(adminTab)) loadMonitoring();
   }, [adminTab]);
 
   async function loadMonitoring() {
@@ -150,6 +166,36 @@ export function AdminScreen({ token, currentUser, adminPrompts, updatePrompt }) 
     } catch (e) {
       setError(e.message);
     }
+  }
+
+  async function runEditorialForSelectedUser() {
+    if (!selectedControlUserId) return;
+    setAdminActionBusy('editorial-run'); setError(''); setNotice('');
+    try {
+      const data = await apiFetch('/api/index.php?action=admin-editorial-engine-run', { method:'POST', body:JSON.stringify({ user_id:Number(selectedControlUserId) }) }, token);
+      setNotice(data?.result?.reason || 'Editorial Engine eseguito per il cliente selezionato.');
+      await loadEditorialRoom(selectedControlUserId);
+    } catch (e) { setError(e.message); } finally { setAdminActionBusy(''); }
+  }
+
+  async function saveProviderRate(provider, unitCost, monthlyCredit) {
+    setAdminActionBusy(`provider-${provider}`); setError('');
+    try {
+      await apiFetch('/api/index.php?action=admin-provider-rates', { method:'POST', body:JSON.stringify({ provider, unit_cost:Number(unitCost||0), monthly_credit:monthlyCredit }) }, token);
+      setNotice(`Tariffario ${provider} aggiornato.`); await loadMonitoring();
+    } catch (e) { setError(e.message); } finally { setAdminActionBusy(''); }
+  }
+  async function saveUserEconomics(userId, monthlyRevenue, hostingCost, otherCost) {
+    setAdminActionBusy(`economics-${userId}`); setError('');
+    try { await apiFetch('/api/index.php?action=admin-user-economics',{method:'POST',body:JSON.stringify({user_id:userId,monthly_revenue:Number(monthlyRevenue||0),hosting_cost:Number(hostingCost||0),other_cost:Number(otherCost||0)})},token); setNotice('Economia cliente aggiornata.'); await loadMonitoring(); } catch(e){setError(e.message);} finally{setAdminActionBusy('');}
+  }
+
+  async function loadPromptHistory(agentName) {
+    try { const data=await apiFetch(`/api/index.php?action=admin-prompt-history&agent_name=${encodeURIComponent(agentName)}`,{},token); setPromptHistory(current=>({...current,[agentName]:data.versions||[]})); } catch(e){setError(e.message);}
+  }
+  async function restorePromptVersion(agentName, versionId) {
+    if(!confirm('Ripristinare questa versione del prompt? La versione corrente resterà nello storico.')) return;
+    try { await apiFetch('/api/index.php?action=admin-prompt-restore',{method:'POST',body:JSON.stringify({version_id:versionId})},token); setNotice('Versione ripristinata. Ricarica la pagina per vedere il testo aggiornato.'); await loadPromptHistory(agentName); } catch(e){setError(e.message);}
   }
 
   async function togglePostNoindex(post) {
@@ -425,6 +471,12 @@ export function AdminScreen({ token, currentUser, adminPrompts, updatePrompt }) 
   const dnaHighlights = extractHighlights(roomUser.editorial_dna, 5);
   const memoryHighlights = extractHighlights(roomUser.editorial_memory, 5);
   const settingsHighlights = extractHighlights(roomUser.editorial_settings, 5);
+  const parsedEditorialSettings = parseJsonSafe(roomUser.editorial_settings) || {};
+  const editorialDiagnosis = !roomUser.editorial_last_run
+    ? ((editorialRoom?.posts?.length || 0) < Number(parsedEditorialSettings.min_posts || 8)
+      ? `In attesa: servono almeno ${parsedEditorialSettings.min_posts || 8} articoli pubblicati; disponibili ${editorialRoom?.posts?.length || 0}.`
+      : parsedEditorialSettings.enabled === false ? 'Bloccato: il motore editoriale è disattivato.' : 'Pronto ma mai eseguito: avvialo dalla Control Room.')
+    : (!memoryHighlights.length ? 'Ultima esecuzione presente, ma la memoria editoriale non contiene ancora gap o pagine pilastro.' : 'Motore eseguito e memoria editoriale disponibile.');
 
   const promptVariables = [
     ['{profileSummary}', compactValue(roomUser.profile_summary)],
@@ -436,21 +488,46 @@ export function AdminScreen({ token, currentUser, adminPrompts, updatePrompt }) 
     ? modelRouting.recommended_base_models
     : (parsedUnderstanding.design_direction?.recommended_base_models || []);
   const modelReasonEntries = Object.entries(modelRouting.model_reasons || {}).filter(([, reasons]) => Array.isArray(reasons) && reasons.length);
+  const adminNavigation = [
+    { group: 'Controllo', items: [['overview','Panoramica','▦'],['control-room','Control Room','⌘'],['agents','Agenti AI','✦']] },
+    { group: 'Operatività', items: [['users','Clienti','◎'],['content-mix','Contenuti','▤'],['processes','Code','↻']] },
+    { group: 'Economia', items: [['economics','Costi e consumi','€']] },
+    { group: 'Sistema', items: [['prompts','Prompt','{ }'],['monitoring','Cron e provider','◉'],['logs','Log','≡']] },
+  ];
+  const monthUsage = monitoringData?.usage_this_month || {};
+  const formatCost = value => Number(value || 0).toLocaleString('it-IT', { style: 'currency', currency: 'EUR', minimumFractionDigits: 4 });
 
   return (
-    <div>
-      <div style={{ display: 'flex', gap: '8px', marginBottom: '1rem', flexWrap: 'wrap' }}>
-        <button className={`btn ${adminTab === 'control-room' ? 'btn-primary' : 'btn-outline'}`} onClick={() => setAdminTab('control-room')}>Control Room</button>
-        <button className={`btn ${adminTab === 'users' ? 'btn-primary' : 'btn-outline'}`} onClick={() => setAdminTab('users')}>Gestione Utenti</button>
-        <button className={`btn ${adminTab === 'prompts' ? 'btn-primary' : 'btn-outline'}`} onClick={() => setAdminTab('prompts')}>Istruzioni AI</button>
-        <button className={`btn ${adminTab === 'processes' ? 'btn-primary' : 'btn-outline'}`} onClick={() => setAdminTab('processes')}>Processi Attivi</button>
-        <button className={`btn ${adminTab === 'content-mix' ? 'btn-primary' : 'btn-outline'}`} onClick={() => setAdminTab('content-mix')}>Di cosa sono fatti i contenuti</button>
-        <button className={`btn ${adminTab === 'logs' ? 'btn-primary' : 'btn-outline'}`} onClick={() => setAdminTab('logs')}>Log di Sistema</button>
-        <button className={`btn ${adminTab === 'monitoring' ? 'btn-primary' : 'btn-outline'}`} onClick={() => setAdminTab('monitoring')}>Monitoraggio</button>
-      </div>
+    <div className="admin-workspace">
+      <aside className="admin-navigation" aria-label="Navigazione amministrazione">
+        <header><span>Amministrazione</span><strong>Centro di controllo</strong></header>
+        {adminNavigation.map(section => <section key={section.group}><small>{section.group}</small>{section.items.map(([id,label,icon]) => <button key={id} className={adminTab === id ? 'is-active' : ''} onClick={() => setAdminTab(id)}><i>{icon}</i><span>{label}</span></button>)}</section>)}
+      </aside>
+      <main className="admin-main">
 
       {error && <div style={{ background: 'var(--red-light)', color: 'var(--red)', padding: '10px 14px', borderRadius: 'var(--radius-sm)', marginBottom: '1rem', fontSize: '13px' }}>{error}</div>}
       {notice && <div style={{ background: 'var(--teal-light)', color: '#0F6E56', padding: '10px 14px', borderRadius: 'var(--radius-sm)', marginBottom: '1rem', fontSize: '13px', fontWeight: 700 }}>{notice}</div>}
+
+      {adminTab === 'overview' && <div className="admin-overview">
+        <section className="admin-hero"><div><span>Stato della piattaforma</span><h2>Le informazioni importanti, prima dei dettagli tecnici</h2><p>Clienti, produzione editoriale, agenti e consumi riuniti in una vista operativa.</p></div><button className="btn btn-primary" onClick={() => setAdminTab('control-room')}>Apri Control Room</button></section>
+        <section className="admin-kpi-grid">
+          {[[users.length,'Clienti registrati'],[totalPosts,'Articoli pubblicati'],[processes.length,'Elementi in coda'],[monitoringData?.agents?.filter(a=>a.prompt_configured).length || 0,'Agenti configurati']].map(([value,label])=><article key={label}><strong>{value}</strong><span>{label}</span></article>)}
+        </section>
+        <section className="admin-dashboard-grid">
+          <div className="card"><div className="admin-section-heading"><div><span>Produzione AI</span><h3>Agenti editoriali e grafici</h3></div><button onClick={()=>setAdminTab('agents')}>Vedi tutti →</button></div><div className="admin-agent-compact">{(monitoringData?.agents || []).slice(0,5).map(agent=><article key={agent.agent_name}><i className={agent.prompt_configured?'is-ready':''}/><div><strong>{agent.label}</strong><span>{agent.purpose}</span></div><b>{agent.prompt_configured?'Configurato':'Prompt predefinito'}</b></article>)}</div></div>
+          <div className="card"><div className="admin-section-heading"><div><span>Mese corrente</span><h3>Consumi registrati</h3></div><button onClick={()=>setAdminTab('economics')}>Analizza →</button></div><div className="admin-cost-summary"><strong>{Number(monthUsage.total_tokens||0).toLocaleString('it-IT')}</strong><span>token · {monthUsage.requests||0} richieste</span><b>{monitoringData?.cost_tracking_ready ? formatCost(monthUsage.estimated_cost) : 'Costo non ancora valorizzato'}</b></div></div>
+        </section>
+      </div>}
+
+      {adminTab === 'agents' && <div className="card"><div className="admin-section-heading"><div><span>Registro unico</span><h3>Agenti del sistema</h3><p>Mostra cosa esiste davvero, quando parte e se possiede un prompt configurato.</p></div><button onClick={()=>setAdminTab('prompts')}>Gestisci prompt →</button></div><div className="admin-agent-grid">{(monitoringData?.agents || []).map(agent=><article key={agent.agent_name}><header><span>✦</span><b className={agent.prompt_configured?'is-ready':''}>{agent.prompt_configured?'Configurato':'Default codice'}</b></header><h4>{agent.label}</h4><p>{agent.purpose}</p><dl><div><dt>Trigger</dt><dd>{agent.trigger}</dd></div><div><dt>Identificativo</dt><dd><code>{agent.agent_name}</code></dd></div><div><dt>Prompt salvato</dt><dd>{agent.prompt_length ? `${agent.prompt_length} caratteri` : 'Non presente nel database'}</dd></div></dl></article>)}</div></div>}
+
+      {adminTab === 'economics' && <div className="card">
+        <div className="admin-section-heading"><div><span>Economia della piattaforma</span><h3>Costi, ricavi e margine per cliente</h3><p>Configura i tariffari provider e i costi generali mensili.</p></div><button className="btn btn-outline" onClick={loadMonitoring}>Aggiorna</button></div>
+        <div className="admin-kpi-grid"><article><strong>{Number(monthUsage.total_tokens||0).toLocaleString('it-IT')}</strong><span>Token questo mese</span></article><article><strong>{monthUsage.requests||0}</strong><span>Richieste questo mese</span></article><article><strong>{formatCost(monthUsage.estimated_cost)}</strong><span>Costo AI registrato</span></article><article><strong>{monitoringData?.usage_by_provider?.length||0}</strong><span>Provider utilizzati</span></article></div>
+        <div className="admin-provider-rates">{(monitoringData?.provider_settings||[]).map(provider=><ProviderRateCard key={provider.provider} provider={provider} busy={adminActionBusy===`provider-${provider.provider}`} onSave={saveProviderRate}/>)}</div>
+        <div className="admin-table-wrap"><table className="admin-data-table admin-economics-table"><thead><tr><th>Cliente</th><th>Consumi</th><th>Articoli</th><th>Costo AI</th><th>Ricavo/mese</th><th>Hosting</th><th>Altri costi</th><th>Margine</th><th></th></tr></thead><tbody>{(monitoringData?.api_usage_per_user||[]).map(u=><UserEconomicsRow key={u.user_id} user={u} busy={adminActionBusy===`economics-${u.user_id}`} onSave={saveUserEconomics} formatCost={formatCost}/>)}</tbody></table></div>
+        {!monitoringData?.cost_tracking_ready&&<div className="admin-warning">Lo storico precedente non contiene costi AI. Dopo aver impostato il tariffario, ogni nuova chiamata valorizzerà automaticamente <code>estimated_cost</code>.</div>}
+      </div>}
 
       {adminTab === 'monitoring' && (
         <div className="card">
@@ -562,6 +639,8 @@ export function AdminScreen({ token, currentUser, adminPrompts, updatePrompt }) 
                 </span>
               ))}
             </div>
+            <div className="admin-section-heading" style={{marginTop:'1.75rem'}}><div><span>Archivio operativo</span><h3>Ultimi contenuti acquisiti</h3><p>Comprende pubblicati, bozze, lavorazioni ed errori.</p></div><input type="search" value={contentSearch} onChange={e=>setContentSearch(e.target.value)} placeholder="Cerca cliente, titolo, social…" style={{minWidth:'250px'}} /></div>
+            <div className="admin-table-wrap"><table className="admin-data-table"><thead><tr><th>Contenuto</th><th>Cliente</th><th>Origine</th><th>Stato</th><th>SEO</th><th>Nota agente</th><th>Data</th></tr></thead><tbody>{(contentMix.contenuti_recenti||[]).filter(item=>{const q=contentSearch.trim().toLowerCase();return !q||[item.edited_title,item.generated_title,item.name,item.email,item.platform,item.processing_status].filter(Boolean).join(' ').toLowerCase().includes(q)}).map(item=>{const status=Number(item.published)===1?'Pubblicato':item.processing_status||'Bozza';return <tr key={item.id}><td><strong>#{item.id} {item.edited_title||item.generated_title||'Senza titolo'}</strong><small>{item.media_type||'senza media'}</small></td><td><strong>{item.name||item.email||'—'}</strong><small>{item.email}</small></td><td>{item.platform||'—'}</td><td><span className={`badge ${status==='Pubblicato'?'badge-green':status==='failed'?'badge-red':'badge-amber'}`}>{status}</span></td><td>{item.seo_score??'—'}</td><td title={item.agent_notes||''}>{String(item.agent_notes||'—').slice(0,90)}</td><td>{item.published_at||item.created_at||'—'}</td></tr>})}</tbody></table></div>
           </>)}
         </div>
       )}
@@ -695,7 +774,7 @@ export function AdminScreen({ token, currentUser, adminPrompts, updatePrompt }) 
               <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
                 <button className="btn btn-outline" onClick={loadUsers}>Aggiorna utenti</button>
                 <button className="btn btn-outline" onClick={loadProcesses}>Aggiorna processi</button>
-                <button className="btn btn-primary" onClick={() => loadEditorialRoom(selectedControlUserId)} disabled={!selectedControlUserId}>Aggiorna utente selezionato</button>
+                <div style={{display:'flex',gap:8,flexWrap:'wrap'}}><button className="btn btn-outline" onClick={runEditorialForSelectedUser} disabled={!selectedControlUserId||adminActionBusy==='editorial-run'}>{adminActionBusy==='editorial-run'?'Analisi…':'Esegui agente editoriale'}</button><button className="btn btn-primary" onClick={() => loadEditorialRoom(selectedControlUserId)} disabled={!selectedControlUserId}>Aggiorna utente selezionato</button></div>
               </div>
             </div>
 
@@ -795,6 +874,7 @@ export function AdminScreen({ token, currentUser, adminPrompts, updatePrompt }) 
                         <span className="badge badge-green">{roomUser.account_type || 'business'}</span>
                         <span className="badge badge-amber">{roomUser.editorial_last_run || 'Mai eseguito'}</span>
                       </div>
+                      <div className="admin-engine-diagnosis"><strong>Diagnosi Editorial Engine</strong><span>{editorialDiagnosis}</span></div>
                       <h3 style={{ marginBottom: '0.25rem', fontSize: '24px' }}>{roomUser.name || roomUser.email}</h3>
                       <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '14px' }}>{roomUser.email}</p>
                     </div>
@@ -1120,6 +1200,8 @@ export function AdminScreen({ token, currentUser, adminPrompts, updatePrompt }) 
                 onBlur={e => updatePrompt(p.agent_name, e.target.value)}
                 style={{ width: '100%', minHeight: '180px', padding: '12px', fontSize: '12px', fontFamily: 'monospace', border: '1px solid var(--border-strong)', borderRadius: 'var(--radius-sm)', background: 'var(--surface)', lineHeight: 1.6 }}
               />
+              <div className="prompt-version-bar"><span>{Number(p.version_count||0)} versioni archiviate</span><button className="btn btn-outline" onClick={()=>loadPromptHistory(p.agent_name)}>Cronologia</button></div>
+              {!!promptHistory[p.agent_name]?.length&&<div className="prompt-history-list">{promptHistory[p.agent_name].map(version=><article key={version.id}><div><strong>{version.created_at}</strong><span>{String(version.instructions).slice(0,140)}…</span></div><button className="btn btn-outline" onClick={()=>restorePromptVersion(p.agent_name,version.id)}>Ripristina</button></article>)}</div>}
             </div>
           ))}
           {adminPrompts.length === 0 && (
@@ -1202,6 +1284,7 @@ export function AdminScreen({ token, currentUser, adminPrompts, updatePrompt }) 
           </div>
         </div>
       )}
+      </main>
     </div>
   );
 }

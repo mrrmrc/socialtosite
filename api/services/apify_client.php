@@ -118,7 +118,7 @@ final class ApifyClient {
 
         try {
             global $userId;
-            DB::execute('INSERT INTO api_usage_logs (user_id,provider,action,tokens_used) VALUES (?,?,?,0)', [isset($userId) ? $userId : null, 'apify', $actorId]);
+            DB::execute('INSERT INTO api_usage_logs (user_id,provider,action,tokens_used,estimated_cost) VALUES (?,?,?,0,?)', [isset($userId) ? $userId : null, 'apify', $actorId, ProviderConfig::estimatedCost('apify')]);
         } catch (Throwable $e) {}
 
         // dataset-items ritorna direttamente l'array di risultati
