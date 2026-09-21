@@ -72,6 +72,7 @@ export function AdminScreen({ token, currentUser, adminPrompts, updatePrompt }) 
   const [monitoringData, setMonitoringData] = useState(null);
   const [adminActionBusy, setAdminActionBusy] = useState('');
   const [promptHistory, setPromptHistory] = useState({});
+  const [agentDrafts, setAgentDrafts] = useState({});
 
   useEffect(() => {
     setError('');
@@ -106,6 +107,7 @@ export function AdminScreen({ token, currentUser, adminPrompts, updatePrompt }) 
     try {
       const data = await apiFetch('/api/index.php?action=logs', {}, token);
       setLogs(data.entries || []);
+      setError('');
     } catch (e) {
       setError(e.message);
     }
@@ -125,6 +127,7 @@ export function AdminScreen({ token, currentUser, adminPrompts, updatePrompt }) 
     try {
       const data = await apiFetch('/api/index.php?action=admin-processes', {}, token);
       setProcesses(data.processes || []);
+      setError('');
     } catch (e) {
       setError(e.message);
     }
@@ -146,6 +149,7 @@ export function AdminScreen({ token, currentUser, adminPrompts, updatePrompt }) 
   async function loadContentMix() {
     try {
       setContentMix(await apiFetch('/api/index.php?action=admin-content-mix', {}, token));
+      setError('');
     } catch (e) {
       setError(e.message);
     }
@@ -155,6 +159,7 @@ export function AdminScreen({ token, currentUser, adminPrompts, updatePrompt }) 
     try {
       const data = await apiFetch('/api/index.php?action=admin-users', {}, token);
       setUsers(data.users || []);
+      setError('');
     } catch (e) {
       setError(e.message);
     }
@@ -165,8 +170,39 @@ export function AdminScreen({ token, currentUser, adminPrompts, updatePrompt }) 
     try {
       const data = await apiFetch(`/api/index.php?action=admin-editorial-room&user_id=${userId}`, {}, token);
       setEditorialRoom(data || null);
+      setError('');
     } catch (e) {
       setError(e.message);
+    }
+  }
+
+  useEffect(() => {
+    setAgentDrafts(current => {
+      const next = { ...current };
+      for (const prompt of adminPrompts) {
+        if (next[prompt.agent_name] === undefined) next[prompt.agent_name] = prompt.instructions || '';
+      }
+      return next;
+    });
+  }, [adminPrompts]);
+
+  async function saveAgentPrompt(agent) {
+    const instructions = String(agentDrafts[agent.agent_name] || '').trim();
+    if (!instructions) {
+      setError('Inserisci le istruzioni prima di salvare.');
+      return;
+    }
+    setAdminActionBusy(`prompt-${agent.agent_name}`);
+    setError('');
+    setNotice('');
+    try {
+      await updatePrompt(agent.agent_name, instructions);
+      setNotice(`Istruzioni di ${agent.label} salvate.`);
+      await loadMonitoring();
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setAdminActionBusy('');
     }
   }
 
@@ -521,7 +557,7 @@ export function AdminScreen({ token, currentUser, adminPrompts, updatePrompt }) 
         </section>
       </div>}
 
-      {adminTab === 'agents' && <div className="card"><div className="admin-section-heading"><div><span>Registro unico modificabile</span><h3>Agenti AI editoriali e grafici</h3><p>Ogni agente è nello stesso registro. Apri la sua scheda e modifica direttamente le istruzioni operative.</p></div></div><div className="admin-agent-grid">{(monitoringData?.agents || []).map(agent=>{const prompt=adminPrompts.find(item=>item.agent_name===agent.agent_name);return <article key={agent.agent_name} className={agent.agent_name==='site_ai'?'is-visual-agent':''}><header><span>{agent.agent_name==='site_ai'?'◈':'✦'}</span><b className={agent.prompt_configured?'is-ready':''}>{agent.prompt_configured?'Configurato':'Default codice'}</b></header><h4>{agent.label}</h4><p>{agent.purpose}</p><dl><div><dt>Quando interviene</dt><dd>{agent.trigger}</dd></div><div><dt>Identificativo</dt><dd><code>{agent.agent_name}</code></dd></div></dl><details className="admin-agent-editor"><summary>Modifica istruzioni</summary><textarea defaultValue={prompt?.instructions||''} placeholder="Inserisci il prompt di sistema per questo agente…" onBlur={e=>{if(e.target.value.trim()) updatePrompt(agent.agent_name,e.target.value)}}/><small>Il salvataggio avviene quando esci dal campo.</small>{prompt&&<button className="btn btn-outline" onClick={()=>loadPromptHistory(agent.agent_name)}>Cronologia ({Number(prompt.version_count||0)})</button>}</details></article>})}</div></div>}
+      {adminTab === 'agents' && <div className="card"><div className="admin-section-heading"><div><span>Registro unico modificabile</span><h3>Agenti AI editoriali e grafici</h3><p>Seleziona un agente, modifica le istruzioni e salvale esplicitamente.</p></div></div><div className="admin-agent-grid">{(monitoringData?.agents || []).map(agent=>{const prompt=adminPrompts.find(item=>item.agent_name===agent.agent_name);const draft=agentDrafts[agent.agent_name] ?? prompt?.instructions ?? '';return <article key={agent.agent_name} className={agent.agent_name==='site_ai'?'is-visual-agent':''}><header><span>{agent.agent_name==='site_ai'?'◈':'✦'}</span><b className={agent.prompt_configured?'is-ready':''}>{agent.prompt_configured?'Configurato':'Da personalizzare'}</b></header><h4>{agent.label}</h4><p>{agent.purpose}</p><dl><div><dt>Quando interviene</dt><dd>{agent.trigger}</dd></div><div><dt>Identificativo</dt><dd><code>{agent.agent_name}</code></dd></div></dl><details className="admin-agent-editor"><summary>Apri editor istruzioni</summary><textarea value={draft} placeholder="Inserisci il prompt di sistema per questo agente…" onChange={e=>setAgentDrafts(current=>({...current,[agent.agent_name]:e.target.value}))}/><div className="admin-agent-editor-actions"><button className="btn btn-primary" disabled={adminActionBusy===`prompt-${agent.agent_name}`} onClick={()=>saveAgentPrompt(agent)}>{adminActionBusy===`prompt-${agent.agent_name}`?'Salvataggio…':'Salva istruzioni'}</button>{prompt&&<button className="btn btn-outline" onClick={()=>loadPromptHistory(agent.agent_name)}>Cronologia ({Number(prompt.version_count||0)})</button>}</div></details></article>})}</div></div>}
 
       {adminTab === 'economics' && <div className="card">
         <div className="admin-section-heading"><div><span>Economia della piattaforma</span><h3>Costi, ricavi e margine per cliente</h3><p>Configura i tariffari provider e i costi generali mensili.</p></div><button className="btn btn-outline" onClick={loadMonitoring}>Aggiorna</button></div>

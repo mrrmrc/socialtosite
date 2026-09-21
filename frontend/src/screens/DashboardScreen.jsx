@@ -2106,14 +2106,18 @@ const [importMsg, setImportMsg] = useState(null);
 
   async function updatePrompt(agentName, instructions) {
     try {
-      await apiFetch('/api/index.php?action=admin-update-prompt', {
+      const result = await apiFetch('/api/index.php?action=admin-update-prompt', {
         method: 'POST',
         body: JSON.stringify({ agent_name: agentName, instructions })
       }, token);
-      setAdminPrompts(prev => prev.map(p => p.agent_name === agentName ? { ...p, instructions } : p));
-      alert("Istruzioni aggiornate con successo!");
+      setAdminPrompts(prev => {
+        const current = prev.find(p => p.agent_name === agentName);
+        if (current) return prev.map(p => p.agent_name === agentName ? { ...p, instructions } : p);
+        return [...prev, { id: result?.id || 0, agent_name: agentName, instructions, version_count: 0 }];
+      });
+      return result;
     } catch (err) {
-      alert("Errore: " + err.message);
+      throw err;
     }
   }
 
@@ -2121,8 +2125,14 @@ const [importMsg, setImportMsg] = useState(null);
     const nextInstructions = promptDrafts[agentName];
     if (!nextInstructions?.trim()) return;
     setSavingPromptName(agentName);
-    await updatePrompt(agentName, nextInstructions);
-    setSavingPromptName('');
+    try {
+      await updatePrompt(agentName, nextInstructions);
+      alert('Istruzioni aggiornate con successo!');
+    } catch (err) {
+      alert('Errore: ' + err.message);
+    } finally {
+      setSavingPromptName('');
+    }
   }
 
   function renderPromptEditor(agentName) {
@@ -2379,7 +2389,6 @@ const [importMsg, setImportMsg] = useState(null);
       items: [
         { id: 'admin', icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>, label: 'Utenti', hint: 'Account e accessi' },
         { id: 'general', icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg>, label: 'Sistema', hint: 'Agenti e impostazioni' },
-        { id: 'settings', icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"></path></svg>, label: 'Design avanzato', hint: 'Strumenti legacy' },
       ],
     }
   ] : [

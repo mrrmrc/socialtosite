@@ -130,6 +130,13 @@ function ensureAdminSchema(): void {
     if ($done) return;
     $done = true;
     try {
+        DB::execute("CREATE TABLE IF NOT EXISTS agent_prompts (id INT AUTO_INCREMENT PRIMARY KEY,agent_name VARCHAR(50) NOT NULL UNIQUE,label VARCHAR(100) NOT NULL DEFAULT '',description TEXT NULL,instructions LONGTEXT NOT NULL,updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+        $promptColumns = [];
+        foreach (DB::fetchAll('SHOW COLUMNS FROM agent_prompts') as $column) $promptColumns[$column['Field']] = true;
+        if (!isset($promptColumns['label'])) DB::execute("ALTER TABLE agent_prompts ADD COLUMN label VARCHAR(100) NOT NULL DEFAULT '' AFTER agent_name");
+        if (!isset($promptColumns['description'])) DB::execute('ALTER TABLE agent_prompts ADD COLUMN description TEXT NULL AFTER label');
+    } catch (Throwable $e) { error_log('[admin-schema] agent_prompts: ' . $e->getMessage()); }
+    try {
         DB::execute('CREATE TABLE IF NOT EXISTS agent_prompt_versions (id BIGINT AUTO_INCREMENT PRIMARY KEY,agent_name VARCHAR(50) NOT NULL,instructions LONGTEXT NOT NULL,changed_by INT NULL,created_at DATETIME DEFAULT CURRENT_TIMESTAMP,KEY prompt_agent_date(agent_name,created_at)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4');
     } catch (Throwable $e) {}
     try {
@@ -607,32 +614,29 @@ if ($action === 'admin-content-mix' && $method === 'GET') {
         return $tipo;
     };
 
-    $mediaColumn = isset($postColumns['media_type']) ? 'media_type' : "'SENZA MEDIA' AS media_type";
-    $transcriptCount = isset($postColumns['transcript']) ? "SUM(CASE WHEN transcript IS NOT NULL AND transcript <> '' THEN 1 ELSE 0 END)" : '0';
+    $selectColumns = ['user_id', 'platform'];
+    $selectColumns[] = isset($postColumns['published']) ? 'published' : '0 AS published';
+    $selectColumns[] = isset($postColumns['media_type']) ? 'media_type' : "'SENZA MEDIA' AS media_type";
+    $selectColumns[] = isset($postColumns['transcript']) ? 'transcript' : "'' AS transcript";
     try {
-      $righe = DB::fetchAll(
-        "SELECT $mediaColumn, platform,
-                COUNT(*) totale,
-                $transcriptCount con_testo_estratto,
-                SUM(CASE WHEN published = 1 THEN 1 ELSE 0 END) pubblicati
-         FROM posts
-         GROUP BY media_type, platform"
-      );
-    } catch (Throwable $e) { error_log('[admin-content-mix] aggregate: ' . $e->getMessage()); $righe = []; }
+      $postRows = DB::fetchAll('SELECT ' . implode(',', $selectColumns) . ' FROM posts');
+    } catch (Throwable $e) { error_log('[admin-content-mix] aggregate: ' . $e->getMessage()); $postRows = []; }
 
     $perTipo = [];
     $perPiattaforma = [];
+    $utentiConPostMap = [];
     $totale = 0;
-    foreach ($righe as $r) {
+    foreach (($postRows ?? []) as $r) {
         $tipo = $normalizza($r['media_type'] ?? null);
         $piattaforma = (string)($r['platform'] ?? '?');
-        $n = (int)$r['totale'];
+        $n = 1;
         $totale += $n;
+        if (isset($r['user_id'])) $utentiConPostMap[(string)$r['user_id']] = true;
 
         if (!isset($perTipo[$tipo])) $perTipo[$tipo] = ['tipo' => $tipo, 'totale' => 0, 'con_testo_estratto' => 0, 'pubblicati' => 0];
         $perTipo[$tipo]['totale'] += $n;
-        $perTipo[$tipo]['con_testo_estratto'] += (int)$r['con_testo_estratto'];
-        $perTipo[$tipo]['pubblicati'] += (int)$r['pubblicati'];
+        $perTipo[$tipo]['con_testo_estratto'] += trim((string)($r['transcript'] ?? '')) !== '' ? 1 : 0;
+        $perTipo[$tipo]['pubblicati'] += (int)($r['published'] ?? 0) === 1 ? 1 : 0;
 
         if (!isset($perPiattaforma[$piattaforma])) $perPiattaforma[$piattaforma] = ['piattaforma' => $piattaforma, 'totale' => 0];
         $perPiattaforma[$piattaforma]['totale'] += $n;
@@ -647,7 +651,7 @@ if ($action === 'admin-content-mix' && $method === 'GET') {
 
     // Quanti clienti hanno davvero contenuti: la media su chi ha zero post
     // racconterebbe una cosa falsa.
-    $utentiConPost = (int)(DB::fetch('SELECT COUNT(DISTINCT user_id) c FROM posts')['c'] ?? 0);
+    $utentiConPost = count($utentiConPostMap);
     try {
         $recentContents = DB::fetchAll("SELECT p.*,u.name,u.email FROM posts p LEFT JOIN users u ON u.id=p.user_id ORDER BY p.id DESC LIMIT 100");
     } catch (Throwable $e) { error_log('[admin-content-mix] recent: ' . $e->getMessage()); $recentContents = []; }
@@ -876,13 +880,21 @@ if ($action === 'admin-delete-user' && $method === 'POST') {
 if ($action === 'admin-prompts' && $method === 'GET') {
     requireAdmin($isAdmin);
     ensureAdminSchema();
-    $prompts = DB::fetchAll('SELECT p.*,(SELECT COUNT(*) FROM agent_prompt_versions v WHERE v.agent_name=p.agent_name) AS version_count FROM agent_prompts p');
+    try { $prompts = DB::fetchAll('SELECT p.*,(SELECT COUNT(*) FROM agent_prompt_versions v WHERE v.agent_name=p.agent_name) AS version_count FROM agent_prompts p ORDER BY p.id'); }
+    catch (Throwable $e) { error_log('[admin-prompts] ' . $e->getMessage()); $prompts = []; }
     // Alcuni agenti importanti (es. il Direttore Artistico che genera il sito
     // con l'AI) non hanno ancora una riga finche' nessuno li personalizza: se
     // mancano dalla lista, un admin non puo' nemmeno scoprire che esistono.
     // Li mostriamo comunque, con etichetta e prompt di default, cosi' restano
     // visibili e modificabili fin dal primo accesso.
     $knownAgents = [
+        'profile_analyzer' => ['label'=>'Profile Analyzer','description'=>'Comprensione di attività, pubblico e posizionamento.'],
+        'content_editor' => ['label'=>'Content Editor','description'=>'Trasforma i contenuti social in articoli.'],
+        'topical_authority_architect' => ['label'=>'Topical Authority Architect','description'=>'Costruisce approfondimenti e autorevolezza tematica.'],
+        'seo_reviewer' => ['label'=>'SEO Reviewer','description'=>'Controlla intento, qualità e metadati.'],
+        'chief_editor' => ['label'=>'Chief Editor','description'=>'Coordina categorie, priorità e coerenza editoriale.'],
+        'editorial_engine' => ['label'=>'Editorial Engine','description'=>'Analizza cluster, gap e prossime azioni.'],
+        'seo_specialist' => ['label'=>'SEO Specialist','description'=>'Configura identità, struttura e fondamenta SEO.'],
         'site_ai' => [
             'label' => '✨ Agente Grafico (genera il sito con l\'AI)',
             'description' => 'Sceglie titolo, testi, palette, font e layout quando l\'utente clicca "Genera il mio sito con l\'AI".',
@@ -891,11 +903,15 @@ if ($action === 'admin-prompts' && $method === 'GET') {
     $presentNames = array_column($prompts, 'agent_name');
     foreach ($knownAgents as $agentName => $meta) {
         if (in_array($agentName, $presentNames, true)) continue;
-        require_once __DIR__ . '/services/ai.php';
+        $defaultInstructions = 'Agisci come ' . $meta['label'] . '. ' . $meta['description'] . ' Usa i dati reali del profilo e produci risultati chiari, verificabili e coerenti.';
+        if ($agentName === 'site_ai') {
+            require_once __DIR__ . '/services/ai.php';
+            $defaultInstructions = AI::siteAiDefaultPrompt();
+        }
         $prompts[] = [
             'id' => 0,
             'agent_name' => $agentName,
-            'instructions' => AI::siteAiDefaultPrompt(),
+            'instructions' => $defaultInstructions,
             'label' => $meta['label'],
             'description' => $meta['description'],
         ];
@@ -1003,7 +1019,8 @@ if ($action === 'admin-update-prompt' && $method === 'POST') {
          ON DUPLICATE KEY UPDATE instructions = VALUES(instructions)',
         [$agentName, $instructions]
     );
-    json(['ok' => true]);
+    $savedPrompt = DB::fetch('SELECT id,agent_name,label,description,instructions FROM agent_prompts WHERE agent_name=?', [$agentName]);
+    json(['ok' => true, 'id' => (int)($savedPrompt['id'] ?? 0), 'prompt' => $savedPrompt]);
 }
 
 if ($action === 'admin-prompt-history' && $method === 'GET') {
