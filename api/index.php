@@ -356,7 +356,10 @@ if ($action === 'admin-monitoring' && $method === 'GET') {
         ['agent_name'=>'seo_specialist','label'=>'SEO Specialist','purpose'=>'Identità, struttura e configurazione SEO','trigger'=>'Setup e rigenerazione sito'],
         ['agent_name'=>'site_ai','label'=>'Agente grafico / Site AI','purpose'=>'Direzione visiva e configurazione del sito','trigger'=>'Generazione sito richiesta dall’utente'],
     ];
-    $promptRows = DB::fetchAll('SELECT agent_name, label, description, CHAR_LENGTH(instructions) AS prompt_length FROM agent_prompts');
+    // Le installazioni precedenti di agent_prompts non hanno necessariamente
+    // le colonne descrittive. Il monitoraggio usa solo nome e istruzioni: non
+    // rendiamo quindi indisponibile l'intero pannello per campi facoltativi.
+    $promptRows = DB::fetchAll('SELECT agent_name, CHAR_LENGTH(instructions) AS prompt_length FROM agent_prompts');
     $promptMap = [];
     foreach ($promptRows as $row) $promptMap[$row['agent_name']] = $row;
     foreach ($knownAgents as &$agent) {

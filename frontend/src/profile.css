@@ -97,7 +97,7 @@ body { background: #f2f5f2; }
 .editor-supervisor b { color:var(--green); font-size:12px; }
 .ai-generate { border:0; border-radius:9px; padding:12px 15px; background:var(--green); color:white; font-weight:850; font-size:11px; }
 .admin-link { text-decoration:none!important; border:1px solid #cfd9d1!important; border-radius:8px!important; padding:8px 11px!important; color:var(--green)!important; }
-.admin-workspace { max-width:1540px; }
+.admin-workspace { width:100%; max-width:none; }
 .admin-title { display:flex; justify-content:space-between; gap:30px; align-items:end; margin-bottom:28px; }
 .admin-title h1 { margin:0 0 10px; font-family:Georgia,serif; font-size:clamp(42px,5vw,72px); letter-spacing:-.045em; }
 .admin-title p:last-child { color:var(--muted); }

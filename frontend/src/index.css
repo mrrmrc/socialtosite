@@ -151,6 +151,12 @@ h3 { font-size: 24px; font-weight: 700; }
 .dashboard-shell { min-height: 100vh; display: flex; flex-direction: column; background: var(--bg); }
 .dashboard-main { flex: 1; min-width: 0; margin-left: 0; padding: 0; position: relative; z-index: 1; }
 .dashboard-content { width: min(1100px, 100%); margin: 0 auto; padding: 36px 42px 64px; }
+.dashboard-content.is-admin-wide {
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  padding-inline: clamp(20px, 3vw, 56px);
+}
 .desktop-sidebar { display: none !important; }
 .mobile-top-header { display: none; }
 

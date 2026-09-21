@@ -2560,7 +2560,7 @@ const [importMsg, setImportMsg] = useState(null);
       </nav>
 
       <div className="dashboard-main" style={studioWorkspaceOpen ? { marginLeft: 0 } : undefined}>
-        <div className="dashboard-content">
+        <div className={`dashboard-content ${user?.role === 'admin' ? 'is-admin-wide' : ''}`}>
           <header className="dashboard-page-header">
             <div className="page-heading">
               <div className="page-kicker">{activeNavigation?.group || 'Area di lavoro'}</div>
@@ -2568,7 +2568,7 @@ const [importMsg, setImportMsg] = useState(null);
               <p>{pageSubtitle}</p>
             </div>
             <div className="page-actions">
-              {(!isBasePlan || activeChannelCount > 0) && (
+              {user?.role !== 'admin' && (!isBasePlan || activeChannelCount > 0) && (
                 <button className="btn btn-primary" onClick={isBasePlan ? () => acquireBaseContent(false) : syncNow} disabled={syncing}>
                   {syncing ? '⟳ Sto cercando…' : isBasePlan ? '↻ Aggiorna contenuti' : '↻ Aggiorna i canali'}
                 </button>
