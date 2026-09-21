@@ -85,6 +85,7 @@ export function AdminScreen({ token, currentUser, adminPrompts, updatePrompt }) 
     try {
       const data = await apiFetch('/api/index.php?action=admin-monitoring', {}, token);
       setMonitoringData(data);
+      setError('');
     } catch (e) {
       setError(e.message);
     }

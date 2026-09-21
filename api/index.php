@@ -330,21 +330,40 @@ if ($action === 'purge-all-posts' && $method === 'POST') {
 if ($action === 'admin-monitoring' && $method === 'GET') {
     requireAdmin($isAdmin);
     ensureAdminSchema();
-    ProviderConfig::ensureSchema();
+    try {
+        ProviderConfig::ensureSchema();
+    } catch (Throwable $e) {
+        error_log('[admin-monitoring] provider schema: ' . $e->getMessage());
+    }
+
+    // Il pannello di controllo deve restare disponibile anche durante una
+    // migrazione parziale del database. Ogni blocco statistico e' opzionale:
+    // un campo legacy mancante non deve trasformare l'intera pagina in un 500.
+    $safeAll = static function (string $sql, array $params = []): array {
+        try { return DB::fetchAll($sql, $params); }
+        catch (Throwable $e) { error_log('[admin-monitoring] query: ' . $e->getMessage()); return []; }
+    };
+    $safeOne = static function (string $sql, array $params = []): array {
+        try { return DB::fetch($sql, $params) ?: []; }
+        catch (Throwable $e) { error_log('[admin-monitoring] query: ' . $e->getMessage()); return []; }
+    };
 
     // Aggregato token totali per utente
-    $usagePerUser = DB::fetchAll("SELECT u.id AS user_id,u.name,u.email,u.plan,
+    $usagePerUser = $safeAll("SELECT u.id AS user_id,u.name,u.email,u.plan,
         COALESCE(a.total_requests,0) AS total_requests,COALESCE(a.total_tokens,0) AS total_tokens,COALESCE(a.estimated_cost,0) AS estimated_cost,
         (SELECT COUNT(*) FROM posts p WHERE p.user_id=u.id AND p.published=1) AS published_posts,
         COALESCE(e.monthly_revenue,0) AS monthly_revenue,COALESCE(e.hosting_cost,0) AS hosting_cost,COALESCE(e.other_cost,0) AS other_cost,e.notes
         FROM users u LEFT JOIN (SELECT user_id,COUNT(*) total_requests,SUM(tokens_used) total_tokens,SUM(estimated_cost) estimated_cost FROM api_usage_logs GROUP BY user_id) a ON a.user_id=u.id
         LEFT JOIN user_economics e ON e.user_id=u.id ORDER BY total_tokens DESC,u.name");
 
-    $globalUsage = DB::fetch('SELECT COUNT(*) AS requests, SUM(tokens_used) AS total, SUM(estimated_cost) AS estimated_cost FROM api_usage_logs');
-    $usageByProvider = DB::fetchAll('SELECT provider, COUNT(*) AS requests, SUM(tokens_used) AS total_tokens, SUM(estimated_cost) AS estimated_cost FROM api_usage_logs GROUP BY provider ORDER BY requests DESC');
-    $usageByAction = DB::fetchAll('SELECT action, provider, COUNT(*) AS requests, SUM(tokens_used) AS total_tokens, SUM(estimated_cost) AS estimated_cost FROM api_usage_logs GROUP BY action, provider ORDER BY requests DESC LIMIT 30');
-    $usageThisMonth = DB::fetch("SELECT COUNT(*) AS requests, SUM(tokens_used) AS total_tokens, SUM(estimated_cost) AS estimated_cost FROM api_usage_logs WHERE created_at >= DATE_FORMAT(NOW(), '%Y-%m-01')");
-    $providerSettings = DB::fetchAll('SELECT provider,label,model,monthly_credit,unit_cost,enabled FROM ai_provider_connections ORDER BY provider');
+    if (!$usagePerUser) {
+        $usagePerUser = $safeAll("SELECT id AS user_id,name,email,plan,0 AS total_requests,0 AS total_tokens,0 AS estimated_cost,0 AS published_posts,0 AS monthly_revenue,0 AS hosting_cost,0 AS other_cost,NULL AS notes FROM users ORDER BY name");
+    }
+    $globalUsage = $safeOne('SELECT COUNT(*) AS requests, SUM(tokens_used) AS total, SUM(estimated_cost) AS estimated_cost FROM api_usage_logs');
+    $usageByProvider = $safeAll('SELECT provider, COUNT(*) AS requests, SUM(tokens_used) AS total_tokens, SUM(estimated_cost) AS estimated_cost FROM api_usage_logs GROUP BY provider ORDER BY requests DESC');
+    $usageByAction = $safeAll('SELECT action, provider, COUNT(*) AS requests, SUM(tokens_used) AS total_tokens, SUM(estimated_cost) AS estimated_cost FROM api_usage_logs GROUP BY action, provider ORDER BY requests DESC LIMIT 30');
+    $usageThisMonth = $safeOne("SELECT COUNT(*) AS requests, SUM(tokens_used) AS total_tokens, SUM(estimated_cost) AS estimated_cost FROM api_usage_logs WHERE created_at >= DATE_FORMAT(NOW(), '%Y-%m-01')");
+    $providerSettings = $safeAll('SELECT provider,label,model,monthly_credit,unit_cost,enabled FROM ai_provider_connections ORDER BY provider');
 
     $knownAgents = [
         ['agent_name'=>'profile_analyzer','label'=>'Profile Analyzer','purpose'=>'Comprensione di attività, pubblico e posizionamento','trigger'=>'Dopo acquisizione o aggiornamento profilo'],
@@ -359,7 +378,7 @@ if ($action === 'admin-monitoring' && $method === 'GET') {
     // Le installazioni precedenti di agent_prompts non hanno necessariamente
     // le colonne descrittive. Il monitoraggio usa solo nome e istruzioni: non
     // rendiamo quindi indisponibile l'intero pannello per campi facoltativi.
-    $promptRows = DB::fetchAll('SELECT agent_name, CHAR_LENGTH(instructions) AS prompt_length FROM agent_prompts');
+    $promptRows = $safeAll('SELECT agent_name, CHAR_LENGTH(instructions) AS prompt_length FROM agent_prompts');
     $promptMap = [];
     foreach ($promptRows as $row) $promptMap[$row['agent_name']] = $row;
     foreach ($knownAgents as &$agent) {
@@ -370,7 +389,7 @@ if ($action === 'admin-monitoring' && $method === 'GET') {
     }
     unset($agent);
 
-    $cronLogs = DB::fetchAll('
+    $cronLogs = $safeAll('
         SELECT * FROM cron_logs
         ORDER BY run_at DESC
         LIMIT 50
