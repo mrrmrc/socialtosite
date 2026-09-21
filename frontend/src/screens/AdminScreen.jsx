@@ -74,6 +74,7 @@ export function AdminScreen({ token, currentUser, adminPrompts, updatePrompt }) 
   const [promptHistory, setPromptHistory] = useState({});
 
   useEffect(() => {
+    setError('');
     if (adminTab === 'users' || adminTab === 'control-room') loadUsers();
     if (adminTab === 'logs') loadLogs();
     if (adminTab === 'processes') loadProcesses();
@@ -493,7 +494,7 @@ export function AdminScreen({ token, currentUser, adminPrompts, updatePrompt }) 
     { group: 'Controllo', items: [['overview','Panoramica','▦'],['control-room','Control Room','⌘'],['agents','Agenti AI','✦']] },
     { group: 'Operatività', items: [['users','Clienti','◎'],['content-mix','Contenuti','▤'],['processes','Code','↻']] },
     { group: 'Economia', items: [['economics','Costi e consumi','€']] },
-    { group: 'Sistema', items: [['prompts','Prompt','{ }'],['monitoring','Cron e provider','◉'],['logs','Log','≡']] },
+    { group: 'Sistema', items: [['monitoring','Cron e provider','◉'],['logs','Log','≡']] },
   ];
   const monthUsage = monitoringData?.usage_this_month || {};
   const formatCost = value => Number(value || 0).toLocaleString('it-IT', { style: 'currency', currency: 'EUR', minimumFractionDigits: 4 });
@@ -520,7 +521,7 @@ export function AdminScreen({ token, currentUser, adminPrompts, updatePrompt }) 
         </section>
       </div>}
 
-      {adminTab === 'agents' && <div className="card"><div className="admin-section-heading"><div><span>Registro unico</span><h3>Agenti del sistema</h3><p>Mostra cosa esiste davvero, quando parte e se possiede un prompt configurato.</p></div><button onClick={()=>setAdminTab('prompts')}>Gestisci prompt →</button></div><div className="admin-agent-grid">{(monitoringData?.agents || []).map(agent=><article key={agent.agent_name}><header><span>✦</span><b className={agent.prompt_configured?'is-ready':''}>{agent.prompt_configured?'Configurato':'Default codice'}</b></header><h4>{agent.label}</h4><p>{agent.purpose}</p><dl><div><dt>Trigger</dt><dd>{agent.trigger}</dd></div><div><dt>Identificativo</dt><dd><code>{agent.agent_name}</code></dd></div><div><dt>Prompt salvato</dt><dd>{agent.prompt_length ? `${agent.prompt_length} caratteri` : 'Non presente nel database'}</dd></div></dl></article>)}</div></div>}
+      {adminTab === 'agents' && <div className="card"><div className="admin-section-heading"><div><span>Registro unico modificabile</span><h3>Agenti AI editoriali e grafici</h3><p>Ogni agente è nello stesso registro. Apri la sua scheda e modifica direttamente le istruzioni operative.</p></div></div><div className="admin-agent-grid">{(monitoringData?.agents || []).map(agent=>{const prompt=adminPrompts.find(item=>item.agent_name===agent.agent_name);return <article key={agent.agent_name} className={agent.agent_name==='site_ai'?'is-visual-agent':''}><header><span>{agent.agent_name==='site_ai'?'◈':'✦'}</span><b className={agent.prompt_configured?'is-ready':''}>{agent.prompt_configured?'Configurato':'Default codice'}</b></header><h4>{agent.label}</h4><p>{agent.purpose}</p><dl><div><dt>Quando interviene</dt><dd>{agent.trigger}</dd></div><div><dt>Identificativo</dt><dd><code>{agent.agent_name}</code></dd></div></dl><details className="admin-agent-editor"><summary>Modifica istruzioni</summary><textarea defaultValue={prompt?.instructions||''} placeholder="Inserisci il prompt di sistema per questo agente…" onBlur={e=>{if(e.target.value.trim()) updatePrompt(agent.agent_name,e.target.value)}}/><small>Il salvataggio avviene quando esci dal campo.</small>{prompt&&<button className="btn btn-outline" onClick={()=>loadPromptHistory(agent.agent_name)}>Cronologia ({Number(prompt.version_count||0)})</button>}</details></article>})}</div></div>}
 
       {adminTab === 'economics' && <div className="card">
         <div className="admin-section-heading"><div><span>Economia della piattaforma</span><h3>Costi, ricavi e margine per cliente</h3><p>Configura i tariffari provider e i costi generali mensili.</p></div><button className="btn btn-outline" onClick={loadMonitoring}>Aggiorna</button></div>
@@ -797,8 +798,8 @@ export function AdminScreen({ token, currentUser, adminPrompts, updatePrompt }) 
             </div>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'minmax(280px, 360px) minmax(0, 1fr)', gap: '1rem', alignItems: 'start' }}>
-            <div className="card" style={{ position: 'sticky', top: '1rem' }}>
+          <div className="admin-control-layout">
+            <div className="card admin-user-observer">
               <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', alignItems: 'center', marginBottom: '1rem' }}>
                 <div>
                   <h3 style={{ marginBottom: '0.25rem' }}>Utenti osservati</h3>
@@ -815,7 +816,7 @@ export function AdminScreen({ token, currentUser, adminPrompts, updatePrompt }) 
                 style={{ marginBottom: '1rem' }}
               />
 
-              <div style={{ display: 'grid', gap: '0.75rem', maxHeight: '70vh', overflowY: 'auto', paddingRight: '4px' }}>
+              <div className="admin-observed-users">
                 {filteredUsers.map(user => {
                   const isActive = String(user.id) === String(selectedControlUserId);
                   const pending = processByUser[String(user.id)] || processByUser[user.email] || processByUser[user.name] || 0;
@@ -845,7 +846,6 @@ export function AdminScreen({ token, currentUser, adminPrompts, updatePrompt }) 
                       <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '0.65rem' }}>
                         <span className="badge badge-purple">{user.sources?.length || 0} fonti</span>
                         <span className="badge badge-green">{user.posts_count || 0} contenuti</span>
-                        <span className="badge badge-amber">{user.sources_count || 0} fonti</span>
                       </div>
                       <div style={{ fontSize: '12px', color: 'var(--text-muted)', lineHeight: 1.5 }}>
                         Piano: {user.plan || 'free'}<br />

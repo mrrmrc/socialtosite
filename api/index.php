@@ -594,6 +594,10 @@ if ($action === 'logs-clear' && $method === 'POST') {
 if ($action === 'admin-content-mix' && $method === 'GET') {
     requireAdmin($isAdmin);
 
+    $postColumns = [];
+    try { foreach (DB::fetchAll('SHOW COLUMNS FROM posts') as $column) $postColumns[$column['Field']] = true; }
+    catch (Throwable $e) { error_log('[admin-content-mix] schema: ' . $e->getMessage()); }
+
     $normalizza = static function (?string $tipo): string {
         $tipo = strtoupper(trim((string)$tipo));
         if ($tipo === '') return 'SENZA MEDIA';
@@ -603,14 +607,18 @@ if ($action === 'admin-content-mix' && $method === 'GET') {
         return $tipo;
     };
 
-    $righe = DB::fetchAll(
-        "SELECT media_type, platform,
+    $mediaColumn = isset($postColumns['media_type']) ? 'media_type' : "'SENZA MEDIA' AS media_type";
+    $transcriptCount = isset($postColumns['transcript']) ? "SUM(CASE WHEN transcript IS NOT NULL AND transcript <> '' THEN 1 ELSE 0 END)" : '0';
+    try {
+      $righe = DB::fetchAll(
+        "SELECT $mediaColumn, platform,
                 COUNT(*) totale,
-                SUM(CASE WHEN transcript IS NOT NULL AND transcript <> '' THEN 1 ELSE 0 END) con_testo_estratto,
+                $transcriptCount con_testo_estratto,
                 SUM(CASE WHEN published = 1 THEN 1 ELSE 0 END) pubblicati
          FROM posts
          GROUP BY media_type, platform"
-    );
+      );
+    } catch (Throwable $e) { error_log('[admin-content-mix] aggregate: ' . $e->getMessage()); $righe = []; }
 
     $perTipo = [];
     $perPiattaforma = [];
@@ -640,8 +648,9 @@ if ($action === 'admin-content-mix' && $method === 'GET') {
     // Quanti clienti hanno davvero contenuti: la media su chi ha zero post
     // racconterebbe una cosa falsa.
     $utentiConPost = (int)(DB::fetch('SELECT COUNT(DISTINCT user_id) c FROM posts')['c'] ?? 0);
-    $recentContents = DB::fetchAll("SELECT p.id,p.user_id,u.name,u.email,p.platform,p.media_type,p.processing_status,p.published,p.seo_score,p.generated_title,p.edited_title,p.agent_notes,p.created_at,p.published_at
-        FROM posts p LEFT JOIN users u ON u.id=p.user_id ORDER BY p.id DESC LIMIT 100");
+    try {
+        $recentContents = DB::fetchAll("SELECT p.*,u.name,u.email FROM posts p LEFT JOIN users u ON u.id=p.user_id ORDER BY p.id DESC LIMIT 100");
+    } catch (Throwable $e) { error_log('[admin-content-mix] recent: ' . $e->getMessage()); $recentContents = []; }
 
     json([
         'totale_contenuti' => $totale,
@@ -654,7 +663,8 @@ if ($action === 'admin-content-mix' && $method === 'GET') {
 
 if ($action === 'admin-users' && $method === 'GET') {
     requireAdmin($isAdmin);
-    $users = DB::fetchAll(
+    ensureSiteSchemaUpgrades();
+    try { $users = DB::fetchAll(
         'SELECT u.id, u.email, u.name, u.slug, u.role, u.plan, u.created_at,
                 s.title AS site_title, s.last_sync, s.role_mission, s.content_strategy,
                 COUNT(DISTINCT src.id) AS sources_count,
@@ -665,8 +675,12 @@ if ($action === 'admin-users' && $method === 'GET') {
          LEFT JOIN posts p ON p.user_id = u.id AND p.published = 1
          GROUP BY u.id
          ORDER BY u.created_at DESC'
-    );
-    $sources = DB::fetchAll('SELECT user_id, platform, url, label FROM social_sources WHERE active = 1');
+    ); } catch (Throwable $e) {
+        error_log('[admin-users] full query: ' . $e->getMessage());
+        $users = DB::fetchAll('SELECT id,email,name,slug,role,plan,created_at,0 AS sources_count,0 AS posts_count FROM users ORDER BY created_at DESC');
+    }
+    try { $sources = DB::fetchAll('SELECT user_id, platform, url, label FROM social_sources WHERE active = 1'); }
+    catch (Throwable $e) { error_log('[admin-users] sources: ' . $e->getMessage()); $sources = []; }
     $userSources = [];
     foreach($sources as $src) {
         $userSources[$src['user_id']][] = $src;
@@ -2142,11 +2156,11 @@ if ($action === 'process-pending' && $method === 'POST') {
 // ÔöÇÔöÇ ADMIN: GET admin-processes (tutti i post in coda) ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
 if ($action === 'admin-processes' && $method === 'GET') {
     requireAdmin($isAdmin);
-    $pending = DB::fetchAll(
+    try { $pending = DB::fetchAll(
         'SELECT p.id, p.platform, p.source_url, p.imported_at, u.email, u.name
          FROM posts p JOIN users u ON p.user_id = u.id
          WHERE p.seo_score=-1 ORDER BY p.imported_at ASC'
-    );
+    ); } catch (Throwable $e) { error_log('[admin-processes] ' . $e->getMessage()); $pending = []; }
     json(['processes' => $pending]);
 }
 
