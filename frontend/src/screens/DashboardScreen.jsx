@@ -2349,6 +2349,9 @@ const [importMsg, setImportMsg] = useState(null);
   const visibility = data?.visibility || {};
   const reachability = data?.reachability || { score: 0, stage: 'configurazione', checks: [] };
   const activeChannelCount = sources.length;
+  const visualAgentConfigured = Boolean(site?.site_ai_data || site?.generated_layouts || site?.design_archetype);
+  const visualDirection = templateStudio?.design_archetype || site?.design_archetype || site?.theme || 'Da definire';
+  const readyPostCount = posts.filter(post => Number(post.seo_score) >= 0).length;
 
   useEffect(() => {
     if (!isBasePlan || !data || baseAutoSyncStarted.current) return;
@@ -2580,6 +2583,37 @@ const [importMsg, setImportMsg] = useState(null);
         )}
         {(tab === 'overview' || tab === 'strategy') && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+            {tab === 'overview' && (
+              <section className="project-command-center" aria-labelledby="project-command-title">
+                <div className="project-command-main">
+                  <div className="project-command-status"><i aria-hidden="true" /> Progetto operativo</div>
+                  <span className="section-eyebrow">Il tuo progetto digitale</span>
+                  <h2 id="project-command-title">{site?.title || siteTitleDraft || user?.name || 'Il tuo sito'}</h2>
+                  <p>Contenuti, pubblicazione e identità visiva riuniti in un unico spazio di lavoro.</p>
+                  <div className="project-command-actions">
+                    <a className="btn btn-primary" href={siteUrl} target="_blank" rel="noopener">Apri il sito ↗</a>
+                    <button className="btn btn-outline" onClick={() => selectNavigation({ id: 'settings' })}>Gestisci l’aspetto</button>
+                  </div>
+                </div>
+                <div className="project-command-grid" aria-label="Stato del progetto">
+                  <article>
+                    <span className="project-command-icon is-ai" aria-hidden="true">✦</span>
+                    <div><small>Direzione grafica AI</small><strong>{visualAgentConfigured ? 'Personalizzata' : 'Pronta da configurare'}</strong><p>{visualDirection}</p></div>
+                    <b className={visualAgentConfigured ? 'is-ready' : 'is-pending'}>{visualAgentConfigured ? 'Attiva' : 'Setup'}</b>
+                  </article>
+                  <article>
+                    <span className="project-command-icon" aria-hidden="true">◎</span>
+                    <div><small>Canali sorgente</small><strong>{activeChannelCount} collegat{activeChannelCount === 1 ? 'o' : 'i'}</strong><p>{posts.length} contenuti acquisiti</p></div>
+                    <button onClick={() => selectNavigation({ id: 'sources' })} aria-label="Gestisci i canali">→</button>
+                  </article>
+                  <article>
+                    <span className="project-command-icon" aria-hidden="true">✓</span>
+                    <div><small>Produzione editoriale</small><strong>{readyPostCount} pronti</strong><p>{publishedPosts.length} già online</p></div>
+                    <button onClick={() => selectNavigation({ id: 'site' })} aria-label="Gestisci gli articoli">→</button>
+                  </article>
+                </div>
+              </section>
+            )}
             {tab === 'overview' && (isBasePlan ? (
               <div className="base-home">
                 <section className={`base-start-card is-${baseAcquisition.status}`}>
