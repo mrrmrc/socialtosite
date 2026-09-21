@@ -5,7 +5,6 @@ import { LandingScreen } from './screens/LandingScreen';
 import { LegalScreen } from './screens/LegalScreen';
 import { ConnectScreen } from './screens/ConnectScreen';
 import { BasicUserScreen } from './screens/BasicUserScreen';
-import { DeployFooter } from './components/DeployFooter';
 import { apiFetch } from './utils/api';
 import './index.css';
 
@@ -83,10 +82,5 @@ export default function App() {
     screen = <DashboardScreen token={token} user={user} onLogout={handleLogout} />;
   }
 
-  return (
-    <>
-      {screen}
-      <DeployFooter />
-    </>
-  );
+  return screen;
 }

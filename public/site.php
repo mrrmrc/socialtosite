@@ -3792,32 +3792,5 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 });
 </script>
-<?php
-  // Timestamp/versione dell'ultimo deploy, sempre visibile su ogni sito
-  // pubblico generato — non solo nella dashboard. deploy-info.json viene
-  // generato dalla pipeline deployvps e pubblicato alla radice del sito;
-  // release/public/site.php e' un livello sotto, da qui '..'.
-  $deployInfo = null;
-  $deployInfoPath = __DIR__ . '/../deploy-info.json';
-  if (is_file($deployInfoPath)) {
-    $deployInfoRaw = @file_get_contents($deployInfoPath);
-    if ($deployInfoRaw !== false) {
-      $deployInfoDecoded = json_decode($deployInfoRaw, true);
-      if (is_array($deployInfoDecoded)) $deployInfo = $deployInfoDecoded;
-    }
-  }
-  // Data in formato europeo. La stringa viene letta a pezzi invece che con
-  // strtotime perche' e' gia' espressa nel fuso di Roma: reinterpretarla
-  // sposterebbe l'orario di un'ora o due.
-  $deployQuando = '';
-  if (!empty($deployInfo['deployed_at']) && preg_match('/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})/', (string)$deployInfo['deployed_at'], $dm)) {
-    $deployQuando = $dm[3] . '/' . $dm[2] . '/' . $dm[1] . ' alle ' . $dm[4] . ':' . $dm[5];
-  }
-  $deployVersione = preg_replace('/^deployvps-/', '', (string)($deployInfo['release'] ?? ''));
-?>
-<?php if ($deployInfo && !empty($deployInfo['release'])): ?>
-<style>.sts-deploy-footer{position:fixed;left:50%;bottom:10px;transform:translateX(-50%);z-index:40;font-size:12px;font-weight:600;color:#e8eefc;background:rgba(15,23,42,.82);padding:6px 14px;border-radius:999px;pointer-events:none;backdrop-filter:blur(8px);font-family:system-ui,-apple-system,'Segoe UI',sans-serif;white-space:nowrap;box-shadow:0 4px 14px rgba(8,10,28,.28)}.sts-deploy-footer b{font-weight:700}.sts-deploy-footer span{opacity:.62;font-weight:500}@media(max-width:640px){.sts-deploy-footer{display:none}}</style>
-<div class="sts-deploy-footer">Aggiornato il <b><?= h($deployQuando ?: (string)($deployInfo['deployed_at'] ?? '')) ?></b> <span>&middot; versione <?= h($deployVersione) ?></span></div>
-<?php endif; ?>
 </body>
 </html>

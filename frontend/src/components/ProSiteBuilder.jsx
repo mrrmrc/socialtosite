@@ -342,7 +342,6 @@ export function ProSiteBuilder({ user, open, onClose }) {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
   const [previewTick, setPreviewTick] = useState(0);
-  const [previewLoading, setPreviewLoading] = useState(false);
   const [savedStyle, setSavedStyle] = useState(DEFAULT_STYLE);
   const [content, setContent] = useState({ title: '', hero_tagline: '', bio: '' });
   const [savedContent, setSavedContent] = useState({ title: '', hero_tagline: '', bio: '' });
@@ -398,10 +397,8 @@ export function ProSiteBuilder({ user, open, onClose }) {
     if (!open) return;
     if (!siteSlug) {
       setPreviewError('Questo account non ha ancora un indirizzo pubblico, quindi non esiste un sito da mostrare.');
-      setPreviewLoading(false);
       return;
     }
-    setPreviewLoading(true);
     setPreviewError(null);
     clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(async () => {
@@ -415,13 +412,11 @@ export function ProSiteBuilder({ user, open, onClose }) {
         });
         if (!response.ok) {
           setPreviewError(`Errore HTTP ${response.status}`);
-          setPreviewLoading(false);
           return;
         }
         let html = await response.text();
         if (!html || html.length < 100) {
           setPreviewError('Risposta vuota dal server');
-          setPreviewLoading(false);
           return;
         }
         html = html.replace('<head>', `<head><base href="${siteUrl}/">`);
@@ -429,8 +424,6 @@ export function ProSiteBuilder({ user, open, onClose }) {
       } catch (err) {
         console.error('Preview fetch error:', err);
         setPreviewError(err.message || 'Errore di rete');
-      } finally {
-        setPreviewLoading(false);
       }
     }, 150);
     return () => clearTimeout(debounceRef.current);
@@ -855,15 +848,6 @@ export function ProSiteBuilder({ user, open, onClose }) {
                 </div>
               </div>
 
-              {/* Click-on-preview hint */}
-              <div style={{
-                margin: '12px 18px 0', padding: '9px 12px', borderRadius: 10,
-                background: 'var(--primary-light)', border: '1px solid var(--primary)',
-                fontSize: 11, lineHeight: 1.5, color: 'var(--primary-dark)', flexShrink: 0,
-              }}>
-                <strong>Clicca direttamente sul sito</strong> nell'anteprima per passare subito allo strumento giusto.
-              </div>
-
               {/* Panel content scrollable */}
               <div className="psb-panel-inner" key={section} style={{ flex: 1, overflowY: 'auto', padding: '18px 18px 80px', display: 'grid', gap: 12 }}>
 
@@ -1266,18 +1250,18 @@ export function ProSiteBuilder({ user, open, onClose }) {
                   <label style={{
                     display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                     padding: '12px 14px', borderRadius: 12,
-                    background: 'var(--gray-light)', border: '2px solid var(--border-strong)',
+                    background: 'var(--surface)', border: '1px solid var(--border-strong)',
                     cursor: 'pointer', fontSize: 13, fontWeight: 700, color: 'var(--text)',
                   }}>
                     <span>
                       <span style={{ display: 'block', fontSize: 13, fontWeight: 700 }}>Effetto vetro</span>
-                      <span style={{ display: 'block', fontSize: 11, opacity: .45, marginTop: 2 }}>
+                      <span style={{ display: 'block', fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
                         Sfondo semi-trasparente con sfocatura
                       </span>
                     </span>
                     <span style={{
                       width: 44, height: 24, borderRadius: 999, position: 'relative',
-                      background: style.ui_style.glassmorphism ? '#2563eb' : 'rgba(255,255,255,.15)',
+                      background: style.ui_style.glassmorphism ? 'var(--primary)' : 'var(--border-strong)',
                       transition: 'background .2s ease', flexShrink: 0,
                     }}>
                       <input
@@ -1306,8 +1290,8 @@ export function ProSiteBuilder({ user, open, onClose }) {
                       rows={8}
                       style={{
                         width: '100%', padding: '10px 12px', borderRadius: 10,
-                        border: '2px solid var(--border)',
-                        background: 'var(--gray-light)', color: '#a5f3fc',
+                        border: '1px solid var(--border-strong)',
+                        background: '#f8fafc', color: '#0f172a', caretColor: '#0f172a',
                         fontSize: 12, fontFamily: "'Fira Code', 'Courier New', monospace",
                         resize: 'vertical', lineHeight: 1.6, outline: 'none',
                       }}
@@ -1322,8 +1306,9 @@ export function ProSiteBuilder({ user, open, onClose }) {
                       disabled={!dirty}
                       style={{
                         padding: '10px', borderRadius: 10,
-                        border: '2px solid var(--border-strong)',
-                        background: 'var(--gray-light)', color: dirty ? '#fff' : 'rgba(255,255,255,.25)',
+                        border: '1px solid var(--border-strong)',
+                        background: dirty ? 'var(--primary-light)' : '#f3f4f6',
+                        color: dirty ? 'var(--primary-dark)' : '#6b7280',
                         fontWeight: 700, fontSize: 12, cursor: dirty ? 'pointer' : 'not-allowed',
                         transition: 'all .15s ease',
                       }}
@@ -1333,8 +1318,8 @@ export function ProSiteBuilder({ user, open, onClose }) {
                       onClick={() => setStyle(DEFAULT_STYLE)}
                       style={{
                         padding: '10px', borderRadius: 10,
-                        border: '1px solid rgba(239,68,68,.18)',
-                        background: 'rgba(239,68,68,.06)', color: '#fca5a5',
+                        border: '1px solid #fdba74',
+                        background: '#fff7ed', color: '#9a3412',
                         fontWeight: 700, fontSize: 12, cursor: 'pointer',
                         transition: 'all .15s ease',
                       }}
@@ -1346,8 +1331,8 @@ export function ProSiteBuilder({ user, open, onClose }) {
                 {message && (
                   <div style={{
                     padding: '12px 14px', borderRadius: 11,
-                    background: 'rgba(239,68,68,.1)', border: '1px solid rgba(239,68,68,.2)',
-                    fontSize: 13, color: '#fca5a5', lineHeight: 1.5,
+                    background: '#fef2f2', border: '1px solid #fecaca',
+                    fontSize: 13, color: '#991b1b', lineHeight: 1.5,
                   }}>{message}</div>
                 )}
               </div>
@@ -1355,35 +1340,6 @@ export function ProSiteBuilder({ user, open, onClose }) {
 
             {/* ── Preview Pane ── */}
             <main style={{ position: 'relative', minWidth: 0, background: '#dfe5ee', padding: 16 }}>
-              {/* Preview status bar */}
-              <div style={{
-                position: 'absolute', left: 28, top: 28, zIndex: 3,
-                display: 'flex', alignItems: 'center', gap: 8,
-                padding: '7px 12px', borderRadius: 999,
-                background: 'rgba(4,9,20,.88)', border: '2px solid var(--border-strong)',
-                fontSize: 11, fontWeight: 600, color: 'var(--text)',
-                boxShadow: '0 6px 20px rgba(0,0,0,.3)',
-                backdropFilter: 'blur(16px)',
-              }}>
-                <span style={{
-                  width: 7, height: 7, borderRadius: 99,
-                  background: previewLoading ? '#f59e0b' : '#22c55e',
-                  animation: previewLoading ? 'psb-pulse .8s ease infinite' : 'none',
-                }} />
-                {previewLoading ? 'Aggiorno anteprima…' : 'Anteprima live'}
-              </div>
-
-              {/* Hint */}
-              <div style={{
-                position: 'absolute', right: 28, top: 28, zIndex: 3,
-                padding: '7px 12px', borderRadius: 999,
-                background: 'rgba(4,9,20,.88)', border: '2px solid var(--border-strong)',
-                fontSize: 11, fontWeight: 600, color: 'rgba(255,255,255,.55)',
-                backdropFilter: 'blur(16px)',
-              }}>
-                👆 Clicca una parte del sito per modificarla
-              </div>
-
               {/* iframe preview */}
               {previewError ? (
                 <div style={{
