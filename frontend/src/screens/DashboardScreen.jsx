@@ -487,6 +487,9 @@ export function DashboardScreen({ token, user, onLogout }) {
   const [baseAcquisition, setBaseAcquisition] = useState({ status: 'idle', message: '' });
 
   const [viewMode, setViewMode] = useState('grid');
+  const [postSearch, setPostSearch] = useState('');
+  const [postPlatformFilter, setPostPlatformFilter] = useState('all');
+  const [postTagFilter, setPostTagFilter] = useState('all');
   const [selectedPosts, setSelectedPosts] = useState([]);
   const [publishingPostId, setPublishingPostId] = useState(null);
   const [syncing, setSyncing] = useState(false);
@@ -1784,16 +1787,16 @@ const [importMsg, setImportMsg] = useState(null);
   function renderAiGenerateCard() {
     const hasContent = posts.length > 0;
     return (
-      <section className="card" style={{ padding: '1.5rem', display: 'grid', gap: '1rem', border: '1px solid var(--primary)' }}>
+      <section className="card ai-site-card">
         <div>
           <span className="section-eyebrow">Fatto per te dall'AI</span>
-          <h2 style={{ margin: '0.35rem 0 0.5rem' }}>✨ Genera il mio sito con l'AI</h2>
+          <h2>✨ Genera il mio sito con l'AI</h2>
           <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '14px', lineHeight: 1.6 }}>
             {hasContent
               ? 'Lascia che l\'AI scriva titolo, presentazione e stile del sito partendo da quello che pubblichi sui social. Puoi rifarlo quante volte vuoi.'
               : 'Appena avrai collegato un social e ci saranno dei contenuti, l\'AI potrà scrivere titolo, presentazione e stile del tuo sito da sola.'}
           </p>
-          <button type="button" onClick={() => setTab('strategy')} style={{ marginTop: 8, background: 'none', border: 'none', padding: 0, color: 'var(--primary)', fontSize: '13px', fontWeight: 700, cursor: 'pointer', textDecoration: 'underline' }}>
+          <button type="button" className="ai-site-profile-link" onClick={() => setTab('strategy')}>
             Vedi e modifica il profilo che l'AI usa per generare il sito →
           </button>
         </div>
@@ -2669,63 +2672,44 @@ const [importMsg, setImportMsg] = useState(null);
                   )}
                 </section>
               </div>
-            ) : <>
-            <section className="trust-simulator-card">
-              <div className="trust-simulator-copy"><span className="section-eyebrow">Prova verificabile</span><h2>Guarda cosa può accadere, usando i tuoi dati</h2><p>Nessuna promessa di traffico o vendite: questa simulazione mostra soltanto ciò che il sistema ha già acquisito, preparato e pubblicato.</p><div><button className="btn btn-primary" onClick={() => selectNavigation({ id: 'site' })}>Controlla gli articoli</button><a className="btn btn-outline" href={siteUrl} target="_blank" rel="noopener">Controlla il sito ↗</a></div></div>
-              <div className="trust-simulator-steps">
-                <article><span>1</span><div><strong>{sources.length} fonti reali</strong><small>Canali da cui arrivano i contenuti</small></div></article>
-                <article><span>2</span><div><strong>{posts.length} contenuti acquisiti</strong><small>{posts.filter(post => Number(post.seo_score) >= 0).length} già trasformati in articoli</small></div></article>
-                <article><span>3</span><div><strong>{publishedPosts.length} articoli online</strong><small>Apribili e controllabili sul sito pubblico</small></div></article>
+            ) : <div className="overview-workspace">
+            <section className="overview-metrics" aria-label="Riepilogo del progetto">
+              {[
+                { n: sources.length, l: 'Canali collegati', action: () => selectNavigation({ id: 'sources' }) },
+                { n: posts.length, l: 'Contenuti acquisiti', action: () => selectNavigation({ id: 'site' }) },
+                { n: publishedPosts.length, l: 'Articoli online', action: () => selectNavigation({ id: 'site' }) },
+                { n: Number(visibility.actions || 0).toLocaleString('it-IT'), l: 'Azioni · 30 giorni', action: () => selectNavigation({ id: 'seo' }) },
+              ].map((s, i) => (
+                <button key={i} type="button" onClick={s.action}><strong>{s.n}</strong><span>{s.l}</span><i aria-hidden="true">→</i></button>
+              ))}
+            </section>
+
+            <section className="overview-primary-grid">
+              {renderAiGenerateCard()}
+              <div className="card overview-next-card">
+                <span className="section-eyebrow">Prossima azione</span>
+                <h2>{readyPostCount ? `${readyPostCount} contenuti pronti da controllare` : 'Il progetto è sotto controllo'}</h2>
+                <p>{readyPostCount ? 'Rivedi titoli e testi, poi scegli cosa pubblicare.' : 'Puoi aggiornare i canali oppure verificare come il sito appare in rete.'}</p>
+                <div>
+                  <button className="btn btn-primary" onClick={() => selectNavigation({ id: readyPostCount ? 'site' : 'sources' })}>{readyPostCount ? 'Controlla i contenuti' : 'Gestisci i canali'}</button>
+                  <button className="btn btn-outline" onClick={() => selectNavigation({ id: 'seo' })}>Esplora la rete</button>
+                </div>
+                <small>Ultimo aggiornamento: {site?.last_sync ? new Date(site.last_sync).toLocaleString('it-IT') : 'non ancora effettuato'}</small>
               </div>
             </section>
 
-            {renderAiGenerateCard()}
-
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1.25rem' }}>
-              {[
-                { n: networkPublishedPages, l: 'Pagine pubblicate', c: 'var(--primary)' },
-                { n: networkPublishedPages, l: 'Pagine collegate alla rete', c: 'var(--amber)' },
-                { n: Number(visibility.unique_visitors || 0).toLocaleString('it-IT'), l: 'Visite uniche giornaliere · 30 gg', c: 'var(--teal)' },
-                { n: Number(visibility.actions || 0).toLocaleString('it-IT'), l: 'Azioni verso l’attività · 30 gg', c: 'var(--primary)' },
-              ].map((s, i) => (
-                <div key={i} className="card" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', justifyContent: 'center', textAlign: 'center' }}>
-                  <div style={{ fontSize: '42px', fontWeight: 800, color: s.c, lineHeight: 1, textShadow: `0 0 15px ${s.c}33` }}>{s.n}</div>
-                  <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '12px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px' }}>{s.l}</div>
-                </div>
-              ))}
-            </div>
-
-            <div className="card" style={{ padding: '1.5rem', background: 'var(--surface)' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap', alignItems: 'flex-start' }}>
-                <div>
-                  <h3 style={{ marginBottom: '0.4rem', color: 'var(--text)' }}>Le persone stanno interagendo con il tuo spazio</h3>
-                  <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '14px', maxWidth: '720px', lineHeight: 1.6 }}>
-                    Qui contiamo visite e clic utili generati dalle tue pagine. Un’azione indica che qualcuno ha premuto su telefono, indicazioni, WhatsApp, prenotazione o social; non significa necessariamente che il contatto sia stato completato.
-                  </p>
-                </div>
-                <div style={{ padding: '10px 14px', borderRadius: '999px', background: 'var(--teal-light)', color: 'var(--teal)', fontSize: '12px', fontWeight: 800 }}>
-                  Collegamento alla rete attivo
-                </div>
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '0.75rem', marginTop: '1.25rem' }}>
+            <details className="card overview-details">
+              <summary><span><strong>Dettaglio delle interazioni</strong><small>Visite, clic e azioni degli ultimi 30 giorni</small></span><b>{Number(visibility.unique_visitors || 0).toLocaleString('it-IT')} visite</b></summary>
+              <div>
                 {[
-                  ['Percorsi scelti', visibility.event_counts?.path_select || 0],
-                  ['Contenuti aperti', visibility.event_counts?.path_content_click || 0],
-                  ['Clic sul numero', visibility.event_counts?.call_click || 0],
-                  ['Indicazioni', visibility.event_counts?.directions_click || 0],
-                  ['WhatsApp', visibility.event_counts?.whatsapp_click || 0],
-                  ['Prenotazione', visibility.event_counts?.booking_click || 0],
-                  ['Social', visibility.event_counts?.social_click || 0],
-                ].map(([label, value]) => (
-                  <div key={label} style={{ padding: '1rem', borderRadius: '12px', background: 'var(--bg)', border: '1px solid var(--border)' }}>
-                    <div style={{ fontSize: '24px', fontWeight: 800, color: 'var(--text)' }}>{value}</div>
-                    <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>{label}</div>
-                  </div>
-                ))}
+                  ['Percorsi scelti', visibility.event_counts?.path_select || 0], ['Contenuti aperti', visibility.event_counts?.path_content_click || 0],
+                  ['Clic sul numero', visibility.event_counts?.call_click || 0], ['Indicazioni', visibility.event_counts?.directions_click || 0],
+                  ['WhatsApp', visibility.event_counts?.whatsapp_click || 0], ['Prenotazione', visibility.event_counts?.booking_click || 0], ['Social', visibility.event_counts?.social_click || 0],
+                ].map(([label, value]) => <article key={label}><strong>{value}</strong><span>{label}</span></article>)}
               </div>
-            </div>
+            </details>
 
-            </>)}
+            </div>)}
 
             {tab === 'strategy' && <GuidedStrategy
               understanding={activeUnderstanding}
@@ -2803,30 +2787,6 @@ const [importMsg, setImportMsg] = useState(null);
               </div>
             </div>}
 
-            {tab === 'overview' && !isBasePlan && <>
-
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.5rem' }}>
-              <div className="card">
-                <h3 style={{ marginBottom: '1rem' }}>Sincronizzazione dei canali</h3>
-                <p style={{ fontSize: '14px', color: 'var(--text-muted)', marginBottom: '1rem' }}>
-                  Un controllo periodico aggiorna i canali abilitati e ignora quelli impostati come manuali. Puoi decidere per ogni profilo nella sezione Canali.
-                </p>
-                <div style={{ padding: '12px', background: 'var(--gray-light)', borderRadius: '8px', fontSize: '13px', display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ fontWeight: 600 }}>Ultimo sync:</span>
-                  <span>{site?.last_sync ? new Date(site.last_sync).toLocaleString('it-IT') : 'Mai effettuato'}</span>
-                </div>
-              </div>
-              
-              <div className="card">
-                <h3 style={{ marginBottom: '1rem' }}>Scorciatoie veloci</h3>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  <button onClick={() => setTab('seo')} className="btn btn-outline" style={{ justifyContent: 'flex-start' }}>🕸️ Controlla pagine e visibilità</button>
-                  <button onClick={() => setTab('sources')} className="btn btn-outline" style={{ justifyContent: 'flex-start' }}>➕ Aggiungi un nuovo canale social</button>
-                  <button onClick={() => setTab('site')} className="btn btn-outline" style={{ justifyContent: 'flex-start' }}>✏️ Rivedi un articolo pubblicato</button>
-                </div>
-              </div>
-            </div>
-            </>}
           </div>
         )}
 
@@ -3178,31 +3138,38 @@ const [importMsg, setImportMsg] = useState(null);
           const allTags = [...new Set(posts.flatMap(p => p.tags || []).map(t => t.toLowerCase()))].sort();
           const pendingPosts = posts.filter(p => Number(p.seo_score) < 0 && postProcessingStatus(p) !== 'processing');
           const filteredPosts = posts.filter(p => {
-            if (dashboardFilter === 'all') return true;
-            if (dashboardFilter.startsWith('published-')) return Number(p.published) === Number(dashboardFilter.replace('published-', ''));
-            if (dashboardFilter.startsWith('platform-')) return p.platform === dashboardFilter.replace('platform-', '');
-            if (dashboardFilter.startsWith('tag-')) return (p.tags || []).map(t => t.toLowerCase()).includes(dashboardFilter.replace('tag-', ''));
-            if (dashboardFilter.startsWith('search-')) {
-              const term = dashboardFilter.replace('search-', '');
-              return `${p.edited_title || p.generated_title || ''} ${p.raw_content || ''} ${p.generated_excerpt || ''}`.toLowerCase().includes(term);
-            }
-            return true;
+            const matchesStatus = dashboardFilter === 'all'
+              || (dashboardFilter.startsWith('published-') && Number(p.published) === Number(dashboardFilter.replace('published-', '')));
+            const matchesPlatform = postPlatformFilter === 'all' || p.platform === postPlatformFilter;
+            const matchesTag = postTagFilter === 'all' || (p.tags || []).map(t => t.toLowerCase()).includes(postTagFilter);
+            const searchable = `${p.edited_title || p.generated_title || ''} ${p.raw_content || ''} ${p.generated_excerpt || ''} ${(p.tags || []).join(' ')}`.toLowerCase();
+            const matchesSearch = postSearch.trim() === '' || searchable.includes(postSearch.trim().toLowerCase());
+            return matchesStatus && matchesPlatform && matchesTag && matchesSearch;
           });
           return (
           <div>
             {/* Header Ricerca e Filtri */}
             <div style={{ marginBottom: '2rem', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              <input type="text" placeholder="🔍 Cerca contenuti per parola chiave..." style={{ width: '100%', border: '2px solid var(--border-strong)', padding: '16px 24px', borderRadius: 'var(--radius-lg)', background: 'var(--surface)', fontSize: '18px' }} onChange={(e) => {
-                const term = e.target.value.toLowerCase();
-                if (term) setDashboardFilter('search-' + term);
-                else setDashboardFilter('all');
-              }} />
-              
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
+              <input type="search" value={postSearch} placeholder="🔍 Cerca per titolo, testo o tag..." aria-label="Cerca nei contenuti" style={{ width: '100%', border: '2px solid var(--border-strong)', padding: '13px 18px', borderRadius: 'var(--radius-lg)', background: 'var(--surface)', fontSize: '16px' }} onChange={(e) => setPostSearch(e.target.value)} />
+
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', alignItems: 'center' }}>
                 <button onClick={() => setDashboardFilter('all')} style={{ padding: '10px 20px', borderRadius: '30px', fontSize: '15px', fontWeight: 600, border: 'none', background: dashboardFilter === 'all' ? 'var(--primary)' : 'var(--surface)', color: dashboardFilter === 'all' ? 'white' : 'var(--text)', boxShadow: '0 2px 5px rgba(0,0,0,0.05)', cursor: 'pointer' }}>Tutti i contenuti</button>
                 <button onClick={() => setDashboardFilter('published-1')} style={{ padding: '10px 20px', borderRadius: '30px', fontSize: '15px', fontWeight: 600, border: 'none', background: dashboardFilter === 'published-1' ? 'var(--teal)' : 'var(--surface)', color: dashboardFilter === 'published-1' ? 'white' : 'var(--text)', boxShadow: '0 2px 5px rgba(0,0,0,0.05)', cursor: 'pointer' }}>Pubblicati</button>
                 <button onClick={() => setDashboardFilter('published-0')} style={{ padding: '10px 20px', borderRadius: '30px', fontSize: '15px', fontWeight: 600, border: 'none', background: dashboardFilter === 'published-0' ? 'var(--amber)' : 'var(--surface)', color: dashboardFilter === 'published-0' ? 'white' : 'var(--text)', boxShadow: '0 2px 5px rgba(0,0,0,0.05)', cursor: 'pointer' }}>Bozze / In elaborazione</button>
+                <select value={postPlatformFilter} onChange={e => setPostPlatformFilter(e.target.value)} aria-label="Filtra per canale" style={{ minHeight: 40, padding: '0 12px', border: '1px solid var(--border-strong)', borderRadius: 10, color: 'var(--text)', background: 'var(--surface)', fontWeight: 650 }}>
+                  <option value="all">Tutti i canali</option>
+                  {allPlatforms.map(platform => <option key={platform} value={platform}>{SOCIAL[platform]?.label || platform}</option>)}
+                </select>
+                <select value={postTagFilter} onChange={e => setPostTagFilter(e.target.value)} aria-label="Filtra per argomento" style={{ minHeight: 40, padding: '0 12px', border: '1px solid var(--border-strong)', borderRadius: 10, color: 'var(--text)', background: 'var(--surface)', fontWeight: 650 }}>
+                  <option value="all">Tutti gli argomenti</option>
+                  {allTags.map(tag => <option key={tag} value={tag}>{tag}</option>)}
+                </select>
+                <div role="group" aria-label="Tipo di visualizzazione" style={{ display: 'flex', padding: 3, marginLeft: 'auto', border: '1px solid var(--border-strong)', borderRadius: 10, background: 'var(--surface)' }}>
+                  <button type="button" onClick={() => setViewMode('grid')} aria-pressed={viewMode === 'grid'} style={{ padding: '7px 11px', border: 0, borderRadius: 7, background: viewMode === 'grid' ? 'var(--primary)' : 'transparent', color: viewMode === 'grid' ? '#fff' : 'var(--text-muted)', cursor: 'pointer', fontWeight: 750 }}>▦ Schede</button>
+                  <button type="button" onClick={() => setViewMode('table')} aria-pressed={viewMode === 'table'} style={{ padding: '7px 11px', border: 0, borderRadius: 7, background: viewMode === 'table' ? 'var(--primary)' : 'transparent', color: viewMode === 'table' ? '#fff' : 'var(--text-muted)', cursor: 'pointer', fontWeight: 750 }}>☷ Tabella</button>
+                </div>
               </div>
+              <div style={{ color: 'var(--text-muted)', fontSize: 12, fontWeight: 650 }}>{filteredPosts.length} di {posts.length} contenuti</div>
             </div>
 
             {/* Azioni Veloci */}
@@ -3223,12 +3190,60 @@ const [importMsg, setImportMsg] = useState(null);
               )}
             </div>
 
-            {/* Lista Contenuti (Forzata in Grid View) */}
+            {/* Lista contenuti */}
             {filteredPosts.length === 0 ? (
               <div className="card" style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '4rem 2rem' }}>
                 <div style={{ fontSize: '64px', marginBottom: '1rem', opacity: 0.5 }}>📭</div>
                 <h3 style={{ fontSize: '24px', fontWeight: 800, color: 'var(--text)' }}>Nessun contenuto trovato</h3>
                 <p style={{ fontSize: '18px', marginTop: '0.5rem' }}>Non ci sono articoli per i filtri selezionati.</p>
+              </div>
+            ) : viewMode === 'table' ? (
+              <div className="card" style={{ overflowX: 'auto', border: '1px solid var(--border-strong)', padding: 0 }}>
+                <table style={{ width: '100%', minWidth: 880, borderCollapse: 'collapse', color: 'var(--text)', background: 'var(--surface)' }}>
+                  <thead>
+                    <tr style={{ background: 'var(--bg)', borderBottom: '1px solid var(--border-strong)' }}>
+                      <th style={{ width: 46, padding: '13px 14px', textAlign: 'center' }}>
+                        <input
+                          type="checkbox"
+                          aria-label="Seleziona tutti i contenuti filtrati"
+                          checked={filteredPosts.length > 0 && filteredPosts.every(post => selectedPosts.includes(post.id))}
+                          onChange={event => setSelectedPosts(previous => event.target.checked
+                            ? [...new Set([...previous, ...filteredPosts.map(post => post.id)])]
+                            : previous.filter(id => !filteredPosts.some(post => post.id === id)))}
+                        />
+                      </th>
+                      {['Canale', 'Titolo', 'Data', 'Stato', 'Azioni'].map(label => <th key={label} style={{ padding: '13px 14px', textAlign: 'left', fontSize: 11, textTransform: 'uppercase', letterSpacing: '.05em', color: 'var(--text-muted)' }}>{label}</th>)}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredPosts.map(post => {
+                      const title = post.edited_title || post.generated_title || (post.raw_content ? post.raw_content.substring(0, 80) : 'Nuovo contenuto');
+                      const processing = Number(post.seo_score) < 0;
+                      return (
+                        <tr key={post.id} style={{ borderBottom: '1px solid var(--border)' }}>
+                          <td style={{ padding: '14px', textAlign: 'center' }}><input type="checkbox" aria-label={`Seleziona ${title}`} checked={selectedPosts.includes(post.id)} onChange={() => togglePostSelection(post.id)} /></td>
+                          <td style={{ padding: '14px' }}><span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontWeight: 750, whiteSpace: 'nowrap' }}><SocialIcon platform={post.platform} size={20} />{SOCIAL[post.platform]?.label || post.platform}</span></td>
+                          <td style={{ padding: '14px', maxWidth: 360 }}><button type="button" onClick={() => !processing && openPostEditor(post)} disabled={processing} style={{ border: 0, padding: 0, color: 'var(--text)', background: 'transparent', textAlign: 'left', font: 'inherit', fontWeight: 750, cursor: processing ? 'default' : 'pointer' }}>{title}</button></td>
+                          <td style={{ padding: '14px', color: 'var(--text-muted)', whiteSpace: 'nowrap', fontSize: 13 }}>{post.published_at ? new Date(post.published_at).toLocaleDateString('it-IT') : '—'}</td>
+                          <td style={{ padding: '14px', whiteSpace: 'nowrap' }}>{processing
+                            ? <span className={`article-processing-badge ${postProcessingStatus(post) === 'failed' ? 'is-error' : ''}`}>{postProcessingLabel(post)}</span>
+                            : <span className={`article-publication-status ${Number(post.published) === 1 ? 'is-published' : 'is-draft'}`}>{Number(post.published) === 1 ? 'PUBBLICATO' : 'BOZZA'}</span>}
+                          </td>
+                          <td style={{ padding: '10px 14px' }}>
+                            {processing ? (
+                              <button className="btn btn-outline" style={{ padding: '8px 11px', fontSize: 12, whiteSpace: 'nowrap' }} disabled={postProcessingStatus(post) === 'processing'} onClick={() => retryPendingPost(post.id)}>{postProcessingStatus(post) === 'processing' ? 'In corso' : postProcessingStatus(post) === 'failed' ? 'Riprova' : 'Elabora'}</button>
+                            ) : (
+                              <div style={{ display: 'flex', gap: 7 }}>
+                                <button onClick={() => openPostEditor(post)} className="btn btn-outline" style={{ padding: '8px 11px', fontSize: 12 }}>Modifica</button>
+                                <button className={`article-publish-button ${Number(post.published) === 1 ? 'is-published' : 'is-draft'}`} style={{ padding: '8px 11px', fontSize: 12 }} disabled={publishingPostId === post.id} onClick={() => togglePublishPost(post.id, post.published)}>{publishingPostId === post.id ? 'Attendi…' : Number(post.published) === 1 ? 'Nascondi' : 'Pubblica'}</button>
+                              </div>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
               </div>
             ) : (
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1fr))', gap: '2rem', width: '100%' }}>

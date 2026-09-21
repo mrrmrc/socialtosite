@@ -852,18 +852,18 @@ export function ProSiteBuilder({ user, open, onClose }) {
               <div className="psb-panel-inner" key={section} style={{ flex: 1, overflowY: 'auto', padding: '18px 18px 80px', display: 'grid', gap: 12 }}>
 
                 {/* ── LIA ── */}
-                {section === 'lia' && <>
+                {section === 'lia' && <div style={{ display: 'grid', gap: 12, alignContent: 'start' }}>
                   <SectionHeader help="Descrivi come vorresti il sito, i colori, lo stile, o la struttura. Ci penso io.">
                     Assistente AI LIA
                   </SectionHeader>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 20 }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                     {liaMessages.map((msg, i) => (
                       <div key={i} style={{
                         alignSelf: msg.role === 'user' ? 'flex-end' : 'flex-start',
                         background: msg.role === 'user' ? 'var(--primary-light)' : 'var(--bg)',
                         border: msg.role === 'user' ? '1px solid var(--primary)' : '1px solid var(--border)',
-                        padding: '10px 14px', borderRadius: 12, maxWidth: '90%',
-                        fontSize: 13, lineHeight: 1.5, color: 'var(--text)',
+                        padding: '9px 11px', borderRadius: 10, maxWidth: '100%',
+                        fontSize: 12, lineHeight: 1.45, color: 'var(--text)',
                       }}>
                         {msg.role === 'assistant' && <strong style={{display: 'block', marginBottom: 4, color: 'var(--primary-dark)', fontSize: 11}}>LIA ✨</strong>}
                         {msg.text}
@@ -875,7 +875,7 @@ export function ProSiteBuilder({ user, open, onClose }) {
                       </div>
                     )}
                   </div>
-                  <form onSubmit={handleLiaSubmit} style={{ display: 'flex', gap: 8 }}>
+                  <form onSubmit={handleLiaSubmit} style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                     <input
                       type="text"
                       value={liaInput}
@@ -883,24 +883,24 @@ export function ProSiteBuilder({ user, open, onClose }) {
                       placeholder="Es. fammi un sito verde acqua..."
                       disabled={liaLoading}
                       style={{
-                        flex: 1, padding: '10px 14px', borderRadius: 10,
-                        border: '2px solid var(--border)', background: 'var(--surface)',
-                        color: 'var(--text)', outline: 'none'
+                        flex: 1, minWidth: 0, height: 40, padding: '0 11px', borderRadius: 9,
+                        border: '1px solid var(--border-strong)', background: 'var(--surface)',
+                        color: 'var(--text)', outline: 'none', fontSize: 12,
                       }}
                     />
                     <button
                       type="submit"
                       disabled={liaLoading || !liaInput.trim()}
                       style={{
-                        padding: '0 16px', borderRadius: 10, cursor: liaLoading || !liaInput.trim() ? 'not-allowed' : 'pointer',
-                        background: liaLoading || !liaInput.trim() ? 'rgba(255,255,255,.1)' : '#2563eb',
-                        color: 'var(--text)', border: 'none', fontWeight: 600,
+                        height: 40, padding: '0 13px', borderRadius: 9, cursor: liaLoading || !liaInput.trim() ? 'not-allowed' : 'pointer',
+                        background: liaLoading || !liaInput.trim() ? '#e5e7eb' : 'var(--primary)',
+                        color: liaLoading || !liaInput.trim() ? '#6b7280' : '#fff', border: 'none', fontWeight: 700,
                       }}
                     >
                       Invia
                     </button>
                   </form>
-                </>}
+                </div>}
 
                 {/* ── Themes ── */}
                 {section === 'themes' && <>
