@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { apiFetch } from '../utils/api';
+import { BrandMark } from './LandingScreen';
 
 const LOADING_MESSAGES = [
   'Controllo i canali collegati…',
@@ -65,7 +66,7 @@ export function BasicUserScreen({ user, token, onLogout, onEnterDashboard }) {
 
   const renderLiaAvatar = () => (
     <div className="lia-avatar">
-      <div className="lia-core"></div>
+      <div className="lia-core"><BrandMark iconOnly /></div>
       <div className="lia-ring-1"></div>
       <div className="lia-ring-2"></div>
       <div className="lia-sparkles">✨</div>
@@ -118,9 +119,12 @@ export function BasicUserScreen({ user, token, onLogout, onEnterDashboard }) {
         .lia-core {
           width: 76px;
           height: 76px;
-          background: #fff url('/logo-cropped.png?v=2') center/contain no-repeat;
+          background: #fff;
           border-radius: 18px;
           z-index: 2;
+          display: flex;
+          align-items: center;
+          justify-content: center;
         }
         .lia-ring-1, .lia-ring-2 {
           display: none;

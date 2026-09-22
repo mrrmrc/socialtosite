@@ -1355,3 +1355,19 @@ h3 { font-size: 24px; font-weight: 700; }
 .prompt-version-bar{display:flex;align-items:center;justify-content:space-between;gap:.7rem;margin-top:.55rem}.prompt-version-bar span{color:var(--text-muted);font-size:10px}.prompt-version-bar .btn{padding:6px 9px;font-size:10px}.prompt-history-list{display:grid;gap:.45rem;margin-top:.6rem;padding:.6rem;border-radius:10px;background:var(--bg)}.prompt-history-list article{display:flex;align-items:center;justify-content:space-between;gap:.7rem;padding:.5rem;border-bottom:1px solid var(--border)}.prompt-history-list article>div{min-width:0;display:grid;gap:2px}.prompt-history-list strong{font-size:10px}.prompt-history-list span{overflow:hidden;color:var(--text-muted);font-size:10px;text-overflow:ellipsis;white-space:nowrap}.prompt-history-list .btn{padding:5px 8px;font-size:9px}
 .admin-economics-table input{width:92px;padding:7px;border:1px solid var(--border-strong);border-radius:8px;background:var(--surface)}.admin-economics-table .btn{padding:6px 9px;font-size:10px}
 .admin-engine-diagnosis{display:grid;gap:2px;margin:.55rem 0;padding:.65rem .75rem;border-radius:10px;color:#80530b;background:var(--amber-light);font-size:11px}.admin-engine-diagnosis strong{font-size:10px;text-transform:uppercase}
+
+/* ── Piani Tariffari (Landing) ── */
+.public-pricing { padding: clamp(5rem, 9vw, 9rem) clamp(1.2rem, 6vw, 7rem); background: var(--bg); text-align: center; }
+.pricing-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 2rem; margin-top: 4rem; text-align: left; }
+.pricing-card { background: var(--surface); border: 2px solid var(--border); border-radius: 24px; padding: 2.5rem; position: relative; display: flex; flex-direction: column; }
+.pricing-card-featured { border-color: var(--primary); box-shadow: 0 20px 40px rgba(109, 92, 231, 0.15); transform: translateY(-10px); }
+.pricing-badge { position: absolute; top: -14px; left: 50%; transform: translateX(-50%); background: var(--primary); color: #fff; padding: 4px 16px; border-radius: 20px; font-size: 13px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.1em; }
+.pricing-card h3 { font-size: 2rem; color: #171917; margin-bottom: 1rem; }
+.pricing-card p { color: var(--text-muted); font-size: 1.1rem; line-height: 1.5; margin-bottom: 2rem; }
+.pricing-card ul { list-style: none; margin: 0 0 2.5rem 0; padding: 0; flex-grow: 1; display: flex; flex-direction: column; gap: 1rem; }
+.pricing-card li { display: flex; align-items: flex-start; gap: 10px; font-size: 1.1rem; color: #171917; }
+.pricing-card li span { color: var(--primary); font-weight: 800; }
+.pricing-card .public-button { width: 100%; justify-content: center; margin-top: auto; }
+@media (max-width: 800px) {
+  .pricing-card-featured { transform: none; }
+}

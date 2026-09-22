@@ -149,13 +149,43 @@ export function LandingScreen({ onGetStarted, isLoggedIn = false }) {
           </div>
         </section>
 
-        <section className="public-principles">
-          <div><span className="public-kicker">Costruito per durare</span><h2>Non un feed copiato.<br />Una presenza digitale.</h2></div>
-          <div className="principle-list">
-            <article><span>01</span><div><h3>Identità, non decorazione</h3><p>Colori, tono e immagini nascono dall’attività reale.</p></div></article>
-            <article><span>02</span><div><h3>Contenuti facili da ritrovare</h3><p>Ogni pubblicazione entra in argomenti, percorsi e pagine collegate.</p></div></article>
-            <article><span>03</span><div><h3>Un’azione sempre chiara</h3><p>Prenotare, contattare, leggere o visitare: il sito accompagna verso il passo giusto.</p></div></article>
-            <article><span>04</span><div><h3>Web aperto e proprietario</h3><p>Una casa pubblica per ciò che oggi vive soltanto dentro le piattaforme.</p></div></article>
+        <section className="public-pricing" id="piani">
+          <header className="public-section-heading">
+            <span className="public-kicker">Scegli la tua dimensione</span>
+            <h2>Tre soluzioni per crescere.</h2>
+          </header>
+          <div className="pricing-grid">
+            <article className="pricing-card">
+              <h3>Base</h3>
+              <p>Sincronizzazione standard da social, senza sforzo.</p>
+              <ul>
+                <li><span>✓</span> Creazione sito automatica</li>
+                <li><span>✓</span> Aggiornamento 1 volta al giorno</li>
+                <li><span>✓</span> Template intelligente standard</li>
+              </ul>
+              <button className="public-button public-button-outline" onClick={primaryAction}>Inizia ora</button>
+            </article>
+            <article className="pricing-card pricing-card-featured">
+              <div className="pricing-badge">Più scelto</div>
+              <h3>Professional</h3>
+              <p>Per creator e professionisti che esigono il pieno controllo.</p>
+              <ul>
+                <li><span>✓</span> Aggiornamento prioritario (ogni 2 ore)</li>
+                <li><span>✓</span> Control Room editoriale e revisione</li>
+                <li><span>✓</span> Tuning AI e tone of voice</li>
+              </ul>
+              <button className="public-button public-button-coral" onClick={primaryAction}>Scegli Professional</button>
+            </article>
+            <article className="pricing-card">
+              <h3>Agency</h3>
+              <p>Per chi gestisce molteplici brand o clienti.</p>
+              <ul>
+                <li><span>✓</span> Spazi web e brand illimitati</li>
+                <li><span>✓</span> Controllo cron e priorità dedicate</li>
+                <li><span>✓</span> Supporto premium dedicato</li>
+              </ul>
+              <button className="public-button public-button-outline" onClick={primaryAction}>Inizia ora</button>
+            </article>
           </div>
         </section>
 
