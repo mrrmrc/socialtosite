@@ -73,6 +73,10 @@ export function AdminScreen({ token, currentUser, adminPrompts, updatePrompt }) 
   const [adminActionBusy, setAdminActionBusy] = useState('');
   const [promptHistory, setPromptHistory] = useState({});
   const [agentDrafts, setAgentDrafts] = useState({});
+  const [settings, setSettings] = useState({ cron_interval_sync: '6', cron_interval_seo: '24' });
+  const [logFilterLevel, setLogFilterLevel] = useState('');
+  const [logFilterCtx, setLogFilterCtx] = useState('');
+  const [logSearch, setLogSearch] = useState('');
 
   useEffect(() => {
     setError('');
@@ -80,7 +84,10 @@ export function AdminScreen({ token, currentUser, adminPrompts, updatePrompt }) 
     if (adminTab === 'logs') loadLogs();
     if (adminTab === 'processes') loadProcesses();
     if (adminTab === 'content-mix') loadContentMix();
-    if (['overview', 'agents', 'economics', 'monitoring'].includes(adminTab)) loadMonitoring();
+    if (['overview', 'agents', 'economics', 'monitoring'].includes(adminTab)) {
+      loadMonitoring();
+      loadSettings();
+    }
   }, [adminTab]);
 
   async function loadMonitoring() {
@@ -108,6 +115,32 @@ export function AdminScreen({ token, currentUser, adminPrompts, updatePrompt }) 
       const data = await apiFetch('/api/index.php?action=logs', {}, token);
       setLogs(data.entries || []);
       setError('');
+    } catch (e) {
+      setError(e.message);
+    }
+  }
+
+  async function loadSettings() {
+    try {
+      const data = await apiFetch('/api/index.php?action=admin-settings', {}, token);
+      if (data.settings) setSettings(data.settings);
+    } catch (e) {}
+  }
+
+  async function saveSettings() {
+    try {
+      await apiFetch('/api/index.php?action=admin-settings', { method: 'POST', body: JSON.stringify({ settings }) }, token);
+      setNotice('Impostazioni salvate con successo.');
+    } catch (e) {
+      setError(e.message);
+    }
+  }
+
+  async function deleteLog(ts, msg) {
+    if (!confirm('Eliminare questa riga di log?')) return;
+    try {
+      await apiFetch('/api/index.php?action=logs-delete-line', { method: 'POST', body: JSON.stringify({ ts, msg }) }, token);
+      await loadLogs();
     } catch (e) {
       setError(e.message);
     }
@@ -678,6 +711,22 @@ export function AdminScreen({ token, currentUser, adminPrompts, updatePrompt }) 
                   )}
                 </div>
               </div>
+
+              <div>
+                <h4 style={{ marginBottom: '1rem' }}>Impostazioni Intervalli Cron</h4>
+                <div style={{ ...PANEL_STYLE, display: 'flex', gap: '1rem', alignItems: 'flex-end', flexWrap: 'wrap' }}>
+                  <div style={{ flex: 1, minWidth: '200px' }}>
+                    <label className="label">Intervallo Sync (ore)</label>
+                    <input type="number" value={settings.cron_interval_sync || ''} onChange={e => setSettings({...settings, cron_interval_sync: e.target.value})} style={{ width: '100%', padding: '8px', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', background: 'var(--surface)' }} />
+                  </div>
+                  <div style={{ flex: 1, minWidth: '200px' }}>
+                    <label className="label">Intervallo SEO (ore)</label>
+                    <input type="number" value={settings.cron_interval_seo || ''} onChange={e => setSettings({...settings, cron_interval_seo: e.target.value})} style={{ width: '100%', padding: '8px', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', background: 'var(--surface)' }} />
+                  </div>
+                  <button className="btn btn-primary" onClick={saveSettings}>Salva Impostazioni</button>
+                </div>
+              </div>
+
             </div>
           )}
         </div>
@@ -1340,6 +1389,16 @@ export function AdminScreen({ token, currentUser, adminPrompts, updatePrompt }) 
               <button className="btn btn-outline" onClick={clearLogs} style={{ color: 'var(--red)', borderColor: 'var(--red-light)', padding: '6px 12px', fontSize: '13px' }}>Svuota Log</button>
             </div>
           </div>
+          <div style={{ display: 'flex', gap: '10px', marginBottom: '1rem', flexWrap: 'wrap' }}>
+            <select value={logFilterLevel} onChange={e => setLogFilterLevel(e.target.value)} style={{ padding: '6px 10px', borderRadius: '4px', border: '1px solid var(--border)', background: 'var(--surface)' }}>
+              <option value="">Tutti i livelli</option>
+              <option value="error">Error</option>
+              <option value="warn">Warning</option>
+              <option value="info">Info</option>
+            </select>
+            <input type="text" placeholder="Filtra per contesto (es. sync, seo...)" value={logFilterCtx} onChange={e => setLogFilterCtx(e.target.value)} style={{ padding: '6px 10px', borderRadius: '4px', border: '1px solid var(--border)', background: 'var(--surface)' }} />
+            <input type="text" placeholder="Cerca nel messaggio..." value={logSearch} onChange={e => setLogSearch(e.target.value)} style={{ padding: '6px 10px', borderRadius: '4px', border: '1px solid var(--border)', flex: 1, minWidth: '200px', background: 'var(--surface)' }} />
+          </div>
           <div style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '12px', fontFamily: 'monospace' }}>
               <thead>
@@ -1349,22 +1408,31 @@ export function AdminScreen({ token, currentUser, adminPrompts, updatePrompt }) 
                   <th style={{ padding: '8px' }}>Contesto</th>
                   <th style={{ padding: '8px' }}>Messaggio</th>
                   <th style={{ padding: '8px' }}>Dettagli</th>
+                  <th style={{ padding: '8px' }}></th>
                 </tr>
               </thead>
               <tbody>
-                {logs.map((l, idx) => (
+                {logs.filter(l => {
+                  if (logFilterLevel && l.level !== logFilterLevel) return false;
+                  if (logFilterCtx && (!l.ctx || !l.ctx.includes(logFilterCtx))) return false;
+                  if (logSearch && (!l.msg || !l.msg.toLowerCase().includes(logSearch.toLowerCase()))) return false;
+                  return true;
+                }).map((l, idx) => (
                   <tr key={idx} style={{ borderBottom: '1px solid var(--border)', background: l.level === 'error' ? 'var(--red-light)' : (l.level === 'warn' ? 'var(--amber-light)' : 'transparent') }}>
-                    <td style={{ padding: '8px', whiteSpace: 'nowrap', color: 'var(--text-muted)' }}>{l.time}</td>
+                    <td style={{ padding: '8px', whiteSpace: 'nowrap', color: 'var(--text-muted)' }}>{l.time || l.ts}</td>
                     <td style={{ padding: '8px', fontWeight: 'bold', color: l.level === 'error' ? 'var(--red)' : (l.level === 'warn' ? 'var(--amber)' : (l.level === 'debug' ? 'var(--text-faint)' : 'var(--teal)')) }}>{l.level?.toUpperCase()}</td>
                     <td style={{ padding: '8px' }}>{l.ctx}</td>
                     <td style={{ padding: '8px', fontWeight: 500 }}>{l.msg}</td>
-                    <td style={{ padding: '8px', color: 'var(--text-muted)', maxWidth: '400px', overflow: 'hidden', textOverflow: 'ellipsis' }} title={JSON.stringify(l.data)}>
+                    <td style={{ padding: '8px', color: 'var(--text-muted)', maxWidth: '350px', overflow: 'hidden', textOverflow: 'ellipsis' }} title={JSON.stringify(l.data)}>
                       {l.data ? JSON.stringify(l.data).substring(0, 100) + (JSON.stringify(l.data).length > 100 ? '...' : '') : ''}
+                    </td>
+                    <td style={{ padding: '8px', textAlign: 'right' }}>
+                      <button className="btn" style={{ padding: '4px 8px', fontSize: '11px', background: 'transparent', color: 'var(--red)', border: '1px solid var(--red-light)' }} onClick={() => deleteLog(l.ts || l.time, l.msg)}>Elimina</button>
                     </td>
                   </tr>
                 ))}
                 {logs.length === 0 && (
-                  <tr><td colSpan="5" style={{ padding: '16px', textAlign: 'center', color: 'var(--text-muted)' }}>Nessun log trovato.</td></tr>
+                  <tr><td colSpan="6" style={{ padding: '16px', textAlign: 'center', color: 'var(--text-muted)' }}>Nessun log trovato.</td></tr>
                 )}
               </tbody>
             </table>

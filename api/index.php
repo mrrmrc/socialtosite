@@ -161,6 +161,12 @@ function ensureAdminSchema(): void {
             run_at DATETIME DEFAULT CURRENT_TIMESTAMP
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4');
     } catch (Throwable $e) {}
+    try {
+        DB::execute('CREATE TABLE IF NOT EXISTS system_settings (
+            key_name VARCHAR(50) PRIMARY KEY,
+            key_value TEXT NULL
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4');
+    } catch (Throwable $e) {}
 }
 
 function decodeJsonObject($value): array {
@@ -442,7 +448,7 @@ if ($action === 'admin-trigger-cron' && $method === 'POST') {
     else if ($job === 'seo') $script = __DIR__ . '/../cron/fetch_seo.php';
     else jsonError('Cron job non valido', 422);
     
-    $cmd = escapeshellarg(PHP_BINARY) . ' ' . escapeshellarg($script);
+    $cmd = escapeshellarg(PHP_BINARY) . ' ' . escapeshellarg($script) . ' force';
     if (strtoupper(substr(PHP_OS, 0, 3)) === 'WIN') {
         pclose(popen('start /B "" ' . $cmd . ' 1> NUL 2>&1', 'r'));
     } else {
@@ -466,6 +472,41 @@ if ($action === 'admin-user-economics' && $method === 'POST') {
     if($targetId<=0) jsonError('Cliente non valido',422);
     DB::execute('INSERT INTO user_economics(user_id,monthly_revenue,hosting_cost,other_cost,notes) VALUES(?,?,?,?,?) ON DUPLICATE KEY UPDATE monthly_revenue=VALUES(monthly_revenue),hosting_cost=VALUES(hosting_cost),other_cost=VALUES(other_cost),notes=VALUES(notes)',[$targetId,max(0,(float)($b['monthly_revenue']??0)),max(0,(float)($b['hosting_cost']??0)),max(0,(float)($b['other_cost']??0)),trim((string)($b['notes']??''))]);
     json(['ok'=>true]);
+}
+
+if ($action === 'admin-settings' && $method === 'GET') {
+    requireAdmin($isAdmin);
+    ensureAdminSchema();
+    $settings = ['cron_interval_sync' => '6', 'cron_interval_seo' => '24'];
+    try {
+        $rows = DB::fetchAll('SELECT key_name, key_value FROM system_settings');
+        foreach ($rows as $r) $settings[$r['key_name']] = $r['key_value'];
+    } catch (Throwable $e) {}
+    json(['ok' => true, 'settings' => $settings]);
+}
+
+if ($action === 'admin-settings' && $method === 'POST') {
+    requireAdmin($isAdmin);
+    ensureAdminSchema();
+    $b = body();
+    if (!isset($b['settings']) || !is_array($b['settings'])) jsonError('Impostazioni non valide', 422);
+    foreach ($b['settings'] as $k => $v) {
+        $key = trim(substr((string)$k, 0, 50));
+        if ($key === '') continue;
+        DB::execute('INSERT INTO system_settings (key_name, key_value) VALUES (?, ?) ON DUPLICATE KEY UPDATE key_value=VALUES(key_value)', [$key, (string)$v]);
+    }
+    json(['ok' => true]);
+}
+
+if ($action === 'logs-delete-line' && $method === 'POST') {
+    requireAdmin($isAdmin);
+    $b = body();
+    $ts = $b['ts'] ?? '';
+    $msg = $b['msg'] ?? '';
+    if (!$ts || !$msg) jsonError('Parametri non validi', 422);
+    $deleted = Logger::deleteLine($ts, $msg);
+    Logger::info('admin', 'Riga log eliminata', ['ts' => $ts, 'msg' => $msg]);
+    json(['ok' => true, 'deleted' => $deleted]);
 }
 
 if (in_array($action, ['site-logo-upload', 'site-visual-upload', 'post-media-upload']) && $method === 'POST') {

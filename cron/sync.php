@@ -28,7 +28,30 @@ register_shutdown_function(function (): void {
     }
 });
 
+$isForce = (isset($argv[1]) && $argv[1] === 'force');
+
+// Check cron interval settings
+$intervalHours = 6;
+try {
+    $row = DB::fetch("SELECT key_value FROM system_settings WHERE key_name='cron_interval_sync'");
+    if ($row && is_numeric($row['key_value'])) $intervalHours = (int)$row['key_value'];
+} catch (Throwable $e) {}
+
+if (!$isForce && $intervalHours > 0) {
+    try {
+        $lastRow = DB::fetch("SELECT run_at FROM cron_logs WHERE job_name='sync' AND status='success' ORDER BY run_at DESC LIMIT 1");
+        if ($lastRow) {
+            $lastRun = strtotime($lastRow['run_at']);
+            if ((time() - $lastRun) < ($intervalHours * 3600)) {
+                echo "[" . date('Y-m-d H:i:s') . "] Sync non necessario (intervallo: $intervalHours ore). Ultima esecuzione: " . $lastRow['run_at'] . "\n";
+                exit;
+            }
+        }
+    } catch (Throwable $e) {}
+}
+
 echo "[" . date('Y-m-d H:i:s') . "] Avvio sync automatico...\n";
+Logger::info('sync', 'Avvio esecuzione cron sync', ['force' => $isForce, 'interval_hours' => $intervalHours]);
 
 Sync::ensureAutoSyncSchema();
 Ingest::ensureProcessingSchema();
@@ -39,13 +62,17 @@ $users = DB::fetchAll('
     SELECT DISTINCT user_id FROM posts WHERE seo_score=-1
 ');
 
+$detailsArr = [];
 foreach ($users as $row) {
     $userId = $row['user_id'];
     echo "  Utente $userId...";
+    $userStats = ['id' => $userId, 'new' => 0, 'ai_queued' => 0, 'errors' => []];
     try {
         $results = Sync::syncUser($userId, 20, null, true);
         $new = array_sum(array_column($results, 'new'));
+        $userStats['new'] = $new;
         echo " OK ($new nuovi contenuti)\n";
+        Logger::info('sync', "Social sync completato per utente {$userId}", ['new_contents' => $new]);
 
         // Elaborazione in background (coda AI)
         DB::execute(
@@ -62,7 +89,9 @@ foreach ($users as $row) {
             [$userId]
         );
         if (count($pending) > 0) {
+            $userStats['ai_queued'] = count($pending);
             echo "  Coda AI: trovati " . count($pending) . " post da elaborare...\n";
+            Logger::info('ai', "Inizio elaborazione coda AI per utente {$userId}", ['queue_size' => count($pending)]);
             require_once __DIR__ . '/../api/services/ai.php';
             foreach ($pending as $idx => $p) {
                 echo "    [" . ($idx+1) . "/" . count($pending) . "] Elaborazione post #{$p['id']}... ";
@@ -105,11 +134,14 @@ foreach ($users as $row) {
                         DB::execute('UPDATE posts SET transcript=? WHERE id=?', [$transcript, $postId]);
                         Ingest::harmonize($userId, $postId);
                         echo "OK\n";
+                        Logger::info('ai', "Post #{$postId} elaborato con successo", ['user_id' => $userId]);
                     } else {
                         throw new Exception('Nessun testo ricavabile dalla didascalia o dal media');
                     }
                 } catch (Throwable $e) {
                     echo "Errore: " . $e->getMessage() . "\n";
+                    $userStats['errors'][] = "Post #{$postId}: " . $e->getMessage();
+                    Logger::error('ai', "Errore elaborazione post #{$postId}", ['user_id' => $userId, 'error' => $e->getMessage()]);
                     try {
                         Ingest::markProcessingFailed($userId, $postId, $e->getMessage());
                         echo "      Contenuto mantenuto in stato fallito e riprovabile.\n";
@@ -126,19 +158,23 @@ foreach ($users as $row) {
         echo "  Fondazione SEO... ";
         SeoFoundation::rebuild($userId);
         echo "OK\n";
+        $detailsArr[] = "Utente {$userId}: {$userStats['new']} nuovi, {$userStats['ai_queued']} in coda AI. " . (!empty($userStats['errors']) ? count($userStats['errors']) . " errori." : "0 errori.");
     } catch (Exception $e) {
         echo " ERRORE: {$e->getMessage()}\n";
-        Logger::error('sync', "Errore sync per utente {$userId}", ['error' => $e->getMessage()]);
+        $detailsArr[] = "Utente {$userId} FALLITO: " . $e->getMessage();
+        Logger::error('sync', "Errore critico sync per utente {$userId}", ['error' => $e->getMessage()]);
     }
 }
 
 echo "[" . date('Y-m-d H:i:s') . "] Sync completato — " . count($users) . " utenti\n";
-Logger::info('sync', "Sync completata", ['users_synced' => count($users)]);
+Logger::info('sync', "Sync completato globalmente", ['users_synced' => count($users)]);
+
+$detailsString = "Completato per " . count($users) . " utenti.\n" . implode("\n", $detailsArr);
 
 try {
     DB::execute('INSERT INTO cron_logs (job_name, status, details) VALUES (?, ?, ?)', [
         'sync',
         'success',
-        'Sync completata per ' . count($users) . ' utenti'
+        $detailsString
     ]);
 } catch (Throwable $dbErr) {}
