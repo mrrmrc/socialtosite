@@ -236,6 +236,24 @@ export function AdminScreen({ token, currentUser, adminPrompts, updatePrompt }) 
     try { await apiFetch('/api/index.php?action=admin-prompt-restore',{method:'POST',body:JSON.stringify({version_id:versionId})},token); setNotice('Versione ripristinata. Ricarica la pagina per vedere il testo aggiornato.'); await loadPromptHistory(agentName); } catch(e){setError(e.message);}
   }
 
+  async function triggerCron(job) {
+    setAdminActionBusy(`trigger-cron-${job}`);
+    setError('');
+    setNotice('');
+    try {
+      const res = await apiFetch('/api/index.php?action=admin-trigger-cron', {
+        method: 'POST',
+        body: JSON.stringify({ job })
+      }, token);
+      setNotice(res.message || 'Esecuzione avviata in background.');
+      setTimeout(loadMonitoring, 2000); // refresh shortly to see 'started' log
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setAdminActionBusy('');
+    }
+  }
+
   async function togglePostNoindex(post) {
     if (!editorialRoom?.user?.id) return;
     setError('');
@@ -551,6 +569,41 @@ export function AdminScreen({ token, currentUser, adminPrompts, updatePrompt }) 
         <section className="admin-kpi-grid">
           {[[users.length,'Clienti registrati'],[totalPosts,'Articoli pubblicati'],[processes.length,'Elementi in coda'],[monitoringData?.agents?.filter(a=>a.prompt_configured).length || 0,'Agenti configurati']].map(([value,label])=><article key={label}><strong>{value}</strong><span>{label}</span></article>)}
         </section>
+        
+        <section className="admin-dashboard-grid" style={{ marginBottom: '1.5rem' }}>
+          <div className="card" style={{ gridColumn: '1 / -1' }}>
+            <div className="admin-section-heading">
+              <div>
+                <span>Monitoraggio Sistema</span>
+                <h3>Cron Job e Sincronizzazione</h3>
+                <p>Verifica l'esecuzione dei processi in background o avviali manualmente.</p>
+              </div>
+              <div style={{ display: 'flex', gap: '0.5rem' }}>
+                <button className="btn btn-outline" onClick={() => triggerCron('seo')} disabled={adminActionBusy === 'trigger-cron-seo'}>{adminActionBusy === 'trigger-cron-seo' ? 'Avvio...' : 'Avvia Cron SEO'}</button>
+                <button className="btn btn-primary" onClick={() => triggerCron('sync')} disabled={adminActionBusy === 'trigger-cron-sync'}>{adminActionBusy === 'trigger-cron-sync' ? 'Avvio...' : 'Avvia Cron Sync'}</button>
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: '1rem', marginTop: '1rem', flexWrap: 'wrap' }}>
+              <div style={{ flex: '1 1 200px', padding: '1rem', background: 'var(--surface)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)' }}>
+                <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '0.5rem' }}>Ultimo avvio registrato</div>
+                <div style={{ fontSize: '15px', fontWeight: 700 }}>
+                  {monitoringData?.cron_logs?.[0] ? monitoringData.cron_logs[0].run_at : 'Nessun log recente'}
+                </div>
+              </div>
+              <div style={{ flex: '1 1 200px', padding: '1rem', background: 'var(--surface)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)' }}>
+                <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '0.5rem' }}>Stato ultima esecuzione</div>
+                <div style={{ fontSize: '15px', fontWeight: 700 }}>
+                  {monitoringData?.cron_logs?.[0] ? (
+                    <span className={`badge ${monitoringData.cron_logs[0].status === 'success' ? 'badge-green' : monitoringData.cron_logs[0].status === 'started' ? 'badge-amber' : 'badge-red'}`}>
+                      {monitoringData.cron_logs[0].status} ({monitoringData.cron_logs[0].job_name})
+                    </span>
+                  ) : 'Sconosciuto'}
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
         <section className="admin-dashboard-grid">
           <div className="card"><div className="admin-section-heading"><div><span>Produzione AI</span><h3>Agenti editoriali e grafici</h3></div><button onClick={()=>setAdminTab('agents')}>Vedi tutti →</button></div><div className="admin-agent-compact">{(monitoringData?.agents || []).slice(0,5).map(agent=><article key={agent.agent_name}><i className={agent.prompt_configured?'is-ready':''}/><div><strong>{agent.label}</strong><span>{agent.purpose}</span></div><b>{agent.prompt_configured?'Configurato':'Prompt predefinito'}</b></article>)}</div></div>
           <div className="card"><div className="admin-section-heading"><div><span>Mese corrente</span><h3>Consumi registrati</h3></div><button onClick={()=>setAdminTab('economics')}>Analizza →</button></div><div className="admin-cost-summary"><strong>{Number(monthUsage.total_tokens||0).toLocaleString('it-IT')}</strong><span>token · {monthUsage.requests||0} richieste</span><b>{monitoringData?.cost_tracking_ready ? formatCost(monthUsage.estimated_cost) : 'Costo non ancora valorizzato'}</b></div></div>

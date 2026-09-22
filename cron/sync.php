@@ -9,9 +9,10 @@ require_once __DIR__ . '/../api/services/sync.php';
 require_once __DIR__ . '/../api/services/ingest.php';
 require_once __DIR__ . '/../api/services/seo_foundation.php';
 require_once __DIR__ . '/../api/middleware/response.php';
+require_once __DIR__ . '/../api/middleware/logger.php';
 
-// Sicurezza: esegui solo da CLI
-if (php_sapi_name() !== 'cli' && ($_SERVER['REMOTE_ADDR'] ?? '') !== '127.0.0.1') {
+// Sicurezza: esegui solo da CLI o se autorizzato
+if (!defined('CRON_CALLED_FROM_ADMIN') && php_sapi_name() !== 'cli' && ($_SERVER['REMOTE_ADDR'] ?? '') !== '127.0.0.1') {
     http_response_code(403); exit('Accesso negato');
 }
 
@@ -127,7 +128,17 @@ foreach ($users as $row) {
         echo "OK\n";
     } catch (Exception $e) {
         echo " ERRORE: {$e->getMessage()}\n";
+        Logger::error('sync', "Errore sync per utente {$userId}", ['error' => $e->getMessage()]);
     }
 }
 
 echo "[" . date('Y-m-d H:i:s') . "] Sync completato — " . count($users) . " utenti\n";
+Logger::info('sync', "Sync completata", ['users_synced' => count($users)]);
+
+try {
+    DB::execute('INSERT INTO cron_logs (job_name, status, details) VALUES (?, ?, ?)', [
+        'sync',
+        'success',
+        'Sync completata per ' . count($users) . ' utenti'
+    ]);
+} catch (Throwable $dbErr) {}

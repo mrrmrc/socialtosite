@@ -430,6 +430,37 @@ if ($action === 'admin-provider-rates' && $method === 'POST') {
     json(['ok'=>true,'provider'=>$provider,'unit_cost'=>$unitCost,'monthly_credit'=>$monthlyCredit]);
 }
 
+if ($action === 'admin-trigger-cron' && $method === 'POST') {
+    requireAdmin($isAdmin);
+    ensureAdminSchema();
+    $b = body();
+    $job = trim((string)($b['job'] ?? 'sync'));
+    
+    // We launch it in background to not block the UI
+    $script = '';
+    if ($job === 'sync') $script = __DIR__ . '/../cron/sync.php';
+    else if ($job === 'seo') $script = __DIR__ . '/../cron/fetch_seo.php';
+    else jsonError('Cron job non valido', 422);
+    
+    $cmd = escapeshellarg(PHP_BINARY) . ' ' . escapeshellarg($script);
+    if (strtoupper(substr(PHP_OS, 0, 3)) === 'WIN') {
+        pclose(popen('start /B "" ' . $cmd . ' 1> NUL 2>&1', 'r'));
+    } else {
+        exec($cmd . ' > /dev/null 2>&1 &');
+    }
+    
+    // Register the manual trigger in logs just to acknowledge
+    try {
+        DB::execute('INSERT INTO cron_logs (job_name, status, details) VALUES (?, ?, ?)', [
+            $job . '_manual',
+            'started',
+            'Avviato manualmente da pannello amministrativo'
+        ]);
+    } catch (Throwable $e) {}
+    
+    json(['ok'=>true, 'message'=>'Esecuzione avviata in background']);
+}
+
 if ($action === 'admin-user-economics' && $method === 'POST') {
     requireAdmin($isAdmin); ensureAdminSchema(); $b=body(); $targetId=(int)($b['user_id']??0);
     if($targetId<=0) jsonError('Cliente non valido',422);
