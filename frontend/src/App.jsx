@@ -39,6 +39,12 @@ export default function App() {
   const isBasePlan = !!user && !['professional', 'pro', 'agency'].includes(normalizedPlan);
   const [hasSources, setHasSources] = useState(null); // null = non ancora verificato
   const [showFullDashboard, setShowFullDashboard] = useState(false);
+  const [now, setNow] = useState(new Date());
+
+  useEffect(() => {
+    const t = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(t);
+  }, []);
 
   useEffect(() => {
     if (!token || !user || !isBasePlan) { setHasSources(null); return; }
@@ -82,5 +88,12 @@ export default function App() {
     screen = <DashboardScreen token={token} user={user} onLogout={handleLogout} />;
   }
 
-  return screen;
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
+      <div style={{ flex: 1 }}>{screen}</div>
+      <footer style={{ padding: '8px', textAlign: 'center', fontSize: '11px', color: 'var(--text-faint)', background: 'var(--surface)', borderTop: '1px solid var(--border)', zIndex: 1000 }}>
+        {now.toLocaleString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+      </footer>
+    </div>
+  );
 }
