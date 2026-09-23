@@ -24,17 +24,14 @@ const examples = {
   },
 };
 
-// Stesso simbolo del brand ovunque nel prodotto (landing pubblica e
-// dashboard): prima erano due loghi diversi (un'immagine statica nella
-// dashboard, questo marchio disegnato in CSS qui). iconOnly lascia al
-// chiamante il testo/sottotitolo, per non dover rifare il markup esistente.
 export function BrandMark({ compact = false, iconOnly = false }) {
-  const icon = <span className="astw-mark" aria-hidden="true"><i /><i /><i /></span>;
-  if (iconOnly) return icon;
+  if (iconOnly) {
+    return <img src="/logo-cropped.png" alt="All Social To Web" className="astw-mark-img" />;
+  }
   return (
     <span className={`astw-brand${compact ? ' is-compact' : ''}`}>
-      {icon}
-      <span><strong>All Social</strong><b>To Web</b></span>
+      <img src="/logo-cropped.png" alt="All Social To Web" className="astw-mark-img" />
+      <span className="astw-brand-text"><strong>All Social</strong><b>To Web</b></span>
     </span>
   );
 }
@@ -54,150 +51,161 @@ export function LandingScreen({ onGetStarted, isLoggedIn = false }) {
 
   return (
     <div className="public-site">
-      <header className="public-header">
+      <header className="public-header glass-header">
         <a href="/" className="public-logo" aria-label="All Social To Web, homepage"><BrandMark /></a>
         <nav aria-label="Navigazione principale">
-          <a href="#come-funziona">Come funziona</a>
-          <a href="#layout-unico">Il formato</a>
-          <a href="/scopri">Esplora la rete</a>
+          <a href="#come-funziona">Funzionamento</a>
+          <a href="#layout-unico">Design</a>
+          <a href="#piani">Piani</a>
+          <a href="/scopri">Esplora</a>
         </nav>
         <div className="public-header-actions">
           {!isLoggedIn && <a className="public-login" href="/accedi">Accedi</a>}
           <button className="public-button public-button-dark" onClick={primaryAction}>
-            {isLoggedIn ? 'Vai alla dashboard' : 'Crea il tuo spazio'} <ArrowIcon />
+            {isLoggedIn ? 'Dashboard' : 'Inizia ora'} <ArrowIcon />
           </button>
         </div>
       </header>
 
-      <main>
-        <section className="public-hero">
+      <main className="public-main-content">
+        {/* COMPACT HERO + FLOW + PROCESS (Bento-style layout) */}
+        <section className="public-hero-bento">
           <div className="public-hero-orbit orbit-one" aria-hidden="true" />
           <div className="public-hero-orbit orbit-two" aria-hidden="true" />
-          <div className="public-hero-copy">
+          
+          <div className="public-hero-copy glass-panel-hero">
             <span className="public-kicker"><i /> Dai social a uno spazio che resta</span>
-            <h1>I tuoi contenuti meritano <em>più di 24 ore.</em></h1>
-            <p>All Social To Web trasforma post, video e storie in un sito proprietario, organizzato e pronto per essere trovato.</p>
+            <h1>I tuoi contenuti,<br /><em>oltre le 24 ore.</em></h1>
+            <p>Trasforma post, video e storie in un sito web proprietario, organizzato dall'AI e sempre aggiornato automaticamente.</p>
+            
             <div className="public-hero-actions">
               <button className="public-button public-button-coral" onClick={primaryAction}>
-                {isLoggedIn ? 'Apri il tuo spazio' : 'Porta i tuoi social sul web'} <ArrowIcon />
+                {isLoggedIn ? 'Apri il tuo spazio' : 'Crea il tuo sito'} <ArrowIcon />
               </button>
-              <a className="public-text-link" href="#layout-unico">Guarda come cambia <span>↓</span></a>
-            </div>
-            <div className="public-channel-row" aria-label="Canali supportati">
-              <span>Collega</span>
-              <b className="channel-instagram">IG</b><b className="channel-tiktok">TT</b><b className="channel-youtube">YT</b><b className="channel-facebook">FB</b><b className="channel-web">WWW</b>
+              <div className="public-channel-row">
+                <span>Da</span>
+                <b className="channel-instagram">IG</b><b className="channel-tiktok">TT</b><b className="channel-youtube">YT</b><b className="channel-facebook">FB</b>
+              </div>
             </div>
           </div>
 
-          <div className="public-flow-demo" aria-label="I contenuti social diventano un sito organizzato">
-            <div className="flow-source flow-source-one"><span>IG</span><div><small>NUOVO POST</small><strong>Una storia da raccontare</strong></div></div>
-            <div className="flow-source flow-source-two"><span>▶</span><div><small>NUOVO VIDEO</small><strong>Contenuto acquisito</strong></div></div>
-            <div className="flow-line" aria-hidden="true"><i /><i /><i /></div>
-            <div className="flow-site-card">
+          <div className="public-hero-visual glass-panel-hero">
+             <div className="flow-site-card">
               <div className="flow-browser"><i /><i /><i /><span>iltuospazio.it</span></div>
-              <div className="flow-site-hero"><small>IL TUO SPAZIO UFFICIALE</small><strong>Quello che fai, finalmente insieme.</strong><span>Esplora i contenuti →</span></div>
-              <div className="flow-site-grid"><span /><span /><span /></div>
+              <div className="flow-site-hero"><small>IL TUO SPAZIO UFFICIALE</small><strong>Quello che fai,<br/>organizzato.</strong></div>
+              <div className="flow-site-grid"><span /><span /><span /><span /></div>
             </div>
-            <div className="flow-status"><i /> Pubblicato e organizzato</div>
+            
+            <div className="flow-source flow-source-one float-item"><span>IG</span><div><small>NUOVO POST</small></div></div>
+            <div className="flow-source flow-source-two float-item"><span>▶</span><div><small>NUOVO VIDEO</small></div></div>
+            <div className="flow-status float-item"><i /> Pubblicato online</div>
+          </div>
+          
+          <div className="public-process-bento" id="come-funziona">
+             <article className="glass-panel-feature">
+               <div className="process-icon"><i className="process-nodes" /></div>
+               <div className="process-text">
+                 <h3>1. Collega i canali</h3>
+                 <p>Indica i profili social che raccontano la tua attività.</p>
+               </div>
+             </article>
+             <article className="glass-panel-feature">
+               <div className="process-icon"><i className="process-spark" /></div>
+               <div className="process-text">
+                 <h3>2. Struttura AI</h3>
+                 <p>L'intelligenza artificiale li trasforma in pagine web utili.</p>
+               </div>
+             </article>
+             <article className="glass-panel-feature">
+               <div className="process-icon"><i className="process-window" /></div>
+               <div className="process-text">
+                 <h3>3. Il sito prende vita</h3>
+                 <p>Uno spazio sempre aggiornato senza nessuno sforzo.</p>
+               </div>
+             </article>
           </div>
         </section>
 
-        <section className="public-statement" aria-label="La promessa di All Social To Web">
-          <p>I social sono il momento.</p>
-          <h2>Il tuo sito è la memoria.</h2>
-          <span>Ogni contenuto entra in un sistema ordinato, navigabile e davvero tuo.</span>
-        </section>
+        {/* SHOWCASE SECTION */}
+        <section className="public-showcase-compact" id="layout-unico">
+          <div className="showcase-content">
+            <div className="showcase-header">
+              <span className="public-kicker">Regia unificata. Identità uniche.</span>
+              <h2>Lo stesso formato.<br />Mille anime diverse.</h2>
+              <div className="showcase-tabs" role="tablist">
+                {Object.entries(examples).map(([key, item]) => (
+                  <button key={key} role="tab" className={activeExample === key ? 'active' : ''} aria-selected={activeExample === key} onClick={() => setActiveExample(key)}>
+                    {item.tab}
+                  </button>
+                ))}
+              </div>
+            </div>
 
-        <section className="public-process" id="come-funziona">
-          <header className="public-section-heading">
-            <span className="public-kicker">Un flusso semplice</span>
-            <h2>Tu continui a pubblicare.<br />Il tuo spazio continua a crescere.</h2>
-          </header>
-          <div className="public-process-grid">
-            <article><span>01</span><div className="process-icon"><i className="process-nodes" /></div><h3>Collega i canali</h3><p>Indichi i profili e le fonti che raccontano davvero la tua attività.</p></article>
-            <article><span>02</span><div className="process-icon"><i className="process-spark" /></div><h3>L’AI dà struttura</h3><p>Comprende argomenti e obiettivi, poi trasforma i contenuti in pagine utili.</p></article>
-            <article><span>03</span><div className="process-icon"><i className="process-window" /></div><h3>Il sito prende vita</h3><p>Articoli, percorsi e informazioni diventano uno spazio pubblico sempre aggiornato.</p></article>
-          </div>
-        </section>
-
-        <section className="public-showcase" id="layout-unico">
-          <div className="showcase-copy">
-            <span className="public-kicker">Un formato. Infinite identità.</span>
-            <h2>La stessa regia.<br />Mai lo stesso carattere.</h2>
-            <p>Un’architettura proprietaria, perfezionata per tutti. L’identità dell’attività decide atmosfera, contenuti, percorsi e azione principale.</p>
-            <div className="showcase-tabs" role="tablist" aria-label="Esempi di sito">
-              {Object.entries(examples).map(([key, item]) => (
-                <button key={key} role="tab" aria-selected={activeExample === key} onClick={() => setActiveExample(key)}>
-                  <i />{item.tab}<span>→</span>
-                </button>
-              ))}
+            <div className={`signature-preview glass-panel theme-${example.theme}`} aria-live="polite">
+              <div className="signature-topbar"><strong>{example.name}</strong><div><span>Storia</span><span>Contenuti</span><b>Contatti</b></div></div>
+              <div className="signature-visual">
+                <div className="signature-landscape" aria-hidden="true"><i /><i /><i /></div>
+                <div className="signature-overlay" />
+                <div className="signature-content">
+                  <small>{example.label}</small>
+                  <h3>{example.title.split('\n').map((line, i) => <React.Fragment key={line}>{i > 0 && <br />}{line}</React.Fragment>)}</h3>
+                  <button>{example.action} <span>→</span></button>
+                </div>
+              </div>
+              <div className="signature-bottom">
+                <div className="signature-paths">
+                  <small>ESPLORA PERCORSI</small>
+                  <div>{example.paths.map((path, index) => <span key={path}><i>0{index + 1}</i>{path}</span>)}</div>
+                </div>
+                <div className="signature-stories">{example.stories.map((story, index) => <article key={story}><div className={`story-art story-${index + 1}`} /><strong>{story}</strong></article>)}</div>
+              </div>
             </div>
           </div>
+        </section>
 
-          <div className={`signature-preview theme-${example.theme}`} aria-live="polite">
-            <div className="signature-topbar"><strong>{example.name}</strong><div><span>Storia</span><span>Contenuti</span><b>Contatti</b></div></div>
-            <div className="signature-visual">
-              <div className="signature-landscape" aria-hidden="true"><i /><i /><i /></div>
-              <div className="signature-overlay" />
-              <div className="signature-content"><small>{example.label}</small><h3>{example.title.split('\n').map((line, i) => <React.Fragment key={line}>{i > 0 && <br />}{line}</React.Fragment>)}</h3><p>{example.description}</p><button>{example.action} <span>→</span></button></div>
+        {/* COMPACT PRICING E CTA */}
+        <div className="public-bottom-grid">
+          <section className="public-pricing-compact" id="piani">
+            <header className="public-section-heading">
+               <h2>Tre soluzioni per crescere.</h2>
+            </header>
+            <div className="pricing-grid-compact">
+              <article className="pricing-card glass-panel">
+                <div className="pricing-head">
+                  <h3>Base</h3>
+                  <p>Sincronizzazione 1/giorno.</p>
+                </div>
+                <button className="public-button public-button-outline" onClick={primaryAction}>Inizia</button>
+              </article>
+              <article className="pricing-card pricing-card-featured glass-panel-featured">
+                <div className="pricing-badge">Più scelto</div>
+                <div className="pricing-head">
+                  <h3>Professional</h3>
+                  <p>Control Room editoriale, Tuning AI, aggiornamenti ogni 2h.</p>
+                </div>
+                <button className="public-button public-button-coral" onClick={primaryAction}>Scegli Pro</button>
+              </article>
+              <article className="pricing-card glass-panel">
+                <div className="pricing-head">
+                  <h3>Agency</h3>
+                  <p>Spazi e brand illimitati.</p>
+                </div>
+                <button className="public-button public-button-outline" onClick={primaryAction}>Contattaci</button>
+              </article>
             </div>
-            <div className="signature-paths">
-              <small>DA DOVE VUOI COMINCIARE?</small>
-              <div>{example.paths.map((path, index) => <span key={path}><i>0{index + 1}</i>{path}<b>↗</b></span>)}</div>
+          </section>
+
+          <section className="public-network-cta glass-panel">
+            <div className="network-rings" aria-hidden="true"><i /><i /><i /></div>
+            <div className="cta-content">
+              <h2>Il tuo spazio web,<br/>automaticamente.</h2>
+              <div className="cta-actions">
+                <button className="public-button public-button-light" onClick={primaryAction}>{isLoggedIn ? 'Vai alla dashboard' : 'Crea il tuo spazio'} <ArrowIcon /></button>
+                <a href="/scopri">Esplora gli spazi già online</a>
+              </div>
             </div>
-            <div className="signature-stories">{example.stories.map((story, index) => <article key={story}><div className={`story-art story-${index + 1}`} /><small>DALLE STORIE</small><strong>{story}</strong><span>Leggi →</span></article>)}</div>
-          </div>
-        </section>
-
-        <section className="public-pricing" id="piani">
-          <header className="public-section-heading">
-            <span className="public-kicker">Scegli la tua dimensione</span>
-            <h2>Tre soluzioni per crescere.</h2>
-          </header>
-          <div className="pricing-grid">
-            <article className="pricing-card">
-              <h3>Base</h3>
-              <p>Sincronizzazione standard da social, senza sforzo.</p>
-              <ul>
-                <li><span>✓</span> Creazione sito automatica</li>
-                <li><span>✓</span> Aggiornamento 1 volta al giorno</li>
-                <li><span>✓</span> Template intelligente standard</li>
-              </ul>
-              <button className="public-button public-button-outline" onClick={primaryAction}>Inizia ora</button>
-            </article>
-            <article className="pricing-card pricing-card-featured">
-              <div className="pricing-badge">Più scelto</div>
-              <h3>Professional</h3>
-              <p>Per creator e professionisti che esigono il pieno controllo.</p>
-              <ul>
-                <li><span>✓</span> Aggiornamento prioritario (ogni 2 ore)</li>
-                <li><span>✓</span> Control Room editoriale e revisione</li>
-                <li><span>✓</span> Tuning AI e tone of voice</li>
-              </ul>
-              <button className="public-button public-button-coral" onClick={primaryAction}>Scegli Professional</button>
-            </article>
-            <article className="pricing-card">
-              <h3>Agency</h3>
-              <p>Per chi gestisce molteplici brand o clienti.</p>
-              <ul>
-                <li><span>✓</span> Spazi web e brand illimitati</li>
-                <li><span>✓</span> Controllo cron e priorità dedicate</li>
-                <li><span>✓</span> Supporto premium dedicato</li>
-              </ul>
-              <button className="public-button public-button-outline" onClick={primaryAction}>Inizia ora</button>
-            </article>
-          </div>
-        </section>
-
-        <section className="public-network-cta">
-          <div className="network-rings" aria-hidden="true"><i /><i /><i /></div>
-          <span className="public-kicker">Il prossimo spazio può essere il tuo</span>
-          <h2>Trasforma ciò che hai già pubblicato in qualcosa che continua a lavorare per te.</h2>
-          <div>
-            <button className="public-button public-button-light" onClick={primaryAction}>{isLoggedIn ? 'Vai alla dashboard' : 'Crea il tuo spazio'} <ArrowIcon /></button>
-            <a href="/scopri">Esplora gli spazi già online</a>
-          </div>
-        </section>
+          </section>
+        </div>
       </main>
 
       <footer className="public-footer">
