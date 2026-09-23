@@ -243,7 +243,11 @@ jobs:
           # the exact configuration that last shipped successfully; it is slow
           # but it publishes. Do not swap the transfer tool again without
           # reading the failing step's log first.
+          # Diagnostica: log con orari di ogni comando FTP, per capire dove si perde il tempo.
+          # Solo lettura/log: le impostazioni di trasferimento restano identiche.
+          start_ts=$(date +%s)
           lftp -c "
+          debug -t -o /tmp/lftp-debug.log 3;
           set ftp:ssl-allow true;
           set ftp:ssl-force false;
           set ftp:ssl-protect-data true;
@@ -259,8 +263,26 @@ jobs:
           rm -f \"$FTP_REMOTE_DIR/api/middleware/crypto.php\";
           rm -f \"$FTP_REMOTE_DIR/api/services/social_oauth.php\";
           rm -f \"$FTP_REMOTE_DIR/api/routes/setup_admin.php\";
-          mirror -R --delete --no-perms --parallel=5 --exclude-glob config/config.php --exclude-glob config/keys.php --exclude '^(public/media|scraper|storage)(/.*)?$' release/ \"$FTP_REMOTE_DIR\";
+          mirror -R --delete --no-perms --parallel=5 --verbose=1 --exclude-glob config/config.php --exclude-glob config/keys.php --exclude '^(public/media|scraper|storage)(/.*)?$' release/ \"$FTP_REMOTE_DIR\";
           "
+          echo "Upload FTP completato in $(( $(date +%s) - start_ts )) secondi"
+
+      - name: FTP diagnostics
+        if: always()
+        shell: bash
+        run: |
+          log=/tmp/lftp-debug.log
+          [ -f "$log" ] || { echo "Nessun log lftp"; exit 0; }
+          # Il log di debug non contiene la password: lftp la maschera; per sicurezza filtriamo PASS.
+          sed -i -E 's/(PASS ).*/\1****/' "$log"
+          echo "Righe di log: $(wc -l < "$log")"
+          echo "Timeout:            $(grep -ciE 'timeout' "$log" || true)"
+          echo "Ritardi/riprovi:    $(grep -ciE 'delaying|retry|reconnect' "$log" || true)"
+          echo "Connessioni aperte: $(grep -ciE 'connecting to' "$log" || true)"
+          echo "Comandi STOR:       $(grep -cE -e '---> STOR ' "$log" || true)"
+          echo "Comandi LIST/MLSD:  $(grep -cE -e '---> (LIST|MLSD)' "$log" || true)"
+          echo "--- Ultimi eventi anomali ---"
+          grep -iE 'timeout|delaying|retry|reconnect|error|refused' "$log" | tail -40 || true
 
       - name: Verify deployed release on production
         shell: bash
