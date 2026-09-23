@@ -793,6 +793,11 @@ if ($action === 'admin-editorial-room' && $method === 'GET') {
     ensurePostMediaSchema();
     $targetId = isset($_GET['user_id']) ? (int)$_GET['user_id'] : 0;
     if ($targetId <= 0) jsonError('Utente non valido', 422);
+    // Recupera il tono per i profili già analizzati prima che venisse collegato al sito.
+    try {
+        require_once __DIR__ . '/services/profile_analyzer.php';
+        ProfileAnalyzer::syncBrandVoice($targetId);
+    } catch (Throwable $e) {}
 
     $user = DB::fetch(
         'SELECT u.id, u.email, u.name, u.slug, u.role,

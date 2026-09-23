@@ -9,6 +9,17 @@ function readable(value) {
   if (!value) return 'Non ancora disponibile';
   return typeof value === 'string' ? value : JSON.stringify(value, null, 2);
 }
+function voiceLabel(value) {
+  const voice = parsed(value);
+  if (!value) return readable(value);
+  if (!Object.keys(voice).length) return readable(value);
+  const parts = [];
+  if (voice.tone) parts.push(voice.tone);
+  if (Array.isArray(voice.topic_clusters) && voice.topic_clusters.length) parts.push(`Temi: ${voice.topic_clusters.join(', ')}`);
+  if (Array.isArray(voice.audiences) && voice.audiences.length) parts.push(`Pubblico: ${voice.audiences.join(', ')}`);
+  if (voice.custom_instructions) parts.push(voice.custom_instructions);
+  return parts.length ? parts.join('\n') : readable(value);
+}
 function dateLabel(value) {
   if (!value) return 'Mai eseguita';
   const date = new Date(value.replace(' ', 'T'));
@@ -58,7 +69,7 @@ export function AdminControlRoom({ users, selectedId, onSelect, room, loading, l
           </div>}
           {section === 'contents' && <div className="cr-body"><div className="cr-block-heading"><div><h4>Articoli pubblicati di recente</h4><p>Ultimi {room.posts?.length || 0} di {stats.published_posts ?? '—'}. “Indicizzabile” non significa già presente su Google.</p></div></div>{room.posts?.length ? <div className="cr-posts">{room.posts.map(post => <article key={post.id}><div><span className="cr-eyebrow">{dateLabel(post.published_at)}</span><h4>{post.edited_title || post.generated_title || 'Senza titolo'}</h4><p>{post.generated_excerpt || 'Nessuna descrizione disponibile.'}</p><small>SEO: {post.seo_score ?? '—'} · #{post.id}</small></div><button className="btn btn-outline" disabled={Boolean(busy)} onClick={() => onNoindex(post)} aria-label={`${Number(post.noindex) === 1 ? 'Consenti' : 'Escludi'} indicizzazione: ${post.edited_title || post.generated_title || post.id}`}>{busy === `noindex-${post.id}` ? 'Salvataggio…' : Number(post.noindex) === 1 ? 'Consenti indicizzazione' : 'Escludi da Google'}</button></article>)}</div> : <p className="cr-empty">Questo cliente non ha ancora articoli pubblicati.</p>}</div>}
           {section === 'configuration' && <div className="cr-body">
-            <section className="cr-block"><div className="cr-block-heading"><div><h4>Profilo editoriale</h4><p>Le informazioni usate per scrivere per questo cliente.</p></div></div><dl className="cr-profile">{[['Profilo',user.profile_summary],['Obiettivo',user.role_mission],['Strategia',user.content_strategy],['Tono di voce',user.brand_voice_profile]].map(([label,value]) => <div key={label}><dt>{label}</dt><dd>{readable(value)}</dd></div>)}</dl></section>
+            <section className="cr-block"><div className="cr-block-heading"><div><h4>Profilo editoriale</h4><p>Le informazioni usate per scrivere per questo cliente.</p></div></div><dl className="cr-profile">{[['Profilo',user.profile_summary],['Obiettivo',user.role_mission],['Strategia',user.content_strategy],['Tono di voce',voiceLabel(user.brand_voice_profile)]].map(([label,value]) => <div key={label}><dt>{label}</dt><dd style={{whiteSpace:'pre-line'}}>{readable(value)}</dd></div>)}</dl></section>
             <section className="cr-block"><div className="cr-block-heading"><div><h4>Agente assegnato</h4><p>{prompt?.label || user.harmonize_agent || 'content_editor'}</p></div><button className="btn btn-outline" onClick={onOpenAgents}>Gestisci agenti</button></div><p className="cr-muted">Le istruzioni degli agenti sono condivise. Modificarle può influire anche su altri clienti.</p><details><summary>Leggi le istruzioni attive</summary><pre>{prompt?.instructions || 'Istruzioni personalizzate non disponibili in questa vista.'}</pre></details></section>
             <details className="cr-technical"><summary>Dati tecnici e diagnostica</summary><p>Valori salvati dal sistema per questo cliente.</p>{[['Comprensione del profilo',user.site_understanding],['DNA editoriale',user.editorial_dna],['Memoria editoriale',user.editorial_memory],['Impostazioni',user.editorial_settings],['Stato motore',user.editorial_engine_state],['Design AI',user.site_ai_data]].map(([label,value]) => <details key={label}><summary>{label}</summary><pre>{value ? JSON.stringify(parsed(value), null, 2) : 'Nessun dato disponibile'}</pre></details>)}</details>
           </div>}

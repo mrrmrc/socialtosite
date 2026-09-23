@@ -158,6 +158,40 @@ final class ProfileAnalyzer
             $reason = is_scalar($question['reason'] ?? null) ? trim((string)$question['reason']) : '';
             DB::query("INSERT INTO profile_questions (user_id,question_key,question,reason,status) VALUES (?,?,?,?,'open') ON DUPLICATE KEY UPDATE question=VALUES(question),reason=VALUES(reason),status=IF(answer IS NULL,'open','answered')", [$userId, $key, mb_substr(trim((string)$question['question']), 0, 1000), mb_substr($reason, 0, 1000)]);
         }
+        try { self::syncBrandVoice($userId); } catch (Throwable $e) { /* colonna assente su DB non migrati: il profilo resta valido */ }
+    }
+
+    /**
+     * Porta tono e temi del profilo analizzato in sites.brand_voice_profile, il campo
+     * che ingest, supervisore editoriale e idee contenuti leggono davvero.
+     * Non sovrascrive mai un profilo voce scritto a mano (source diverso da profile_analyzer).
+     */
+    public static function syncBrandVoice(int $userId): bool
+    {
+        self::ensureSchema();
+        $profile = self::profile($userId);
+        if (!$profile || !in_array((string)($profile['status'] ?? ''), ['ready', 'needs_answers'], true)) return false;
+        $tone = trim((string)($profile['tone'] ?? ''));
+        $topics = array_values(array_slice((array)($profile['topics'] ?? []), 0, 12));
+        if ($tone === '' && !$topics) return false;
+        $site = DB::fetch('SELECT brand_voice_profile FROM sites WHERE user_id=? LIMIT 1', [$userId]);
+        if (!$site) return false;
+        $current = trim((string)($site['brand_voice_profile'] ?? ''));
+        if ($current !== '') {
+            $decoded = json_decode($current, true);
+            if (!is_array($decoded) || ($decoded['source'] ?? '') !== 'profile_analyzer') return false;
+        }
+        $voice = [
+            'source' => 'profile_analyzer',
+            'tone' => $tone !== '' ? $tone : null,
+            'topic_clusters' => $topics,
+            'audiences' => array_values(array_slice((array)($profile['audiences'] ?? []), 0, 8)),
+            'generated_at' => (string)($profile['generated_at'] ?? ''),
+        ];
+        $encoded = json_encode($voice, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        if ($encoded === $current) return false;
+        DB::execute('UPDATE sites SET brand_voice_profile=? WHERE user_id=?', [$encoded, $userId]);
+        return true;
     }
 
     private static function nullable(mixed $value): ?string
