@@ -11,6 +11,26 @@ function app_base_url(): string {
     return rtrim($runtime !== '' ? $runtime : $configured, '/');
 }
 
+/**
+ * Percorsi di primo livello riservati all'applicazione (vedi .htaccess):
+ * uno spazio utente con uno di questi indirizzi non sarebbe raggiungibile.
+ */
+function app_reserved_slugs(): array {
+    return ['api','cron','db','frontend','public','node_modules','assets','accedi','login',
+            'dashboard','admin','connect','generating','scopri','privacy','terms','termini',
+            'config','tools','integrations','sitemap','robots','media','index'];
+}
+
+function app_is_reserved_slug(string $slug): bool {
+    return in_array(strtolower(trim($slug)), app_reserved_slugs(), true);
+}
+
+/** Frammento SQL che esclude dagli elenchi pubblici slug riservati e account admin. */
+function app_public_user_sql(string $alias = 'u'): string {
+    $list = implode(',', array_map(fn($s) => "'" . $s . "'", app_reserved_slugs()));
+    return " AND LOWER($alias.slug) NOT IN ($list) AND COALESCE($alias.role,'user') <> 'admin'";
+}
+
 function app_allowed_origin(): string {
     if (defined('SOCIALTOSITE_RUNTIME_BASE_URL') && trim((string)SOCIALTOSITE_RUNTIME_BASE_URL) !== '') {
         return app_base_url();

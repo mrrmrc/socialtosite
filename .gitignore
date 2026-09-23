@@ -30,3 +30,14 @@ config/gcp-credentials.json
 secrets/
 
 # Output di prove locali dei provider (mai sorgenti applicative)
+
+# Scarti di lavoro locali: mai nel repository
+/temp*
+/old_*
+/patch*.diff
+/diff*
+/fix*.py
+/fix*.js
+/check_*
+/*.bin
+/log.txt

@@ -1,1 +1,0 @@
-const fs = require('fs'); const { Engine } = require('php-parser'); const parser = new Engine({ parser: { extractDoc: false } }); try { parser.parseCode(fs.readFileSync('api/routes/upload.php', 'utf8'), 'upload.php'); console.log('Upload OK'); } catch (e) { console.error(e.message); }

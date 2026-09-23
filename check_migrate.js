@@ -1,1 +1,0 @@
-const fs = require('fs'); const { Engine } = require('php-parser'); const parser = new Engine({ parser: { extractDoc: false } }); try { parser.parseCode(fs.readFileSync('api/routes/migrate.php', 'utf8'), 'migrate.php'); console.log('Migrate OK'); } catch (e) { console.error(e.message); }

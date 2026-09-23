@@ -4,11 +4,15 @@ RewriteCond %{HTTP:Authorization} ^(.+)$
 RewriteRule .* - [E=HTTP_AUTHORIZATION:%1]
 SetEnvIf Authorization "(.*)" HTTP_AUTHORIZATION=$1
 
-<FilesMatch "(?i)(config\.php|runtime-secrets\.php|.*\.env|.*\.sql|.*\.md)$">
+<FilesMatch "(?i)(config\.php|runtime-secrets\.php|.*\.env|.*\.sql|.*\.md|.*\.log|.*\.jsonl)$">
   Require all denied
 </FilesMatch>
 
 Options -Indexes
+
+# Codice interno: si esegue solo tramite api/index.php o da CLI, mai via URL diretto.
+RewriteRule ^api/(?:routes|services|middleware)(?:/|$) - [R=404,L]
+RewriteRule ^(?:cron|config|tools|db|integrations)(?:/|$) - [R=404,L]
 
 # Residuo legacy non eliminabile dall'utente FTP: mai esporlo sul web.
 RewriteRule ^(?:scraper|storage)(?:/|$) - [R=404,L]

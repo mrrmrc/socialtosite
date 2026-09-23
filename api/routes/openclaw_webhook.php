@@ -13,17 +13,17 @@ $input = file_get_contents('php://input');
 $data = json_decode($input, true);
 
 if (!$data) {
-    Response::error(400, "Payload JSON non valido");
+    jsonError("Payload JSON non valido", 400);
 }
 
 // 2. Verifica Sicurezza
 // Definisci OPENCLAW_API_KEY nel tuo config.php o keys.php
-$expectedKey = defined('OPENCLAW_API_KEY') ? OPENCLAW_API_KEY : 'TEST_KEY_123'; // Fallback per il test
-
-$providedKey = $data['api_key'] ?? '';
-if ($providedKey !== $expectedKey) {
+// Nessuna chiave di fallback: senza OPENCLAW_API_KEY l'endpoint resta chiuso.
+$expectedKey = defined('OPENCLAW_API_KEY') ? trim((string)OPENCLAW_API_KEY) : '';
+$providedKey = (string)($data['api_key'] ?? '');
+if ($expectedKey === '' || !hash_equals($expectedKey, $providedKey)) {
     if (class_exists('Logger')) Logger::error('openclaw', 'Tentativo accesso negato', ['ip' => $_SERVER['REMOTE_ADDR']]);
-    Response::error(401, "Non autorizzato");
+    jsonError("Non autorizzato", 401);
 }
 
 // 3. Estrazione e Validazione Campi Base
@@ -32,7 +32,7 @@ $sourceUrl = trim($data['source_url'] ?? '');
 $platform  = trim($data['platform'] ?? 'website');
 
 if (!$userId || !$sourceUrl) {
-    Response::error(400, "Parametri obbligatori mancanti (user_id, source_url)");
+    jsonError("Parametri obbligatori mancanti (user_id, source_url)", 400);
 }
 
 // 4. Estrazione Contenuto Armonizzato
@@ -50,7 +50,7 @@ $existing = DB::fetch('SELECT id, published FROM posts WHERE user_id=? AND sourc
 if ($existing) {
     if ((int)$existing['published'] === 1) {
         if (class_exists('Logger')) Logger::info('openclaw', 'Post duplicato (già online)', ['url' => $sourceUrl]);
-        Response::success(["message" => "Post già esistente e pubblicato", "post_id" => $existing['id'], "duplicate" => true]);
+        json(["message" => "Post già esistente e pubblicato", "post_id" => $existing['id'], "duplicate" => true]);
     } else {
         // Se c'è una bozza, aggiorniamo quella anziché crearne una nuova
         $postId = $existing['id'];
@@ -65,7 +65,7 @@ if ($existing) {
             $mediaUrl, $mediaType, $platform, $postId
         ]);
         if (class_exists('Logger')) Logger::info('openclaw', 'Bozza aggiornata con successo', ['post_id' => $postId]);
-        Response::success(["message" => "Post aggiornato con successo", "post_id" => $postId, "updated" => true]);
+        json(["message" => "Post aggiornato con successo", "post_id" => $postId, "updated" => true]);
     }
 }
 
@@ -97,7 +97,7 @@ $postId = DB::insert('
 
 if (class_exists('Logger')) Logger::info('openclaw', 'Nuovo post pubblicato', ['post_id' => $postId, 'url' => $sourceUrl]);
 
-Response::success([
+json([
     "message" => "Post importato e pubblicato con successo", 
     "post_id" => $postId,
     "inserted" => true

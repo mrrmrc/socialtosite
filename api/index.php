@@ -249,7 +249,13 @@ if (in_array($action, ['login', 'register'], true)) {
 
 // ÔöÇÔöÇ POST openclaw-webhook (Ricezione articoli da OpenClaw) ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
 if ($action === 'openclaw-webhook' && $method === 'POST') {
-    require __DIR__ . '/routes/openclaw_webhook.php';
+    // Integrazione disattivata finché la chiave non è configurata sul server
+    // e la rotta non è inclusa nel pacchetto di deploy.
+    $openclawRoute = __DIR__ . '/routes/openclaw_webhook.php';
+    if (!defined('OPENCLAW_API_KEY') || trim((string)OPENCLAW_API_KEY) === '' || !is_file($openclawRoute)) {
+        jsonError('Non trovato', 404);
+    }
+    require $openclawRoute;
     exit;
 }
 
@@ -453,7 +459,15 @@ if ($action === 'admin-trigger-cron' && $method === 'POST') {
     else if ($job === 'seo') $script = __DIR__ . '/../cron/fetch_seo.php';
     else jsonError('Cron job non valido', 422);
     
-    $cmd = escapeshellarg(PHP_BINARY) . ' ' . escapeshellarg($script) . ' force';
+    if (!is_file($script)) jsonError('Script cron non presente sul server: verificare il pacchetto di deploy', 500);
+
+    // Sotto PHP-FPM PHP_BINARY punta a php-fpm, che non esegue script da CLI.
+    $phpCli = PHP_BINARY;
+    if ($phpCli === '' || stripos(basename($phpCli), 'fpm') !== false || stripos(basename($phpCli), 'cgi') !== false) {
+        $candidate = rtrim(PHP_BINDIR, '/\\') . DIRECTORY_SEPARATOR . 'php';
+        $phpCli = is_file($candidate) ? $candidate : 'php';
+    }
+    $cmd = escapeshellarg($phpCli) . ' ' . escapeshellarg($script) . ' force';
     if (strtoupper(substr(PHP_OS, 0, 3)) === 'WIN') {
         pclose(popen('start /B "" ' . $cmd . ' 1> NUL 2>&1', 'r'));
     } else {
@@ -632,7 +646,8 @@ function uniqueUserSlug(string $source): string {
     if (!$slug) $slug = 'utente';
     $base = $slug;
     $i = 1;
-    while (DB::fetch('SELECT id FROM users WHERE slug=?', [$slug])) {
+    if (app_is_reserved_slug($slug)) { $slug = $base . '-' . $i++; }
+    while (app_is_reserved_slug($slug) || DB::fetch('SELECT id FROM users WHERE slug=?', [$slug])) {
         $slug = $base . '-' . $i++;
     }
     return $slug;

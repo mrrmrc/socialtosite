@@ -1,1 +1,0 @@
-const fs = require('fs'); const { Engine } = require('php-parser'); const parser = new Engine({ parser: { extractDoc: false } }); try { parser.parseCode(fs.readFileSync('api/index.php', 'utf8'), 'index.php'); console.log('Index OK'); } catch (e) { console.error(e.message); }

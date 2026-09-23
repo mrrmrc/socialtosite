@@ -18,7 +18,7 @@ $users = DB::fetchAll('
     SELECT u.slug, s.last_sync
     FROM users u
     JOIN sites s ON u.id = s.user_id
-    WHERE u.slug IS NOT NULL AND u.slug != ""' . $visibilityFilter);
+    WHERE u.slug IS NOT NULL AND u.slug != ""' . app_public_user_sql('u') . $visibilityFilter);
 
 header('Content-Type: application/xml; charset=utf-8');
 echo '<?xml version="1.0" encoding="UTF-8"?>' . "\n";

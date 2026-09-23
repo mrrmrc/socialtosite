@@ -32,7 +32,7 @@ function hubTokens(string $q): array {
 function pageUrl(int $page, string $q): string { $args=[]; if($q!=='')$args['q']=$q; if($page>1)$args['page']=$page; return '/scopri'.($args?'?'.http_build_query($args):''); }
 
 // LEFT JOIN: un utente con slug deve entrare subito nell'Hub anche se il record sites e appena nato o incompleto.
-$where = ['u.slug IS NOT NULL', "u.slug != ''"];
+$where = ['u.slug IS NOT NULL', "u.slug != ''" . app_public_user_sql('u')];
 $params = [];
 if ($hasVisibilityColumn) $where[] = '(s.search_visible = 1 OR s.search_visible IS NULL)';
 $tokens = hubTokens($q);
@@ -73,10 +73,10 @@ $profiles = DB::fetchAll(
       LIMIT $perPage OFFSET $offset", $queryParams
 );
 
-$latestArticles = DB::fetchAll("SELECT u.slug AS site_slug,COALESCE(NULLIF(s.title,''),NULLIF(u.name,''),u.slug) AS site_title,p.slug,p.generated_title AS title,p.generated_excerpt AS excerpt,COALESCE(p.published_at,p.imported_at) AS published_at FROM posts p JOIN users u ON u.id=p.user_id LEFT JOIN sites s ON s.user_id=u.id WHERE p.published=1 AND p.slug IS NOT NULL AND p.slug!=''".($hasVisibilityColumn?' AND (s.search_visible=1 OR s.search_visible IS NULL)':'')." ORDER BY COALESCE(p.published_at,p.imported_at) DESC,p.id DESC LIMIT 12");
+$latestArticles = DB::fetchAll("SELECT u.slug AS site_slug,COALESCE(NULLIF(s.title,''),NULLIF(u.name,''),u.slug) AS site_title,p.slug,p.generated_title AS title,p.generated_excerpt AS excerpt,COALESCE(p.published_at,p.imported_at) AS published_at FROM posts p JOIN users u ON u.id=p.user_id LEFT JOIN sites s ON s.user_id=u.id WHERE p.published=1 AND p.slug IS NOT NULL AND p.slug!=''".app_public_user_sql('u')."".($hasVisibilityColumn?' AND (s.search_visible=1 OR s.search_visible IS NULL)':'')." ORDER BY COALESCE(p.published_at,p.imported_at) DESC,p.id DESC LIMIT 12");
 $network = DB::fetch("SELECT (SELECT COUNT(*) FROM users WHERE slug IS NOT NULL AND slug!='') AS users_count,(SELECT COUNT(*) FROM posts WHERE published=1) AS articles_count") ?: ['users_count'=>0,'articles_count'=>0];
 
-if (($_GET['action'] ?? '') === 'sitemap') { header('Content-Type: application/xml; charset=utf-8'); echo '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'; echo '<url><loc>'.htmlspecialchars($base.'/scopri',ENT_XML1,'UTF-8').'</loc></url>\n'; foreach(DB::fetchAll("SELECT slug FROM users WHERE slug IS NOT NULL AND slug!='' ORDER BY id ASC") as $row) echo '<url><loc>'.htmlspecialchars($base.'/'.rawurlencode($row['slug']),ENT_XML1,'UTF-8').'</loc></url>\n'; echo '</urlset>'; exit; }
+if (($_GET['action'] ?? '') === 'sitemap') { header('Content-Type: application/xml; charset=utf-8'); echo '<?xml version="1.0" encoding="UTF-8"?>'."\n".'<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'."\n"; echo '<url><loc>'.htmlspecialchars($base.'/scopri',ENT_XML1,'UTF-8').'</loc></url>'."\n"; foreach(DB::fetchAll("SELECT u.slug FROM users u LEFT JOIN sites s ON s.user_id=u.id WHERE u.slug IS NOT NULL AND u.slug!=''".app_public_user_sql('u').($hasVisibilityColumn?' AND s.search_visible=1':'')." ORDER BY u.id ASC") as $row) echo '<url><loc>'.htmlspecialchars($base.'/'.rawurlencode($row['slug']),ENT_XML1,'UTF-8').'</loc></url>'."\n"; echo '</urlset>'; exit; }
 
 header('Content-Type: text/html; charset=utf-8'); header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
 ?><!doctype html><html lang="it"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Hub All Social To Web | Trova professionisti, attività e contenuti</title><meta name="description" content="Cerca nella rete All Social To Web persone, professionisti, attività, competenze e contenuti."><link rel="canonical" href="<?=h($base.'/scopri')?>"><style>

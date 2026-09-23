@@ -1,1 +1,0 @@
-const fs = require('fs'); const lines = fs.readFileSync('api/services/ai.php', 'utf8').split('\n'); const start = Math.max(0, 615); const end = Math.min(lines.length, 635); lines.slice(start, end).forEach((l, i) => console.log((start+i+1) + ': ' + l));

@@ -105,7 +105,7 @@ jobs:
             api/services/admin_console.php api/services/editorial_supervisor.php api/services/provider_config.php \
             api/services/ai.php api/services/content_ideas.php \
             api/routes/publication.php api/services/plan_policy.php \
-            api/services/publication/{security,service,wordpress}.php cron/publish.php \
+            api/services/publication/{security,service,wordpress}.php cron/publish.php cron/sync.php cron/fetch_seo.php \
             integrations/wordpress/allsocialtoweb/allsocialtoweb.php \
             public/site.php public/discover.php public/sitemap.php public/site-professional.php \
             config/db.php)
@@ -179,14 +179,14 @@ jobs:
           mkdir -p release/api/middleware release/api/routes release/api/services
           cp api/index.php release/api/
           cp api/middleware/{jwt,response,ratelimit,logger}.php release/api/middleware/
-          cp api/routes/{auth,migrate,upload,setup_admin}.php release/api/routes/
+          cp api/routes/{auth,migrate,upload}.php release/api/routes/
           cp api/services/{sync,ingest,editorial_engine,visibility,seo_foundation,reachability}.php release/api/services/
           cp api/services/{raw_import,apify_client,website_source,profile_analyzer,admin_console,editorial_supervisor,provider_config,ai,content_ideas}.php release/api/services/
           cp api/routes/publication.php release/api/routes/
           cp api/services/plan_policy.php release/api/services/
           mkdir -p release/api/services/publication release/cron
           cp api/services/publication/{security,service,wordpress}.php release/api/services/publication/
-          cp cron/publish.php release/cron/
+          cp cron/{publish,sync,fetch_seo}.php release/cron/
           cp -r frontend/dist/. release/
           cp .htaccess robots.txt deploy-info.json release/
           cp google*.html release/ 2>/dev/null || true
@@ -210,7 +210,8 @@ jobs:
 
           if find release \( -name 'config.php' -o -name 'keys.php' -o -name '*.env' \
                            -o -name 'reset-*' -o -name 'test_*' -o -name 'test-*' \
-                           -o -name 'debug*' -o -name 'diagnostic*' -o -name '*.sql' \) \
+                           -o -name 'debug*' -o -name 'diagnostic*' -o -name '*.sql' \
+                           -o -name 'setup_admin*' -o -name 'setup-admin*' \) \
              | grep -q .; then
             echo "::error::Forbidden file found in production release."
             exit 1
@@ -257,6 +258,7 @@ jobs:
           rm -f \"$FTP_REMOTE_DIR/api/cron/fetch_seo.php\";
           rm -f \"$FTP_REMOTE_DIR/api/middleware/crypto.php\";
           rm -f \"$FTP_REMOTE_DIR/api/services/social_oauth.php\";
+          rm -f \"$FTP_REMOTE_DIR/api/routes/setup_admin.php\";
           mirror -R --delete --no-perms --parallel=5 --exclude-glob config/config.php --exclude-glob config/keys.php --exclude '^(public/media|scraper|storage)(/.*)?$' release/ \"$FTP_REMOTE_DIR\";
           "
 
