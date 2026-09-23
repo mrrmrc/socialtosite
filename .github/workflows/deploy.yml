@@ -253,7 +253,11 @@ jobs:
           set ftp:ssl-protect-data true;
           set ssl:verify-certificate no;
           set net:max-retries 5;
-          set net:timeout 30;
+          set net:timeout 15;
+          set net:reconnect-interval-base 3;
+          set net:reconnect-interval-multiplier 1;
+          set net:reconnect-interval-max 10;
+          set ftp:prefer-epsv false;
           set net:persist-retries 5;
           set net:connection-limit 6;
           open -u \"$FTP_USER\",\"$FTP_PASS\" ftp://$FTP_HOST;
