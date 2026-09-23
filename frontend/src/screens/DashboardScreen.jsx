@@ -5,6 +5,7 @@ import { QuillEditor } from '../components/QuillEditor';
 import { AdminScreen } from './AdminScreen';
 import { SpazioVivoLab } from '../components/SpazioVivoLab';
 import { ProductGuide } from '../components/ProductGuide';
+import { PublicationConnections } from '../components/PublicationConnections';
 import { ProSiteBuilder } from '../components/ProSiteBuilder';
 import { BrandMark } from './LandingScreen';
 const STUDIO_DEFAULTS = {
@@ -4567,6 +4568,7 @@ const [importMsg, setImportMsg] = useState(null);
       )}
 
       <ProductGuide />
+      <PublicationConnections token={token} />
       
     </div>
   );

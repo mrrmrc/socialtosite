@@ -292,6 +292,11 @@ $me = array_merge($me, [
 ]);
 $isAdmin = ($me['role'] ?? 'user') === 'admin';
 
+if (str_starts_with($action, 'publication-')) {
+    require __DIR__ . '/routes/publication.php';
+    exit;
+}
+
 function requireAdmin(bool $isAdmin): void {
     if (!$isAdmin) jsonError('Permessi amministratore richiesti', 403);
 }

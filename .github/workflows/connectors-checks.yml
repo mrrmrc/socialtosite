@@ -1,0 +1,33 @@
+name: Connector checks
+on:
+  pull_request:
+  push:
+    branches: [main]
+jobs:
+  local-contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Minimal local configuration for pure tests
+        run: |
+          printf '%s\n' '<?php' > config/config.php
+      - name: PHP syntax
+        run: |
+          find api/services/publication integrations/wordpress -name '*.php' -print0 | xargs -0 -n1 php -l
+          php -l api/routes/publication.php
+          php -l api/services/plan_policy.php
+          php -l cron/publish.php
+      - name: Security and WordPress contract
+        run: |
+          php tools/test_publication.php
+          php tools/test_wordpress_connector.php
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Build frontend
+        working-directory: frontend
+        run: |
+          npm ci --legacy-peer-deps
+          npm run build

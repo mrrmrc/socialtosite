@@ -18,6 +18,7 @@ Thumbs.db
 .vscode/
 
 frontend/dist
+/artifacts/
 
 # Snapshot e artefatti diagnostici locali
 temp_*.html

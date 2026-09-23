@@ -1,6 +1,8 @@
 # AllSocialToWeb — Piano di implementazione dei connettori
 
-Data: 23 settembre 2026. Stato: proposta da analizzare, non autorizzazione a implementare o distribuire.
+Data: 23 settembre 2026. Stato: implementazione autorizzata; primo incremento WordPress preparato localmente. Distribuzione non eseguita.
+
+Avanzamento effettivo e limiti: [Connettore pilota](connectors-pilot.md). Target concordati: [Target di prodotto](product-targets.md). Il piano complessivo non è ancora completato: multisito, Wix, quote e pagamenti restano aperti.
 
 ## 1. Obiettivo e proposta di valore
 

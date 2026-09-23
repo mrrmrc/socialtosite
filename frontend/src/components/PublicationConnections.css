@@ -1,0 +1,10 @@
+.publication-entry { margin: 12px 20px; }
+.publication-overlay { position: fixed; inset: 0; z-index: 1200; background: #10182799; display: grid; place-items: center; padding: 20px; }
+.publication-panel { background: var(--surface, white); color: var(--text, #172033); width: min(850px, 100%); max-height: 90vh; overflow: auto; border-radius: 18px; padding: 24px; }
+.publication-panel header { display: flex; align-items: start; justify-content: space-between; gap: 20px; }
+.publication-panel form, .publication-job, .publication-connection { display: grid; gap: 12px; padding: 20px 0; border-bottom: 1px solid var(--border, #ddd); }
+.publication-panel label { display: grid; gap: 6px; }
+.publication-panel input, .publication-panel select { padding: 10px; border: 1px solid var(--border, #ccc); border-radius: 8px; background: var(--surface, white); color: inherit; }
+.publication-panel .publication-confirm { display: flex; align-items: start; gap: 10px; }
+.publication-error { padding: 12px; background: #fee2e2; color: #7f1d1d; border-radius: 8px; }
+.publication-panel .btn { width: fit-content; }

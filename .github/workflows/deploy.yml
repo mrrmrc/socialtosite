@@ -104,6 +104,9 @@ jobs:
             api/services/raw_import.php api/services/apify_client.php api/services/website_source.php api/services/profile_analyzer.php \
             api/services/admin_console.php api/services/editorial_supervisor.php api/services/provider_config.php \
             api/services/ai.php api/services/content_ideas.php \
+            api/routes/publication.php api/services/plan_policy.php \
+            api/services/publication/{security,service,wordpress}.php cron/publish.php \
+            integrations/wordpress/allsocialtoweb/allsocialtoweb.php \
             public/site.php public/discover.php public/sitemap.php public/site-professional.php \
             config/db.php)
           [ "$errors" -eq 0 ] || exit 1
@@ -112,7 +115,13 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          # php tools/test_website_source_security.php
+          # Connector tests do not access DB or external providers.
+          if [ ! -f config/config.php ]; then
+            printf '%s\n' '<?php' > config/config.php
+            trap 'rm -f config/config.php' EXIT
+          fi
+          php tools/test_publication.php
+          php tools/test_wordpress_connector.php
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -173,6 +182,11 @@ jobs:
           cp api/routes/{auth,migrate,upload,setup_admin}.php release/api/routes/
           cp api/services/{sync,ingest,editorial_engine,visibility,seo_foundation,reachability}.php release/api/services/
           cp api/services/{raw_import,apify_client,website_source,profile_analyzer,admin_console,editorial_supervisor,provider_config,ai,content_ideas}.php release/api/services/
+          cp api/routes/publication.php release/api/routes/
+          cp api/services/plan_policy.php release/api/services/
+          mkdir -p release/api/services/publication release/cron
+          cp api/services/publication/{security,service,wordpress}.php release/api/services/publication/
+          cp cron/publish.php release/cron/
           cp -r frontend/dist/. release/
           cp .htaccess robots.txt deploy-info.json release/
           cp google*.html release/ 2>/dev/null || true
