@@ -55,7 +55,7 @@
 }
 
 body {
-  font-family: Inter, 'Outfit', -apple-system, system-ui, sans-serif;
+  font-family: 'Inter', -apple-system, system-ui, sans-serif;
   background-color: var(--bg);
   color: var(--text);
   font-size: 20px;

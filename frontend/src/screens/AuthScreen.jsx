@@ -24,34 +24,55 @@ export function AuthScreen({ onAuth }) {
   }
 
   return (
-    <div style={{
-      minHeight: '100vh', display: 'flex', backgroundColor: '#0f1115', color: '#fff',
-      fontFamily: '"Inter", sans-serif', overflow: 'hidden'
-    }}>
-      {/* Sezione Sinistra: Visual & Branding */}
-      <div style={{
-        flex: 1, position: 'relative', display: 'none', '@media(min-width: 900px)': { display: 'block' },
-        background: 'linear-gradient(135deg, #1e2128 0%, #0f1115 100%)',
-        borderRight: '1px solid rgba(255,255,255,0.05)'
-      }} className="auth-visual-side">
-        <div style={{ position: 'absolute', inset: 0, opacity: 0.4, backgroundImage: 'radial-gradient(circle at 30% 50%, rgba(255, 90, 60, 0.15), transparent 60%), radial-gradient(circle at 70% 80%, rgba(99, 102, 241, 0.1), transparent 50%)' }} />
-        <div style={{ position: 'absolute', inset: 0, backgroundImage: 'linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px)', backgroundSize: '40px 40px', opacity: 0.5 }} />
-        
-        <div style={{ position: 'relative', zIndex: 10, height: '100%', display: 'flex', flexDirection: 'column', padding: '4rem' }}>
-          <a href="/" style={{ textDecoration: 'none', display: 'inline-block', filter: 'invert(1)' }}>
+    <div style={{ minHeight: '100vh', display: 'flex', background: '#F7F5F0', fontFamily: '"Inter", system-ui, sans-serif', overflowX: 'hidden' }}>
+
+      {/* ── Left brand panel ─────────────────────────────── */}
+      <div className="auth-left" style={{
+        flex: 1, display: 'flex', flexDirection: 'column',
+        padding: 'clamp(2rem, 5vw, 4rem)',
+        background: '#0F0F0E', position: 'relative', overflow: 'hidden',
+      }}>
+        {/* Glow */}
+        <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
+          <div style={{ position: 'absolute', width: '70%', height: '70%', top: '-20%', left: '-20%', borderRadius: '50%', background: 'radial-gradient(circle, rgba(124,58,237,.28), transparent 70%)', filter: 'blur(50px)' }} />
+          <div style={{ position: 'absolute', width: '50%', height: '50%', bottom: '-10%', right: '-10%', borderRadius: '50%', background: 'radial-gradient(circle, rgba(6,182,212,.18), transparent 70%)', filter: 'blur(50px)' }} />
+        </div>
+
+        {/* Content */}
+        <div style={{ position: 'relative', zIndex: 1, height: '100%', display: 'flex', flexDirection: 'column' }}>
+          {/* Logo */}
+          <div style={{ filter: 'brightness(0) invert(1)' }}>
             <BrandMark />
-          </a>
-          
-          <div style={{ marginTop: 'auto', marginBottom: 'auto', maxWidth: '480px' }}>
-            <h1 style={{ fontSize: '3.5rem', fontWeight: 800, letterSpacing: '-0.03em', lineHeight: 1.1, marginBottom: '1.5rem', background: 'linear-gradient(to right, #fff, #a0a5b5)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
-              Dai social a uno spazio che resta.
-            </h1>
-            <p style={{ fontSize: '1.25rem', color: '#8a91a6', lineHeight: 1.6, fontWeight: 400 }}>
-              Accedi al tuo hub e trasforma contenuti effimeri in un asset proprietario, organizzato e pronto per essere trovato.
-            </p>
           </div>
-          
-          <div style={{ marginTop: 'auto', display: 'flex', gap: '2rem', color: '#636b80', fontSize: '0.875rem', fontWeight: 500 }}>
+
+          {/* Center */}
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', paddingTop: '3rem', paddingBottom: '2rem' }}>
+            <img src="/logo-cropped.png" alt="" style={{ width: 72, height: 72, marginBottom: '2rem', filter: 'drop-shadow(0 0 28px rgba(124,58,237,.6))' }} />
+            <h1 style={{ margin: '0 0 1rem', fontSize: 'clamp(2rem, 3.5vw, 3rem)', fontWeight: 900, lineHeight: .98, letterSpacing: '-.04em', color: '#fff' }}>
+              Dai social<br />
+              <span style={{ background: 'linear-gradient(135deg, #7C3AED, #06B6D4)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>
+                a uno spazio<br />che resta.
+              </span>
+            </h1>
+            <p style={{ margin: '0 0 2rem', fontSize: 15, color: 'rgba(255,255,255,.55)', lineHeight: 1.65, maxWidth: 380 }}>
+              Il tuo hub per trasformare contenuti effimeri in un asset proprietario, aggiornato ogni giorno dall'AI.
+            </p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              {[
+                { icon: '⚡', text: 'Sincronizzazione automatica dai social' },
+                { icon: '🧠', text: "L'AI struttura e organizza i contenuti" },
+                { icon: '🌐', text: 'Sito pubblico sempre aggiornato' },
+              ].map(f => (
+                <div key={f.icon} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <span style={{ width: 34, height: 34, borderRadius: 9, background: 'rgba(255,255,255,.07)', border: '1px solid rgba(255,255,255,.1)', display: 'grid', placeItems: 'center', fontSize: 15, flexShrink: 0 }}>{f.icon}</span>
+                  <span style={{ fontSize: 13, color: 'rgba(255,255,255,.6)' }}>{f.text}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Footer */}
+          <div style={{ display: 'flex', gap: '1.5rem', fontSize: 12, color: 'rgba(255,255,255,.3)' }}>
             <span>© {new Date().getFullYear()} All Social To Web</span>
             <a href="/privacy" style={{ color: 'inherit', textDecoration: 'none' }}>Privacy</a>
             <a href="/terms" style={{ color: 'inherit', textDecoration: 'none' }}>Termini</a>
@@ -59,87 +80,68 @@ export function AuthScreen({ onAuth }) {
         </div>
       </div>
 
-      {/* Sezione Destra: Form di Accesso */}
+      {/* ── Right form panel ─────────────────────────────── */}
       <div style={{
-        flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '2rem', position: 'relative'
+        width: 'min(520px, 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+        padding: 'clamp(2rem, 5vw, 4rem)', position: 'relative',
       }}>
-        {/* Glow effect sullo sfondo del form */}
-        <div style={{ position: 'absolute', width: '500px', height: '500px', background: 'radial-gradient(circle, rgba(99, 102, 241, 0.15) 0%, transparent 60%)', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', pointerEvents: 'none', filter: 'blur(40px)' }} />
-
-        <div style={{ width: '100%', maxWidth: '400px', position: 'relative', zIndex: 1 }}>
-          <div className="auth-mobile-header" style={{ marginBottom: '3rem', display: 'none' }}>
-            <a href="/" style={{ textDecoration: 'none', filter: 'invert(1)' }}><BrandMark compact /></a>
+        <div style={{ width: '100%', maxWidth: 380 }}>
+          {/* Mobile brand */}
+          <div className="auth-mobile-brand" style={{ display: 'none', marginBottom: '2.5rem' }}>
+            <BrandMark />
           </div>
 
-          <h2 style={{ fontSize: '2rem', fontWeight: 700, marginBottom: '0.5rem', color: '#fff', letterSpacing: '-0.02em' }}>Bentornato</h2>
-          <p style={{ color: '#8a91a6', marginBottom: '2.5rem', fontSize: '1.05rem' }}>Inserisci le tue credenziali per accedere.</p>
+          <h2 style={{ margin: '0 0 .4rem', fontSize: 26, fontWeight: 900, color: '#0F0F0E', letterSpacing: '-.035em' }}>Bentornato</h2>
+          <p style={{ margin: '0 0 2rem', fontSize: 15, color: '#9CA3AF' }}>Inserisci le tue credenziali per accedere.</p>
 
-          <form onSubmit={submit} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-            <div>
-              <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: '#a0a5b5', marginBottom: '0.5rem' }}>Email o Username</label>
-              <input 
-                type="text" 
-                placeholder="es. admin" 
-                value={email} 
-                onChange={e => setEmail(e.target.value)} 
-                required 
-                style={{ 
-                  width: '100%', padding: '14px 16px', fontSize: '1rem', background: '#171a21', 
-                  border: '1px solid #2a2e39', borderRadius: '12px', color: '#fff', outline: 'none',
-                  transition: 'border-color 0.2s, box-shadow 0.2s'
-                }}
-                onFocus={e => { e.target.style.borderColor = '#6366f1'; e.target.style.boxShadow = '0 0 0 3px rgba(99,102,241,0.2)'; }}
-                onBlur={e => { e.target.style.borderColor = '#2a2e39'; e.target.style.boxShadow = 'none'; }}
-              />
-            </div>
-            <div>
-              <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: '#a0a5b5', marginBottom: '0.5rem' }}>Password</label>
-              <input 
-                type="password" 
-                placeholder="••••••••" 
-                value={password} 
-                onChange={e => setPassword(e.target.value)} 
-                required 
-                style={{ 
-                  width: '100%', padding: '14px 16px', fontSize: '1rem', background: '#171a21', 
-                  border: '1px solid #2a2e39', borderRadius: '12px', color: '#fff', outline: 'none',
-                  transition: 'border-color 0.2s, box-shadow 0.2s'
-                }}
-                onFocus={e => { e.target.style.borderColor = '#6366f1'; e.target.style.boxShadow = '0 0 0 3px rgba(99,102,241,0.2)'; }}
-                onBlur={e => { e.target.style.borderColor = '#2a2e39'; e.target.style.boxShadow = 'none'; }}
-              />
-            </div>
+          <form onSubmit={submit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            {[
+              { label: 'Email o Username', type: 'text', val: email, set: setEmail, ph: 'es. mario.rossi' },
+              { label: 'Password', type: 'password', val: password, set: setPassword, ph: '••••••••' },
+            ].map(f => (
+              <div key={f.label}>
+                <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: '#6B7280', marginBottom: 7 }}>{f.label}</label>
+                <input
+                  type={f.type} placeholder={f.ph} value={f.val}
+                  onChange={e => f.set(e.target.value)} required
+                  style={{ width: '100%', padding: '13px 15px', fontSize: 15, background: '#fff', border: '1.5px solid rgba(15,15,14,.12)', borderRadius: 12, color: '#0F0F0E', outline: 'none', fontFamily: 'inherit', transition: 'border-color .2s, box-shadow .2s', boxSizing: 'border-box' }}
+                  onFocus={e => { e.target.style.borderColor = '#7C3AED'; e.target.style.boxShadow = '0 0 0 3px rgba(124,58,237,.12)'; }}
+                  onBlur={e => { e.target.style.borderColor = 'rgba(15,15,14,.12)'; e.target.style.boxShadow = 'none'; }}
+                />
+              </div>
+            ))}
 
             {error && (
-              <div style={{ background: 'rgba(239, 68, 68, 0.1)', color: '#f87171', padding: '12px 16px', borderRadius: '8px', fontSize: '0.875rem', fontWeight: 500, border: '1px solid rgba(239, 68, 68, 0.2)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+              <div style={{ background: 'rgba(239,68,68,.08)', color: '#DC2626', padding: '11px 14px', borderRadius: 10, fontSize: 14, fontWeight: 500, border: '1px solid rgba(239,68,68,.15)', display: 'flex', alignItems: 'center', gap: 8 }}>
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><circle cx="12" cy="16" r="0.5" fill="currentColor"/></svg>
                 {error}
               </div>
             )}
 
-            <button type="submit" disabled={loading} style={{ 
-              marginTop: '1rem', width: '100%', padding: '16px', fontSize: '1.05rem', 
-              background: loading ? '#4338ca' : 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)', 
-              color: '#fff', border: 'none', borderRadius: '12px', fontWeight: 600, cursor: loading ? 'not-allowed' : 'pointer',
-              boxShadow: '0 8px 20px rgba(99, 102, 241, 0.3)', transition: 'transform 0.2s, box-shadow 0.2s'
+            <button type="submit" disabled={loading} style={{
+              marginTop: '0.5rem', width: '100%', padding: '15px', fontSize: 15, fontWeight: 800,
+              background: loading ? '#EE634688' : '#EE6346',
+              color: '#fff', border: 'none', borderRadius: 12, cursor: loading ? 'not-allowed' : 'pointer',
+              boxShadow: '0 6px 20px rgba(238,99,70,.3)', fontFamily: 'inherit',
+              transition: 'transform .2s, box-shadow .2s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
             }}
-            onMouseOver={e => { if(!loading) { e.target.style.transform = 'translateY(-2px)'; e.target.style.boxShadow = '0 12px 24px rgba(99, 102, 241, 0.4)'; } }}
-            onMouseOut={e => { if(!loading) { e.target.style.transform = 'none'; e.target.style.boxShadow = '0 8px 20px rgba(99, 102, 241, 0.3)'; } }}
-            >
-              {loading ? 'Accesso in corso...' : 'Entra nello spazio →'}
+            onMouseOver={e => { if (!loading) { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 10px 26px rgba(238,99,70,.4)'; }}}
+            onMouseOut={e => { if (!loading) { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = '0 6px 20px rgba(238,99,70,.3)'; }}}>
+              {loading ? 'Accesso in corso…' : 'Entra nello spazio →'}
             </button>
           </form>
 
-          <div style={{ marginTop: '3rem', textAlign: 'center', color: '#636b80', fontSize: '0.875rem' }}>
-            Non hai un account? <a href="/#come-funziona" style={{ color: '#818cf8', textDecoration: 'none', fontWeight: 500 }}>Scopri come funziona</a>
+          <div style={{ marginTop: '1.5rem', textAlign: 'center', fontSize: 14, color: '#9CA3AF' }}>
+            Non hai un account?{' '}
+            <a href="/#funziona" style={{ color: '#7C3AED', fontWeight: 700, textDecoration: 'none' }}>Scopri come funziona</a>
           </div>
         </div>
       </div>
-      
+
       <style>{`
-        @media (max-width: 899px) {
-          .auth-visual-side { display: none !important; }
-          .auth-mobile-header { display: block !important; }
+        @media (max-width: 768px) {
+          .auth-left { display: none !important; }
+          .auth-mobile-brand { display: block !important; }
         }
       `}</style>
     </div>
