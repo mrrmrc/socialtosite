@@ -809,10 +809,19 @@ if ($action === 'admin-editorial-room' && $method === 'GET') {
         [$targetId]
     );
 
+    $stats = DB::fetch(
+        "SELECT SUM(published=1) AS published_posts,
+                SUM(published=1 AND seo_score>=0) AS eligible_posts,
+                SUM(seo_score<0 AND processing_status IN ('pending','processing')) AS pending_posts,
+                SUM(processing_status='failed') AS failed_posts
+         FROM posts WHERE user_id=?", [$targetId]
+    ) ?: [];
+    $stats = array_map('intval', $stats);
     json([
         'user' => $user,
         'sources' => $sources,
         'posts' => $posts,
+        'stats' => $stats,
     ]);
 }
 
