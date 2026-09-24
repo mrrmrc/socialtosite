@@ -395,7 +395,7 @@ export function AdminScreen({ token, currentUser, adminPrompts, updatePrompt }) 
 
   const totalPosts = users.reduce((sum, user) => sum + Number(user.posts_count || 0), 0);
   const adminNavigation = [
-    { group: 'Controllo', items: [['overview','Panoramica','▦'],['control-room','Control Room','⌘'],['agents','Agenti AI','✦']] },
+    { group: 'Controllo', items: [['overview','Panoramica','▦'],['control-room','Control Room','⌘'],['monitor-live','Monitor Live','⚡'],['agents','Agenti AI','✦']] },
     { group: 'Operatività', items: [['users','Clienti','◎'],['content-mix','Contenuti','▤'],['processes','Code','↻']] },
     { group: 'Economia', items: [['economics','Costi e consumi','€']] },
     { group: 'Sistema', items: [['monitoring','Cron e provider','◉'],['logs','Log','≡']] },
@@ -459,6 +459,12 @@ export function AdminScreen({ token, currentUser, adminPrompts, updatePrompt }) 
           <div className="card"><div className="admin-section-heading"><div><span>Mese corrente</span><h3>Consumi registrati</h3></div><button onClick={()=>setAdminTab('economics')}>Analizza →</button></div><div className="admin-cost-summary"><strong>{Number(monthUsage.total_tokens||0).toLocaleString('it-IT')}</strong><span>token · {monthUsage.requests||0} richieste</span><b>{monitoringData?.cost_tracking_ready ? formatCost(monthUsage.estimated_cost) : 'Costo non ancora valorizzato'}</b></div></div>
         </section>
       </div>}
+
+      {adminTab === 'monitor-live' && (
+        <div className="card" style={{ padding: 0, height: 'calc(100vh - 80px)', overflow: 'hidden' }}>
+          <iframe src={`${window.API_BASE || ''}/monitor.php`} style={{ width: '100%', height: '100%', border: 'none' }} title="Monitor Live" />
+        </div>
+      )}
 
       {adminTab === 'agents' && <div className="card"><div className="admin-section-heading"><div><span>Registro unico modificabile</span><h3>Agenti AI editoriali e grafici</h3><p>Seleziona un agente, modifica le istruzioni e salvale esplicitamente.</p></div></div><div className="admin-agent-grid">{(monitoringData?.agents || []).map(agent=>{const prompt=adminPrompts.find(item=>item.agent_name===agent.agent_name);const draft=agentDrafts[agent.agent_name] ?? prompt?.instructions ?? '';return <article key={agent.agent_name} className={agent.agent_name==='site_ai'?'is-visual-agent':''}><header><span>{agent.agent_name==='site_ai'?'◈':'✦'}</span><b className={agent.prompt_configured?'is-ready':''}>{agent.prompt_configured?'Configurato':'Da personalizzare'}</b></header><h4>{agent.label}</h4><p>{agent.purpose}</p><dl><div><dt>Quando interviene</dt><dd>{agent.trigger}</dd></div><div><dt>Identificativo</dt><dd><code>{agent.agent_name}</code></dd></div></dl><details className="admin-agent-editor"><summary>Apri editor istruzioni</summary><textarea value={draft} placeholder="Inserisci il prompt di sistema per questo agente…" onChange={e=>setAgentDrafts(current=>({...current,[agent.agent_name]:e.target.value}))}/><div className="admin-agent-editor-actions"><button className="btn btn-primary" disabled={adminActionBusy===`prompt-${agent.agent_name}`} onClick={()=>saveAgentPrompt(agent)}>{adminActionBusy===`prompt-${agent.agent_name}`?'Salvataggio…':'Salva istruzioni'}</button>{prompt&&<button className="btn btn-outline" onClick={()=>loadPromptHistory(agent.agent_name)}>Cronologia ({Number(prompt.version_count||0)})</button>}</div></details></article>})}</div></div>}
 
