@@ -182,6 +182,7 @@ jobs:
           cp api/routes/{auth,migrate,upload}.php release/api/routes/
           cp api/services/{sync,ingest,editorial_engine,visibility,seo_foundation,reachability}.php release/api/services/
           cp api/services/{raw_import,apify_client,website_source,profile_analyzer,admin_console,editorial_supervisor,provider_config,ai,content_ideas}.php release/api/services/
+          cp api/services/{monitor_status,monitor_settings}.php release/api/services/
           cp api/routes/publication.php release/api/routes/
           cp api/services/plan_policy.php release/api/services/
           mkdir -p release/api/services/publication release/cron
@@ -189,6 +190,7 @@ jobs:
           cp cron/{publish,sync,fetch_seo}.php release/cron/
           cp -r frontend/dist/. release/
           cp .htaccess robots.txt deploy-info.json release/
+          cp monitor.php release/
           cp google*.html release/ 2>/dev/null || true
 
           mkdir -p release/config
