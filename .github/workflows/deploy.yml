@@ -105,7 +105,7 @@ jobs:
             api/services/admin_console.php api/services/editorial_supervisor.php api/services/provider_config.php \
             api/services/ai.php api/services/content_ideas.php \
             api/routes/publication.php api/services/plan_policy.php \
-            api/services/publication/{security,service,wordpress}.php cron/publish.php cron/sync.php cron/fetch_seo.php \
+            api/services/publication/{security,service,wordpress}.php cron/publish.php cron/sync.php cron/fetch_seo.php cron/check_alerts.php \
             integrations/wordpress/allsocialtoweb/allsocialtoweb.php \
             public/site.php public/discover.php public/sitemap.php public/site-professional.php \
             config/db.php)
@@ -187,7 +187,7 @@ jobs:
           cp api/services/plan_policy.php release/api/services/
           mkdir -p release/api/services/publication release/cron
           cp api/services/publication/{security,service,wordpress}.php release/api/services/publication/
-          cp cron/{publish,sync,fetch_seo}.php release/cron/
+          cp cron/{publish,sync,fetch_seo,check_alerts}.php release/cron/
           cp -r frontend/dist/. release/
           cp .htaccess robots.txt deploy-info.json release/
           cp monitor.php release/
@@ -216,6 +216,18 @@ jobs:
                            -o -name 'setup_admin*' -o -name 'setup-admin*' \) \
              | grep -q .; then
             echo "::error::Forbidden file found in production release."
+            exit 1
+          fi
+
+          echo "Verifying no PHP files are left behind..."
+          missing=0
+          while IFS= read -r src_file; do
+            if [ ! -f "release/$src_file" ] && [[ "$src_file" != *"test"* ]] && [[ "$src_file" != "api/setup_admin.php" ]] && [[ "$src_file" != "api/current_plan.php" ]] && [[ "$src_file" != "api/routes/openclaw_webhook.php" ]]; then
+              echo "::error::File $src_file exists in repo but was not copied to release/. Add it to the deploy.yml whitelist."
+              missing=1
+            fi
+          done < <(find api cron public integrations -type f -name "*.php")
+          if [ "$missing" -eq 1 ]; then
             exit 1
           fi
 
