@@ -360,8 +360,20 @@ function fmtAge(?int $s): string
         </div>
       </fieldset>
 
-      <fieldset>
-        <legend>Soglie di allarme (%)</legend>
+      
+    <fieldset>
+      <legend>Servizi da monitorare (notifiche via mail)</legend>
+      <div style="display:flex;gap:15px;flex-wrap:wrap;font-size:13px;align-items:center;padding:5px 0;">
+        <label><input type="checkbox" name="alert_on_cpu" value="1" <?= $settings['alert_on_cpu'] ? 'checked' : '' ?>> CPU</label>
+        <label><input type="checkbox" name="alert_on_mem" value="1" <?= $settings['alert_on_mem'] ? 'checked' : '' ?>> RAM</label>
+        <label><input type="checkbox" name="alert_on_disk" value="1" <?= $settings['alert_on_disk'] ? 'checked' : '' ?>> Disco</label>
+        <label><input type="checkbox" name="alert_on_db" value="1" <?= $settings['alert_on_db'] ? 'checked' : '' ?>> Database offline</label>
+        <label><input type="checkbox" name="alert_on_cron" value="1" <?= $settings['alert_on_cron'] ? 'checked' : '' ?>> Cron bloccato</label>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Soglie di allarme (%)</legend>
         <div class="thresholds-group">
           <div class="field">
             <label for="cpu_warning_pct">CPU — attenzione</label>

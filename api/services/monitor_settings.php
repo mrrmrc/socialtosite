@@ -33,11 +33,24 @@ function monitor_settings_ensure_schema(): void
             mem_critical_pct SMALLINT NULL DEFAULT 95,
             disk_warning_pct SMALLINT NULL DEFAULT 90,
             disk_critical_pct SMALLINT NULL DEFAULT 97,
+            alert_on_cpu TINYINT(1) NOT NULL DEFAULT 1,
+            alert_on_mem TINYINT(1) NOT NULL DEFAULT 1,
+            alert_on_disk TINYINT(1) NOT NULL DEFAULT 1,
+            alert_on_db TINYINT(1) NOT NULL DEFAULT 1,
+            alert_on_cron TINYINT(1) NOT NULL DEFAULT 1,
             last_state VARCHAR(20) NULL,
             last_alert_at DATETIME NULL,
             updated_at DATETIME NULL
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
     ");
+    try {
+        DB::execute("ALTER TABLE monitor_alert_settings ADD COLUMN alert_on_cpu TINYINT(1) NOT NULL DEFAULT 1");
+        DB::execute("ALTER TABLE monitor_alert_settings ADD COLUMN alert_on_mem TINYINT(1) NOT NULL DEFAULT 1");
+        DB::execute("ALTER TABLE monitor_alert_settings ADD COLUMN alert_on_disk TINYINT(1) NOT NULL DEFAULT 1");
+        DB::execute("ALTER TABLE monitor_alert_settings ADD COLUMN alert_on_db TINYINT(1) NOT NULL DEFAULT 1");
+        DB::execute("ALTER TABLE monitor_alert_settings ADD COLUMN alert_on_cron TINYINT(1) NOT NULL DEFAULT 1");
+    } catch (\Throwable $e) {}
+
 }
 
 /** Valori di default usati finche' l'admin non salva nulla. */
@@ -60,6 +73,11 @@ function monitor_settings_defaults(): array
         'mem_critical_pct' => 95,
         'disk_warning_pct' => 90,
         'disk_critical_pct' => 97,
+        'alert_on_cpu' => 1,
+        'alert_on_mem' => 1,
+        'alert_on_disk' => 1,
+        'alert_on_db' => 1,
+        'alert_on_cron' => 1,
         'last_state' => null,
         'last_alert_at' => null,
         'updated_at' => null,
@@ -96,6 +114,11 @@ function monitor_settings_save(array $input): array
     $smtpFromEmail = trim((string)($input['smtp_from_email'] ?? ''));
     $smtpFromName = trim((string)($input['smtp_from_name'] ?? '')) ?: 'Monitor';
     $alertTo = trim((string)($input['alert_to'] ?? ''));
+    $alertOnCpu = !empty($input['alert_on_cpu']) ? 1 : 0;
+    $alertOnMem = !empty($input['alert_on_mem']) ? 1 : 0;
+    $alertOnDisk = !empty($input['alert_on_disk']) ? 1 : 0;
+    $alertOnDb = !empty($input['alert_on_db']) ? 1 : 0;
+    $alertOnCron = !empty($input['alert_on_cron']) ? 1 : 0;
 
     if ($enabled) {
         if ($smtpHost === '') $errors[] = 'Host SMTP obbligatorio.';
@@ -134,8 +157,8 @@ function monitor_settings_save(array $input): array
     DB::execute(
         "INSERT INTO monitor_alert_settings
             (id, enabled, smtp_host, smtp_port, smtp_secure, smtp_user, smtp_pass, smtp_from_email, smtp_from_name, alert_to,
-             cpu_warning_pct, cpu_critical_pct, mem_warning_pct, mem_critical_pct, disk_warning_pct, disk_critical_pct, updated_at)
-         VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
+             cpu_warning_pct, cpu_critical_pct, mem_warning_pct, mem_critical_pct, disk_warning_pct, disk_critical_pct, alert_on_cpu, alert_on_mem, alert_on_disk, alert_on_db, alert_on_cron, updated_at)
+         VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
          ON DUPLICATE KEY UPDATE
             enabled = VALUES(enabled), smtp_host = VALUES(smtp_host), smtp_port = VALUES(smtp_port),
             smtp_secure = VALUES(smtp_secure), smtp_user = VALUES(smtp_user), smtp_pass = VALUES(smtp_pass),
@@ -143,6 +166,8 @@ function monitor_settings_save(array $input): array
             cpu_warning_pct = VALUES(cpu_warning_pct), cpu_critical_pct = VALUES(cpu_critical_pct),
             mem_warning_pct = VALUES(mem_warning_pct), mem_critical_pct = VALUES(mem_critical_pct),
             disk_warning_pct = VALUES(disk_warning_pct), disk_critical_pct = VALUES(disk_critical_pct),
+            alert_on_cpu = VALUES(alert_on_cpu), alert_on_mem = VALUES(alert_on_mem), alert_on_disk = VALUES(alert_on_disk),
+            alert_on_db = VALUES(alert_on_db), alert_on_cron = VALUES(alert_on_cron),
             updated_at = VALUES(updated_at)",
         [
             $enabled, $smtpHost ?: null, $smtpPort, $smtpSecure, $smtpUser ?: null, $smtpPass ?: null,
@@ -150,6 +175,7 @@ function monitor_settings_save(array $input): array
             $thresholds['cpu_warning_pct'], $thresholds['cpu_critical_pct'],
             $thresholds['mem_warning_pct'], $thresholds['mem_critical_pct'],
             $thresholds['disk_warning_pct'], $thresholds['disk_critical_pct'],
+            $alertOnCpu, $alertOnMem, $alertOnDisk, $alertOnDb, $alertOnCron,
         ]
     );
 
