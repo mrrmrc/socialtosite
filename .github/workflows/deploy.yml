@@ -226,7 +226,7 @@ jobs:
               echo "::error::File $src_file exists in repo but was not copied to release/. Add it to the deploy.yml whitelist."
               missing=1
             fi
-          done < <(find api cron public integrations -type f -name "*.php")
+          done < <(find api cron public -type f -name "*.php")
           if [ "$missing" -eq 1 ]; then
             exit 1
           fi
