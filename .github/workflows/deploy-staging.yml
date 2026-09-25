@@ -33,23 +33,18 @@ jobs:
 
       - name: Prepara chiave SSH
         shell: bash
+        env:
+          SSH_KEY: ${{ secrets.STAGING_SSH_PRIVATE_KEY }}
         run: |
-          set -euo pipefail
           mkdir -p ~/.ssh
-          # Scrive la chiave e rimuove eventuali \r di Windows
-          echo "${{ secrets.STAGING_SSH_PRIVATE_KEY }}" | tr -d '\r' > ~/.ssh/deploy_key
+          printf '%s\n' "$SSH_KEY" | tr -d '\r' > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
-          # Disabilita il controllo host per evitare prompt interattivi
           ssh-keyscan -H ${{ secrets.STAGING_SSH_HOST }} >> ~/.ssh/known_hosts 2>/dev/null
 
       - name: Deploy to Staging VPS via SSH/Docker
         shell: bash
-        env:
-          APIFY_API_TOKEN: ${{ secrets.APIFY_API_TOKEN }}
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: |
-          set -euo pipefail
-          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no \
+          ssh -T -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no \
             ${{ secrets.STAGING_SSH_USER }}@${{ secrets.STAGING_SSH_HOST }} << 'DEPLOY_SCRIPT'
           set -e
           mkdir -p /opt/socialtosite-staging
@@ -71,3 +66,4 @@ jobs:
 
           echo "Staging Deploy completato con successo tramite Docker!"
           DEPLOY_SCRIPT
+
