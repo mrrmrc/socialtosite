@@ -1,8 +1,9 @@
 <?php
 require_once __DIR__ . '/../config/db.php';
 $sql = file_get_contents(__DIR__ . '/../db/schema.sql');
-$pdo = DB::getConnection();
+$pdo = DB::get();
 try {
+    $pdo->setAttribute(PDO::ATTR_EMULATE_PREPARES, true);
     $pdo->exec($sql);
     $pwd = password_hash('admin123', PASSWORD_BCRYPT);
     $pdo->exec("INSERT IGNORE INTO users (email, password, name, role) VALUES ('admin@admin.com', '$pwd', 'Admin', 'admin')");
