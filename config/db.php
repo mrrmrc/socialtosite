@@ -43,8 +43,14 @@ class DB {
 
     public static function get(): PDO {
         if (!self::$pdo) {
-            $dsn = "mysql:host=" . DB_HOST . ";dbname=" . DB_NAME . ";charset=" . DB_CHARSET;
-            self::$pdo = new PDO($dsn, DB_USER, DB_PASS, [
+            $host = getenv('DB_HOST') ?: (defined('DB_HOST') ? DB_HOST : 'localhost');
+            $name = getenv('DB_NAME') ?: (defined('DB_NAME') ? DB_NAME : 'test');
+            $user = getenv('DB_USER') ?: (defined('DB_USER') ? DB_USER : 'root');
+            $pass = getenv('DB_PASS') !== false ? getenv('DB_PASS') : (defined('DB_PASS') ? DB_PASS : '');
+            $charset = getenv('DB_CHARSET') ?: (defined('DB_CHARSET') ? DB_CHARSET : 'utf8mb4');
+
+            $dsn = "mysql:host=" . $host . ";dbname=" . $name . ";charset=" . $charset;
+            self::$pdo = new PDO($dsn, $user, $pass, [
                 PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
                 PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
                 PDO::ATTR_EMULATE_PREPARES   => false,

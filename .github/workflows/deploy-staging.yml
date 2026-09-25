@@ -1,0 +1,71 @@
+name: deploy-staging - Docker/SSH
+
+on:
+  push:
+    branches: [staging]
+  workflow_dispatch:
+
+concurrency:
+  group: deployvps-staging
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Build frontend
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd frontend
+          npm install --legacy-peer-deps
+          npm run build
+
+      - name: Deploy to Staging VPS via SSH/Docker
+        uses: appleboy/ssh-action@v1.0.3
+        env:
+          APIFY_API_TOKEN: ${{ secrets.STAGING_APIFY_API_TOKEN }}
+          GEMINI_API_KEY: ${{ secrets.STAGING_GEMINI_API_KEY }}
+        with:
+          host: ${{ secrets.STAGING_SSH_HOST }}
+          username: ${{ secrets.STAGING_SSH_USER }}
+          key: ${{ secrets.STAGING_SSH_PRIVATE_KEY }}
+          envs: APIFY_API_TOKEN,GEMINI_API_KEY
+          script: |
+            set -e
+            # Creiamo la cartella per il progetto se non esiste
+            mkdir -p /opt/socialtosite-staging
+            cd /opt/socialtosite-staging
+            
+            # Attenzione: In un sistema CI/CD professionale l'immagine verrebbe buildata 
+            # da GitHub Actions e inviata a un Docker Registry. Per mantenere le cose 
+            # semplici ora (ed evitare di gestire il registry), cloniamo il repo sul server e buildiamo.
+            
+            if [ ! -d ".git" ]; then
+              git clone -b staging https://github.com/${{ github.repository }}.git .
+            else
+              git fetch origin staging
+              git reset --hard origin/staging
+            fi
+            
+            # Ricompila l'immagine con il nuovo codice (usa la cache se possibile)
+            docker compose -f docker-compose.staging.yml build
+            
+            # Iniettiamo le variabili nel file .env al volo sul server
+            echo "APIFY_API_TOKEN=${APIFY_API_TOKEN}" > .env
+            echo "GEMINI_API_KEY=${GEMINI_API_KEY}" >> .env
+            
+            # Riavvia i container con la nuova immagine senza downtime avvertibile
+            docker compose -f docker-compose.staging.yml up -d
+            
+            echo "Staging Deploy completato con successo tramite Docker!"

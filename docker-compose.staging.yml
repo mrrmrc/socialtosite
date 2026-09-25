@@ -1,0 +1,43 @@
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: socialtosite_app_staging
+    restart: unless-stopped
+    ports:
+      - "8080:80" # Puoi configurare Nginx Proxy Manager perché punti a questa porta (8080)
+    volumes:
+      # Volume persistente per le immagini e i file degli utenti
+      - socialtosite_media_staging:/var/www/html/public/media
+    environment:
+      # Variabili d'ambiente per il Database (sovrascrivono config/db.php grazie al nostro update)
+      - DB_HOST=db
+      - DB_NAME=socialtosite_staging
+      - DB_USER=socialtosite_user
+      - DB_PASS=secret_staging_password_change_me
+      # Variabili di runtime (Iniettate tramite file .env o direttamente nel server)
+      - SOCIALTOSITE_RUNTIME_APIFY_API_TOKEN=${APIFY_API_TOKEN}
+      - SOCIALTOSITE_RUNTIME_GEMINI_API_KEY=${GEMINI_API_KEY}
+      - SOCIALTOSITE_RUNTIME_BASE_URL=https://staging.allsocialtoweb.com
+    depends_on:
+      - db
+
+  db:
+    image: mariadb:10.11
+    container_name: socialtosite_db_staging
+    restart: unless-stopped
+    environment:
+      - MYSQL_DATABASE=socialtosite_staging
+      - MYSQL_USER=socialtosite_user
+      - MYSQL_PASSWORD=secret_staging_password_change_me
+      - MYSQL_RANDOM_ROOT_PASSWORD=yes
+    volumes:
+      # Volume persistente fisico per i dati del database (per non perderli mai)
+      - socialtosite_dbdata_staging:/var/lib/mysql
+
+volumes:
+  socialtosite_media_staging:
+  socialtosite_dbdata_staging:

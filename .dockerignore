@@ -1,0 +1,13 @@
+.git
+.github
+node_modules
+frontend/node_modules
+frontend/dist
+tmp
+scraper
+storage
+.env
+.env.*
+.claude
+AGENTS.md
+CLAUDE.md
