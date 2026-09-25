@@ -8,7 +8,7 @@ services:
     container_name: socialtosite_app_staging
     restart: unless-stopped
     ports:
-      - "8081:80" # Puoi configurare Nginx Proxy Manager perché punti a questa porta (8081)
+      - "8088:80" # Puoi configurare Nginx Proxy Manager perché punti a questa porta (8088)
     volumes:
       # Volume persistente per le immagini e i file degli utenti
       - socialtosite_media_staging:/var/www/html/public/media
