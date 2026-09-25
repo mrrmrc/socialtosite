@@ -1842,8 +1842,6 @@ if ($action === 'ingest-url' && $method === 'POST') {
     json($res);
 }
 
-// Chat contestuale di LIA. I messaggi restano nel browser: al modello vengono
-// inviati solo gli ultimi turni e i dati operativi dell'account corrente.
 if ($action === 'interview-chat' && $method === 'POST') {
     try {
         require_once __DIR__ . '/services/profile_interview.php';
@@ -1863,9 +1861,12 @@ if ($action === 'interview-chat' && $method === 'POST') {
         json(['ok' => true, 'reply' => $response['text'], 'updates' => $response['updates']]);
     } catch (Throwable $e) {
         if (class_exists('Logger')) Logger::warn('interview', 'Intervista fallita', ['user_id' => $userId, 'error' => $e->getMessage()]);
-        jsonError('Si è verificato un errore durante l\'intervista. Riprova.', 502);
+        jsonError('Si Ã¨ verificato un errore durante l\'intervista. Riprova.', 502);
     }
 }
+
+// Chat contestuale di LIA. I messaggi restano nel browser: al modello vengono
+// inviati solo gli ultimi turni e i dati operativi dell'account corrente.
 if ($action === 'lia-chat' && $method === 'POST') {
     try {
         require_once __DIR__ . '/services/ai.php';
@@ -2438,4 +2439,3 @@ if ($action === 'admin-logs' && $method === 'GET') {
 }
 
 jsonError('Endpoint non trovato', 404);
-
