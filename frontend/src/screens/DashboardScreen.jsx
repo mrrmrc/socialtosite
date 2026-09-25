@@ -474,6 +474,7 @@ function SiteMapGraph({ posts, siteUrl, siteTitle, foundationPages = [] }) {
   );
 }
 
+import StrategyInterview from './StrategyInterview';
 export function DashboardScreen({ token, user, onLogout }) {
   const [tab, setTab] = useState(user?.role === 'admin' ? 'admin' : 'overview');
   const [visibilitySection, setVisibilitySection] = useState('network');
@@ -2720,23 +2721,7 @@ const [importMsg, setImportMsg] = useState(null);
 
             </div>)}
 
-            {tab === 'strategy' && <GuidedStrategy
-              understanding={activeUnderstanding}
-              declared={declaredStrategy}
-              progress={strategyProgress}
-              step={strategyStep}
-              setStep={setStrategyStep}
-              updateField={updateDeclaredStrategy}
-              updateList={updateDeclaredStrategyList}
-              save={saveUnderstanding}
-              saving={savingUnderstanding}
-              refresh={refreshUnderstanding}
-              refreshing={savingProfile}
-              logoUrl={logoUrl}
-              uploadLogo={uploadBrandLogo}
-              uploadingLogo={uploadingLogo}
-              sourcesCount={sources.length}
-            />}
+            {tab === 'strategy' && <StrategyInterview declaredStrategy={declaredStrategy} onUpdateStrategy={(updates) => setDeclaredStrategy(prev => ({...prev, ...updates}))} apiFetch={apiFetch} token={token} />}
 
             {tab === 'strategy' && renderProfileUnderstandingPanel()}
 
@@ -4573,5 +4558,7 @@ const [importMsg, setImportMsg] = useState(null);
     </div>
   );
 }
+
+
 
 
