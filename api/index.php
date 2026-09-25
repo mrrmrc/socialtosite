@@ -1863,7 +1863,7 @@ if ($action === 'interview-chat' && $method === 'POST') {
         json(['ok' => true, 'reply' => $response['text'], 'updates' => $response['updates']]);
     } catch (Throwable $e) {
         if (class_exists('Logger')) Logger::warn('interview', 'Intervista fallita', ['user_id' => $userId, 'error' => $e->getMessage()]);
-        jsonError('Si è verificato un errore durante l\'intervista. Riprova.', 502);
+        jsonError('Si � verificato un errore durante l\'intervista. Riprova.', 502);
     }
 }
 if ($action === 'lia-chat' && $method === 'POST') {
@@ -2438,3 +2438,4 @@ if ($action === 'admin-logs' && $method === 'GET') {
 }
 
 jsonError('Endpoint non trovato', 404);
+
