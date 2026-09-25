@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 // api/index.php ÔÇö Router principale
 
 // ÔöÇÔöÇ Gestione errori: restituisci SEMPRE JSON (mai 500 con corpo vuoto) ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
@@ -1842,6 +1842,8 @@ if ($action === 'ingest-url' && $method === 'POST') {
     json($res);
 }
 
+// Chat contestuale di LIA. I messaggi restano nel browser: al modello vengono
+// inviati solo gli ultimi turni e i dati operativi dell'account corrente.
 if ($action === 'interview-chat' && $method === 'POST') {
     try {
         require_once __DIR__ . '/services/profile_interview.php';
@@ -1864,9 +1866,6 @@ if ($action === 'interview-chat' && $method === 'POST') {
         jsonError('Si è verificato un errore durante l\'intervista. Riprova.', 502);
     }
 }
-
-// Chat contestuale di LIA. I messaggi restano nel browser: al modello vengono
-// inviati solo gli ultimi turni e i dati operativi dell'account corrente.
 if ($action === 'lia-chat' && $method === 'POST') {
     try {
         require_once __DIR__ . '/services/ai.php';
