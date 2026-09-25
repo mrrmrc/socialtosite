@@ -31,6 +31,15 @@ jobs:
           npm install --legacy-peer-deps
           npm run build
 
+      - name: Prepara chiave SSH
+        shell: bash
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s' "$STAGING_SSH_PRIVATE_KEY" > ~/.ssh/staging_key
+          chmod 600 ~/.ssh/staging_key
+        env:
+          STAGING_SSH_PRIVATE_KEY: ${{ secrets.STAGING_SSH_PRIVATE_KEY }}
+
       - name: Deploy to Staging VPS via SSH/Docker
         uses: appleboy/ssh-action@v1.0.3
         env:
@@ -39,7 +48,7 @@ jobs:
         with:
           host: ${{ secrets.STAGING_SSH_HOST }}
           username: ${{ secrets.STAGING_SSH_USER }}
-          key: ${{ secrets.STAGING_SSH_PRIVATE_KEY }}
+          key_path: ~/.ssh/staging_key
           envs: APIFY_API_TOKEN,GEMINI_API_KEY
           script: |
             set -e
