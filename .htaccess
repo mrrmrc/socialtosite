@@ -27,6 +27,9 @@ RewriteRule ^(?:scraper|storage)(?:/|$) - [R=404,L]
 </IfModule>
 
 RewriteCond %{REQUEST_FILENAME} !-f
+RewriteRule ^public/media/(.*)$ https://allsocialtoweb.com/public/media/$1 [R=302,L]
+
+RewriteCond %{REQUEST_FILENAME} !-f
 RewriteRule ^assets/ - [R=404,L]
 
 # Routing pubblico: queste regole devono precedere il fallback della SPA.
