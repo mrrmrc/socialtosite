@@ -31,6 +31,12 @@ jobs:
           npm install --legacy-peer-deps
           npm run build
 
+      - name: Test PHP syntax
+        run: |
+          sudo apt-get install -y php-cli
+          php -l api/index.php || exit 1
+          php -l api/services/profile_interview.php || exit 1
+
       - name: Prepara chiave SSH
         shell: bash
         env:
@@ -78,4 +84,5 @@ jobs:
 
           echo "Staging Deploy completato con successo tramite Docker e Cron configurato!"
           DEPLOY_SCRIPT
+
 
