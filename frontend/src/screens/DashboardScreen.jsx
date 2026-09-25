@@ -2922,7 +2922,7 @@ const [importMsg, setImportMsg] = useState(null);
                                   🔍 Fonte pubblica via Refetch(er)
                                 </span>
                                 <span style={{ background: (channel.auto_sync ?? 1) === 1 ? 'var(--teal-light)' : 'var(--gray-light)', color: (channel.auto_sync ?? 1) === 1 ? '#0F6E56' : 'var(--text-muted)', padding: '1px 7px', borderRadius: '10px', fontWeight: 600 }}>
-                                  {(channel.auto_sync ?? 1) === 1 ? 'Controllo periodico (in base al piano)' : 'Solo manuale'}
+                                  {(channel.auto_sync ?? 1) === 1 ? 'Controllo periodico (Frequenza in base al piano in uso)' : 'Solo manuale'}
                                 </span>
                               </div>
                             </div>
