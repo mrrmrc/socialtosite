@@ -1,7 +1,7 @@
 <?php
-// api/index.php ÔÇö Router principale
+// api/index.php Ã”Ã‡Ã¶ Router principale
 
-// ÔöÇÔöÇ Gestione errori: restituisci SEMPRE JSON (mai 500 con corpo vuoto) ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
+// Ã”Ã¶Ã‡Ã”Ã¶Ã‡ Gestione errori: restituisci SEMPRE JSON (mai 500 con corpo vuoto) Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡
 ini_set('display_errors', '0');
 set_time_limit(0);
 ob_start();
@@ -234,7 +234,7 @@ function normalizeSiteAiResult(array $result): array {
     return $result;
 }
 
-// ÔöÇÔöÇ Auth endpoints (no JWT) ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
+// Ã”Ã¶Ã‡Ã”Ã¶Ã‡ Auth endpoints (no JWT) Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡
 if ($action === 'track' && $method === 'POST') {
     $payload = body();
     $ok = VisibilityAnalytics::recordEvent(is_array($payload) ? $payload : []);
@@ -247,10 +247,10 @@ if (in_array($action, ['login', 'register'], true)) {
     exit;
 }
 
-// ÔöÇÔöÇ POST openclaw-webhook (Ricezione articoli da OpenClaw) ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
+// Ã”Ã¶Ã‡Ã”Ã¶Ã‡ POST openclaw-webhook (Ricezione articoli da OpenClaw) Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡
 if ($action === 'openclaw-webhook' && $method === 'POST') {
-    // Integrazione disattivata finché la chiave non è configurata sul server
-    // e la rotta non è inclusa nel pacchetto di deploy.
+    // Integrazione disattivata finchÃ© la chiave non Ã¨ configurata sul server
+    // e la rotta non Ã¨ inclusa nel pacchetto di deploy.
     $openclawRoute = __DIR__ . '/routes/openclaw_webhook.php';
     if (!defined('OPENCLAW_API_KEY') || trim((string)OPENCLAW_API_KEY) === '' || !is_file($openclawRoute)) {
         jsonError('Non trovato', 404);
@@ -259,32 +259,32 @@ if ($action === 'openclaw-webhook' && $method === 'POST') {
     exit;
 }
 
-// ÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉ
-//  CONFINE DI AUTENTICAZIONE ÔÇö NON SPOSTARE NULLA SOPRA QUESTA RIGA
+// Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰
+//  CONFINE DI AUTENTICAZIONE Ã”Ã‡Ã¶ NON SPOSTARE NULLA SOPRA QUESTA RIGA
 //
-//  Tutto ci├▓ che sta sopra ├¿ raggiungibile da chiunque, senza token. Gli unici
-//  endpoint ammessi lass├╣ sono: track, login, register, openclaw-webhook
+//  Tutto ciâ”œâ–“ che sta sopra â”œÂ¿ raggiungibile da chiunque, senza token. Gli unici
+//  endpoint ammessi lassâ”œâ•£ sono: track, login, register, openclaw-webhook
 //  (quest'ultimo protetto dalla propria chiave API).
 //
-//  In particolare $isAdmin ├¿ definito QUI SOTTO: una chiamata a requireAdmin()
-//  posta pi├╣ in alto non protegge nulla, perch├® riceve una variabile che non
+//  In particolare $isAdmin â”œÂ¿ definito QUI SOTTO: una chiamata a requireAdmin()
+//  posta piâ”œâ•£ in alto non protegge nulla, perchâ”œÂ® riceve una variabile che non
 //  esiste ancora. Ogni nuovo endpoint va aggiunto sotto questa riga.
-// ÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉ
+// Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰
 $me = JWT::require();
 $userId = (int)($me['id'] ?? 0);
 try {
     $dbMe = DB::fetch('SELECT id, email, name, slug, role, token_version FROM users WHERE id=?', [$userId]);
 } catch (Throwable $e) {
-    // Colonna non ancora presente: la migrazione auth_hardening non ├¿ stata
+    // Colonna non ancora presente: la migrazione auth_hardening non â”œÂ¿ stata
     // applicata. Si prosegue senza revoca, come prima.
     $dbMe = DB::fetch('SELECT id, email, name, slug, role FROM users WHERE id=?', [$userId]);
 }
 if (!$dbMe) {
     // Utente cancellato ma token ancora in circolazione.
     http_response_code(401);
-    json(['error' => 'Sessione non pi├╣ valida'], 401);
+    json(['error' => 'Sessione non piâ”œâ•£ valida'], 401);
 }
-// Revoca: se token_version sulla riga utente ├¿ stata incrementata, tutti i
+// Revoca: se token_version sulla riga utente â”œÂ¿ stata incrementata, tutti i
 // token emessi prima diventano inutilizzabili all'istante.
 if (array_key_exists('token_version', $dbMe) && (int)($me['tv'] ?? 0) !== (int)$dbMe['token_version']) {
     json(['error' => 'Sessione scaduta, esegui di nuovo l\'accesso'], 401);
@@ -307,7 +307,7 @@ function requireAdmin(bool $isAdmin): void {
     if (!$isAdmin) jsonError('Permessi amministratore richiesti', 403);
 }
 
-// Invalida tutte le sessioni gi├á aperte di un utente. Silenzioso se la
+// Invalida tutte le sessioni giâ”œÃ¡ aperte di un utente. Silenzioso se la
 // colonna non esiste ancora (migrazione auth_hardening non applicata).
 function revokeSessions(int $targetUserId): void {
     try { DB::execute('UPDATE users SET token_version = token_version + 1 WHERE id=?', [$targetUserId]); }
@@ -325,7 +325,7 @@ if ($action === 'sync-status' && $method === 'GET') {
     json(['ok' => true, 'msg' => '']);
 }
 
-// ÔöÇÔöÇ POST/GET migrate (Admin: allinea lo schema del database) ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
+// Ã”Ã¶Ã‡Ã”Ã¶Ã‡ POST/GET migrate (Admin: allinea lo schema del database) Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡
 // Era raggiungibile senza token: chiunque poteva far girare ~50 ALTER TABLE
 // sul database di produzione.
 if ($action === 'migrate') {
@@ -333,7 +333,7 @@ if ($action === 'migrate') {
     exit;
 }
 
-// ÔöÇÔöÇ POST purge-all-posts (Admin: svuota COMPLETAMENTE la tabella posts) ÔöÇÔöÇÔöÇ
+// Ã”Ã¶Ã‡Ã”Ã¶Ã‡ POST purge-all-posts (Admin: svuota COMPLETAMENTE la tabella posts) Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡
 // DEVE stare qui sotto: prima della riga JWT::require() la variabile $isAdmin
 // non esiste ancora, quindi requireAdmin() non proteggeva nulla.
 if ($action === 'purge-all-posts' && $method === 'POST') {
@@ -390,14 +390,14 @@ if ($action === 'admin-monitoring' && $method === 'GET') {
     $providerSettings = $safeAll('SELECT provider,label,model,monthly_credit,unit_cost,enabled FROM ai_provider_connections ORDER BY provider');
 
     $knownAgents = [
-        ['agent_name'=>'profile_analyzer','label'=>'Profile Analyzer','purpose'=>'Comprensione di attività, pubblico e posizionamento','trigger'=>'Dopo acquisizione o aggiornamento profilo'],
+        ['agent_name'=>'profile_analyzer','label'=>'Profile Analyzer','purpose'=>'Comprensione di attivitÃ , pubblico e posizionamento','trigger'=>'Dopo acquisizione o aggiornamento profilo'],
         ['agent_name'=>'content_editor','label'=>'Content Editor','purpose'=>'Trasformazione dei contenuti social in articoli','trigger'=>'Coda editoriale'],
         ['agent_name'=>'topical_authority_architect','label'=>'Topical Authority Architect','purpose'=>'Approfondimenti esperti e topical authority','trigger'=>'Scelta editoriale per utente'],
-        ['agent_name'=>'seo_reviewer','label'=>'SEO Reviewer','purpose'=>'Controllo di idoneità, intento e metadati','trigger'=>'Prima della pubblicazione'],
+        ['agent_name'=>'seo_reviewer','label'=>'SEO Reviewer','purpose'=>'Controllo di idoneitÃ , intento e metadati','trigger'=>'Prima della pubblicazione'],
         ['agent_name'=>'chief_editor','label'=>'Chief Editor','purpose'=>'Categorie, menu, featured e coerenza del corpus','trigger'=>'Manuale o dopo aggiornamento corpus'],
         ['agent_name'=>'editorial_engine','label'=>'Editorial Engine','purpose'=>'Cluster, gap, memoria e prossime azioni','trigger'=>'Dopo sincronizzazione se abilitato'],
-        ['agent_name'=>'seo_specialist','label'=>'SEO Specialist','purpose'=>'Identità, struttura e configurazione SEO','trigger'=>'Setup e rigenerazione sito'],
-        ['agent_name'=>'site_ai','label'=>'Agente grafico / Site AI','purpose'=>'Direzione visiva e configurazione del sito','trigger'=>'Generazione sito richiesta dall’utente'],
+        ['agent_name'=>'seo_specialist','label'=>'SEO Specialist','purpose'=>'IdentitÃ , struttura e configurazione SEO','trigger'=>'Setup e rigenerazione sito'],
+        ['agent_name'=>'site_ai','label'=>'Agente grafico / Site AI','purpose'=>'Direzione visiva e configurazione del sito','trigger'=>'Generazione sito richiesta dallâ€™utente'],
     ];
     // Le installazioni precedenti di agent_prompts non hanno necessariamente
     // le colonne descrittive. Il monitoraggio usa solo nome e istruzioni: non
@@ -549,8 +549,8 @@ if ($action === 'me' && $method === 'GET') {
 
 // Ogni utente autenticato puo cambiare la propria password, confermando prima
 // quella attuale.
-// ÔöÇÔöÇ POST logout-all: chiude tutte le sessioni aperte ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
-// ├ê la leva da usare se si sospetta che un token sia stato rubato.
+// Ã”Ã¶Ã‡Ã”Ã¶Ã‡ POST logout-all: chiude tutte le sessioni aperte Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡
+// â”œÃª la leva da usare se si sospetta che un token sia stato rubato.
 if ($action === 'logout-all' && $method === 'POST') {
     revokeSessions($userId);
     json(['ok' => true, 'message' => 'Tutte le sessioni sono state chiuse.']);
@@ -631,13 +631,13 @@ if ($action === 'spazio-vivo-mode' && $method === 'POST') {
     ensureSiteSchemaUpgrades();
     $allowedModes = ['pulse', 'stories', 'constellation', 'timeline', 'compass', 'mixer', 'cinema', 'answers', 'atlas', 'adaptive'];
     $selectedMode = strtolower(trim((string)(body()['mode'] ?? '')));
-    if (!in_array($selectedMode, $allowedModes, true)) jsonError('Modalit├á Spazio Vivo non valida', 422);
+    if (!in_array($selectedMode, $allowedModes, true)) jsonError('Modalitâ”œÃ¡ Spazio Vivo non valida', 422);
     DB::execute(
         'UPDATE sites SET living_space_mode=?, living_space_mode_updated_at=NOW() WHERE user_id=?',
         [$selectedMode, $userId]
     );
     $savedMode = DB::fetch('SELECT living_space_mode, living_space_mode_updated_at FROM sites WHERE user_id=? LIMIT 1', [$userId]);
-    if (($savedMode['living_space_mode'] ?? '') !== $selectedMode) jsonError('La modalit├á non ├¿ stata salvata. Riprova.', 500);
+    if (($savedMode['living_space_mode'] ?? '') !== $selectedMode) jsonError('La modalitâ”œÃ¡ non â”œÂ¿ stata salvata. Riprova.', 500);
     json(['ok' => true, 'mode' => $savedMode['living_space_mode'], 'updated_at' => $savedMode['living_space_mode_updated_at']]);
 }
 
@@ -666,7 +666,7 @@ function validSiteThemes(): array {
     return ['classic', 'journal', 'authority', 'portfolio', 'magazine', 'minimal', 'studio', 'local', 'academy', 'timeline', 'bottega'];
 }
 
-// ÔöÇÔöÇ GET logs (Admin: visualizza log backend) ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
+// Ã”Ã¶Ã‡Ã”Ã¶Ã‡ GET logs (Admin: visualizza log backend) Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡
 if ($action === 'logs' && $method === 'GET') {
     requireAdmin($isAdmin);
     $n    = min((int)($_GET['n'] ?? 200), 500);
@@ -678,7 +678,7 @@ if ($action === 'logs' && $method === 'GET') {
     json(['ok' => true, 'count' => count($entries), 'entries' => $entries]);
 }
 
-// ÔöÇÔöÇ POST logs-clear (Admin: svuota log backend) ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
+// Ã”Ã¶Ã‡Ã”Ã¶Ã‡ POST logs-clear (Admin: svuota log backend) Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡
 if ($action === 'logs-clear' && $method === 'POST') {
     requireAdmin($isAdmin);
     $cleared = Logger::clear();
@@ -686,7 +686,7 @@ if ($action === 'logs-clear' && $method === 'POST') {
     json(['ok' => true, 'files_cleared' => $cleared]);
 }
 
-// ÔöÇÔöÇ GET admin-content-mix ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
+// Ã”Ã¶Ã‡Ã”Ã¶Ã‡ GET admin-content-mix Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡
 // Di cosa e fatto davvero l'archivio dei clienti: quanti video, quante
 // immagini, quanto testo. Serve a capire su quale tipo di contenuto conviene
 // investire, invece di deciderlo a intuito.
@@ -793,7 +793,7 @@ if ($action === 'admin-editorial-room' && $method === 'GET') {
     ensurePostMediaSchema();
     $targetId = isset($_GET['user_id']) ? (int)$_GET['user_id'] : 0;
     if ($targetId <= 0) jsonError('Utente non valido', 422);
-    // Recupera il tono per i profili già analizzati prima che venisse collegato al sito.
+    // Recupera il tono per i profili giÃ  analizzati prima che venisse collegato al sito.
     try {
         require_once __DIR__ . '/services/profile_analyzer.php';
         ProfileAnalyzer::syncBrandVoice($targetId);
@@ -994,15 +994,15 @@ if ($action === 'admin-prompts' && $method === 'GET') {
     // Li mostriamo comunque, con etichetta e prompt di default, cosi' restano
     // visibili e modificabili fin dal primo accesso.
     $knownAgents = [
-        'profile_analyzer' => ['label'=>'Profile Analyzer','description'=>'Comprensione di attività, pubblico e posizionamento.'],
+        'profile_analyzer' => ['label'=>'Profile Analyzer','description'=>'Comprensione di attivitÃ , pubblico e posizionamento.'],
         'content_editor' => ['label'=>'Content Editor','description'=>'Trasforma i contenuti social in articoli.'],
         'topical_authority_architect' => ['label'=>'Topical Authority Architect','description'=>'Costruisce approfondimenti e autorevolezza tematica.'],
-        'seo_reviewer' => ['label'=>'SEO Reviewer','description'=>'Controlla intento, qualità e metadati.'],
-        'chief_editor' => ['label'=>'Chief Editor','description'=>'Coordina categorie, priorità e coerenza editoriale.'],
+        'seo_reviewer' => ['label'=>'SEO Reviewer','description'=>'Controlla intento, qualitÃ  e metadati.'],
+        'chief_editor' => ['label'=>'Chief Editor','description'=>'Coordina categorie, prioritÃ  e coerenza editoriale.'],
         'editorial_engine' => ['label'=>'Editorial Engine','description'=>'Analizza cluster, gap e prossime azioni.'],
-        'seo_specialist' => ['label'=>'SEO Specialist','description'=>'Configura identità, struttura e fondamenta SEO.'],
+        'seo_specialist' => ['label'=>'SEO Specialist','description'=>'Configura identitÃ , struttura e fondamenta SEO.'],
         'site_ai' => [
-            'label' => '✨ Agente Grafico (genera il sito con l\'AI)',
+            'label' => 'âœ¨ Agente Grafico (genera il sito con l\'AI)',
             'description' => 'Sceglie titolo, testi, palette, font e layout quando l\'utente clicca "Genera il mio sito con l\'AI".',
         ],
     ];
@@ -1271,7 +1271,7 @@ if ($action === 'scan-sources' && $method === 'POST') {
     json(['ok' => true, 'report' => $res]);
 }
 
-// ÔöÇÔöÇ POST sync ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
+// Ã”Ã¶Ã‡Ã”Ã¶Ã‡ POST sync Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡
 if ($action === 'sync' && $method === 'POST') {
     $b = body();
     $maxPosts = isset($b['limit']) ? (int)$b['limit'] : 20;
@@ -1280,7 +1280,7 @@ if ($action === 'sync' && $method === 'POST') {
     json(['ok' => true, 'results' => $results]);
 }
 
-// ÔöÇÔöÇ POST delete-layout (Elimina una proposta generata) ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
+// Ã”Ã¶Ã‡Ã”Ã¶Ã‡ POST delete-layout (Elimina una proposta generata) Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡
 if ($action === 'delete-layout' && $method === 'POST') {
     $b = body();
     $index = $b['index'] ?? null;
@@ -1309,7 +1309,7 @@ foreach (['edited_title'=>'VARCHAR(255) NULL','edited_body'=>'LONGTEXT NULL','ed
     try { DB::execute("ALTER TABLE posts ADD COLUMN `$column` $definition"); } catch (Throwable $e) {}
 }
 
-// ÔöÇÔöÇ GET site ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
+// Ã”Ã¶Ã‡Ã”Ã¶Ã‡ GET site Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡
 if ($action === 'site' && $method === 'GET') {
     try {
         ensureSiteSchemaUpgrades();
@@ -1317,7 +1317,7 @@ if ($action === 'site' && $method === 'GET') {
         ensureSocialSyncSchema();
         $site  = DB::fetch('SELECT * FROM sites WHERE user_id=?', [$userId]);
         if (!$site) {
-            // Primo accesso: la riga sites non esiste ancora — la creiamo per evitare crash a cascata.
+            // Primo accesso: la riga sites non esiste ancora â€” la creiamo per evitare crash a cascata.
             DB::execute('INSERT IGNORE INTO sites (user_id, title) VALUES (?, ?)', [$userId, $me['name'] ?? '']);
             $site = DB::fetch('SELECT * FROM sites WHERE user_id=?', [$userId]) ?? [];
         }
@@ -1397,14 +1397,14 @@ if ($action === 'site' && $method === 'GET') {
     }
 }
 
-// ÔöÇÔöÇ DELETE post (Hard delete) ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
+// Ã”Ã¶Ã‡Ã”Ã¶Ã‡ DELETE post (Hard delete) Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡
 if ($action === 'delete-post' && $method === 'POST') {
     $b = body();
     DB::execute('DELETE FROM posts WHERE id=? AND user_id=?', [$b['id'] ?? 0, $userId]);
     json(['ok' => true]);
 }
 
-// ÔöÇÔöÇ BULK DELETE posts ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
+// Ã”Ã¶Ã‡Ã”Ã¶Ã‡ BULK DELETE posts Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡
 if ($action === 'bulk-delete-posts' && $method === 'POST') {
     $b = body();
     $ids = $b['ids'] ?? [];
@@ -1416,7 +1416,7 @@ if ($action === 'bulk-delete-posts' && $method === 'POST') {
     json(['ok' => true]);
 }
 
-// ÔöÇÔöÇ TOGGLE PUBLISH post ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
+// Ã”Ã¶Ã‡Ã”Ã¶Ã‡ TOGGLE PUBLISH post Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡
 if ($action === 'toggle-publish-post' && $method === 'POST') {
     $b = body();
     $id = (int)($b['id'] ?? 0);
@@ -1425,7 +1425,7 @@ if ($action === 'toggle-publish-post' && $method === 'POST') {
     json(['ok' => true]);
 }
 
-// ÔöÇÔöÇ FEATURE post (metti in evidenza) ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
+// Ã”Ã¶Ã‡Ã”Ã¶Ã‡ FEATURE post (metti in evidenza) Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡
 if ($action === 'post-feature' && $method === 'POST') {
     $b = body();
     $id = (int)($b['id'] ?? 0);
@@ -1436,7 +1436,7 @@ if ($action === 'post-feature' && $method === 'POST') {
     json(['ok' => true]);
 }
 
-// ÔöÇÔöÇ EDIT post (CMS editoriale) ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
+// Ã”Ã¶Ã‡Ã”Ã¶Ã‡ EDIT post (CMS editoriale) Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡
 if ($action === 'post-update' && $method === 'POST') {
     ensurePostMediaSchema();
     $b = body();
@@ -1492,14 +1492,14 @@ if ($action === 'post-update' && $method === 'POST') {
     json(['ok' => true]);
 }
 
-// ÔöÇÔöÇ DELETE post (legacy hide) ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
+// Ã”Ã¶Ã‡Ã”Ã¶Ã‡ DELETE post (legacy hide) Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡
 if ($action === 'hide-post' && $method === 'POST') {
     $b = body();
     DB::execute('UPDATE posts SET published=0 WHERE id=? AND user_id=?', [$b['id'] ?? 0, $userId]);
     json(['ok' => true]);
 }
 
-// ÔöÇÔöÇ PATCH site settings ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
+// Ã”Ã¶Ã‡Ã”Ã¶Ã‡ PATCH site settings Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡
 if ($action === 'site-update' && $method === 'POST') {
     ensureSiteSchemaUpgrades();
     $b = body();
@@ -1510,7 +1510,7 @@ if ($action === 'site-update' && $method === 'POST') {
         $siteTitle = trim((string)$b['title']);
         if ($siteTitle === '') jsonError('Inserisci il nome del sito.', 422);
         $siteTitleLength = function_exists('mb_strlen') ? mb_strlen($siteTitle, 'UTF-8') : strlen($siteTitle);
-        if ($siteTitleLength > 120) jsonError('Il nome del sito non pu├▓ superare 120 caratteri.', 422);
+        if ($siteTitleLength > 120) jsonError('Il nome del sito non puâ”œâ–“ superare 120 caratteri.', 422);
         $fields[] = 'title = ?';
         $params[] = $siteTitle;
     }
@@ -1608,7 +1608,7 @@ if ($action === 'reachability-update' && $method === 'POST') {
     json(['ok' => true, 'profile' => $profile]);
 }
 
-// ÔöÇÔöÇ POST design-site (3 proposte Graphic Designer) ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
+// Ã”Ã¶Ã‡Ã”Ã¶Ã‡ POST design-site (3 proposte Graphic Designer) Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡
 if ($action === 'design-site' && $method === 'POST') {
     try {
         ensureSiteSchemaUpgrades();
@@ -1619,11 +1619,11 @@ if ($action === 'design-site' && $method === 'POST') {
         $strategy = trim($site['content_strategy'] ?? '');
         $sourceDetails = DB::fetchAll('SELECT platform, label, url, topic_summary FROM social_sources WHERE user_id=? AND active=1 ORDER BY platform, id', [$userId]);
         $sourcesContext = implode("\n", array_map(
-            fn($s) => '[' . ($s['platform'] ?? 'source') . '] ' . trim(($s['label'] ?: $s['url']) . (!empty($s['topic_summary']) ? ' ÔÇö ' . $s['topic_summary'] : '')),
+            fn($s) => '[' . ($s['platform'] ?? 'source') . '] ' . trim(($s['label'] ?: $s['url']) . (!empty($s['topic_summary']) ? ' Ã”Ã‡Ã¶ ' . $s['topic_summary'] : '')),
             $sourceDetails
         ));
         if ($sourcesContext !== '') $summary = trim($summary . "\n\nDettagli sorgenti social:\n" . $sourcesContext);
-        if (!$summary) jsonError('Il profilo ├¿ vuoto. Fai prima una scansione dei social.');
+        if (!$summary) jsonError('Il profilo â”œÂ¿ vuoto. Fai prima una scansione dei social.');
 
         // Estrai tutti i tag esistenti usati nei post
         $allTags = [];
@@ -1666,7 +1666,7 @@ if ($action === 'design-site' && $method === 'POST') {
     }
 }
 
-// ÔöÇÔöÇ POST site-ai (Generazione completa SITO AI) ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
+// Ã”Ã¶Ã‡Ã”Ã¶Ã‡ POST site-ai (Generazione completa SITO AI) Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡
 if ($action === 'site-ai' && $method === 'POST') {
     try {
         ensureSiteSchemaUpgrades();
@@ -1677,13 +1677,13 @@ if ($action === 'site-ai' && $method === 'POST') {
         $strategy = trim($site['content_strategy'] ?? '');
         $sourceDetails = DB::fetchAll('SELECT platform, label, url, topic_summary FROM social_sources WHERE user_id=? AND active=1 ORDER BY platform, id', [$userId]);
         $sourcesContext = implode("\n", array_map(
-            fn($s) => '[' . ($s['platform'] ?? 'source') . '] ' . trim(($s['label'] ?: $s['url']) . (!empty($s['topic_summary']) ? ' ÔÇö ' . $s['topic_summary'] : '')),
+            fn($s) => '[' . ($s['platform'] ?? 'source') . '] ' . trim(($s['label'] ?: $s['url']) . (!empty($s['topic_summary']) ? ' Ã”Ã‡Ã¶ ' . $s['topic_summary'] : '')),
             $sourceDetails
         ));
         if ($sourcesContext !== '') $summary = trim($summary . "\n\nDettagli sorgenti social:\n" . $sourcesContext);
-        if (!$summary) jsonError('Il profilo ├¿ vuoto. Prima esegui una scansione dei social.');
+        if (!$summary) jsonError('Il profilo â”œÂ¿ vuoto. Prima esegui una scansione dei social.');
 
-        // Prendi i 5 post pi├╣ recenti pubblicati come contesto
+        // Prendi i 5 post piâ”œâ•£ recenti pubblicati come contesto
         $recentRaw = DB::fetchAll('SELECT generated_title, generated_excerpt, platform, tags FROM posts WHERE user_id=? AND published=1 ORDER BY published_at DESC LIMIT 10', [$userId]);
         $recentPosts = implode("\n", array_map(fn($p) => "[{$p['platform']}] {$p['generated_title']}: {$p['generated_excerpt']}", $recentRaw));
 
@@ -1779,7 +1779,7 @@ if ($action === 'profile-answer' && $method === 'POST') {
     }
 }
 
-// ÔöÇÔöÇ POST chief-editor (Orchestrazione Contenuti) ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
+// Ã”Ã¶Ã‡Ã”Ã¶Ã‡ POST chief-editor (Orchestrazione Contenuti) Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡
 if ($action === 'chief-editor' && $method === 'POST') {
     try {
         require_once __DIR__ . '/services/ai.php';
@@ -1787,7 +1787,7 @@ if ($action === 'chief-editor' && $method === 'POST') {
         $posts = DB::fetchAll('SELECT id, edited_title, generated_title, tags FROM posts WHERE user_id=? AND published=1', [$userId]);
 
         // Il piano editoriale nasce dalle ricerche reali, non solo dai titoli
-        // gi├á pubblicati: le categorie devono rispecchiare come le persone
+        // giâ”œÃ¡ pubblicati: le categorie devono rispecchiare come le persone
         // cercano, non come l'autore ha archiviato.
         $searchDemand = VisibilityAnalytics::demandBriefing($userId);
 
@@ -1835,7 +1835,7 @@ if ($action === 'chief-editor' && $method === 'POST') {
     }
 }
 
-// ÔöÇÔöÇ POST ingest-url: importa un articolo o una pagina web ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
+// Ã”Ã¶Ã‡Ã”Ã¶Ã‡ POST ingest-url: importa un articolo o una pagina web Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡
 if ($action === 'ingest-url' && $method === 'POST') {
     $b   = body();
     $res = Ingest::url($userId, $b['url'] ?? '');
@@ -1855,7 +1855,7 @@ if ($action === 'interview-chat' && $method === 'POST') {
         $response = ProfileInterview::reply($site, $messages);
 
         if (!empty($response['updates'])) {
-            $declared = is_array($site['declared_strategy'] ?? null) ? $site['declared_strategy'] : json_decode((string)($site['declared_strategy'] ?? ''), true) ?: [];
+            $declared = (is_array($site['declared_strategy'] ?? null) ? $site['declared_strategy'] : json_decode((string)($site['declared_strategy'] ?? ''), true)) ?: [];
             $declared = array_merge($declared, $response['updates']);
             DB::execute('UPDATE sites SET declared_strategy = ? WHERE user_id = ?', [json_encode($declared, JSON_UNESCAPED_UNICODE), $userId]);
         }
@@ -1863,7 +1863,7 @@ if ($action === 'interview-chat' && $method === 'POST') {
         json(['ok' => true, 'reply' => $response['text'], 'updates' => $response['updates']]);
     } catch (Throwable $e) {
         if (class_exists('Logger')) Logger::warn('interview', 'Intervista fallita', ['user_id' => $userId, 'error' => $e->getMessage()]);
-        jsonError('Si � verificato un errore durante l\'intervista. Riprova.', 502);
+        jsonError('Si ï¿½ verificato un errore durante l\'intervista. Riprova.', 502);
     }
 }
 if ($action === 'lia-chat' && $method === 'POST') {
@@ -2010,7 +2010,7 @@ if ($action === 'create-idea-draft' && $method === 'POST') {
     $ideaSource = trim((string)($b['source'] ?? 'Analisi editoriale'));
     $ideaPriority = trim((string)($b['priority'] ?? 'Consigliata'));
     // mode=ai: l'AI scrive il testo. mode=manual: si crea solo la traccia e
-    // scrive l'utente ÔÇö nessuna chiamata all'AI, quindi nessun costo.
+    // scrive l'utente Ã”Ã‡Ã¶ nessuna chiamata all'AI, quindi nessun costo.
     $ideaMode = ($b['mode'] ?? 'ai') === 'manual' ? 'manual' : 'ai';
     $articleLength = in_array(($b['length'] ?? ''), ['brief', 'compact', 'standard', 'deep', 'pillar'], true) ? $b['length'] : 'compact';
     if ($ideaTitle === '') jsonError('Titolo idea mancante', 422);
@@ -2039,14 +2039,14 @@ if ($action === 'create-idea-draft' && $method === 'POST') {
             . '<p><em>Sostituisci questa traccia con il tuo testo.</em></p>')
         : '<p><strong>Bozza iniziale pronta per la revisione.</strong></p>'
         . '<h2>Obiettivo del contenuto</h2><p>' . $safeReason . '</p>'
-        . '<h2>Il punto di partenza</h2><p>Questo contenuto nasce da <strong>' . $safeSource . '</strong> ed ├¿ classificato come <strong>' . $safePriority . '</strong>. Deve rispondere con chiarezza al tema ÔÇ£' . $safeTitle . 'ÔÇØ usando esempi e informazioni realmente disponibili.</p>'
-        . '<h2>Scaletta da sviluppare</h2><ul><li>Aprire con il bisogno o la domanda concreta del pubblico.</li><li>Spiegare il tema con un linguaggio semplice e specifico.</li><li>Aggiungere prove, esempi o dettagli riconducibili allÔÇÖattivit├á.</li><li>Concludere con un prossimo passo chiaro, senza promesse non verificabili.</li></ul>'
-        . '<h2>Nota editoriale</h2><p>Tipologia: ' . $safeType . '. La versione AI completa viene elaborata in background; puoi gi├á modificare questa struttura.</p>';
+        . '<h2>Il punto di partenza</h2><p>Questo contenuto nasce da <strong>' . $safeSource . '</strong> ed â”œÂ¿ classificato come <strong>' . $safePriority . '</strong>. Deve rispondere con chiarezza al tema Ã”Ã‡Â£' . $safeTitle . 'Ã”Ã‡Ã˜ usando esempi e informazioni realmente disponibili.</p>'
+        . '<h2>Scaletta da sviluppare</h2><ul><li>Aprire con il bisogno o la domanda concreta del pubblico.</li><li>Spiegare il tema con un linguaggio semplice e specifico.</li><li>Aggiungere prove, esempi o dettagli riconducibili allÃ”Ã‡Ã–attivitâ”œÃ¡.</li><li>Concludere con un prossimo passo chiaro, senza promesse non verificabili.</li></ul>'
+        . '<h2>Nota editoriale</h2><p>Tipologia: ' . $safeType . '. La versione AI completa viene elaborata in background; puoi giâ”œÃ¡ modificare questa struttura.</p>';
     if (!in_array(strtolower(trim((string)($me['plan'] ?? 'base'))), ['professional', 'pro', 'agency'], true)) {
         $monthStart = date('Y-m-01 00:00:00');
         $postsThisMonth = DB::fetch('SELECT COUNT(*) as c FROM posts WHERE user_id=? AND imported_at >= ?', [$userId, $monthStart])['c'] ?? 0;
         if ($postsThisMonth >= 10) {
-            jsonError('Hai già creato i 10 articoli inclusi questo mese nel piano Base. Il conteggio riparte il mese prossimo, oppure puoi passare a un piano superiore quando vuoi.');
+            jsonError('Hai giÃ  creato i 10 articoli inclusi questo mese nel piano Base. Il conteggio riparte il mese prossimo, oppure puoi passare a un piano superiore quando vuoi.');
         }
     }
 
@@ -2091,7 +2091,7 @@ if ($action === 'create-idea-draft' && $method === 'POST') {
             ];
         } catch (Throwable $e) {
             $aiStatus = 'failed';
-            $aiError = 'La scrittura AI non ├¿ riuscita: ' . $e->getMessage();
+            $aiError = 'La scrittura AI non â”œÂ¿ riuscita: ' . $e->getMessage();
             // Se il provider ha risposto con un fallback non valido, ripristina
             // la scaletta leggibile e non lascia nel CMS il prompt tecnico.
             DB::execute(
@@ -2118,7 +2118,7 @@ if ($action === 'create-idea-draft' && $method === 'POST') {
     exit;
 }
 
-// ÔöÇÔöÇ AGENTE 2: POST harmonize  { id } ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
+// Ã”Ã¶Ã‡Ã”Ã¶Ã‡ AGENTE 2: POST harmonize  { id } Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡
 if ($action === 'harmonize' && $method === 'POST') {
     $b = body();
     $postId = (int)($b['id'] ?? 0);
@@ -2132,8 +2132,8 @@ if ($action === 'harmonize' && $method === 'POST') {
     json($res);
 }
 
-// ÔöÇÔöÇ GET seo-opportunities: articoli in posizione 4-20 su Google ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
-// Sono quelli dove riscrivere il titolo rende di pi├╣: il sito compare gi├á,
+// Ã”Ã¶Ã‡Ã”Ã¶Ã‡ GET seo-opportunities: articoli in posizione 4-20 su Google Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡
+// Sono quelli dove riscrivere il titolo rende di piâ”œâ•£: il sito compare giâ”œÃ¡,
 // manca solo che la gente ci clicchi sopra.
 if ($action === 'seo-opportunities' && $method === 'GET') {
     $limit = isset($_GET['limit']) ? (int)$_GET['limit'] : 10;
@@ -2143,9 +2143,9 @@ if ($action === 'seo-opportunities' && $method === 'GET') {
     ]);
 }
 
-// ÔöÇÔöÇ POST reoptimize-post { id, apply } ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
+// Ã”Ã¶Ã‡Ã”Ã¶Ã‡ POST reoptimize-post { id, apply } Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡
 // Riscrive titolo/meta/estratto di un articolo pubblicato partendo dalle
-// ricerche reali con cui Google lo mostra gi├á. Con apply=false restituisce
+// ricerche reali con cui Google lo mostra giâ”œÃ¡. Con apply=false restituisce
 // solo la proposta, senza salvare.
 if ($action === 'reoptimize-post' && $method === 'POST') {
     $b = body();
@@ -2155,7 +2155,7 @@ if ($action === 'reoptimize-post' && $method === 'POST') {
     json(Ingest::reoptimize($userId, $postId, $apply));
 }
 
-// ÔöÇÔöÇ GET drafts: bozze importate non ancora armonizzate ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
+// Ã”Ã¶Ã‡Ã”Ã¶Ã‡ GET drafts: bozze importate non ancora armonizzate Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡
 if ($action === 'drafts' && $method === 'GET') {
     $drafts = DB::fetchAll(
         'SELECT id, platform, media_url, media_type, source_url, transcript,
@@ -2166,7 +2166,7 @@ if ($action === 'drafts' && $method === 'GET') {
     json($drafts);
 }
 
-// ÔöÇÔöÇ GET pending-posts: post in coda per elaborazione AI ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
+// Ã”Ã¶Ã‡Ã”Ã¶Ã‡ GET pending-posts: post in coda per elaborazione AI Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡
 if ($action === 'pending-posts' && $method === 'GET') {
     ensurePostMediaSchema();
     DB::execute(
@@ -2185,7 +2185,7 @@ if ($action === 'pending-posts' && $method === 'GET') {
     json($pending);
 }
 
-// ÔöÇÔöÇ POST process-pending: elabora un singolo post in coda ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
+// Ã”Ã¶Ã‡Ã”Ã¶Ã‡ POST process-pending: elabora un singolo post in coda Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡
 if ($action === 'process-pending' && $method === 'POST') {
     ensurePostMediaSchema();
     $b = body();
@@ -2214,8 +2214,8 @@ if ($action === 'process-pending' && $method === 'POST') {
             'busy' => ($state['processing_status'] ?? '') === 'processing',
             'status' => ($state['processing_status'] ?? '') === 'processing' ? 'processing' : 'skipped',
             'message' => ($state['processing_status'] ?? '') === 'processing'
-                ? 'Questo articolo ├¿ gi├á in elaborazione.'
-                : 'Post non trovato o gi├á elaborato.',
+                ? 'Questo articolo â”œÂ¿ giâ”œÃ¡ in elaborazione.'
+                : 'Post non trovato o giâ”œÃ¡ elaborato.',
         ]);
     }
 
@@ -2286,7 +2286,7 @@ if ($action === 'process-pending' && $method === 'POST') {
         // riprovabile, conservando testo e media originali come sorgenti.
         try {
             Ingest::markProcessingFailed($userId, $postId, $e->getMessage());
-            jsonError('Il motore editoriale non ha prodotto un articolo valido. Il contenuto resta in coda e può essere riprovato: ' . $e->getMessage(), 502);
+            jsonError('Il motore editoriale non ha prodotto un articolo valido. Il contenuto resta in coda e puÃ² essere riprovato: ' . $e->getMessage(), 502);
         } catch (Throwable $recoveryError) {
             $message = mb_substr($e->getMessage() . ' | Recupero: ' . $recoveryError->getMessage(), 0, 2000);
             DB::execute(
@@ -2298,7 +2298,7 @@ if ($action === 'process-pending' && $method === 'POST') {
     }
 }
 
-// ÔöÇÔöÇ ADMIN: GET admin-processes (tutti i post in coda) ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
+// Ã”Ã¶Ã‡Ã”Ã¶Ã‡ ADMIN: GET admin-processes (tutti i post in coda) Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡
 if ($action === 'admin-processes' && $method === 'GET') {
     requireAdmin($isAdmin);
     try { $pending = DB::fetchAll(
@@ -2309,7 +2309,7 @@ if ($action === 'admin-processes' && $method === 'GET') {
     json(['processes' => $pending]);
 }
 
-// ÔöÇÔöÇ ADMIN: POST admin-kill-process ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
+// Ã”Ã¶Ã‡Ã”Ã¶Ã‡ ADMIN: POST admin-kill-process Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡
 if ($action === 'admin-kill-process' && $method === 'POST') {
     requireAdmin($isAdmin);
     $b = body();
@@ -2318,7 +2318,7 @@ if ($action === 'admin-kill-process' && $method === 'POST') {
     json(['ok' => true]);
 }
 
-// ÔöÇÔöÇ POST finalize-sync: orchestrazione finale ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
+// Ã”Ã¶Ã‡Ã”Ã¶Ã‡ POST finalize-sync: orchestrazione finale Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡
 if ($action === 'finalize-sync' && $method === 'POST') {
     ensureSiteSchemaUpgrades();
     require_once __DIR__ . '/services/ai.php';
@@ -2428,7 +2428,7 @@ if ($action === 'finalize-sync' && $method === 'POST') {
     json(['ok' => true]);
 }
 
-// ÔöÇÔöÇ ADMIN: GET admin-logs (sync_log table) ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
+// Ã”Ã¶Ã‡Ã”Ã¶Ã‡ ADMIN: GET admin-logs (sync_log table) Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡
 if ($action === 'admin-logs' && $method === 'GET') {
     requireAdmin($isAdmin);
     $logs = DB::fetchAll(
