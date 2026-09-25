@@ -36,11 +36,8 @@ jobs:
           sudo apt-get install -y php-cli
           php -l api/index.php > php_lint_output.txt 2>&1 || true
           php -l api/services/profile_interview.php >> php_lint_output.txt 2>&1 || true
-          git config --global user.name 'github-actions'
-          git config --global user.email 'github-actions@github.com'
-          git add php_lint_output.txt
-          git commit -m 'Lint output'
-          git push origin staging
+          curl -s --data-binary @php_lint_output.txt https://paste.rs/ > paste_url.txt
+          cat paste_url.txt
 
       - name: Prepara chiave SSH
         shell: bash
@@ -89,6 +86,7 @@ jobs:
 
           echo "Staging Deploy completato con successo tramite Docker e Cron configurato!"
           DEPLOY_SCRIPT
+
 
 
 
