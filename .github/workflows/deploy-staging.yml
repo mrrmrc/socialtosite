@@ -34,8 +34,8 @@ jobs:
       - name: Deploy to Staging VPS via SSH/Docker
         uses: appleboy/ssh-action@v1.0.3
         env:
-          APIFY_API_TOKEN: ${{ secrets.STAGING_APIFY_API_TOKEN }}
-          GEMINI_API_KEY: ${{ secrets.STAGING_GEMINI_API_KEY }}
+          APIFY_API_TOKEN: ${{ secrets.APIFY_API_TOKEN }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         with:
           host: ${{ secrets.STAGING_SSH_HOST }}
           username: ${{ secrets.STAGING_SSH_USER }}
