@@ -76,10 +76,6 @@ jobs:
           crontab /tmp/crontab.staging
           rm -f /tmp/crontab.staging
 
-          docker exec socialtosite_app_staging bash -c "cat /var/log/apache2/error.log > /var/www/html/public/media/error_debug.txt; chmod 777 /var/www/html/public/media/error_debug.txt"
-          docker logs --tail 50 socialtosite_db_staging
           echo "Staging Deploy completato con successo tramite Docker e Cron configurato!"
           DEPLOY_SCRIPT
-
-
 
