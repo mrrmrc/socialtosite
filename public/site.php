@@ -1536,7 +1536,8 @@ $themeCSS = [
 
 // Se abbiamo dati AI (fonts dinamici), sovrascriviamo il CSS di base
 $fontHeadingUrl = urlencode($fontHeading);
-$fontBodyUrl = urlencode($fontBody);
+  $fontBodyUrl = urlencode($fontBody);
+  $googleFontsUrl = ($fontHeading === $fontBody) ? "https://fonts.googleapis.com/css2?family={$fontHeadingUrl}:wght@300;400;500;600;700;800&display=swap" : "https://fonts.googleapis.com/css2?family={$fontHeadingUrl}:wght@400;600;700;800&family={$fontBodyUrl}:wght@300;400;500;600&display=swap";
 $navCss = '';
 if ($navMode === 'solid') {
     $navCss = ".navbar { background: {$palSurface} !important; backdrop-filter: none; -webkit-backdrop-filter: none; box-shadow: 0 6px 24px rgba(0,0,0,0.06); }";
@@ -1700,7 +1701,7 @@ $dynamicBaseCss = "
       --border: rgba(0,0,0,0.05); 
       --radius: {$radius}; 
   }
-  @import url('https://fonts.googleapis.com/css2?family={$fontHeadingUrl}:wght@400;600;700;800&family={$fontBodyUrl}:wght@300;400;500;600&display=swap');
+  @import url('{$googleFontsUrl}');
   
   body { font-family: '{$fontBody}', sans-serif; background: var(--bg); color: var(--text); overflow-x: hidden; }
   h1, h2, h3, h4, h5, h6, .nav-brand { font-family: '{$fontHeading}', sans-serif; }
