@@ -57,10 +57,8 @@ jobs:
             git reset --hard origin/staging
           fi
 
-          if [ ! -f "config/config.php" ]; then
-            echo "<?php" > config/config.php
-            echo "define('JWT_SECRET', 'staging_secret_key_1234567890');" >> config/config.php
-          fi
+          echo "<?php" > config/config.php
+          echo "define('JWT_SECRET', 'staging_secret_key_1234567890');" >> config/config.php
 
           docker compose -f docker-compose.staging.yml build
 
