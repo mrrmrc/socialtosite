@@ -2841,7 +2841,7 @@ const [importMsg, setImportMsg] = useState(null);
               </section>
 
               {/* Form Aggiungi Canale */}
-              <div className="card channel-add-panel" style={{ padding: '24px', border: '2px solid var(--border)', background: 'var(--surface)', borderRadius: 'var(--radius-lg)' }}>
+              <div className="card" style={{ padding: '24px', border: '2px solid var(--border)', background: 'var(--surface)', borderRadius: 'var(--radius-lg)' }}>
                 <h2 style={{ marginBottom: '0.75rem', fontSize: '24px', fontWeight: 800 }}>➕ Aggiungi un nuovo canale</h2>
                 <p style={{ fontSize: '16px', color: 'var(--text-muted)', marginBottom: '1.5rem', lineHeight: 1.5 }}>
                   Incolla l'URL pubblico di un sito, profilo, canale o singolo post. I contenuti verranno acquisiti automaticamente.
@@ -2854,7 +2854,7 @@ const [importMsg, setImportMsg] = useState(null);
                       placeholder="Esempio: https://www.instagram.com/nome/"
                       value={addUrl}
                       onChange={e => { setAddUrl(e.target.value); setAddMsg(null); }}
-                      style={{ paddingLeft: detectedPlatform ? '52px' : '20px', transition: 'padding 0.2s', paddingRight: '20px', paddingTop: '16px', paddingBottom: '16px', fontSize: '18px', width: '100%', borderRadius: '12px', border: '2px solid var(--border-strong)' }}
+                      style={{ paddingLeft: detectedPlatform ? '52px' : '24px', transition: 'padding 0.2s', paddingRight: '24px', paddingTop: '16px', paddingBottom: '16px', fontSize: '18px', width: '100%', borderRadius: '12px', border: '2px solid var(--border-strong)' }}
                     />
                     {detectedPlatform && (
                       <span style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}>
@@ -2872,10 +2872,10 @@ const [importMsg, setImportMsg] = useState(null);
                     placeholder="Etichetta opzionale (es. Profilo Personale)"
                     value={addLabel}
                     onChange={e => setAddLabel(e.target.value)}
-                    style={{ padding: '16px 20px', fontSize: '16px', width: '100%', borderRadius: '12px', border: '1px solid var(--border-strong)' }}
+                    style={{ padding: '16px 24px', fontSize: '16px', width: '100%', borderRadius: '12px', border: '1px solid var(--border-strong)' }}
                   />
                   <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-                    <button type="submit" disabled={addLoading || !addUrl.trim()} className="btn btn-primary" style={{ padding: '14px 24px', fontSize: '18px', fontWeight: 800 }}>
+                    <button type="submit" disabled={addLoading || !addUrl.trim()} className="btn btn-primary" style={{ padding: '12px 24px', fontSize: '16px', fontWeight: 800 }}>
                       {addLoading ? 'Aggiunta in corso...' : 'Aggiungi canale adesso'}
                     </button>
                     {addMsg && (
@@ -3068,7 +3068,7 @@ const [importMsg, setImportMsg] = useState(null);
               </div>}
 
               {/* Importa da link diretto */}
-              <details className="card channel-add-panel">
+              <details className="card">
                 <summary>Importa un singolo contenuto da un link</summary>
                 <div className="channel-add-body">
                 <h2 style={{ marginBottom: '0.5rem', fontSize: '18px' }}>🔗 Importa un contenuto specifico</h2>
