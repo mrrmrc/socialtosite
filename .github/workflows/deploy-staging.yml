@@ -67,6 +67,15 @@ jobs:
 
           docker compose -f docker-compose.staging.yml up -d
 
-          echo "Staging Deploy completato con successo tramite Docker!"
+          echo "Configurazione Crontab per l'ambiente di Staging..."
+          crontab -l | grep -v 'docker exec socialtosite_web_staging' > /tmp/crontab.staging || true
+          echo "*/10 * * * * docker exec socialtosite_web_staging php /var/www/html/cron/sync.php > /dev/null 2>&1" >> /tmp/crontab.staging
+          echo "*/5 * * * * docker exec socialtosite_web_staging php /var/www/html/cron/publish.php > /dev/null 2>&1" >> /tmp/crontab.staging
+          echo "0 * * * * docker exec socialtosite_web_staging php /var/www/html/cron/fetch_seo.php > /dev/null 2>&1" >> /tmp/crontab.staging
+          echo "0 8 * * * docker exec socialtosite_web_staging php /var/www/html/cron/check_alerts.php > /dev/null 2>&1" >> /tmp/crontab.staging
+          crontab /tmp/crontab.staging
+          rm -f /tmp/crontab.staging
+
+          echo "Staging Deploy completato con successo tramite Docker e Cron configurato!"
           DEPLOY_SCRIPT
 
