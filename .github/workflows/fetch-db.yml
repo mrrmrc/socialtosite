@@ -1,0 +1,39 @@
+name: Esporta DB Produzione
+on: workflow_dispatch
+jobs:
+  esporta:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Crea script di dump
+        run: |
+          cat > dump.php << 'EOF'
+          <?php
+          require_once __DIR__ . '/config/db.php';
+          header('Content-Type: text/plain');
+          header('Content-Disposition: attachment; filename="produzione.sql"');
+          $pdo = DB::get();
+          $tables = $pdo->query('SHOW TABLES')->fetchAll(PDO::FETCH_COLUMN);
+          foreach ($tables as $t) {
+              $create = $pdo->query("SHOW CREATE TABLE `$t`")->fetch(PDO::FETCH_ASSOC);
+              echo $create['Create Table'] . ";\n\n";
+              $rows = $pdo->query("SELECT * FROM `$t`")->fetchAll(PDO::FETCH_NUM);
+              foreach ($rows as $row) {
+                  $vals = array_map(fn($v) => $v === null ? 'NULL' : $pdo->quote($v), $row);
+                  echo "INSERT INTO `$t` VALUES (" . implode(',', $vals) . ");\n";
+              }
+          }
+          EOF
+
+      - name: Carica su Produzione
+        env:
+          FTP_HOST: ${{ secrets.FTP_HOST }}
+          FTP_USER: ${{ secrets.FTP_USER }}
+          FTP_PASS: ${{ secrets.FTP_PASS }}
+          FTP_REMOTE_DIR: ${{ vars.FTP_REMOTE_DIR }}
+        run: |
+          FTP_REMOTE_DIR="${FTP_REMOTE_DIR:-.}"
+          sudo apt-get update && sudo apt-get install -y lftp
+          lftp -c "open -u \"$FTP_USER\",\"$FTP_PASS\" ftp://$FTP_HOST; put -O \"$FTP_REMOTE_DIR\" dump.php"
