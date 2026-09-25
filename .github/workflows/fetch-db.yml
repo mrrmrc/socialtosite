@@ -36,4 +36,11 @@ jobs:
         run: |
           FTP_REMOTE_DIR="${FTP_REMOTE_DIR:-.}"
           sudo apt-get update && sudo apt-get install -y lftp
-          lftp -c "open -u \"$FTP_USER\",\"$FTP_PASS\" ftp://$FTP_HOST; put -O \"$FTP_REMOTE_DIR\" dump.php"
+          lftp -c "
+          set ftp:ssl-allow true;
+          set ftp:ssl-force false;
+          set ftp:ssl-protect-data true;
+          set ssl:verify-certificate no;
+          open -u \"$FTP_USER\",\"$FTP_PASS\" ftp://$FTP_HOST;
+          put -O \"$FTP_REMOTE_DIR\" dump.php;
+          "
