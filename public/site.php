@@ -385,7 +385,9 @@ function normalizeMediaUrl(?string $url): string {
         $name = basename($path);
         if ($name === '' || $name === '.' || $name === '..') return '';
         $localPath = __DIR__ . '/media/' . $name;
-        if (!file_exists($localPath)) return '';
+        if (!file_exists($localPath)) {
+            return 'https://allsocialtoweb.com/public/media/' . $name;
+        }
         return app_base_url() . '/public/media/' . $name;
     }
     return $url;
