@@ -3097,6 +3097,35 @@ const [importMsg, setImportMsg] = useState(null);
 
         {tab === 'experience' && (
           <div style={{ display: 'grid', gap: '1rem' }}>
+            {/* MODIFICA SITO — azione principale sempre visibile */}
+            <section style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              gap: '1.5rem', flexWrap: 'wrap',
+              padding: 'clamp(1.25rem, 3vw, 2rem)',
+              borderRadius: 'var(--radius-lg)',
+              background: 'linear-gradient(135deg, var(--primary) 0%, #6366f1 100%)',
+              boxShadow: '0 8px 32px rgba(79,140,255,0.28)',
+            }}>
+              <div>
+                <span style={{ color: 'rgba(255,255,255,0.78)', fontSize: '12px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.09em' }}>Sito pubblico</span>
+                <h2 style={{ color: '#fff', margin: '0.4rem 0 0.5rem', fontSize: 'clamp(20px, 3vw, 28px)', lineHeight: 1.15 }}>Modifica il tuo sito</h2>
+                <p style={{ color: 'rgba(255,255,255,0.82)', margin: 0, fontSize: '14px', lineHeight: 1.6 }}>
+                  Apri l&apos;editor per personalizzare layout, colori, testi, menu e struttura del tuo sito pubblico.
+                </p>
+              </div>
+              <button
+                type="button"
+                style={{
+                  background: '#fff', color: 'var(--primary)', fontWeight: 800,
+                  padding: '14px 28px', fontSize: '16px', flexShrink: 0,
+                  border: 'none', borderRadius: 'var(--radius)', cursor: 'pointer',
+                  boxShadow: '0 4px 16px rgba(0,0,0,0.15)',
+                }}
+                onClick={() => openStudioWorkspace(templateStudio, 'Workspace corrente')}
+              >
+                ✏️ Apri editor sito →
+              </button>
+            </section>
             <section className="card" style={{ padding: 'clamp(1.25rem, 3vw, 2rem)', background: 'linear-gradient(135deg, var(--surface), var(--primary-light))', border: '1px solid var(--border)' }}>
               <span style={{ display: 'inline-flex', padding: '6px 10px', borderRadius: '999px', background: 'var(--teal-light)', color: 'var(--teal)', fontSize: '12px', fontWeight: 850 }}>100 TEMI · STRUTTURA OTTIMIZZATA</span>
               <h2 style={{ margin: '0.8rem 0 0.55rem', color: 'var(--text)', fontSize: 'clamp(24px, 4vw, 36px)', lineHeight: 1.08 }}>Il tuo stile, senza perdere chiarezza</h2>
