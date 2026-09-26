@@ -2493,28 +2493,7 @@ const [importMsg, setImportMsg] = useState(null);
       <p className="services-note">Tutti i piani si intendono con fatturazione annuale. Non sono previsti costi nascosti o orari per gli interventi manuali: l'intero processo è automatizzato.</p>
     </div>
   );
-  const renderAccountProfile = () => (
-    <div className="card" style={{ maxWidth: '600px', margin: '2rem auto', border: '1px solid var(--border)' }}>
-      <header style={{ padding: '1.5rem 2rem', borderBottom: '1px solid var(--border)', background: 'var(--surface)' }}>
-        <h2 style={{ fontSize: '20px', margin: 0, color: 'var(--text)' }}>Profilo Utente</h2>
-        <p style={{ margin: '0.25rem 0 0', color: 'var(--text-muted)', fontSize: '14px' }}>Gestisci le tue informazioni personali</p>
-      </header>
-      <div style={{ padding: '2rem' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem', marginBottom: '2rem' }}>
-          <div style={{ width: '80px', height: '80px', borderRadius: '50%', background: 'var(--primary-light)', color: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '32px', fontWeight: 700 }}>
-            {user?.name ? user.name.charAt(0).toUpperCase() : 'U'}
-          </div>
-          <div>
-            <div style={{ fontSize: '18px', fontWeight: 700, color: 'var(--text)', marginBottom: '0.25rem' }}>{user?.name || 'Utente'}</div>
-            <div style={{ fontSize: '14px', color: 'var(--text-muted)' }}>{user?.email || 'Nessuna email'}</div>
-            <div style={{ display: 'inline-block', marginTop: '0.5rem', padding: '2px 8px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '4px', fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)' }}>
-              Ruolo: {user?.role === 'admin' ? 'Amministratore' : 'Utente Standard'}
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
+
 
   return (
     <div className="dashboard-shell" style={{ overflow: studioWorkspaceOpen ? 'hidden' : 'visible' }}>
