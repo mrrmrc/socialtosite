@@ -37,7 +37,7 @@ export default function StrategyInterview({ declaredStrategy, onUpdateStrategy, 
                 setMessages([...newMessages, { role: 'ai', text: 'Scusa, ho avuto un momento di confusione. Puoi ripetere?' }]);
             }
         } catch (err) {
-            setMessages([...newMessages, { role: 'ai', text: 'Errore di connessione. Riprova tra poco.' }]);
+            setMessages([...newMessages, { role: 'ai', text: 'Errore backend: ' + (err.message || 'Sconosciuto') }]);
         } finally {
             setIsLoading(false);
         }
@@ -232,3 +232,4 @@ export default function StrategyInterview({ declaredStrategy, onUpdateStrategy, 
         </div>
     );
 }
+
