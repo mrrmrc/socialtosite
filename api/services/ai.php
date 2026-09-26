@@ -19,6 +19,10 @@ class AI {
             return trim((string)$environmentValue);
         }
         $runtimeName = 'SOCIALTOSITE_RUNTIME_' . $name;
+        $runtimeEnv = getenv($runtimeName);
+        if ($runtimeEnv !== false && trim((string)$runtimeEnv) !== '') {
+            return trim((string)$runtimeEnv);
+        }
         if (defined($runtimeName) && trim((string)constant($runtimeName)) !== '') {
             return trim((string)constant($runtimeName));
         }
@@ -2287,5 +2291,6 @@ Testi da analizzare:
         throw new Exception("JSON invalido dopo due tentativi: " . $excerpt);
     }
 }
+
 
 

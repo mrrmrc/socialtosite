@@ -82,3 +82,4 @@ class DB {
         return self::query($sql, $params)->rowCount();
     }
 }
+

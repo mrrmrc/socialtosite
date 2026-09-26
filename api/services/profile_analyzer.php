@@ -248,7 +248,10 @@ final class ProfileAnalyzer
     {
         $environment = getenv($environmentName);
         if ($environment !== false && trim((string)$environment) !== '') return trim((string)$environment);
+        $envRuntime = getenv($runtimeName);
+        if ($envRuntime !== false && trim((string)$envRuntime) !== '') return trim((string)$envRuntime);
         if (defined($runtimeName) && trim((string)constant($runtimeName)) !== '') return trim((string)constant($runtimeName));
         return defined($environmentName) ? trim((string)constant($environmentName)) : '';
     }
 }
+

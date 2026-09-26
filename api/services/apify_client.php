@@ -45,7 +45,10 @@ final class ApifyClient {
         // Il secret iniettato dalla release viene validato da GitHub Actions
         // prima dell'upload e deve quindi avere precedenza su una credenziale
         // storica eventualmente rimasta nel database.
-        if (defined('SOCIALTOSITE_RUNTIME_APIFY_API_TOKEN')) {
+        $envToken = getenv('SOCIALTOSITE_RUNTIME_APIFY_API_TOKEN');
+        if ($envToken !== false && trim((string)$envToken) !== '') {
+            $runtimeValue = trim((string)$envToken);
+        } elseif (defined('SOCIALTOSITE_RUNTIME_APIFY_API_TOKEN')) {
             $runtimeValue = trim((string)constant('SOCIALTOSITE_RUNTIME_APIFY_API_TOKEN'));
             if ($runtimeValue !== '') return $runtimeValue;
         }
@@ -313,3 +316,4 @@ final class ApifyClient {
         return ['platform' => $platform, 'profile' => $profile, 'items' => array_values($items), 'debug' => $debug];
     }
 }
+
