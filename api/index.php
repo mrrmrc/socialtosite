@@ -19,14 +19,14 @@ $__emitErr = function (int $code, string $msg): void {
 set_exception_handler(function (Throwable $e) use ($__emitErr) {
     $requestId = bin2hex(random_bytes(6));
     error_log("[API $requestId] " . $e::class . ' in ' . $e->getFile() . ':' . $e->getLine() . ' - ' . $e->getMessage());
-    $__emitErr(500, 'Errore interno. Riferimento: ' . $requestId);
+    $__emitErr(500, 'Fatal Exception: ' . $e->getMessage() . ' in ' . basename($e->getFile()) . ':' . $e->getLine());
 });
 register_shutdown_function(function () use ($__emitErr) {
     $e = error_get_last();
     if ($e && in_array($e['type'], [E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR], true)) {
         $requestId = bin2hex(random_bytes(6));
         error_log("[API $requestId] Errore fatale in " . ($e['file'] ?? 'sconosciuto') . ':' . ($e['line'] ?? 0) . ' - ' . ($e['message'] ?? ''));
-        $__emitErr(500, 'Errore interno. Riferimento: ' . $requestId);
+        $__emitErr(500, 'Fatal Error: ' . ($e['message'] ?? '') . ' in ' . basename($e['file'] ?? 'unknown') . ':' . ($e['line'] ?? 0));
     }
 });
 if (!file_exists(__DIR__ . '/../config/config.php')) {
@@ -2438,5 +2438,6 @@ if ($action === 'admin-logs' && $method === 'GET') {
 }
 
 jsonError('Endpoint non trovato', 404);
+
 
 
