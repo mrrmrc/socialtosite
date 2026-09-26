@@ -208,7 +208,7 @@ export default function StrategyInterview({ declaredStrategy, onUpdateStrategy, 
                             }}>
                                 {val && <div style={{ position: 'absolute', top: 0, left: 0, width: '4px', height: '100%', background: f.color }}></div>}
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
-                                    <div style={{ width: '36px', height: '36px', borderRadius: '12px', background: val ? \`\${f.color}15\` : '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px' }}>
+                                    <div style={{ width: '36px', height: '36px', borderRadius: '12px', background: val ? `${f.color}15` : '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px' }}>
                                         {f.icon}
                                     </div>
                                     <div style={{ fontSize: '14px', fontWeight: 700, color: val ? '#1e293b' : '#94a3b8' }}>
