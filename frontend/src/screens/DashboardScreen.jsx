@@ -2450,6 +2450,25 @@ const [importMsg, setImportMsg] = useState(null);
     </section>
     );
   };
+  const renderAccountProfile = () => (
+    <div className="card" style={{ maxWidth: '600px', margin: '2rem auto' }}>
+      <h2 style={{ marginBottom: '1.5rem', fontSize: '24px' }}>Profilo Utente</h2>
+      <div style={{ display: 'grid', gap: '1rem' }}>
+        <div style={{ background: 'var(--surface)', padding: '1rem', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
+          <strong style={{ display: 'block', fontSize: '13px', color: 'var(--text-muted)' }}>Email loggata</strong>
+          <span style={{ fontSize: '16px' }}>{user?.email}</span>
+        </div>
+        <div style={{ background: 'var(--surface)', padding: '1rem', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
+          <strong style={{ display: 'block', fontSize: '13px', color: 'var(--text-muted)' }}>Ruolo</strong>
+          <span style={{ fontSize: '16px' }}>{user?.role === 'admin' ? 'Amministratore' : 'Utente standard'}</span>
+        </div>
+        <div style={{ background: 'var(--surface)', padding: '1rem', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
+          <strong style={{ display: 'block', fontSize: '13px', color: 'var(--text-muted)' }}>Piano abbonamento</strong>
+          <span style={{ fontSize: '16px', textTransform: 'capitalize' }}>{user?.plan || 'Base'}</span>
+        </div>
+      </div>
+    </div>
+  );
   const renderVisibilityServices = () => (
     <div className="services-page">
       <section className="services-intro">
