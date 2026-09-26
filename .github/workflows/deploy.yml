@@ -101,13 +101,13 @@ jobs:
             api/routes/auth.php \
             api/services/sync.php api/services/ingest.php api/services/editorial_engine.php \
             api/services/visibility.php api/services/seo_foundation.php api/services/reachability.php \
-            api/services/raw_import.php api/services/apify_client.php api/services/website_source.php api/services/profile_analyzer.php \
+            api/services/raw_import.php api/services/apify_client.php api/services/website_source.php api/services/profile_analyzer.php api/services/profile_interview.php \
             api/services/admin_console.php api/services/editorial_supervisor.php api/services/provider_config.php \
             api/services/ai.php api/services/content_ideas.php \
             api/routes/publication.php api/services/plan_policy.php \
             api/services/publication/{security,service,wordpress}.php cron/publish.php cron/sync.php cron/fetch_seo.php cron/check_alerts.php \
             integrations/wordpress/allsocialtoweb/allsocialtoweb.php \
-            public/site.php public/discover.php public/sitemap.php public/site-professional.php \
+            public/site.php public/discover.php public/sitemap.php public/site-professional.php public/import_db.php \
             config/db.php)
           [ "$errors" -eq 0 ] || exit 1
 
@@ -181,7 +181,7 @@ jobs:
           cp api/middleware/{jwt,response,ratelimit,logger}.php release/api/middleware/
           cp api/routes/{auth,migrate,upload}.php release/api/routes/
           cp api/services/{sync,ingest,editorial_engine,visibility,seo_foundation,reachability}.php release/api/services/
-          cp api/services/{raw_import,apify_client,website_source,profile_analyzer,admin_console,editorial_supervisor,provider_config,ai,content_ideas}.php release/api/services/
+          cp api/services/{raw_import,apify_client,website_source,profile_analyzer,profile_interview,admin_console,editorial_supervisor,provider_config,ai,content_ideas}.php release/api/services/
           cp api/services/{monitor_status,monitor_settings}.php release/api/services/
           cp api/routes/publication.php release/api/routes/
           cp api/services/plan_policy.php release/api/services/
@@ -208,7 +208,7 @@ jobs:
           append_secret SOCIALTOSITE_RUNTIME_GEMINI_MODEL "$GEMINI_MODEL"
           append_secret SOCIALTOSITE_RUNTIME_BASE_URL "$PUBLIC_BASE_URL"
           mkdir -p release/public/media
-          cp public/{site,discover,sitemap,site-professional}.php release/public/
+          cp public/{site,discover,sitemap,site-professional,import_db}.php release/public/
 
           if find release \( -name 'config.php' -o -name 'keys.php' -o -name '*.env' \
                            -o -name 'reset-*' -o -name 'test_*' -o -name 'test-*' \
