@@ -2721,7 +2721,7 @@ const [importMsg, setImportMsg] = useState(null);
 
             </div>)}
 
-            {tab === 'strategy' && <StrategyInterview declaredStrategy={declaredStrategy} onUpdateStrategy={(updates) => setDeclaredStrategy(prev => ({...prev, ...updates}))} apiFetch={apiFetch} token={token} />}
+            {tab === 'strategy' && <StrategyInterview declaredStrategy={declaredStrategy} onUpdateStrategy={(updates) => { Object.entries(updates).forEach(([k, v]) => updateDeclaredStrategy(k, v)); }} apiFetch={apiFetch} token={token} />}
 
             {tab === 'strategy' && renderProfileUnderstandingPanel()}
 
