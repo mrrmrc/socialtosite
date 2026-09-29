@@ -477,7 +477,7 @@ function SiteMapGraph({ posts, siteUrl, siteTitle, foundationPages = [] }) {
 import StrategyInterview from './StrategyInterview';
 export function DashboardScreen({ token, user, onLogout }) {
   const [tab, setTab] = useState(user?.role === 'admin' ? 'admin' : 'overview');
-  const [visibilitySection, setVisibilitySection] = useState('network');
+  const [visibilitySection, setVisibilitySection] = useState('overview');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [dashboardFilter, setDashboardFilter] = useState('all');
   const [data, setData] = useState(null);
@@ -539,6 +539,7 @@ const [importMsg, setImportMsg] = useState(null);
   const [templateStudio, setTemplateStudio] = useState(() => normalizeStudioData(null));
   const [savingTemplateStudio, setSavingTemplateStudio] = useState(false);
   const [studioWorkspaceOpen, setStudioWorkspaceOpen] = useState(false);
+  const [profileSubTab, setProfileSubTab] = useState('who');
   const [studioSourceLabel, setStudioSourceLabel] = useState('Workspace corrente');
   const [studioControlsOpen, setStudioControlsOpen] = useState(true);
   const [draggingStudioSection, setDraggingStudioSection] = useState('');
@@ -2177,7 +2178,7 @@ const [importMsg, setImportMsg] = useState(null);
   }, [tab, user, adminPrompts.length]);
 
   useEffect(() => {
-    if (tab === 'strategy' && !profileLoaded) loadProfileUnderstanding();
+    if ((tab === 'strategy' || tab === 'profile') && !profileLoaded) loadProfileUnderstanding();
   }, [tab, profileLoaded]);
 
   useEffect(() => {
