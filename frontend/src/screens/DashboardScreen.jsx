@@ -2614,7 +2614,7 @@ const [importMsg, setImportMsg] = useState(null);
               width: 'fit-content', flexWrap: 'wrap'
             }}>
               {[
-                { id: 'who', label: '👤 Chi sei', desc: 'Profilo attività e obiettivi' },
+                { id: 'who', label: '✍️ Stile Editoriale', desc: "Istruisci l'AI su come scrivere" },
                 { id: 'network', label: '🌍 Rete e Presenza', desc: 'Rispondi una volta, il sistema usa tutto' },
                 { id: 'identity', label: '🎨 Identità visiva', desc: 'Logo, nome e contatti sul sito' },
                 { id: 'themes', label: '✨ Temi del sito', desc: 'Layout e aspetto grafico' },
@@ -2644,7 +2644,7 @@ const [importMsg, setImportMsg] = useState(null);
             
             <div style={{ marginTop: '1.5rem', paddingBottom: '1.5rem', borderBottom: '1px solid var(--border)' }}>
               <h2 style={{ margin: 0, fontSize: '24px', fontWeight: 800, color: 'var(--text)' }}>
-                {profileSubTab === 'who' ? 'Il tuo profilo attività' : 
+                {profileSubTab === 'who' ? 'Il tuo stile editoriale' : 
                  profileSubTab === 'network' ? 'Rispondi una volta, il sistema usa tutto' : 
                  profileSubTab === 'identity' ? 'L\'identità del tuo sito' : 'Scegli il layout ideale'}
               </h2>
