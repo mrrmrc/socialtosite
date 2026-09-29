@@ -1262,7 +1262,7 @@ const [importMsg, setImportMsg] = useState(null);
   }
 
   function openDashboardSection(target) {
-    if (target === 'strategy') setTab('strategy');
+    if (target === 'strategy') { setTab('profile'); setProfileSubTab('who'); }
     else if (target === 'modules') setTab('services');
     else {
       setTab('seo');
@@ -1798,7 +1798,7 @@ const [importMsg, setImportMsg] = useState(null);
               ? 'Lascia che l\'AI scriva titolo, presentazione e stile del sito partendo da quello che pubblichi sui social. Puoi rifarlo quante volte vuoi.'
               : 'Appena avrai collegato un social e ci saranno dei contenuti, l\'AI potrà scrivere titolo, presentazione e stile del tuo sito da sola.'}
           </p>
-          <button type="button" className="ai-site-profile-link" onClick={() => setTab('strategy')}>
+          <button type="button" className="ai-site-profile-link" onClick={() => { setTab('profile'); setProfileSubTab('who'); }}>
             Vedi e modifica il profilo che l'AI usa per generare il sito →
           </button>
         </div>
@@ -2192,7 +2192,7 @@ const [importMsg, setImportMsg] = useState(null);
   }, [adminPrompts]);
 
   useEffect(() => {
-    if (tab !== 'settings') {
+    if (tab !== 'settings' && tab !== 'profile') {
       setStudioWorkspaceOpen(false);
       return;
     }
@@ -2395,21 +2395,14 @@ const [importMsg, setImportMsg] = useState(null);
     {
       label: 'Menu Principale',
       items: [
-        { id: 'strategy', icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="6"></circle><circle cx="12" cy="12" r="2"></circle></svg>, label: 'Profilo Attività', hint: 'Strategia e obiettivi' },
+        { id: 'profile', icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>, label: 'Il mio profilo', hint: 'Chi sei, presenza e aspetto' },
         { id: 'overview', icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>, label: 'Home', hint: 'Lo stato del tuo sito' },
         { id: 'site', icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>, label: 'Articoli', hint: 'Bozze da pubblicare e già online' },
         { id: 'sources', icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="2" y="2" width="20" height="20" rx="5" y="5"></rect><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line></svg>, label: 'Social collegati', hint: 'Da qui arrivano i tuoi contenuti' },
         { id: 'seo', icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-4-4"></path><path d="M8 11h6M11 8v6"></path></svg>, label: 'Su Google', hint: 'Come ti trovano online' },
       ],
     },
-    {
-      label: 'Sito Pubblico',
-      items: [
-        { id: 'settings', icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 12l10 5 10-5M2 17l10 5 10-5"></path></svg>, label: 'Aspetto', hint: 'Temi del sito' },
-        { id: 'experience', icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>, label: 'Identità del sito', hint: 'Scegli nome e immagine' },
-      ],
-    }
-  ];
+    ];
   const visibleNavigationGroups = navigationGroups;
   const flatNavigation = visibleNavigationGroups.flatMap(group => group.items.map(item => ({ ...item, group: group.label })));
   const isNavigationActive = item => tab === item.id && (!item.section || visibilitySection === item.section);
@@ -2437,7 +2430,8 @@ const [importMsg, setImportMsg] = useState(null);
     setMobileMenuOpen(false);
   };
   const openSiteIdentity = () => {
-    setTab('experience');
+    setTab('profile');
+    setProfileSubTab('identity');
     setMobileMenuOpen(false);
     window.setTimeout(() => document.getElementById('visual-identity')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 80);
   };
@@ -2451,7 +2445,7 @@ const [importMsg, setImportMsg] = useState(null);
       ) : (
         <><strong title={site?.title || siteTitleDraft}>{site?.title || siteTitleDraft || 'Sito senza nome'}</strong><div className="site-command-actions"><a href={siteUrl} target="_blank" rel="noopener">Apri sito ↗</a><button onClick={() => setSidebarTitleEditing(true)}>Modifica nome</button></div></>
       )}
-      <button className="site-command-identity" onClick={openSiteIdentity}>Logo, immagine e identità →</button>
+      <button className="site-command-identity" onClick={openSiteIdentity}>Immagine e aspetto del sito →</button>
     </section>
     );
   };
@@ -2608,7 +2602,62 @@ const [importMsg, setImportMsg] = useState(null);
             {!syncMsg.loading && <button onClick={() => setSyncMsg(null)} style={{background:'none', border:'none', cursor:'pointer', fontSize:'16px'}}>✕</button>}
           </div>
         )}
-        {(tab === 'overview' || tab === 'strategy') && (
+        
+        {/* Profile Sub-Navigation */}
+        {tab === 'profile' && (
+          <div style={{ marginBottom: '2rem' }}>
+            <div style={{
+              display: 'flex', gap: '6px',
+              padding: '6px', background: 'var(--surface)',
+              borderRadius: '16px', border: '1px solid var(--border)',
+              width: 'fit-content', flexWrap: 'wrap'
+            }}>
+              {[
+                { id: 'who', label: '👤 Chi sei', desc: 'Profilo attività e obiettivi' },
+                { id: 'network', label: '🌍 Rete e Presenza', desc: 'Rispondi una volta, il sistema usa tutto' },
+                { id: 'identity', label: '🎨 Identità visiva', desc: 'Logo, nome e contatti sul sito' },
+                { id: 'themes', label: '✨ Temi del sito', desc: 'Layout e aspetto grafico' },
+              ].map(opt => (
+                <button
+                  key={opt.id}
+                  type="button"
+                  onClick={() => setProfileSubTab(opt.id)}
+                  style={{
+                    padding: '12px 20px',
+                    border: 'none',
+                    borderRadius: '12px',
+                    cursor: 'pointer',
+                    fontWeight: 800,
+                    fontSize: '14px',
+                    transition: 'all .2s ease',
+                    background: profileSubTab === opt.id ? 'var(--primary)' : 'transparent',
+                    color: profileSubTab === opt.id ? '#fff' : 'var(--text-muted)',
+                    boxShadow: profileSubTab === opt.id ? '0 4px 12px rgba(37,99,235,.2)' : 'none',
+                  }}
+                  title={opt.desc}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+            
+            <div style={{ marginTop: '1.5rem', paddingBottom: '1.5rem', borderBottom: '1px solid var(--border)' }}>
+              <h2 style={{ margin: 0, fontSize: '24px', fontWeight: 800, color: 'var(--text)' }}>
+                {profileSubTab === 'who' ? 'Il tuo profilo attività' : 
+                 profileSubTab === 'network' ? 'Rispondi una volta, il sistema usa tutto' : 
+                 profileSubTab === 'identity' ? 'L\'identità del tuo sito' : 'Scegli il layout ideale'}
+              </h2>
+              <p style={{ margin: '0.4rem 0 0', color: 'var(--text-muted)', fontSize: '15px' }}>
+                {profileSubTab === 'who' ? 'Le informazioni inserite qui istruiscono l\'AI su come presentare il tuo progetto.' :
+                 profileSubTab === 'network' ? 'Queste informazioni vengono propagate su tutto il tuo network: sito, mappe e servizi collegati.' :
+                 profileSubTab === 'identity' ? 'Personalizza il logo, i contatti e i banner che compaiono sul tuo sito web.' :
+                 'Guarda in anteprima decine di design professionali prima di applicarli.'}
+              </p>
+            </div>
+          </div>
+        )}
+
+        {(tab === 'overview' || (tab === 'profile' && profileSubTab === 'who')) && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
             {tab === 'overview' && (
               <section className="project-command-center" aria-labelledby="project-command-title">
@@ -2619,7 +2668,7 @@ const [importMsg, setImportMsg] = useState(null);
                   <p>Contenuti, pubblicazione e identità visiva riuniti in un unico spazio di lavoro.</p>
                   <div className="project-command-actions">
                     <a className="btn btn-primary" href={siteUrl} target="_blank" rel="noopener">Apri il sito ↗</a>
-                    <button className="btn btn-outline" onClick={() => selectNavigation({ id: 'settings' })}>Gestisci l’aspetto</button>
+                    <button className="btn btn-outline" onClick={() => { setTab('profile'); setProfileSubTab('themes'); setMobileMenuOpen(false); }}>Gestisci l’aspetto</button>
                   </div>
                 </div>
                 <div className="project-command-grid" aria-label="Stato del progetto">
@@ -2735,9 +2784,9 @@ const [importMsg, setImportMsg] = useState(null);
 
             </div>)}
 
-            {tab === 'strategy' && <StrategyInterview declaredStrategy={declaredStrategy} onUpdateStrategy={(updates) => { Object.entries(updates).forEach(([k, v]) => updateDeclaredStrategy(k, v)); }} apiFetch={apiFetch} token={token} />}
+            {(tab === 'profile' && profileSubTab === 'who') && <StrategyInterview declaredStrategy={declaredStrategy} onUpdateStrategy={(updates) => { Object.entries(updates).forEach(([k, v]) => updateDeclaredStrategy(k, v)); }} apiFetch={apiFetch} token={token} />}
 
-            {tab === 'strategy' && renderProfileUnderstandingPanel()}
+            {(tab === 'profile' && profileSubTab === 'who') && renderProfileUnderstandingPanel()}
 
             {false && <div id="strategy-legacy" className="card" style={{ padding: '1.5rem', background: 'var(--surface)', border: '1px solid var(--primary)' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1.25rem', alignItems: 'flex-start', flexWrap: 'wrap' }}>
@@ -3095,7 +3144,7 @@ const [importMsg, setImportMsg] = useState(null);
           );
         })()}
 
-        {tab === 'experience' && (
+        {(tab === 'profile' && profileSubTab === 'identity') && (
           <div style={{ display: 'grid', gap: '1rem' }}>
             {/* MODIFICA SITO — azione principale sempre visibile */}
             <section style={{
@@ -3377,7 +3426,6 @@ const [importMsg, setImportMsg] = useState(null);
 
             {visibilitySection !== 'ideas' && <div className="visibility-subnav">
               {[
-                ['network', 'La tua presenza'],
                 ['overview', 'Statistiche e pagine'],
                 ...(isAdmin ? [['lab', 'Laboratorio']] : []),
               ].map(([section, label]) => <button key={section} className={visibilitySection === section ? 'is-active' : ''} onClick={() => setVisibilitySection(section)}>{label}</button>)}
@@ -3385,7 +3433,7 @@ const [importMsg, setImportMsg] = useState(null);
 
             {isAdmin && visibilitySection === 'lab' && <SpazioVivoLab token={token} adminPreview />}
 
-            {visibilitySection === 'network' && <div className="presence-workspace">
+            {(tab === 'profile' && profileSubTab === 'network') && <div className="presence-workspace">
               <section className="presence-hero">
                 <div className="presence-hero-copy"><span>La tua presenza digitale</span><h2>{reachability.score || 0}% completato</h2><p>Questa percentuale misura ciò che hai realmente predisposto. I dati Google sono separati perché dipendono dalla scansione e non possono essere promessi.</p></div>
                 <div className="presence-score" style={{ '--score': `${reachability.score || 0}%` }}><strong>{reachability.score || 0}%</strong><span>configurazione</span></div>
@@ -3429,7 +3477,7 @@ const [importMsg, setImportMsg] = useState(null);
               <section className="presence-status-summary"><header><div><span>Verifiche tecniche</span><h3>Cosa è già pronto</h3></div><p>Questi controlli si aggiornano dalle risposte e dal lavoro reale della piattaforma.</p></header><div>{(reachability.checks || []).map(check => <article key={check.id} className={check.done ? 'is-done' : ''}><span>{check.done ? '✓' : '○'}</span><div><strong>{check.label}</strong><small>{check.detail}</small></div></article>)}</div></section>
             </div>}
 
-            {false && visibilitySection === 'network' && <>
+            {false && (tab === 'profile' && profileSubTab === 'network') && <>
               <section className="glass-modal" style={{ marginBottom: '1.25rem', padding: 'clamp(1.25rem, 3vw, 2rem)', color: '#fff', background: 'radial-gradient(circle at 88% 8%, rgba(243,92,118,.34), transparent 27%), linear-gradient(135deg,#151A2D,#292359 68%,#48257A)', border: 'none', overflow: 'hidden' }}>
                 <div className="reachability-hero-grid" style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) auto', alignItems: 'center', gap: '1.5rem' }}>
                   <div>
@@ -3882,7 +3930,7 @@ const [importMsg, setImportMsg] = useState(null);
         {tab === 'services' && renderVisibilityServices()}
 
         {/* Tab: Impostazioni */}
-        {tab === 'settings' && (
+        {(tab === 'profile' && profileSubTab === 'themes') && (
           <div>
             {isAdmin && (
             <>
