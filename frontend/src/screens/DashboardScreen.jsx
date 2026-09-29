@@ -4126,6 +4126,128 @@ const [importMsg, setImportMsg] = useState(null);
               </div>
             )}
 
+
+            
+          </div>
+        )}
+
+        {tab === 'account' && renderAccountProfile()}
+
+        {tab === 'security' && (
+          <div className="card" style={{ maxWidth: '680px', margin: '0 auto', padding: 'clamp(1.25rem, 4vw, 2rem)' }}>
+            <div style={{ width: '52px', height: '52px', borderRadius: '16px', display: 'grid', placeItems: 'center', background: 'var(--primary-light)', color: 'var(--primary)', fontSize: '24px', marginBottom: '1rem' }}>🔐</div>
+            <h2 style={{ margin: '0 0 0.5rem', color: 'var(--text)' }}>Cambia la tua password</h2>
+            <p style={{ margin: '0 0 1.5rem', color: 'var(--text-muted)', lineHeight: 1.6 }}>
+              Per proteggere il tuo account, conferma la password attuale e scegline una nuova di almeno 8 caratteri.
+            </p>
+
+            {passwordMsg && (
+              <div style={{ marginBottom: '1rem', padding: '12px 14px', borderRadius: 'var(--radius-sm)', background: passwordMsg.ok ? 'var(--teal-light)' : 'var(--red-light)', color: passwordMsg.ok ? '#0F6E56' : 'var(--red)', fontWeight: 700, fontSize: '14px' }}>
+                {passwordMsg.text}
+              </div>
+            )}
+
+            <form onSubmit={changeOwnPassword} style={{ display: 'grid', gap: '1rem' }}>
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <label className="label" htmlFor="current-password">Password attuale</label>
+                <input id="current-password" type="password" autoComplete="current-password" required value={passwordForm.current} onChange={e => setPasswordForm(current => ({ ...current, current: e.target.value }))} />
+              </div>
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <label className="label" htmlFor="new-password">Nuova password</label>
+                <input id="new-password" type="password" autoComplete="new-password" minLength={8} maxLength={72} required value={passwordForm.next} onChange={e => setPasswordForm(current => ({ ...current, next: e.target.value }))} />
+              </div>
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <label className="label" htmlFor="confirm-password">Ripeti la nuova password</label>
+                <input id="confirm-password" type="password" autoComplete="new-password" minLength={8} maxLength={72} required value={passwordForm.confirm} onChange={e => setPasswordForm(current => ({ ...current, confirm: e.target.value }))} />
+              </div>
+              <button className="btn btn-primary" disabled={changingPassword} style={{ justifyContent: 'center', marginTop: '0.5rem', padding: '13px 18px' }}>
+                {changingPassword ? 'Aggiornamento...' : 'Aggiorna password'}
+              </button>
+            </form>
+          </div>
+        )}
+
+        {tab === 'admin' && user?.role === 'admin' && (
+          <AdminScreen token={token} currentUser={user} adminPrompts={adminPrompts} updatePrompt={updatePrompt} />
+        )}
+
+        {/* Modal Modifica Post */}
+        {editingPost && (
+          <div className="mobile-bottom-sheet article-editor-overlay">
+            <div className="glass-modal article-editor-modal">
+              <div className="article-editor-header">
+                <div><div className="article-editor-eyebrow">Editor articolo</div><h2>Modifica il contenuto</h2></div>
+                <button onClick={() => setEditingPost(null)} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', width: '36px', height: '36px', borderRadius: '50%', fontSize: '16px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text)', transition: 'background 0.2s' }}>✕</button>
+              </div>
+              
+              <div className="article-editor-scroll">
+                <div>
+                  <label style={{ display: 'block', fontSize: '15px', fontWeight: 700, marginBottom: '8px', color: 'var(--text)' }}>Titolo Principale</label>
+                  <input type="text" value={editingPost.title} onChange={e => setEditingPost({...editingPost, title: e.target.value})} style={{ width: '100%', fontSize: '18px', fontWeight: 600, padding: '14px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-strong)', background: 'var(--bg)', color: 'var(--text)' }} />
+                </div>
+
+                <section className="article-image-editor">
+                  <div className="article-image-editor__head"><div><strong>Foto principale</strong><span>Puoi aggiungerla, sostituirla, rimuoverla e scegliere quanto spazio occupa nell’articolo.</span></div>{editingPost.mediaUrl && <button type="button" onClick={() => setEditingPost({...editingPost, mediaUrl: '', mediaType: ''})}>Rimuovi foto</button>}</div>
+                  <div className="article-image-editor__body">
+                    <div className={`article-image-preview align-${editingPost.mediaAlignment}`}>
+                      {editingPost.mediaUrl && String(editingPost.mediaType).toUpperCase() !== 'VIDEO' ? <img src={editingPost.mediaUrl} alt="Anteprima foto articolo" style={{ width: `${editingPost.mediaWidth}%` }} /> : <div><span>▧</span><strong>{editingPost.mediaType === 'VIDEO' ? 'Questo articolo contiene un video' : 'Nessuna foto'}</strong><small>Carica un’immagine oppure incolla un indirizzo per impostare la foto principale.</small></div>}
+                    </div>
+                    <div className="article-image-controls">
+                      <label><span>Immagine dal computer</span><input type="file" accept="image/jpeg,image/png,image/webp" disabled={postImageUploading} onChange={e => { const file = e.target.files?.[0]; if (file) uploadPostImage(file); e.target.value = ''; }} /></label>
+                      <label><span>Ridimensiona il file prima del caricamento</span><select value={editingPost.imagePixelWidth} onChange={e => setEditingPost({...editingPost, imagePixelWidth: Number(e.target.value)})}><option value="600">600 px · leggera</option><option value="900">900 px</option><option value="1200">1200 px · consigliata</option><option value="1600">1600 px · grande</option><option value="0">Dimensione originale</option></select></label>
+                      <label><span>Oppure indirizzo dell’immagine</span><input type="url" value={editingPost.mediaUrl} onChange={e => setEditingPost({...editingPost, mediaUrl: e.target.value, mediaType: e.target.value ? 'IMAGE' : ''})} placeholder="https://… oppure carica un file" /></label>
+                      <label><span>Larghezza nella pagina · {editingPost.mediaWidth}%</span><input type="range" min="30" max="100" step="5" value={editingPost.mediaWidth} onChange={e => setEditingPost({...editingPost, mediaWidth: Number(e.target.value)})} /></label>
+                      <div><span>Allineamento</span><div className="article-image-align">{[['left','Sinistra'],['center','Centro'],['right','Destra']].map(([value,label]) => <button type="button" className={editingPost.mediaAlignment === value ? 'active' : ''} onClick={() => setEditingPost({...editingPost, mediaAlignment: value})} key={value}>{label}</button>)}</div></div>
+                      {postImageUploading && <div className="article-image-uploading">Ridimensionamento e caricamento…</div>}
+                    </div>
+                  </div>
+                </section>
+                
+                <div style={{ marginBottom: '1.5rem' }}>
+                  <label style={{ display: 'block', fontSize: '15px', fontWeight: 700, marginBottom: '8px', color: 'var(--text)' }}>Testo Grezzo Originale (importato dal social)</label>
+                  <textarea value={editingPost.rawContent} onChange={e => setEditingPost({...editingPost, rawContent: e.target.value})} placeholder="Testo originale prelevato dal social..." style={{ width: '100%', minHeight: '120px', padding: '12px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-strong)', fontSize: '14px', background: 'var(--bg-subtle, #f5f5f5)', color: 'var(--text)', resize: 'vertical' }} />
+                  <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>Modifica questo testo prima di rigenerare con l'AI se l'importazione era incompleta.</p>
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: '15px', fontWeight: 700, marginBottom: '8px', color: 'var(--text)' }}>Testo dell'Articolo</label>
+                  <QuillEditor value={editingPost.body} onChange={val => setEditingPost({...editingPost, body: val})} className="article-rich-editor" style={{ background: '#fff', color: '#000', border: '2px solid var(--border-strong)', borderRadius: 'var(--radius-sm)', marginBottom: '8px' }} />
+                </div>
+
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1.5rem' }}>
+                  <div style={{ flex: '1 1 300px' }}>
+                    <label style={{ display: 'block', fontSize: '15px', fontWeight: 700, marginBottom: '8px', color: 'var(--text)' }}>Breve Riassunto (Opzionale)</label>
+                    <textarea value={editingPost.excerpt} onChange={e => setEditingPost({...editingPost, excerpt: e.target.value})} style={{ width: '100%', minHeight: '100px', padding: '12px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-strong)', fontSize: '14px', background: 'var(--bg)', color: 'var(--text)', resize: 'vertical' }} />
+                  </div>
+                  <div style={{ flex: '1 1 300px' }}>
+                    <label style={{ display: 'block', fontSize: '15px', fontWeight: 700, marginBottom: '8px', color: 'var(--text)' }}>Parole Chiave (separate da virgola)</label>
+                    <textarea value={editingPost.tags} onChange={e => setEditingPost({...editingPost, tags: e.target.value})} placeholder="Es: cucina, ricette, estate" style={{ width: '100%', minHeight: '100px', padding: '12px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-strong)', fontSize: '14px', background: 'var(--bg)', color: 'var(--text)', resize: 'vertical' }} />
+                  </div>
+                </div>
+
+                <label className={`article-indexing-control ${editingPost.noindex ? 'is-noindex' : ''}`}>
+                  <input type="checkbox" checked={Boolean(editingPost.noindex)} onChange={e => setEditingPost({...editingPost, noindex: e.target.checked ? 1 : 0})} />
+                  <span><strong>Escludi questo articolo dai motori di ricerca</strong><small>Attiva il meta tag noindex. L’articolo resta pubblicato e raggiungibile tramite link, ma non viene inserito nella sitemap.</small></span>
+                </label>
+              </div>
+
+              <div className="article-editor-actions">
+                <button onClick={regenerateEditedPost} disabled={cmsSaving} style={{ flex: '1 1 210px', background: 'var(--primary-light)', color: 'var(--primary-dark)', border: '1px solid var(--primary)', padding: '16px', fontSize: '15px', fontWeight: 800, borderRadius: 'var(--radius-sm)', cursor: 'pointer' }}>
+                  {cmsSaving ? '⏳ ORCHESTRAZIONE…' : '✨ RIGENERA CON L’AI'}
+                </button>
+                <button onClick={savePostEdit} disabled={cmsSaving} style={{ flex: '2 1 200px', background: 'var(--primary)', color: '#000', border: 'none', padding: '16px', fontSize: '16px', fontWeight: 800, borderRadius: 'var(--radius-sm)', cursor: 'pointer', transition: 'background 0.2s', boxShadow: '0 4px 12px rgba(0,240,255,0.2)' }}>
+                  {cmsSaving ? '⏳ Salvataggio in corso...' : '✅ SALVA MODIFICHE'}
+                </button>
+                <button onClick={() => setEditingPost(null)} style={{ flex: '1 1 100px', background: 'transparent', color: 'var(--text)', border: '1px solid var(--border-strong)', padding: '16px', fontSize: '16px', fontWeight: 600, borderRadius: 'var(--radius-sm)', cursor: 'pointer', transition: 'background 0.2s' }}>
+                  ❌ ANNULLA
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+      </div>
+
             <ProSiteBuilder user={user} open={studioWorkspaceOpen && !isAdmin} onClose={() => setStudioWorkspaceOpen(false)} />
 
             {studioWorkspaceOpen && isAdmin && (
@@ -4459,127 +4581,6 @@ const [importMsg, setImportMsg] = useState(null);
                 </div>
               </div>
             )}
-
-            
-          </div>
-        )}
-
-        {tab === 'account' && renderAccountProfile()}
-
-        {tab === 'security' && (
-          <div className="card" style={{ maxWidth: '680px', margin: '0 auto', padding: 'clamp(1.25rem, 4vw, 2rem)' }}>
-            <div style={{ width: '52px', height: '52px', borderRadius: '16px', display: 'grid', placeItems: 'center', background: 'var(--primary-light)', color: 'var(--primary)', fontSize: '24px', marginBottom: '1rem' }}>🔐</div>
-            <h2 style={{ margin: '0 0 0.5rem', color: 'var(--text)' }}>Cambia la tua password</h2>
-            <p style={{ margin: '0 0 1.5rem', color: 'var(--text-muted)', lineHeight: 1.6 }}>
-              Per proteggere il tuo account, conferma la password attuale e scegline una nuova di almeno 8 caratteri.
-            </p>
-
-            {passwordMsg && (
-              <div style={{ marginBottom: '1rem', padding: '12px 14px', borderRadius: 'var(--radius-sm)', background: passwordMsg.ok ? 'var(--teal-light)' : 'var(--red-light)', color: passwordMsg.ok ? '#0F6E56' : 'var(--red)', fontWeight: 700, fontSize: '14px' }}>
-                {passwordMsg.text}
-              </div>
-            )}
-
-            <form onSubmit={changeOwnPassword} style={{ display: 'grid', gap: '1rem' }}>
-              <div className="form-group" style={{ marginBottom: 0 }}>
-                <label className="label" htmlFor="current-password">Password attuale</label>
-                <input id="current-password" type="password" autoComplete="current-password" required value={passwordForm.current} onChange={e => setPasswordForm(current => ({ ...current, current: e.target.value }))} />
-              </div>
-              <div className="form-group" style={{ marginBottom: 0 }}>
-                <label className="label" htmlFor="new-password">Nuova password</label>
-                <input id="new-password" type="password" autoComplete="new-password" minLength={8} maxLength={72} required value={passwordForm.next} onChange={e => setPasswordForm(current => ({ ...current, next: e.target.value }))} />
-              </div>
-              <div className="form-group" style={{ marginBottom: 0 }}>
-                <label className="label" htmlFor="confirm-password">Ripeti la nuova password</label>
-                <input id="confirm-password" type="password" autoComplete="new-password" minLength={8} maxLength={72} required value={passwordForm.confirm} onChange={e => setPasswordForm(current => ({ ...current, confirm: e.target.value }))} />
-              </div>
-              <button className="btn btn-primary" disabled={changingPassword} style={{ justifyContent: 'center', marginTop: '0.5rem', padding: '13px 18px' }}>
-                {changingPassword ? 'Aggiornamento...' : 'Aggiorna password'}
-              </button>
-            </form>
-          </div>
-        )}
-
-        {tab === 'admin' && user?.role === 'admin' && (
-          <AdminScreen token={token} currentUser={user} adminPrompts={adminPrompts} updatePrompt={updatePrompt} />
-        )}
-
-        {/* Modal Modifica Post */}
-        {editingPost && (
-          <div className="mobile-bottom-sheet article-editor-overlay">
-            <div className="glass-modal article-editor-modal">
-              <div className="article-editor-header">
-                <div><div className="article-editor-eyebrow">Editor articolo</div><h2>Modifica il contenuto</h2></div>
-                <button onClick={() => setEditingPost(null)} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', width: '36px', height: '36px', borderRadius: '50%', fontSize: '16px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text)', transition: 'background 0.2s' }}>✕</button>
-              </div>
-              
-              <div className="article-editor-scroll">
-                <div>
-                  <label style={{ display: 'block', fontSize: '15px', fontWeight: 700, marginBottom: '8px', color: 'var(--text)' }}>Titolo Principale</label>
-                  <input type="text" value={editingPost.title} onChange={e => setEditingPost({...editingPost, title: e.target.value})} style={{ width: '100%', fontSize: '18px', fontWeight: 600, padding: '14px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-strong)', background: 'var(--bg)', color: 'var(--text)' }} />
-                </div>
-
-                <section className="article-image-editor">
-                  <div className="article-image-editor__head"><div><strong>Foto principale</strong><span>Puoi aggiungerla, sostituirla, rimuoverla e scegliere quanto spazio occupa nell’articolo.</span></div>{editingPost.mediaUrl && <button type="button" onClick={() => setEditingPost({...editingPost, mediaUrl: '', mediaType: ''})}>Rimuovi foto</button>}</div>
-                  <div className="article-image-editor__body">
-                    <div className={`article-image-preview align-${editingPost.mediaAlignment}`}>
-                      {editingPost.mediaUrl && String(editingPost.mediaType).toUpperCase() !== 'VIDEO' ? <img src={editingPost.mediaUrl} alt="Anteprima foto articolo" style={{ width: `${editingPost.mediaWidth}%` }} /> : <div><span>▧</span><strong>{editingPost.mediaType === 'VIDEO' ? 'Questo articolo contiene un video' : 'Nessuna foto'}</strong><small>Carica un’immagine oppure incolla un indirizzo per impostare la foto principale.</small></div>}
-                    </div>
-                    <div className="article-image-controls">
-                      <label><span>Immagine dal computer</span><input type="file" accept="image/jpeg,image/png,image/webp" disabled={postImageUploading} onChange={e => { const file = e.target.files?.[0]; if (file) uploadPostImage(file); e.target.value = ''; }} /></label>
-                      <label><span>Ridimensiona il file prima del caricamento</span><select value={editingPost.imagePixelWidth} onChange={e => setEditingPost({...editingPost, imagePixelWidth: Number(e.target.value)})}><option value="600">600 px · leggera</option><option value="900">900 px</option><option value="1200">1200 px · consigliata</option><option value="1600">1600 px · grande</option><option value="0">Dimensione originale</option></select></label>
-                      <label><span>Oppure indirizzo dell’immagine</span><input type="url" value={editingPost.mediaUrl} onChange={e => setEditingPost({...editingPost, mediaUrl: e.target.value, mediaType: e.target.value ? 'IMAGE' : ''})} placeholder="https://… oppure carica un file" /></label>
-                      <label><span>Larghezza nella pagina · {editingPost.mediaWidth}%</span><input type="range" min="30" max="100" step="5" value={editingPost.mediaWidth} onChange={e => setEditingPost({...editingPost, mediaWidth: Number(e.target.value)})} /></label>
-                      <div><span>Allineamento</span><div className="article-image-align">{[['left','Sinistra'],['center','Centro'],['right','Destra']].map(([value,label]) => <button type="button" className={editingPost.mediaAlignment === value ? 'active' : ''} onClick={() => setEditingPost({...editingPost, mediaAlignment: value})} key={value}>{label}</button>)}</div></div>
-                      {postImageUploading && <div className="article-image-uploading">Ridimensionamento e caricamento…</div>}
-                    </div>
-                  </div>
-                </section>
-                
-                <div style={{ marginBottom: '1.5rem' }}>
-                  <label style={{ display: 'block', fontSize: '15px', fontWeight: 700, marginBottom: '8px', color: 'var(--text)' }}>Testo Grezzo Originale (importato dal social)</label>
-                  <textarea value={editingPost.rawContent} onChange={e => setEditingPost({...editingPost, rawContent: e.target.value})} placeholder="Testo originale prelevato dal social..." style={{ width: '100%', minHeight: '120px', padding: '12px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-strong)', fontSize: '14px', background: 'var(--bg-subtle, #f5f5f5)', color: 'var(--text)', resize: 'vertical' }} />
-                  <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>Modifica questo testo prima di rigenerare con l'AI se l'importazione era incompleta.</p>
-                </div>
-
-                <div>
-                  <label style={{ display: 'block', fontSize: '15px', fontWeight: 700, marginBottom: '8px', color: 'var(--text)' }}>Testo dell'Articolo</label>
-                  <QuillEditor value={editingPost.body} onChange={val => setEditingPost({...editingPost, body: val})} className="article-rich-editor" style={{ background: '#fff', color: '#000', border: '2px solid var(--border-strong)', borderRadius: 'var(--radius-sm)', marginBottom: '8px' }} />
-                </div>
-
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1.5rem' }}>
-                  <div style={{ flex: '1 1 300px' }}>
-                    <label style={{ display: 'block', fontSize: '15px', fontWeight: 700, marginBottom: '8px', color: 'var(--text)' }}>Breve Riassunto (Opzionale)</label>
-                    <textarea value={editingPost.excerpt} onChange={e => setEditingPost({...editingPost, excerpt: e.target.value})} style={{ width: '100%', minHeight: '100px', padding: '12px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-strong)', fontSize: '14px', background: 'var(--bg)', color: 'var(--text)', resize: 'vertical' }} />
-                  </div>
-                  <div style={{ flex: '1 1 300px' }}>
-                    <label style={{ display: 'block', fontSize: '15px', fontWeight: 700, marginBottom: '8px', color: 'var(--text)' }}>Parole Chiave (separate da virgola)</label>
-                    <textarea value={editingPost.tags} onChange={e => setEditingPost({...editingPost, tags: e.target.value})} placeholder="Es: cucina, ricette, estate" style={{ width: '100%', minHeight: '100px', padding: '12px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-strong)', fontSize: '14px', background: 'var(--bg)', color: 'var(--text)', resize: 'vertical' }} />
-                  </div>
-                </div>
-
-                <label className={`article-indexing-control ${editingPost.noindex ? 'is-noindex' : ''}`}>
-                  <input type="checkbox" checked={Boolean(editingPost.noindex)} onChange={e => setEditingPost({...editingPost, noindex: e.target.checked ? 1 : 0})} />
-                  <span><strong>Escludi questo articolo dai motori di ricerca</strong><small>Attiva il meta tag noindex. L’articolo resta pubblicato e raggiungibile tramite link, ma non viene inserito nella sitemap.</small></span>
-                </label>
-              </div>
-
-              <div className="article-editor-actions">
-                <button onClick={regenerateEditedPost} disabled={cmsSaving} style={{ flex: '1 1 210px', background: 'var(--primary-light)', color: 'var(--primary-dark)', border: '1px solid var(--primary)', padding: '16px', fontSize: '15px', fontWeight: 800, borderRadius: 'var(--radius-sm)', cursor: 'pointer' }}>
-                  {cmsSaving ? '⏳ ORCHESTRAZIONE…' : '✨ RIGENERA CON L’AI'}
-                </button>
-                <button onClick={savePostEdit} disabled={cmsSaving} style={{ flex: '2 1 200px', background: 'var(--primary)', color: '#000', border: 'none', padding: '16px', fontSize: '16px', fontWeight: 800, borderRadius: 'var(--radius-sm)', cursor: 'pointer', transition: 'background 0.2s', boxShadow: '0 4px 12px rgba(0,240,255,0.2)' }}>
-                  {cmsSaving ? '⏳ Salvataggio in corso...' : '✅ SALVA MODIFICHE'}
-                </button>
-                <button onClick={() => setEditingPost(null)} style={{ flex: '1 1 100px', background: 'transparent', color: 'var(--text)', border: '1px solid var(--border-strong)', padding: '16px', fontSize: '16px', fontWeight: 600, borderRadius: 'var(--radius-sm)', cursor: 'pointer', transition: 'background 0.2s' }}>
-                  ❌ ANNULLA
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-      </div>
 
       {socialComposer && (
         <div className="social-composer-overlay" role="dialog" aria-modal="true" aria-label="Contenuto social">
