@@ -44,9 +44,9 @@ function postProcessingStatus(post) {
 
 function postProcessingLabel(post) {
   const status = postProcessingStatus(post);
-  if (status === 'processing') return 'IN ELABORAZIONE';
-  if (status === 'failed') return 'DA RIPROVARE';
-  return 'DA ELABORARE';
+  if (status === 'processing') return 'IN PREPARAZIONE';
+  if (status === 'failed') return 'RIPROVA';
+  return 'DA PREPARARE';
 }
 
 function compactDebugValue(value, fallback = 'n/d') {
@@ -2396,10 +2396,10 @@ const [importMsg, setImportMsg] = useState(null);
       label: 'Menu Principale',
       items: [
         { id: 'strategy', icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="6"></circle><circle cx="12" cy="12" r="2"></circle></svg>, label: 'Profilo Attività', hint: 'Strategia e obiettivi' },
-        { id: 'overview', icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>, label: 'Panoramica', hint: 'Cosa succede' },
-        { id: 'site', icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>, label: 'Articoli', hint: 'Bozze e pubblicati' },
-        { id: 'sources', icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line></svg>, label: 'Canali', hint: 'Contenuti acquisiti' },
-        { id: 'seo', icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-4-4"></path><path d="M8 11h6M11 8v6"></path></svg>, label: 'Visibilità', hint: 'Google e pagine' },
+        { id: 'overview', icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>, label: 'Home', hint: 'Lo stato del tuo sito' },
+        { id: 'site', icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>, label: 'Articoli', hint: 'Bozze da pubblicare e già online' },
+        { id: 'sources', icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="2" y="2" width="20" height="20" rx="5" y="5"></rect><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line></svg>, label: 'Social collegati', hint: 'Da qui arrivano i tuoi contenuti' },
+        { id: 'seo', icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-4-4"></path><path d="M8 11h6M11 8v6"></path></svg>, label: 'Su Google', hint: 'Come ti trovano online' },
       ],
     },
     {
@@ -2419,7 +2419,7 @@ const [importMsg, setImportMsg] = useState(null);
     strategy: ['Profilo attività', 'Definisci pubblico, obiettivi e priorità che guidano tutto il sistema.'],
     site: ['Articoli', 'Rivedi le bozze, modifica i testi e decidi cosa pubblicare.'],
     experience: ['Identità del sito', 'Logo e contenuti personali dentro una struttura accessibile e coerente.'],
-    sources: ['Canali collegati', 'Gestisci le fonti da cui arrivano contenuti e aggiornamenti.'],
+    sources: ['Social collegati', 'Aggiungi i tuoi profili social: i contenuti arriveranno automaticamente.'],
     settings: ['Temi del sito', 'Scegli un layout e guardalo in anteprima con i tuoi contenuti.'],
     general: ['Impostazioni di sistema', 'Configura agenti, automazioni e comportamento della piattaforma.'],
     security: ['Password e sicurezza', 'Proteggi il tuo account e gestisci le sessioni attive.'],
@@ -2457,10 +2457,10 @@ const [importMsg, setImportMsg] = useState(null);
   };
   const renderAccountProfile = () => (
     <div className="card" style={{ maxWidth: '600px', margin: '2rem auto' }}>
-      <h2 style={{ marginBottom: '1.5rem', fontSize: '24px' }}>Profilo Utente</h2>
+      <h2 style={{ marginBottom: '1.5rem', fontSize: '24px' }}>Il tuo account</h2>
       <div style={{ display: 'grid', gap: '1rem' }}>
         <div style={{ background: 'var(--surface)', padding: '1rem', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
-          <strong style={{ display: 'block', fontSize: '13px', color: 'var(--text-muted)' }}>Email loggata</strong>
+          <strong style={{ display: 'block', fontSize: '13px', color: 'var(--text-muted)' }}>La tua email</strong>
           <span style={{ fontSize: '16px' }}>{user?.email}</span>
         </div>
         <div style={{ background: 'var(--surface)', padding: '1rem', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
@@ -2594,7 +2594,7 @@ const [importMsg, setImportMsg] = useState(null);
             <div className="page-actions">
               {user?.role !== 'admin' && (!isBasePlan || activeChannelCount > 0) && (
                 <button className="btn btn-primary" onClick={isBasePlan ? () => acquireBaseContent(false) : syncNow} disabled={syncing}>
-                  {syncing ? '⟳ Sto cercando…' : isBasePlan ? '↻ Aggiorna contenuti' : '↻ Aggiorna i canali'}
+                  {syncing ? '⟳ Aggiornamento…' : isBasePlan ? '↻ Aggiorna contenuti' : '↻ Cerca nuovi contenuti'}
                 </button>
               )}
             </div>
@@ -2613,7 +2613,7 @@ const [importMsg, setImportMsg] = useState(null);
             {tab === 'overview' && (
               <section className="project-command-center" aria-labelledby="project-command-title">
                 <div className="project-command-main">
-                  <div className="project-command-status"><i aria-hidden="true" /> Progetto operativo</div>
+                  <div className="project-command-status"><i aria-hidden="true" /> Sito attivo</div>
                   <span className="section-eyebrow">Il tuo progetto digitale</span>
                   <h2 id="project-command-title">{site?.title || siteTitleDraft || user?.name || 'Il tuo sito'}</h2>
                   <p>Contenuti, pubblicazione e identità visiva riuniti in un unico spazio di lavoro.</p>
@@ -2625,17 +2625,17 @@ const [importMsg, setImportMsg] = useState(null);
                 <div className="project-command-grid" aria-label="Stato del progetto">
                   <article>
                     <span className="project-command-icon is-ai" aria-hidden="true">✦</span>
-                    <div><small>Direzione grafica AI</small><strong>{visualAgentConfigured ? 'Personalizzata' : 'Pronta da configurare'}</strong><p>{visualDirection}</p></div>
+                    <div><small>Aspetto del sito</small><strong>{visualAgentConfigured ? 'Personalizzata' : 'Pronta da configurare'}</strong><p>{visualDirection}</p></div>
                     <b className={visualAgentConfigured ? 'is-ready' : 'is-pending'}>{visualAgentConfigured ? 'Attiva' : 'Setup'}</b>
                   </article>
                   <article>
                     <span className="project-command-icon" aria-hidden="true">◎</span>
-                    <div><small>Canali sorgente</small><strong>{activeChannelCount} collegat{activeChannelCount === 1 ? 'o' : 'i'}</strong><p>{posts.length} contenuti acquisiti</p></div>
+                    <div><small>Canali social</small><strong>{activeChannelCount} collegat{activeChannelCount === 1 ? 'o' : 'i'}</strong><p>{posts.length} contenuti acquisiti</p></div>
                     <button onClick={() => selectNavigation({ id: 'sources' })} aria-label="Gestisci i canali">→</button>
                   </article>
                   <article>
                     <span className="project-command-icon" aria-hidden="true">✓</span>
-                    <div><small>Produzione editoriale</small><strong>{readyPostCount} pronti</strong><p>{publishedPosts.length} già online</p></div>
+                    <div><small>Articoli</small><strong>{readyPostCount} pronti</strong><p>{publishedPosts.length} già online</p></div>
                     <button onClick={() => selectNavigation({ id: 'site' })} aria-label="Gestisci gli articoli">→</button>
                   </article>
                 </div>
@@ -2702,7 +2702,7 @@ const [importMsg, setImportMsg] = useState(null);
                 { n: sources.length, l: 'Canali collegati', action: () => selectNavigation({ id: 'sources' }) },
                 { n: posts.length, l: 'Contenuti acquisiti', action: () => selectNavigation({ id: 'site' }) },
                 { n: publishedPosts.length, l: 'Articoli online', action: () => selectNavigation({ id: 'site' }) },
-                { n: Number(visibility.actions || 0).toLocaleString('it-IT'), l: 'Azioni · 30 giorni', action: () => selectNavigation({ id: 'seo' }) },
+                { n: Number(visibility.actions || 0).toLocaleString('it-IT'), l: 'Azioni degli utenti', action: () => selectNavigation({ id: 'seo' }) },
               ].map((s, i) => (
                 <button key={i} type="button" onClick={s.action}><strong>{s.n}</strong><span>{s.l}</span><i aria-hidden="true">→</i></button>
               ))}
@@ -2716,9 +2716,9 @@ const [importMsg, setImportMsg] = useState(null);
                 <p>{readyPostCount ? 'Rivedi titoli e testi, poi scegli cosa pubblicare.' : 'Puoi aggiornare i canali oppure verificare come il sito appare in rete.'}</p>
                 <div>
                   <button className="btn btn-primary" onClick={() => selectNavigation({ id: readyPostCount ? 'site' : 'sources' })}>{readyPostCount ? 'Controlla i contenuti' : 'Gestisci i canali'}</button>
-                  <button className="btn btn-outline" onClick={() => selectNavigation({ id: 'seo' })}>Esplora la rete</button>
+                  <button className="btn btn-outline" onClick={() => selectNavigation({ id: 'seo' })}>Verifica Google</button>
                 </div>
-                <small>Ultimo aggiornamento: {site?.last_sync ? new Date(site.last_sync).toLocaleString('it-IT') : 'non ancora effettuato'}</small>
+                <small style={{ color: 'var(--text-muted)', fontSize: '12px' }}>Ultimo aggiornamento: {site?.last_sync ? new Date(site.last_sync).toLocaleString('it-IT') : 'mai effettuato'}</small>
               </div>
             </section>
 
@@ -2841,7 +2841,7 @@ const [importMsg, setImportMsg] = useState(null);
 
               {/* Form Aggiungi Canale */}
               <div className="card" style={{ padding: '24px', border: '2px solid var(--border)', background: 'var(--surface)', borderRadius: 'var(--radius-lg)' }}>
-                <h2 style={{ marginBottom: '0.75rem', fontSize: '24px', fontWeight: 800 }}>➕ Aggiungi un nuovo canale</h2>
+                <h2 style={{ marginBottom: '0.75rem', fontSize: '24px', fontWeight: 800 }}>Collega un nuovo social</h2>
                 <p style={{ fontSize: '16px', color: 'var(--text-muted)', marginBottom: '1.5rem', lineHeight: 1.5 }}>
                   Incolla l'URL pubblico di un sito, profilo, canale o singolo post. I contenuti verranno acquisiti automaticamente.
                 </p>
@@ -2850,7 +2850,7 @@ const [importMsg, setImportMsg] = useState(null);
                     <input
                       className="channel-url-input"
                       type="url"
-                      placeholder="Esempio: https://www.instagram.com/nome/"
+                      placeholder="Es: https://www.instagram.com/iltuonome/"
                       value={addUrl}
                       onChange={e => { setAddUrl(e.target.value); setAddMsg(null); }}
                       style={{ paddingLeft: detectedPlatform ? '52px' : '24px', transition: 'padding 0.2s', paddingRight: '24px', paddingTop: '16px', paddingBottom: '16px', fontSize: '18px', width: '100%', borderRadius: '12px', border: '2px solid var(--border-strong)' }}
@@ -2875,7 +2875,7 @@ const [importMsg, setImportMsg] = useState(null);
                   />
                   <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
                     <button type="submit" disabled={addLoading || !addUrl.trim()} className="btn btn-primary" style={{ padding: '12px 24px', fontSize: '16px', fontWeight: 800 }}>
-                      {addLoading ? 'Aggiunta in corso...' : 'Aggiungi canale adesso'}
+                      {addLoading ? 'Aggiunta in corso…' : 'Aggiungi canale'}
                     </button>
                     {addMsg && (
                       <span style={{ fontSize: '14px', fontWeight: 600, color: addMsg.ok ? 'var(--teal)' : 'var(--red)', background: addMsg.ok ? 'var(--teal-light)' : 'var(--red-light)', padding: '10px 16px', borderRadius: 'var(--radius)' }}>
@@ -2889,7 +2889,7 @@ const [importMsg, setImportMsg] = useState(null);
               {/* Lista canali attivi */}
               <div className="card">
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-                  <h2 style={{ margin: 0, fontSize: '18px' }}>📡 I tuoi canali ({allChannels.length})</h2>
+                  <h2 style={{ margin: 0, fontSize: '18px' }}>I tuoi social collegati ({allChannels.length})</h2>
                   {allChannels.length > 0 && (
                     <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
                       <button
@@ -2933,10 +2933,10 @@ const [importMsg, setImportMsg] = useState(null);
                                   color: 'var(--purple-dark)',
                                   padding: '1px 7px', borderRadius: '10px', fontWeight: 500
                                 }}>
-                                  🔍 Fonte pubblica via Refetch(er)
+                                  🔍 Fonte social pubblica
                                 </span>
                                 <span style={{ background: (channel.auto_sync ?? 1) === 1 ? 'var(--teal-light)' : 'var(--gray-light)', color: (channel.auto_sync ?? 1) === 1 ? '#0F6E56' : 'var(--text-muted)', padding: '1px 7px', borderRadius: '10px', fontWeight: 600 }}>
-                                  {(channel.auto_sync ?? 1) === 1 ? 'Controllo periodico (Frequenza in base al piano in uso)' : 'Solo manuale'}
+                                  {(channel.auto_sync ?? 1) === 1 ? 'Aggiornamento automatico' : 'Solo manuale'}
                                 </span>
                               </div>
                             </div>
@@ -2994,7 +2994,7 @@ const [importMsg, setImportMsg] = useState(null);
                                 const ap = e.target.checked ? 1 : 0;
                                 savePlatformSource(channel.rawPlatform, channel.url, channel.since_date, ap, channel.max_posts, channel.topic_summary, channel.auto_sync ?? 1);
                               }} />
-                            Pubblica auto
+                            Pubblica automaticamente
                           </label>
                           <label style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '12px', cursor: 'pointer', whiteSpace: 'nowrap' }} title="Se disattivato, il canale viene aggiornato solo con Sincronizza tutti">
                             <input type="checkbox" defaultChecked={(channel.auto_sync ?? 1) === 1}
@@ -3002,7 +3002,7 @@ const [importMsg, setImportMsg] = useState(null);
                                 const automatic = e.target.checked ? 1 : 0;
                                 savePlatformSource(channel.rawPlatform, channel.url, channel.since_date, channel.auto_publish ?? 1, channel.max_posts, channel.topic_summary, automatic);
                               }} />
-                            Sincronizza automaticamente (in base al piano)
+                            Aggiornamento automatico
                           </label>
                           </div>
                         </details>
@@ -3068,17 +3068,17 @@ const [importMsg, setImportMsg] = useState(null);
 
               {/* Importa da link diretto */}
               <details className="card">
-                <summary>Importa un singolo contenuto da un link</summary>
+                <summary>Aggiungi un contenuto da un link web</summary>
                 <div className="channel-add-body">
-                <h2 style={{ marginBottom: '0.5rem', fontSize: '18px' }}>🔗 Importa un contenuto specifico</h2>
+                <h2 style={{ marginBottom: '0.5rem', fontSize: '18px' }}>Aggiungi un articolo da un link</h2>
                 <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '12px' }}>
-                  Incolla il link di un articolo o di una pagina web per convertirlo subito in articolo. I contenuti social arrivano dai canali autorizzati.
+                  Incolla il link di un articolo o di una pagina: l'AI lo legge e lo trasforma in un articolo per il tuo sito.
                 </p>
                 <form onSubmit={doImport} style={{ display: 'flex', gap: '8px' }}>
                   <input className="channel-url-input" type="url" placeholder="https://www.esempio.it/articolo"
                     value={linkUrl} onChange={e => setLinkUrl(e.target.value)} style={{ flex: 1 }} />
                   <button type="submit" className="btn btn-primary" disabled={importing}>
-                    {importing ? '⟳ Elaborazione...' : 'Importa'}
+                    {importing ? '⟳ In corso…' : 'Aggiungi'}
                   </button>
                 </form>
                 {importMsg && (
@@ -3213,7 +3213,7 @@ const [importMsg, setImportMsg] = useState(null);
             <div style={{ display: 'flex', gap: '12px', marginBottom: '2rem', flexWrap: 'wrap' }}>
               <a href={siteUrl} target="_blank" rel="noopener"
                 className="btn btn-primary" style={{ padding: '14px 24px', fontSize: '16px', fontWeight: 800 }}>
-                ✦ Apri Sito Pubblico
+                ↗ Apri il sito
               </a>
               {pendingPosts.length > 0 && (
                 <button className="btn btn-outline" onClick={() => processPendingLoop(false)} style={{ padding: '14px 24px', fontSize: '16px', fontWeight: 800 }}>
@@ -3264,7 +3264,7 @@ const [importMsg, setImportMsg] = useState(null);
                           <td style={{ padding: '14px', color: 'var(--text-muted)', whiteSpace: 'nowrap', fontSize: 13 }}>{post.published_at ? new Date(post.published_at).toLocaleDateString('it-IT') : '—'}</td>
                           <td style={{ padding: '14px', whiteSpace: 'nowrap' }}>{processing
                             ? <span className={`article-processing-badge ${postProcessingStatus(post) === 'failed' ? 'is-error' : ''}`}>{postProcessingLabel(post)}</span>
-                            : <span className={`article-publication-status ${Number(post.published) === 1 ? 'is-published' : 'is-draft'}`}>{Number(post.published) === 1 ? 'PUBBLICATO' : 'BOZZA'}</span>}
+                            : <span className={`article-publication-status ${Number(post.published) === 1 ? 'is-published' : 'is-draft'}`}>{Number(post.published) === 1 ? 'Pubblicato' : 'Bozza'}</span>}
                           </td>
                           <td style={{ padding: '10px 14px' }}>
                             {processing ? (
@@ -3305,7 +3305,7 @@ const [importMsg, setImportMsg] = useState(null);
                            </span>
                          ) : (
                            <span className={`article-publication-status ${Number(post.published) === 1 ? 'is-published' : 'is-draft'}`} style={{ fontSize: '12px', padding: '6px 12px' }}>
-                             {Number(post.published) === 1 ? 'PUBBLICATO' : 'BOZZA'}
+                             {Number(post.published) === 1 ? 'Pubblicato' : 'Bozza'}
                            </span>
                          )}
                       </div>
@@ -3325,15 +3325,15 @@ const [importMsg, setImportMsg] = useState(null);
                     <div className="article-card-footer" style={{ padding: '20px 24px', background: 'var(--surface)', borderTop: '1px solid var(--border)', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                       {Number(post.seo_score) < 0 ? (
                          <button className="btn btn-outline" style={{ gridColumn: '1 / -1', padding: '14px', fontSize: '15px' }} disabled={postProcessingStatus(post) === 'processing'} onClick={() => retryPendingPost(post.id)}>
-                            {postProcessingStatus(post) === 'processing' ? '⏳ IN CORSO' : postProcessingStatus(post) === 'failed' ? '↻ RIPROVA' : '▶ ELABORA ORA'}
+                            {postProcessingStatus(post) === 'processing' ? '⏳ In preparazione…' : postProcessingStatus(post) === 'failed' ? '↻ Riprova' : '▶ Prepara articolo'}
                          </button>
                       ) : (
                          <>
                            <button onClick={() => openPostEditor(post)} className="btn btn-outline" style={{ padding: '12px', fontSize: '15px' }}>
-                             ✏️ MODIFICA
+                             ✏️ Modifica
                            </button>
                            <button className={`article-publish-button ${Number(post.published) === 1 ? 'is-published' : 'is-draft'}`} style={{ padding: '12px', fontSize: '15px', gridColumn: 'span 1' }} disabled={publishingPostId === post.id} onClick={() => togglePublishPost(post.id, post.published)}>
-                             {publishingPostId === post.id ? 'ATTENDI…' : Number(post.published) === 1 ? 'NASCONDI' : 'PUBBLICA'}
+                             {publishingPostId === post.id ? 'Attendi…' : Number(post.published) === 1 ? 'Nascondi' : 'Pubblica'}
                            </button>
                          </>
                       )}
@@ -3377,8 +3377,8 @@ const [importMsg, setImportMsg] = useState(null);
 
             {visibilitySection !== 'ideas' && <div className="visibility-subnav">
               {[
-                ['network', 'Configura la presenza'],
-                ['overview', 'Pagine, dati e fonti'],
+                ['network', 'La tua presenza'],
+                ['overview', 'Statistiche e pagine'],
                 ...(isAdmin ? [['lab', 'Laboratorio']] : []),
               ].map(([section, label]) => <button key={section} className={visibilitySection === section ? 'is-active' : ''} onClick={() => setVisibilitySection(section)}>{label}</button>)}
             </div>}
@@ -3387,7 +3387,7 @@ const [importMsg, setImportMsg] = useState(null);
 
             {visibilitySection === 'network' && <div className="presence-workspace">
               <section className="presence-hero">
-                <div className="presence-hero-copy"><span>La tua presenza digitale</span><h2>{reachability.score || 0}% configurata</h2><p>Questa percentuale misura ciò che hai realmente predisposto. I dati Google sono separati perché dipendono dalla scansione e non possono essere promessi.</p></div>
+                <div className="presence-hero-copy"><span>La tua presenza digitale</span><h2>{reachability.score || 0}% completato</h2><p>Questa percentuale misura ciò che hai realmente predisposto. I dati Google sono separati perché dipendono dalla scansione e non possono essere promessi.</p></div>
                 <div className="presence-score" style={{ '--score': `${reachability.score || 0}%` }}><strong>{reachability.score || 0}%</strong><span>configurazione</span></div>
               </section>
 
@@ -3423,10 +3423,10 @@ const [importMsg, setImportMsg] = useState(null);
                   <div className="presence-step-number">3</div><div className="presence-step-body"><h4>Come possono contattarti?</h4><p>I pulsanti vengono mostrati automaticamente negli articoli. I campi vuoti non compaiono.</p><div className="presence-fields three"><label><span>Telefono</span><input value={reachabilityDraft.phone || ''} onChange={e => setReachabilityDraft(prev => ({ ...prev, phone: e.target.value }))} placeholder="+39 06 1234567" /></label><label><span>WhatsApp</span><input value={reachabilityDraft.whatsapp || ''} onChange={e => setReachabilityDraft(prev => ({ ...prev, whatsapp: e.target.value }))} placeholder="340 1234567" /></label><label><span>Email</span><input type="email" value={reachabilityDraft.email || ''} onChange={e => setReachabilityDraft(prev => ({ ...prev, email: e.target.value }))} placeholder="info@attivita.it" /></label></div></div>
                 </div>
 
-                <div className="presence-save"><div><strong>Le tue risposte alimentano tutto il sistema</strong><span>Pagine, dati strutturati, contatti e analisi useranno queste informazioni.</span></div><button className="btn btn-primary" onClick={saveReachabilityNetwork} disabled={savingReachability}>{savingReachability ? 'Salvataggio…' : 'Salva e aggiorna la presenza'}</button></div>
+                <div className="presence-save"><div><strong>Le tue risposte alimentano tutto il sistema</strong><span>Pagine, dati strutturati, contatti e analisi useranno queste informazioni.</span></div><button className="btn btn-primary" onClick={saveReachabilityNetwork} disabled={savingReachability}>{savingReachability ? 'Salvataggio…' : 'Salva le informazioni'}</button></div>
               </section>
 
-              <section className="presence-status-summary"><header><div><span>Verifiche tecniche</span><h3>Cosa è già pronto</h3></div><p>Questi controlli si aggiornano dalle risposte e dal lavoro reale della piattaforma.</p></header><div>{(reachability.checks || []).map(check => <article key={check.id} className={check.done ? 'is-done' : ''}><span>{check.done ? '✓' : '→'}</span><div><strong>{check.label}</strong><small>{check.detail}</small></div></article>)}</div></section>
+              <section className="presence-status-summary"><header><div><span>Verifiche tecniche</span><h3>Cosa è già pronto</h3></div><p>Questi controlli si aggiornano dalle risposte e dal lavoro reale della piattaforma.</p></header><div>{(reachability.checks || []).map(check => <article key={check.id} className={check.done ? 'is-done' : ''}><span>{check.done ? '✓' : '○'}</span><div><strong>{check.label}</strong><small>{check.detail}</small></div></article>)}</div></section>
             </div>}
 
             {false && visibilitySection === 'network' && <>

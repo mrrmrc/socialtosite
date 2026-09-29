@@ -92,11 +92,11 @@ export function AuthScreen({ onAuth }) {
           </div>
 
           <h2 style={{ margin: '0 0 .4rem', fontSize: 26, fontWeight: 900, color: '#0F0F0E', letterSpacing: '-.035em' }}>Bentornato</h2>
-          <p style={{ margin: '0 0 2rem', fontSize: 15, color: '#9CA3AF' }}>Inserisci le tue credenziali per accedere.</p>
+          <p style={{ margin: '0 0 2rem', fontSize: 15, color: '#9CA3AF' }}>Inserisci email e password per accedere al pannello.</p>
 
           <form onSubmit={submit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
             {[
-              { label: 'Email o Username', type: 'text', val: email, set: setEmail, ph: 'es. mario.rossi' },
+              { label: 'Email', type: 'text', val: email, set: setEmail, ph: 'es. mario@esempio.it' },
               { label: 'Password', type: 'password', val: password, set: setPassword, ph: '••••••••' },
             ].map(f => (
               <div key={f.label}>

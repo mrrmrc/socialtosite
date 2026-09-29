@@ -1,0 +1,25 @@
+            </section>
+            <section className="card visual-identity-panel" id="visual-identity">
+              <header><div><span className="section-eyebrow">Identità del sito</span><h2>Scegli nome e immagine</h2><p>Il cliente decide come presentarsi: il nome scritto qui resta prioritario e non viene sostituito dalle successive importazioni social.</p></div><a className="btn btn-outline" href={siteUrl} target="_blank" rel="noopener">Vedi anteprima ↗</a></header>
+              <form className="site-name-editor" onSubmit={saveSiteTitle}>
+                <label htmlFor="site-title"><strong>Nome del sito</strong><span>Comparirà nell’intestazione, nelle pagine e nei risultati condivisi.</span></label>
+                <div><input id="site-title" type="text" maxLength={120} required value={siteTitleDraft} onChange={event => setSiteTitleDraft(event.target.value)} placeholder="Es. Studio Rossi, Casa Verde, Marco Bianchi" /><button className="btn btn-primary" type="submit" disabled={savingSiteTitle}>{savingSiteTitle ? 'Salvataggio…' : 'Salva nome'}</button></div>
+              </form>
+              <div className="visual-choice-intro"><strong>Immagine del sito</strong><span>Usa un logo se hai un marchio riconoscibile; scegli una foto per raccontare subito attività, luogo o persona.</span></div>
+              <div className="visual-choice-grid" role="radiogroup" aria-label="Tipo di immagine del sito">
+                {[
+                  ['logo', 'Logo', 'Ideale per marchi e professionisti', logoUrl],
+                  ['cover', 'Immagine rappresentativa', 'Ideale per luoghi, persone e attività', coverUrl],
+                ].map(([mode, label, description, image]) => (
+                  <button type="button" role="radio" aria-checked={brandVisualMode === mode} className={brandVisualMode === mode ? 'is-selected' : ''} onClick={() => selectBrandVisualMode(mode)} disabled={savingVisualMode} key={mode}>
+                    <span className={`visual-choice-preview is-${mode}`}>{image ? <img src={image} alt="" /> : <b>{mode === 'logo' ? 'LOGO' : 'IMMAGINE'}</b>}</span>
+                    <span><strong>{label}</strong><small>{description}</small></span><i>{brandVisualMode === mode ? '✓' : ''}</i>
+                  </button>
+                ))}
+              </div>
+              <div className="visual-upload-row">
+                <div><strong>{brandVisualMode === 'cover' ? 'Immagine orizzontale consigliata' : 'Logo quadrato o orizzontale'}</strong><span>{brandVisualMode === 'cover' ? 'JPG, PNG o WebP · massimo 8 MB · rapporto consigliato 16:9' : 'JPG, PNG o WebP · massimo 3 MB · sfondo trasparente consigliato'}</span></div>
+                <label className="btn btn-primary">{uploadingLogo ? 'Caricamento…' : `${brandVisualMode === 'cover' ? 'Carica immagine' : 'Carica logo'}`}<input type="file" accept="image/png,image/jpeg,image/webp" onChange={event => uploadSiteVisual(event, brandVisualMode)} disabled={uploadingLogo} /></label>
+              </div>
+            </section>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: '1rem' }}>

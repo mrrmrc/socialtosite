@@ -37,18 +37,18 @@ export default function StrategyInterview({ declaredStrategy, onUpdateStrategy, 
                 setMessages([...newMessages, { role: 'ai', text: 'Scusa, ho avuto un momento di confusione. Puoi ripetere?' }]);
             }
         } catch (err) {
-            setMessages([...newMessages, { role: 'ai', text: 'Errore backend: ' + (err.message || 'Sconosciuto') }]);
+            setMessages([...newMessages, { role: 'ai', text: 'Mi dispiace, c\'è stato un problema. Riprova tra un momento.' }]);
         } finally {
             setIsLoading(false);
         }
     };
 
     const strategyFields = [
-        { key: 'activity_type', label: 'La Tua Attività', icon: '💼', color: '#6366f1' },
-        { key: 'primary_goal', label: 'Obiettivo Master', icon: '🎯', color: '#f43f5e' },
-        { key: 'primary_audience', label: 'Pubblico Ideale', icon: '👥', color: '#10b981' },
-        { key: 'tone_of_voice', label: 'Tono di Voce', icon: '🎙️', color: '#f59e0b' },
-        { key: 'differentiators', label: 'Fattore Unico', icon: '✨', color: '#8b5cf6' }
+        { key: 'activity_type', label: 'La tua attività', icon: '💼', color: '#6366f1' },
+        { key: 'primary_goal', label: 'Obiettivo principale', icon: '🎯', color: '#f43f5e' },
+        { key: 'primary_audience', label: 'A chi ti rivolgi', icon: '👥', color: '#10b981' },
+        { key: 'tone_of_voice', label: 'Come parli', icon: '🎙️', color: '#f59e0b' },
+        { key: 'differentiators', label: 'Cosa ti distingue', icon: '✨', color: '#8b5cf6' }
     ];
 
     const isFullyCompiled = strategyFields.every(f => declaredStrategy?.[f.key]);
@@ -91,7 +91,7 @@ export default function StrategyInterview({ declaredStrategy, onUpdateStrategy, 
                         <h2 style={{ margin: 0, fontSize: '18px', fontWeight: 800, letterSpacing: '-0.02em', color: '#111827' }}>Lia</h2>
                         <div style={{ fontSize: '13px', color: '#6366f1', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px' }}>
                             <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#10b981', display: 'inline-block', boxShadow: '0 0 0 2px rgba(16, 185, 129, 0.2)' }}></span>
-                            Intelligenza Strategica
+                            Consulente Strategico AI
                         </div>
                     </div>
                 </div>
@@ -188,7 +188,7 @@ export default function StrategyInterview({ declaredStrategy, onUpdateStrategy, 
                         La tua <span style={{ color: '#818cf8' }}>Strategia Editoriale</span> prende forma
                     </h3>
                     <p style={{ fontSize: '15px', color: '#94a3b8', lineHeight: 1.6, margin: 0 }}>
-                        Mentre parli con Lia, i concetti chiave vengono estratti e salvati qui sotto in tempo reale.
+                        Le risposte che dai in chat vengono salvate qui in tempo reale e usate per migliorare i tuoi articoli.
                     </p>
                 </div>
 
@@ -221,7 +221,7 @@ export default function StrategyInterview({ declaredStrategy, onUpdateStrategy, 
                                     fontWeight: val ? 500 : 400,
                                     lineHeight: 1.5
                                 }}>
-                                    {val || 'In attesa di dettagli...'}
+                                    {val || 'Ancora da definire'}
                                 </div>
                             </div>
                         );
