@@ -2804,7 +2804,20 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
                     )}
                     <StrategyInterview 
                       declaredStrategy={declaredStrategy} 
-                      onUpdateStrategy={(updates) => { Object.entries(updates).forEach(([k, v]) => updateDeclaredStrategy(k, v)); }} 
+                      onUpdateStrategy={async (updates) => {
+                        Object.entries(updates).forEach(([k, v]) => updateDeclaredStrategy(k, v));
+                        const newStrategy = { ...declaredStrategy, ...updates };
+                        try {
+                          await apiFetch('/api/index.php?action=site-update', {
+                            method: 'POST',
+                            body: JSON.stringify({
+                              site_understanding_corrections: {
+                                declared_strategy: newStrategy,
+                              },
+                            }),
+                          }, token);
+                        } catch(e) { console.error('Errore salvataggio strategia:', e); }
+                      }} 
                       apiFetch={apiFetch} 
                       token={token} 
                     />

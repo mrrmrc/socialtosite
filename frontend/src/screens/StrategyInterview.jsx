@@ -181,54 +181,50 @@ export default function StrategyInterview({ declaredStrategy, onUpdateStrategy, 
                 minWidth: 0, 
                 display: 'flex',
                 flexDirection: 'column',
-                gap: '20px'
+                gap: '24px'
             }}>
-                <div style={{ padding: '32px', background: 'linear-gradient(145deg, #1e293b, #0f172a)', borderRadius: '32px', color: 'white', boxShadow: '0 20px 40px rgba(15, 23, 42, 0.2)' }}>
-                    <div style={{ display: 'inline-block', padding: '6px 14px', background: 'rgba(255,255,255,0.1)', borderRadius: '100px', fontSize: '12px', fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', marginBottom: '20px', backdropFilter: 'blur(10px)' }}>
+                <div style={{ padding: '32px', background: 'linear-gradient(145deg, #1e293b, #0f172a)', borderRadius: '32px', color: 'white', boxShadow: '0 20px 40px rgba(15, 23, 42, 0.2)', position: 'relative', overflow: 'hidden' }}>
+                    {/* decorative background element */}
+                    <div style={{ position: 'absolute', top: '-50%', right: '-20%', width: '300px', height: '300px', background: 'radial-gradient(circle, rgba(99,102,241,0.15) 0%, rgba(0,0,0,0) 70%)', borderRadius: '50%' }}></div>
+                    
+                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '6px 14px', background: 'rgba(255,255,255,0.1)', borderRadius: '100px', fontSize: '12px', fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', marginBottom: '24px', backdropFilter: 'blur(10px)', border: '1px solid rgba(255,255,255,0.05)' }}>
+                        <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#10b981', boxShadow: '0 0 10px #10b981' }}></span>
                         Live Sync
                     </div>
-                    <h3 style={{ fontSize: '26px', fontWeight: 800, marginBottom: '12px', letterSpacing: '-0.02em', lineHeight: 1.2 }}>
-                        La tua <span style={{ color: '#818cf8' }}>Strategia Editoriale</span> prende forma
+                    
+                    <h3 style={{ fontSize: '28px', fontWeight: 800, marginBottom: '16px', letterSpacing: '-0.02em', lineHeight: 1.2 }}>
+                        Assemblaggio <br/><span style={{ color: '#818cf8' }}>Agente Editoriale</span>
                     </h3>
-                    <p style={{ fontSize: '15px', color: '#94a3b8', lineHeight: 1.6, margin: 0 }}>
-                        Le risposte che dai in chat vengono salvate qui in tempo reale e usate per migliorare i tuoi articoli.
+                    
+                    <p style={{ fontSize: '15px', color: '#94a3b8', lineHeight: 1.6, margin: '0 0 32px 0' }}>
+                        Lia sta raccogliendo le tue informazioni per creare un Agente AI personalizzato che scriverà con il tuo stesso tono e stile.
                     </p>
-                </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px' }}>
-                    {strategyFields.map(f => {
-                        const val = declaredStrategy?.[f.key];
-                        return (
-                            <div key={f.key} style={{ 
-                                padding: '24px', 
-                                background: val ? '#ffffff' : 'rgba(255,255,255,0.4)', 
-                                borderRadius: '24px', 
-                                border: val ? '1px solid rgba(0,0,0,0.04)' : '1px dashed rgba(0,0,0,0.1)',
-                                boxShadow: val ? '0 10px 25px rgba(0,0,0,0.03)' : 'none',
-                                transition: 'all 0.4s cubic-bezier(0.16, 1, 0.3, 1)',
-                                position: 'relative',
-                                overflow: 'hidden'
-                            }}>
-                                {val && <div style={{ position: 'absolute', top: 0, left: 0, width: '4px', height: '100%', background: f.color }}></div>}
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
-                                    <div style={{ width: '36px', height: '36px', borderRadius: '12px', background: val ? `${f.color}15` : '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px' }}>
-                                        {f.icon}
-                                    </div>
-                                    <div style={{ fontSize: '14px', fontWeight: 700, color: val ? '#1e293b' : '#94a3b8' }}>
-                                        {f.label}
-                                    </div>
-                                </div>
-                                <div style={{ 
-                                    fontSize: '16px', 
-                                    color: val ? '#334155' : '#cbd5e1', 
-                                    fontWeight: val ? 500 : 400,
-                                    lineHeight: 1.5
-                                }}>
-                                    {val || 'Ancora da definire'}
-                                </div>
+                    {/* Progress Bar Container */}
+                    <div style={{ background: 'rgba(255,255,255,0.05)', borderRadius: '24px', padding: '24px', border: '1px solid rgba(255,255,255,0.1)' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '16px' }}>
+                            <div style={{ fontSize: '14px', fontWeight: 600, color: '#cbd5e1' }}>Progresso</div>
+                            <div style={{ fontSize: '32px', fontWeight: 800, color: '#ffffff', letterSpacing: '-0.02em' }}>{Math.round((strategyFields.filter(f => declaredStrategy?.[f.key]).length / strategyFields.length) * 100)}%</div>
+                        </div>
+                        
+                        <div style={{ height: '8px', background: 'rgba(0,0,0,0.4)', borderRadius: '100px', overflow: 'hidden', marginBottom: '24px' }}>
+                            <div style={{ width: `${Math.round((strategyFields.filter(f => declaredStrategy?.[f.key]).length / strategyFields.length) * 100)}%`, height: '100%', background: 'linear-gradient(90deg, #6366f1, #8b5cf6)', borderRadius: '100px', transition: 'width 0.6s cubic-bezier(0.16, 1, 0.3, 1)' }}></div>
+                        </div>
+                        
+                        {isFullyCompiled ? (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', color: '#10b981', fontSize: '14px', fontWeight: 600 }}>
+                                <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: 'rgba(16,185,129,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✓</div>
+                                Agente Editoriale pronto
                             </div>
-                        );
-                    })}
+                        ) : (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', color: '#94a3b8', fontSize: '14px' }}>
+                                <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: 'rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                    <span className="typing-dot" style={{ width: '4px', height: '4px', background: '#94a3b8', borderRadius: '50%', animation: 'bounce 1.4s infinite ease-in-out both' }}></span>
+                                </div>
+                                Lia sta elaborando...
+                            </div>
+                        )}
+                    </div>
                 </div>
             </div>
 
