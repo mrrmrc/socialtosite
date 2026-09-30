@@ -579,6 +579,26 @@ const [importMsg, setImportMsg] = useState(null);
   const [passwordMsg, setPasswordMsg] = useState(null);
   const deferredStudio = useDeferredValue(templateStudio);
   const siteUrl = `${window.location.origin}/${user?.slug}`;
+
+  const [showInterview, setShowInterview] = useState(false);
+  const isStrategyComplete = ['activity_type', 'primary_goal', 'primary_audience', 'tone_of_voice', 'differentiators'].every(f => declaredStrategy?.[f]);
+
+  useEffect(() => {
+    if (isStrategyComplete && !userAgentPromptDraft && !data?.site?.user_agent_prompt) {
+      const draft = `Attività: ${declaredStrategy.activity_type || ''}
+Obiettivo: ${declaredStrategy.primary_goal || ''}
+Pubblico: ${declaredStrategy.primary_audience || ''}
+Tono di voce: ${declaredStrategy.tone_of_voice || ''}
+Punti distintivi: ${declaredStrategy.differentiators || ''}
+
+Linee guida per l'Agente Editoriale:
+Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono di voce indicato. Mantieni il focus sull'obiettivo principale e rivolgiti direttamente al pubblico target, mettendo in risalto gli elementi distintivi.`;
+      setUserAgentPromptDraft(draft);
+      // Auto-save the generated draft
+      apiFetch('/api/index.php?action=site-update', { method: 'POST', body: JSON.stringify({ user_agent_prompt: draft }) }, token).catch(e => console.error(e));
+    }
+  }, [isStrategyComplete, declaredStrategy, userAgentPromptDraft, data, token]);
+
   const normalizedThemeQuery = themeQuery.trim().toLocaleLowerCase('it');
   const visibleSiteLayouts = SITE_LAYOUTS.filter(layout => {
     const matchesCategory = themeCategory === 'Tutti' || layout.category === themeCategory;
@@ -1751,6 +1771,9 @@ const [importMsg, setImportMsg] = useState(null);
               Questa è la sintesi strategica che guida l'agente editoriale. Può essere generata in base al tuo profilo o modificata a mano per perfezionarla.
             </p>
           </div>
+          <button className="btn btn-outline" onClick={() => setShowInterview(true)}>
+            Rivedi l'intervista
+          </button>
         </div>
 
         <div style={{ display: 'grid', gap: '0.75rem' }}>
@@ -2768,9 +2791,28 @@ const [importMsg, setImportMsg] = useState(null);
 
             </div>)}
 
-            {(tab === 'profile' && profileSubTab === 'who') && <StrategyInterview declaredStrategy={declaredStrategy} onUpdateStrategy={(updates) => { Object.entries(updates).forEach(([k, v]) => updateDeclaredStrategy(k, v)); }} apiFetch={apiFetch} token={token} />}
-
-            {(tab === 'profile' && profileSubTab === 'who') && renderEditorialAgentPanel()}
+            {(tab === 'profile' && profileSubTab === 'who') && (
+              <div style={{ display: 'grid', gap: '24px' }}>
+                {(!isStrategyComplete || showInterview) && (
+                  <>
+                    {isStrategyComplete && (
+                      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '-12px' }}>
+                        <button className="btn btn-outline" onClick={() => setShowInterview(false)}>
+                          Chiudi intervista
+                        </button>
+                      </div>
+                    )}
+                    <StrategyInterview 
+                      declaredStrategy={declaredStrategy} 
+                      onUpdateStrategy={(updates) => { Object.entries(updates).forEach(([k, v]) => updateDeclaredStrategy(k, v)); }} 
+                      apiFetch={apiFetch} 
+                      token={token} 
+                    />
+                  </>
+                )}
+                {(isStrategyComplete && !showInterview) && renderEditorialAgentPanel()}
+              </div>
+            )}
 
             {false && <div id="strategy-legacy" className="card" style={{ padding: '1.5rem', background: 'var(--surface)', border: '1px solid var(--primary)' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1.25rem', alignItems: 'flex-start', flexWrap: 'wrap' }}>
