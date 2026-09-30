@@ -19,9 +19,11 @@ class ProfileInterview {
             ? $site['site_understanding'] 
             : (json_decode((string)($site['site_understanding'] ?? ''), true) ?: []);
 
-        $declared = is_array($site['declared_strategy'] ?? null) 
-            ? $site['declared_strategy'] 
-            : (json_decode((string)($site['declared_strategy'] ?? ''), true) ?: []);
+        $corrections = is_array($site['site_understanding_corrections'] ?? null) 
+            ? $site['site_understanding_corrections'] 
+            : (json_decode((string)($site['site_understanding_corrections'] ?? ''), true) ?: []);
+
+        $declared = $corrections['declared_strategy'] ?? $understanding['declared_strategy'] ?? [];
 
         $context = [
             'ai_deductions_from_social' => $understanding,

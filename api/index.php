@@ -1852,14 +1852,8 @@ if ($action === 'interview-chat' && $method === 'POST') {
         $messages = is_array($b['messages'] ?? null) ? $b['messages'] : [];
         if (!$messages) jsonError('Scrivi una risposta', 422);
 
-        $site = DB::fetch('SELECT site_understanding, declared_strategy FROM sites WHERE user_id=? LIMIT 1', [$userId]) ?: [];
+        $site = DB::fetch('SELECT site_understanding, site_understanding_corrections FROM sites WHERE user_id=? LIMIT 1', [$userId]) ?: [];
         $response = ProfileInterview::reply($site, $messages);
-
-        if (!empty($response['updates'])) {
-            $declared = (is_array($site['declared_strategy'] ?? null) ? $site['declared_strategy'] : json_decode((string)($site['declared_strategy'] ?? ''), true)) ?: [];
-            $declared = array_merge($declared, $response['updates']);
-            DB::execute('UPDATE sites SET declared_strategy = ? WHERE user_id = ?', [json_encode($declared, JSON_UNESCAPED_UNICODE), $userId]);
-        }
 
         json(['ok' => true, 'reply' => $response['text'], 'updates' => $response['updates']]);
     } catch (Throwable $e) {
