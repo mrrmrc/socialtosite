@@ -581,6 +581,8 @@ const [importMsg, setImportMsg] = useState(null);
   const siteUrl = `${window.location.origin}/${user?.slug}`;
 
   const [showInterview, setShowInterview] = useState(false);
+  const activeUnderstanding = understandingDraft || understandingReport || {};
+  const declaredStrategy = activeUnderstanding.declared_strategy || {};
   const isStrategyComplete = ['activity_type', 'primary_goal', 'primary_audience', 'tone_of_voice', 'differentiators'].every(f => declaredStrategy?.[f]);
 
   useEffect(() => {
@@ -2386,8 +2388,6 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
   const dismissedIdeaKeySet = new Set(dismissedIdeaKeys);
   const contentIdeas = (aiContentIdeas.length ? aiContentIdeas : buildEditorialIdeas(posts, understandingDraft || understandingReport, visibility))
     .filter(idea => !dismissedIdeaKeySet.has(editorialIdeaKey(idea)));
-  const activeUnderstanding = understandingDraft || understandingReport || {};
-  const declaredStrategy = activeUnderstanding.declared_strategy || {};
   const strategyProgress = strategyCompletion(activeUnderstanding);
   const publishedPosts = posts.filter(post => Number(post.published) === 1);
   const networkPublishedPages = (visibility.published_pages ?? (publishedPosts.length + 1)) + (seoFoundation.pages || []).length + (publishedPosts.length ? 1 : 0) + (sources.length ? 1 : 0);
