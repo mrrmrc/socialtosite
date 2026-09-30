@@ -536,6 +536,8 @@ const [importMsg, setImportMsg] = useState(null);
   const [footerText, setFooterText] = useState('');
   const [harmonizeAgent, setHarmonizeAgent] = useState('content_editor');
   const [accountType, setAccountType] = useState('business');
+  const [userAgentPromptDraft, setUserAgentPromptDraft] = useState('');
+  const [savingUserAgentPrompt, setSavingUserAgentPrompt] = useState(false);
   const [templateStudio, setTemplateStudio] = useState(() => normalizeStudioData(null));
   const [savingTemplateStudio, setSavingTemplateStudio] = useState(false);
   const [studioWorkspaceOpen, setStudioWorkspaceOpen] = useState(false);
@@ -661,6 +663,7 @@ const [importMsg, setImportMsg] = useState(null);
       setFooterText(d.site?.footer_text || '');
       setHarmonizeAgent(d.site?.harmonize_agent || 'content_editor');
       setAccountType(d.site?.account_type || 'business');
+      setUserAgentPromptDraft(d.site?.user_agent_prompt || '');
       try {
         const dismissed = typeof d.site?.dismissed_content_ideas === 'string'
           ? JSON.parse(d.site.dismissed_content_ideas || '[]')
@@ -1579,6 +1582,18 @@ const [importMsg, setImportMsg] = useState(null);
   }
 
   // Interruttore "Fatti trovare da Google" per l'intero sito.
+  async function saveUserAgentPrompt() {
+    setSavingUserAgentPrompt(true);
+    try {
+      await apiFetch('/api/index.php?action=site-update', { method: 'POST', body: JSON.stringify({ user_agent_prompt: userAgentPromptDraft }) }, token);
+      await loadData();
+      setSyncMsg({ ok: true, text: 'Istruzioni Agente Editoriale salvate.' });
+    } catch (err) {
+      setSyncMsg({ ok: false, text: err.message });
+    }
+    setSavingUserAgentPrompt(false);
+  }
+
   async function toggleSearchVisible(nextValue) {
     setSavingSearchVisible(true);
     // Aggiornamento ottimistico: l'interruttore deve rispondere subito.
@@ -1725,64 +1740,32 @@ const [importMsg, setImportMsg] = useState(null);
     setAnsweringId(null);
   }
 
-  function renderProfileUnderstandingPanel() {
-    const status = profileUnderstanding?.status;
-    const openQuestions = profileQuestions.filter(q => q.status === 'open');
+  function renderEditorialAgentPanel() {
     return (
       <section className="card" style={{ padding: '1.5rem', display: 'grid', gap: '1rem' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap', alignItems: 'flex-start' }}>
           <div>
-            <span className="section-eyebrow">Quanto ti capisce l'AI</span>
-            <h2 style={{ margin: '0.35rem 0 0.5rem' }}>🔎 Comprensione del tuo profilo</h2>
+            <span className="section-eyebrow">Il tuo Agente Editoriale</span>
+            <h2 style={{ margin: '0.35rem 0 0.5rem' }}>🤖 Istruzioni per l'AI</h2>
             <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '14px', lineHeight: 1.6 }}>
-              Analizza cosa pubblichi sui social collegati e verifica se il ritratto che ne ricava rappresenta davvero te. Se qualcosa non è chiaro, te lo chiede invece di inventarlo.
+              Questa è la sintesi strategica che guida l'agente editoriale. Può essere generata in base al tuo profilo o modificata a mano per perfezionarla.
             </p>
           </div>
-          <button className="btn btn-outline" onClick={analyzeProfile} disabled={profileAnalyzing}>
-            {profileAnalyzing ? '⟳ Sto analizzando...' : status ? '↻ Rianalizza' : '🔎 Analizza il mio profilo'}
-          </button>
         </div>
 
-        {status && status !== 'pending' && status !== 'analyzing' && status !== 'error' && (
-          <div style={{ display: 'grid', gap: 8, padding: '1rem', borderRadius: 'var(--radius)', background: 'var(--surface)', border: '1px solid var(--border)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', fontWeight: 800, color: 'var(--text)' }}>
-              <span>Confidenza dell'AI su questo profilo</span>
-              <span>{Math.round((profileUnderstanding.confidence || 0) * 100)}%</span>
-            </div>
-            <div style={{ height: '8px', background: 'var(--bg)', borderRadius: '999px', overflow: 'hidden', border: '1px solid var(--border)' }}>
-              <div style={{ width: `${Math.round((profileUnderstanding.confidence || 0) * 100)}%`, height: '100%', background: 'linear-gradient(90deg, var(--primary), var(--teal))' }} />
-            </div>
-            {profileUnderstanding.summary && <p style={{ margin: '0.4rem 0 0', fontSize: '14px', color: 'var(--text)', lineHeight: 1.6 }}>{profileUnderstanding.summary}</p>}
-          </div>
-        )}
-        {status === 'error' && (
-          <div style={{ color: 'var(--red)', fontSize: '13px' }}>{profileUnderstanding.error_message || 'Analisi non riuscita, riprova.'}</div>
-        )}
-        {status === 'pending' && (
-          <div style={{ color: 'var(--text-muted)', fontSize: '13px' }}>Nessuna analisi ancora. Collega un social e premi "Analizza il mio profilo".</div>
-        )}
-
-        {openQuestions.length > 0 && (
-          <div style={{ display: 'grid', gap: '0.75rem' }}>
-            <strong style={{ fontSize: '13px' }}>L'AI ha bisogno di chiarimenti da te:</strong>
-            {openQuestions.map(q => (
-              <div key={q.id} style={{ padding: '1rem', borderRadius: 'var(--radius)', border: '1px solid var(--border)', display: 'grid', gap: 8 }}>
-                <div style={{ fontWeight: 700, fontSize: '14px' }}>{q.question}</div>
-                {q.reason && <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{q.reason}</div>}
-                <textarea
-                  className="form-control"
-                  rows={2}
-                  value={answerDrafts[q.id] || ''}
-                  onChange={e => setAnswerDrafts(prev => ({ ...prev, [q.id]: e.target.value }))}
-                  placeholder="La tua risposta..."
-                />
-                <button className="btn btn-primary" style={{ justifySelf: 'start' }} onClick={() => submitProfileAnswer(q.id)} disabled={answeringId === q.id || !(answerDrafts[q.id] || '').trim()}>
-                  {answeringId === q.id ? '⟳ Salvo...' : 'Rispondi'}
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
+        <div style={{ display: 'grid', gap: '0.75rem' }}>
+          <textarea
+            className="form-control"
+            rows={12}
+            value={userAgentPromptDraft || ''}
+            onChange={e => setUserAgentPromptDraft(e.target.value)}
+            placeholder="Es. Scrivi con un tono professionale, chiaro e accogliente..."
+            style={{ width: '100%', resize: 'vertical' }}
+          />
+          <button className="btn btn-primary" style={{ justifySelf: 'start' }} onClick={saveUserAgentPrompt} disabled={savingUserAgentPrompt || userAgentPromptDraft === data?.site?.user_agent_prompt}>
+            {savingUserAgentPrompt ? '⟳ Salvataggio...' : 'Salva Istruzioni'}
+          </button>
+        </div>
       </section>
     );
   }
@@ -2787,7 +2770,7 @@ const [importMsg, setImportMsg] = useState(null);
 
             {(tab === 'profile' && profileSubTab === 'who') && <StrategyInterview declaredStrategy={declaredStrategy} onUpdateStrategy={(updates) => { Object.entries(updates).forEach(([k, v]) => updateDeclaredStrategy(k, v)); }} apiFetch={apiFetch} token={token} />}
 
-            {(tab === 'profile' && profileSubTab === 'who') && renderProfileUnderstandingPanel()}
+            {(tab === 'profile' && profileSubTab === 'who') && renderEditorialAgentPanel()}
 
             {false && <div id="strategy-legacy" className="card" style={{ padding: '1.5rem', background: 'var(--surface)', border: '1px solid var(--primary)' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1.25rem', alignItems: 'flex-start', flexWrap: 'wrap' }}>

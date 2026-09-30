@@ -7,9 +7,12 @@ export default function StrategyInterview({ declaredStrategy, onUpdateStrategy, 
     const [inputText, setInputText] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const chatEndRef = useRef(null);
+    const chatContainerRef = useRef(null);
 
     useEffect(() => {
-        chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+        if (chatContainerRef.current) {
+            chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+        }
     }, [messages, isLoading]);
 
     const handleSend = async (e) => {
@@ -97,7 +100,7 @@ export default function StrategyInterview({ declaredStrategy, onUpdateStrategy, 
                 </div>
                 
                 {/* Chat Messages Area */}
-                <div style={{ flex: 1, overflowY: 'auto', padding: '120px 32px 32px', display: 'flex', flexDirection: 'column', gap: '24px', background: 'linear-gradient(180deg, #f8fafc 0%, #ffffff 100%)' }}>
+                <div ref={chatContainerRef} style={{ flex: 1, overflowY: 'auto', padding: '120px 32px 32px', display: 'flex', flexDirection: 'column', gap: '24px', background: 'linear-gradient(180deg, #f8fafc 0%, #ffffff 100%)' }}>
                     {messages.map((m, i) => (
                         <div key={i} style={{ display: 'flex', justifyContent: m.role === 'ai' ? 'flex-start' : 'flex-end', animation: 'fadeInUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards' }}>
                             <div style={{ 

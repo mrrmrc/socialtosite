@@ -1542,6 +1542,7 @@ if (array_key_exists('theme', $b)) {
     if (array_key_exists('gsc_verification', $b)) { $fields[] = 'gsc_verification = ?'; $params[] = $b['gsc_verification']; }
     // Interruttore "Fatti trovare da Google": vale per tutto il sito.
     if (array_key_exists('search_visible', $b)) { $fields[] = 'search_visible = ?'; $params[] = !empty($b['search_visible']) ? 1 : 0; }
+    if (array_key_exists('user_agent_prompt', $b)) { $fields[] = 'user_agent_prompt = ?'; $params[] = $b['user_agent_prompt']; }
     if (array_key_exists('site_ai_data', $b)) { $fields[] = 'site_ai_data = ?'; $params[] = is_array($b['site_ai_data']) ? json_encode($b['site_ai_data'], JSON_UNESCAPED_UNICODE) : $b['site_ai_data']; }
     if (array_key_exists('site_understanding', $b)) {
         $encodedUnderstanding = is_array($b['site_understanding']) ? json_encode($b['site_understanding'], JSON_UNESCAPED_UNICODE) : $b['site_understanding'];
