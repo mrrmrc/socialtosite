@@ -3794,6 +3794,25 @@ document.addEventListener('DOMContentLoaded', () => {
     }, 6000);
   }
 });
-</script>
-</body>
-</html>
+
+  // Floating Edit Button for Logged-In Users
+  try {
+    const stsToken = localStorage.getItem('sts_token') || localStorage.getItem('token');
+    if (stsToken && window.parent === window) {
+      const payloadBase64 = stsToken.split('.')[1];
+      if (payloadBase64) {
+        const payloadStr = atob(payloadBase64.replace(/-/g, '+').replace(/_/g, '/'));
+        const payload = JSON.parse(payloadStr);
+        if (payload && payload.slug === <?= json_encode($slug) ?>) {
+          const editBtn = document.createElement('a');
+          editBtn.href = '/dashboard?tab=profile';
+          editBtn.innerHTML = '<span style="margin-right:8px;font-size:16px;">✏️</span> <span style="font-weight:800;letter-spacing:0.02em;">Modifica Sito</span>';
+          editBtn.style.cssText = 'position:fixed; bottom:24px; right:24px; background:#1a1a24; color:#fff; padding:12px 24px; border-radius:99px; text-decoration:none; font-family:var(--font-heading, sans-serif); font-size:14px; box-shadow:0 8px 30px rgba(0,0,0,0.3); z-index:999999; border:1px solid rgba(255,255,255,0.1); transition:all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); display:flex; align-items:center;';
+          editBtn.onmouseenter = () => { editBtn.style.transform = 'translateY(-4px) scale(1.02)'; editBtn.style.boxShadow = '0 12px 40px rgba(0,0,0,0.4)'; editBtn.style.background = '#000'; };
+          editBtn.onmouseleave = () => { editBtn.style.transform = 'none'; editBtn.style.boxShadow = '0 8px 30px rgba(0,0,0,0.3)'; editBtn.style.background = '#1a1a24'; };
+          document.body.appendChild(editBtn);
+        }
+      }
+    }
+  } catch(e) {}
+</script>\n</body>\n</html>\n
