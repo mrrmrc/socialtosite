@@ -586,7 +586,8 @@ const [importMsg, setImportMsg] = useState(null);
   const isStrategyComplete = ['activity_type', 'primary_goal', 'primary_audience', 'tone_of_voice', 'differentiators'].every(f => declaredStrategy?.[f]);
 
   useEffect(() => {
-    if (isStrategyComplete && !userAgentPromptDraft && !data?.site?.user_agent_prompt) {
+    if (isStrategyComplete && !userAgentPromptDraft && !data?.site?.user_agent_prompt && !hasGeneratedPrompt.current) {
+      hasGeneratedPrompt.current = true;
       const draft = `Attività: ${declaredStrategy.activity_type || ''}
 Obiettivo: ${declaredStrategy.primary_goal || ''}
 Pubblico: ${declaredStrategy.primary_audience || ''}
@@ -2406,7 +2407,7 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
         { id: 'overview', icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>, label: 'Home', hint: 'Lo stato del tuo sito' },
         { id: 'site', icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>, label: 'Articoli', hint: 'Bozze da pubblicare e già online' },
         { id: 'sources', icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="2" y="2" width="20" height="20" rx="5" y="5"></rect><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line></svg>, label: 'Social collegati', hint: 'Da qui arrivano i tuoi contenuti' },
-        { id: 'seo', icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-4-4"></path><path d="M8 11h6M11 8v6"></path></svg>, label: 'Su Google', hint: 'Come ti trovano online' },
+        { id: 'seo', icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-4-4"></path><path d="M8 11h6M11 8v6"></path></svg>, label: 'Monitoraggio e SEO', hint: 'Come ti trovano online' },
       ],
     },
     ];
@@ -2621,9 +2622,9 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
             }}>
               {[
                 { id: 'who', label: '✍️ Stile Editoriale', desc: "Istruisci l'AI su come scrivere" },
-                { id: 'network', label: '🌍 Rete e Presenza', desc: 'Rispondi una volta, il sistema usa tutto' },
-                { id: 'identity', label: '🎨 Identità visiva', desc: 'Logo, nome e contatti sul sito' },
-                { id: 'themes', label: '✨ Temi del sito', desc: 'Layout e aspetto grafico' },
+                
+                { id: 'identity', label: '🎨 Identità e Aspetto', desc: 'Logo, stile e impaginazione' },
+                
               ].map(opt => (
                 <button
                   key={opt.id}
@@ -2651,14 +2652,14 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
             <div style={{ marginTop: '1.5rem', paddingBottom: '1.5rem', borderBottom: '1px solid var(--border)' }}>
               <h2 style={{ margin: 0, fontSize: '24px', fontWeight: 800, color: 'var(--text)' }}>
                 {profileSubTab === 'who' ? 'Il tuo stile editoriale' : 
-                 profileSubTab === 'network' ? 'Rispondi una volta, il sistema usa tutto' : 
-                 profileSubTab === 'identity' ? 'L\'identità del tuo sito' : 'Scegli il layout ideale'}
+                 
+                 profileSubTab === 'identity' ? 'Identità e Layout del tuo sito' : 'Identità e Layout del tuo sito'}
               </h2>
               <p style={{ margin: '0.4rem 0 0', color: 'var(--text-muted)', fontSize: '15px' }}>
                 {profileSubTab === 'who' ? 'Le informazioni inserite qui istruiscono l\'AI su come presentare il tuo progetto.' :
-                 profileSubTab === 'network' ? 'Queste informazioni vengono propagate su tutto il tuo network: sito, mappe e servizi collegati.' :
-                 profileSubTab === 'identity' ? 'Personalizza il logo, i contatti e i banner che compaiono sul tuo sito web.' :
-                 'Guarda in anteprima decine di design professionali prima di applicarli.'}
+                 
+                 profileSubTab === 'identity' ? 'Personalizza il logo, i contatti e scegli il design professionale più adatto per i tuoi contenuti.' :
+                 'Personalizza il logo, i contatti e scegli il design professionale più adatto per i tuoi contenuti.'}
               </p>
             </div>
           </div>
@@ -2885,6 +2886,52 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
 
           </div>
         )}
+
+        {(tab === 'seo' && visibilitySection === 'network') && <div className="presence-workspace">
+              <section className="presence-hero">
+                <div className="presence-hero-copy"><span>La tua presenza digitale</span><h2>{reachability.score || 0}% completato</h2><p>Questa percentuale misura ciò che hai realmente predisposto. I dati Google sono separati perché dipendono dalla scansione e non possono essere promessi.</p></div>
+                <div className="presence-score" style={{ '--score': `${reachability.score || 0}%` }}><strong>{reachability.score || 0}%</strong><span>configurazione</span></div>
+              </section>
+
+              <section className="google-progress-panel">
+                <div className="google-progress-heading"><div><span>Monitoraggio automatico incluso</span><h3>Google: copertura delle pagine</h3></div><small>{reachability.google?.has_evidence ? 'Dati Google aggiornati automaticamente' : 'Raccolta dati in corso'}</small></div>
+                <div className="google-progress-grid">
+                  {[
+                    ['Monitoraggio', 100, 'Gestito centralmente da All Social To Web: non devi configurare nulla'],
+                    ['Pagine rilevate', reachability.google?.presence_percent || 0, `${reachability.google?.visible_pages || 0} su ${reachability.google?.published_pages || 0} pagine con segnali Google`],
+                  ].map(([label, value, detail]) => <div className="google-progress-card" key={label}><div><strong>{value}%</strong><span>{label}</span></div><div className="progress-track"><span style={{ width: `${value}%` }} /></div><p>{detail}</p></div>)}
+                </div>
+                <div className="google-progress-note">La percentuale “Pagine rilevate” misura la copertura osservata, non la posizione. I dati possono comparire dopo alcuni giorni dalla pubblicazione.</div>
+              </section>
+
+              <section className="presence-setup">
+                <header><div><span>Rispondi una volta, il sistema usa tutto</span><h3>Completa la tua presenza</h3><p>Ogni blocco corrisponde a una decisione comprensibile. Non devi interpretare indicatori tecnici.</p></div><strong>{(reachability.checks || []).filter(check => check.done).length}/{(reachability.checks || []).length} pronti</strong></header>
+
+                <div className="presence-step">
+                  <div className="presence-step-number">1</div><div className="presence-step-body"><h4>Qual è la tua presenza ufficiale?</h4><p>Puoi usare soltanto lo Spazio Vivo oppure collegarlo a un sito che possiedi già.</p>
+                    <div className="presence-choice-grid">
+                      <button className={reachabilityDraft.presence_mode === 'space_only' ? 'is-selected' : ''} onClick={() => setReachabilityDraft(prev => ({ ...prev, presence_mode: 'space_only', official_site_url: '', reciprocal_link_confirmed: false }))}><strong>Non ho un sito</strong><span>Spazio Vivo è la mia presenza ufficiale</span></button>
+                      <button className={reachabilityDraft.presence_mode === 'existing_site' ? 'is-selected' : ''} onClick={() => setReachabilityDraft(prev => ({ ...prev, presence_mode: 'existing_site' }))}><strong>Ho già un sito</strong><span>Voglio collegarlo allo Spazio Vivo</span></button>
+                    </div>
+                    {reachabilityDraft.presence_mode === 'existing_site' && <div className="presence-conditional"><label><span>Indirizzo del sito</span><input value={reachabilityDraft.official_site_url || ''} onChange={e => setReachabilityDraft(prev => ({ ...prev, official_site_url: e.target.value }))} placeholder="https://www.tuodominio.it" /></label><label className="presence-checkbox"><input type="checkbox" checked={!!reachabilityDraft.reciprocal_link_confirmed} onChange={e => setReachabilityDraft(prev => ({ ...prev, reciprocal_link_confirmed: e.target.checked }))} /><span>Ho inserito nel mio sito un link verso lo Spazio Vivo</span></label></div>}
+                  </div>
+                </div>
+
+                <div className="presence-step">
+                  <div className="presence-step-number">2</div><div className="presence-step-body"><h4>Per cosa e dove vuoi essere trovato?</h4><p>Queste informazioni guidano pagine, titoli, collegamenti e contenuti futuri.</p><div className="presence-fields two"><label><span>Attività o ricerca principale</span><input value={reachabilityDraft.primary_topic || ''} onChange={e => setReachabilityDraft(prev => ({ ...prev, primary_topic: e.target.value }))} placeholder="Es. agriturismo con ristorante vicino Roma" /></label><label><span>Profilo Google dell’attività</span><input value={reachabilityDraft.business_profile_url || ''} onChange={e => setReachabilityDraft(prev => ({ ...prev, business_profile_url: e.target.value }))} placeholder="Link Google Maps o Business Profile" /></label><label className="full"><span>Territori serviti · uno per riga</span><textarea rows={3} value={(reachabilityDraft.service_areas || []).join('\n')} onChange={e => setReachabilityDraft(prev => ({ ...prev, service_areas: e.target.value.split('\n') }))} placeholder={'Roma\nCastelli Romani\nLazio'} /></label></div></div>
+                </div>
+
+                <div className="presence-step">
+                  <div className="presence-step-number">3</div><div className="presence-step-body"><h4>Come possono contattarti?</h4><p>I pulsanti vengono mostrati automaticamente negli articoli. I campi vuoti non compaiono.</p><div className="presence-fields three"><label><span>Telefono</span><input value={reachabilityDraft.phone || ''} onChange={e => setReachabilityDraft(prev => ({ ...prev, phone: e.target.value }))} placeholder="+39 06 1234567" /></label><label><span>WhatsApp</span><input value={reachabilityDraft.whatsapp || ''} onChange={e => setReachabilityDraft(prev => ({ ...prev, whatsapp: e.target.value }))} placeholder="340 1234567" /></label><label><span>Email</span><input type="email" value={reachabilityDraft.email || ''} onChange={e => setReachabilityDraft(prev => ({ ...prev, email: e.target.value }))} placeholder="info@attivita.it" /></label></div></div>
+                </div>
+
+                <div className="presence-save"><div><strong>Le tue risposte alimentano tutto il sistema</strong><span>Pagine, dati strutturati, contatti e analisi useranno queste informazioni.</span></div><button className="btn btn-primary" onClick={saveReachabilityNetwork} disabled={savingReachability}>{savingReachability ? 'Salvataggio…' : 'Salva le informazioni'}</button></div>
+              </section>
+
+              <section className="presence-status-summary"><header><div><span>Verifiche tecniche</span><h3>Cosa è già pronto</h3></div><p>Questi controlli si aggiornano dalle risposte e dal lavoro reale della piattaforma.</p></header><div>{(reachability.checks || []).map(check => <article key={check.id} className={check.done ? 'is-done' : ''}><span>{check.done ? '✓' : '○'}</span><div><strong>{check.label}</strong><small>{check.detail}</small></div></article>)}</div></section>
+            </div>}
+
+            
 
         {/* Tab: I miei canali (UNIFICATO) */}
         {tab === 'sources' && (() => {
@@ -3188,7 +3235,7 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
             {/* MODIFICA SITO — azione principale sempre visibile */}
             <section style={{
               display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-              gap: '1.5rem', flexWrap: 'wrap',
+              gap: '1rem', flexWrap: 'wrap',
               padding: 'clamp(1.25rem, 3vw, 2rem)',
               borderRadius: 'var(--radius-lg)',
               background: 'linear-gradient(135deg, var(--primary) 0%, #6366f1 100%)',
@@ -3466,59 +3513,16 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
             {visibilitySection !== 'ideas' && <div className="visibility-subnav">
               {[
                 ['overview', 'Statistiche e pagine'],
+                  ['network', 'Rete e Presenza'],
                 ...(isAdmin ? [['lab', 'Laboratorio']] : []),
               ].map(([section, label]) => <button key={section} className={visibilitySection === section ? 'is-active' : ''} onClick={() => setVisibilitySection(section)}>{label}</button>)}
             </div>}
 
             {isAdmin && visibilitySection === 'lab' && <SpazioVivoLab token={token} adminPreview />}
 
-            {(tab === 'profile' && profileSubTab === 'network') && <div className="presence-workspace">
-              <section className="presence-hero">
-                <div className="presence-hero-copy"><span>La tua presenza digitale</span><h2>{reachability.score || 0}% completato</h2><p>Questa percentuale misura ciò che hai realmente predisposto. I dati Google sono separati perché dipendono dalla scansione e non possono essere promessi.</p></div>
-                <div className="presence-score" style={{ '--score': `${reachability.score || 0}%` }}><strong>{reachability.score || 0}%</strong><span>configurazione</span></div>
-              </section>
-
-              <section className="google-progress-panel">
-                <div className="google-progress-heading"><div><span>Monitoraggio automatico incluso</span><h3>Google: copertura delle pagine</h3></div><small>{reachability.google?.has_evidence ? 'Dati Google aggiornati automaticamente' : 'Raccolta dati in corso'}</small></div>
-                <div className="google-progress-grid">
-                  {[
-                    ['Monitoraggio', 100, 'Gestito centralmente da All Social To Web: non devi configurare nulla'],
-                    ['Pagine rilevate', reachability.google?.presence_percent || 0, `${reachability.google?.visible_pages || 0} su ${reachability.google?.published_pages || 0} pagine con segnali Google`],
-                  ].map(([label, value, detail]) => <div className="google-progress-card" key={label}><div><strong>{value}%</strong><span>{label}</span></div><div className="progress-track"><span style={{ width: `${value}%` }} /></div><p>{detail}</p></div>)}
-                </div>
-                <div className="google-progress-note">La percentuale “Pagine rilevate” misura la copertura osservata, non la posizione. I dati possono comparire dopo alcuni giorni dalla pubblicazione.</div>
-              </section>
-
-              <section className="presence-setup">
-                <header><div><span>Rispondi una volta, il sistema usa tutto</span><h3>Completa la tua presenza</h3><p>Ogni blocco corrisponde a una decisione comprensibile. Non devi interpretare indicatori tecnici.</p></div><strong>{(reachability.checks || []).filter(check => check.done).length}/{(reachability.checks || []).length} pronti</strong></header>
-
-                <div className="presence-step">
-                  <div className="presence-step-number">1</div><div className="presence-step-body"><h4>Qual è la tua presenza ufficiale?</h4><p>Puoi usare soltanto lo Spazio Vivo oppure collegarlo a un sito che possiedi già.</p>
-                    <div className="presence-choice-grid">
-                      <button className={reachabilityDraft.presence_mode === 'space_only' ? 'is-selected' : ''} onClick={() => setReachabilityDraft(prev => ({ ...prev, presence_mode: 'space_only', official_site_url: '', reciprocal_link_confirmed: false }))}><strong>Non ho un sito</strong><span>Spazio Vivo è la mia presenza ufficiale</span></button>
-                      <button className={reachabilityDraft.presence_mode === 'existing_site' ? 'is-selected' : ''} onClick={() => setReachabilityDraft(prev => ({ ...prev, presence_mode: 'existing_site' }))}><strong>Ho già un sito</strong><span>Voglio collegarlo allo Spazio Vivo</span></button>
-                    </div>
-                    {reachabilityDraft.presence_mode === 'existing_site' && <div className="presence-conditional"><label><span>Indirizzo del sito</span><input value={reachabilityDraft.official_site_url || ''} onChange={e => setReachabilityDraft(prev => ({ ...prev, official_site_url: e.target.value }))} placeholder="https://www.tuodominio.it" /></label><label className="presence-checkbox"><input type="checkbox" checked={!!reachabilityDraft.reciprocal_link_confirmed} onChange={e => setReachabilityDraft(prev => ({ ...prev, reciprocal_link_confirmed: e.target.checked }))} /><span>Ho inserito nel mio sito un link verso lo Spazio Vivo</span></label></div>}
-                  </div>
-                </div>
-
-                <div className="presence-step">
-                  <div className="presence-step-number">2</div><div className="presence-step-body"><h4>Per cosa e dove vuoi essere trovato?</h4><p>Queste informazioni guidano pagine, titoli, collegamenti e contenuti futuri.</p><div className="presence-fields two"><label><span>Attività o ricerca principale</span><input value={reachabilityDraft.primary_topic || ''} onChange={e => setReachabilityDraft(prev => ({ ...prev, primary_topic: e.target.value }))} placeholder="Es. agriturismo con ristorante vicino Roma" /></label><label><span>Profilo Google dell’attività</span><input value={reachabilityDraft.business_profile_url || ''} onChange={e => setReachabilityDraft(prev => ({ ...prev, business_profile_url: e.target.value }))} placeholder="Link Google Maps o Business Profile" /></label><label className="full"><span>Territori serviti · uno per riga</span><textarea rows={3} value={(reachabilityDraft.service_areas || []).join('\n')} onChange={e => setReachabilityDraft(prev => ({ ...prev, service_areas: e.target.value.split('\n') }))} placeholder={'Roma\nCastelli Romani\nLazio'} /></label></div></div>
-                </div>
-
-                <div className="presence-step">
-                  <div className="presence-step-number">3</div><div className="presence-step-body"><h4>Come possono contattarti?</h4><p>I pulsanti vengono mostrati automaticamente negli articoli. I campi vuoti non compaiono.</p><div className="presence-fields three"><label><span>Telefono</span><input value={reachabilityDraft.phone || ''} onChange={e => setReachabilityDraft(prev => ({ ...prev, phone: e.target.value }))} placeholder="+39 06 1234567" /></label><label><span>WhatsApp</span><input value={reachabilityDraft.whatsapp || ''} onChange={e => setReachabilityDraft(prev => ({ ...prev, whatsapp: e.target.value }))} placeholder="340 1234567" /></label><label><span>Email</span><input type="email" value={reachabilityDraft.email || ''} onChange={e => setReachabilityDraft(prev => ({ ...prev, email: e.target.value }))} placeholder="info@attivita.it" /></label></div></div>
-                </div>
-
-                <div className="presence-save"><div><strong>Le tue risposte alimentano tutto il sistema</strong><span>Pagine, dati strutturati, contatti e analisi useranno queste informazioni.</span></div><button className="btn btn-primary" onClick={saveReachabilityNetwork} disabled={savingReachability}>{savingReachability ? 'Salvataggio…' : 'Salva le informazioni'}</button></div>
-              </section>
-
-              <section className="presence-status-summary"><header><div><span>Verifiche tecniche</span><h3>Cosa è già pronto</h3></div><p>Questi controlli si aggiornano dalle risposte e dal lavoro reale della piattaforma.</p></header><div>{(reachability.checks || []).map(check => <article key={check.id} className={check.done ? 'is-done' : ''}><span>{check.done ? '✓' : '○'}</span><div><strong>{check.label}</strong><small>{check.detail}</small></div></article>)}</div></section>
-            </div>}
-
-            {false && (tab === 'profile' && profileSubTab === 'network') && <>
+            {false && (tab === 'seo' && visibilitySection === 'network') && <>
               <section className="glass-modal" style={{ marginBottom: '1.25rem', padding: 'clamp(1.25rem, 3vw, 2rem)', color: '#fff', background: 'radial-gradient(circle at 88% 8%, rgba(243,92,118,.34), transparent 27%), linear-gradient(135deg,#151A2D,#292359 68%,#48257A)', border: 'none', overflow: 'hidden' }}>
-                <div className="reachability-hero-grid" style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) auto', alignItems: 'center', gap: '1.5rem' }}>
+                <div className="reachability-hero-grid" style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) auto', alignItems: 'center', gap: '1rem' }}>
                   <div>
                     <div style={{ color: '#D9CEFF', fontSize: '12px', fontWeight: 850, letterSpacing: '.1em', textTransform: 'uppercase' }}>All Social To Web · controllo continuo</div>
                     <h2 style={{ margin: '.45rem 0 .65rem', color: '#fff', fontSize: 'clamp(25px,4vw,40px)', letterSpacing: '-.04em' }}>Network della Reperibilità</h2>
@@ -3969,7 +3973,7 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
         {tab === 'services' && renderVisibilityServices()}
 
         {/* Tab: Impostazioni */}
-        {(tab === 'profile' && profileSubTab === 'themes') && (
+        {(tab === 'profile' && profileSubTab === 'identity') && (
           <div>
             {isAdmin && (
             <>
@@ -4090,7 +4094,7 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
                 </div>
               </div>
 
-              <div style={{ display: 'grid', gap: '1.5rem', marginBottom: '2rem' }}>
+              <div style={{ display: 'grid', gap: '1rem', marginBottom: '2rem' }}>
                 <input
                   className="form-control"
                   type="search"
@@ -4130,7 +4134,7 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
                 </div>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1.5rem' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '1rem' }}>
                 {visibleSiteLayouts.map(layout => (
                   <div key={layout.id}
                     style={{ 
@@ -4147,7 +4151,22 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
                     
                     {selectedTheme === layout.id && <div style={{ position: 'absolute', top: 16, right: 16, background: 'var(--primary)', color: '#000', borderRadius: '50%', width: 28, height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '16px', fontWeight: 800, boxShadow: '0 0 10px rgba(0,240,255,0.5)' }}>✓</div>}
                     
-                    <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>{layout.emoji}</div>
+                    
+{/* CSS Mini-Preview */}
+<div style={{ width: '100%', aspectRatio: '16/10', borderRadius: '8px', marginBottom: '1rem', overflow: 'hidden', display: 'flex', flexDirection: 'column', background: layout.colors[0] || '#fff', border: '1px solid rgba(0,0,0,0.1)' }}>
+   <div style={{ height: '20%', background: layout.colors[1] || '#eee', display: 'flex', alignItems: 'center', padding: '0 10px' }}>
+      <div style={{ width: '20%', height: '40%', background: 'rgba(0,0,0,0.2)', borderRadius: '2px' }} />
+   </div>
+   <div style={{ flex: 1, padding: '10px', display: 'flex', gap: '10px' }}>
+      <div style={{ flex: 2, display: 'flex', flexDirection: 'column', gap: '6px' }}>
+         <div style={{ width: '80%', height: '20%', background: layout.colors[2] || '#ccc', borderRadius: '2px' }} />
+         <div style={{ width: '100%', height: '10%', background: 'rgba(0,0,0,0.1)', borderRadius: '2px' }} />
+         <div style={{ width: '90%', height: '10%', background: 'rgba(0,0,0,0.1)', borderRadius: '2px' }} />
+      </div>
+      <div style={{ flex: 1, background: layout.colors[1] || '#eee', borderRadius: '4px' }} />
+   </div>
+</div>
+
                     <div style={{ display: 'inline-flex', marginBottom: '8px', padding: '4px 8px', borderRadius: '999px', background: 'var(--surface)', color: 'var(--primary)', fontSize: '10px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.06em' }}>{layout.category}</div>
                     <div style={{ fontWeight: 800, fontSize: '18px', marginBottom: '8px', color: 'var(--text)' }}>{layout.name}</div>
                     <div style={{ fontSize: '14px', color: 'var(--text-muted)', marginBottom: '1.5rem', minHeight: '40px', lineHeight: 1.5, fontWeight: 500 }}>{layout.desc}</div>
@@ -4158,7 +4177,7 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
                     
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                       <button className={selectedTheme === layout.id ? "btn btn-primary btn-full" : "btn btn-outline btn-full"} style={{ fontSize: '14px', padding: '12px', fontWeight: 700 }}>
-                        {selectedTheme === layout.id ? 'Tema attivo · Guarda' : 'Guarda anteprima'}
+                        {selectedTheme === layout.id ? 'Attivo' : 'Vedi'}
                       </button>
                       {isAdmin && (
                         <button className="btn btn-outline btn-full" onClick={(e) => { e.stopPropagation(); loadPresetIntoStudio(layout); }} style={{ fontSize: '13px', padding: '10px', fontWeight: 700 }}>
@@ -4301,7 +4320,7 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
                   <QuillEditor value={editingPost.body} onChange={val => setEditingPost({...editingPost, body: val})} className="article-rich-editor" style={{ background: '#fff', color: '#000', border: '2px solid var(--border-strong)', borderRadius: 'var(--radius-sm)', marginBottom: '8px' }} />
                 </div>
 
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1.5rem' }}>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem' }}>
                   <div style={{ flex: '1 1 300px' }}>
                     <label style={{ display: 'block', fontSize: '15px', fontWeight: 700, marginBottom: '8px', color: 'var(--text)' }}>Breve Riassunto (Opzionale)</label>
                     <textarea value={editingPost.excerpt} onChange={e => setEditingPost({...editingPost, excerpt: e.target.value})} style={{ width: '100%', minHeight: '100px', padding: '12px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-strong)', fontSize: '14px', background: 'var(--bg)', color: 'var(--text)', resize: 'vertical' }} />
