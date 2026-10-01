@@ -2622,7 +2622,7 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
             }}>
               {[
                 { id: 'who', label: '✍️ Stile Editoriale', desc: "Istruisci l'AI su come scrivere" },
-                
+                { id: 'presence', label: '🌐 Presenza e Contatti', desc: 'Sito ufficiale, territori e recapiti' },
                 { id: 'identity', label: '🎨 Identità e Aspetto', desc: 'Logo, stile e impaginazione' },
                 
               ].map(opt => (
@@ -2887,24 +2887,9 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
           </div>
         )}
 
-        {(tab === 'seo' && visibilitySection === 'network') && <div className="presence-workspace">
-              <section className="presence-hero">
-                <div className="presence-hero-copy"><span>La tua presenza digitale</span><h2>{reachability.score || 0}% completato</h2><p>Questa percentuale misura ciò che hai realmente predisposto. I dati Google sono separati perché dipendono dalla scansione e non possono essere promessi.</p></div>
-                <div className="presence-score" style={{ '--score': `${reachability.score || 0}%` }}><strong>{reachability.score || 0}%</strong><span>configurazione</span></div>
-              </section>
-
-              <section className="google-progress-panel">
-                <div className="google-progress-heading"><div><span>Monitoraggio automatico incluso</span><h3>Google: copertura delle pagine</h3></div><small>{reachability.google?.has_evidence ? 'Dati Google aggiornati automaticamente' : 'Raccolta dati in corso'}</small></div>
-                <div className="google-progress-grid">
-                  {[
-                    ['Monitoraggio', 100, 'Gestito centralmente da All Social To Web: non devi configurare nulla'],
-                    ['Pagine rilevate', reachability.google?.presence_percent || 0, `${reachability.google?.visible_pages || 0} su ${reachability.google?.published_pages || 0} pagine con segnali Google`],
-                  ].map(([label, value, detail]) => <div className="google-progress-card" key={label}><div><strong>{value}%</strong><span>{label}</span></div><div className="progress-track"><span style={{ width: `${value}%` }} /></div><p>{detail}</p></div>)}
-                </div>
-                <div className="google-progress-note">La percentuale “Pagine rilevate” misura la copertura osservata, non la posizione. I dati possono comparire dopo alcuni giorni dalla pubblicazione.</div>
-              </section>
-
-              <section className="presence-setup">
+        {(tab === 'profile' && profileSubTab === 'presence') && (
+          <div className="presence-workspace">
+            <section className="presence-setup">
                 <header><div><span>Rispondi una volta, il sistema usa tutto</span><h3>Completa la tua presenza</h3><p>Ogni blocco corrisponde a una decisione comprensibile. Non devi interpretare indicatori tecnici.</p></div><strong>{(reachability.checks || []).filter(check => check.done).length}/{(reachability.checks || []).length} pronti</strong></header>
 
                 <div className="presence-step">
@@ -2927,6 +2912,27 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
 
                 <div className="presence-save"><div><strong>Le tue risposte alimentano tutto il sistema</strong><span>Pagine, dati strutturati, contatti e analisi useranno queste informazioni.</span></div><button className="btn btn-primary" onClick={saveReachabilityNetwork} disabled={savingReachability}>{savingReachability ? 'Salvataggio…' : 'Salva le informazioni'}</button></div>
               </section>
+          </div>
+        )}
+
+        {(tab === 'seo' && visibilitySection === 'network') && <div className="presence-workspace">
+              <section className="presence-hero">
+                <div className="presence-hero-copy"><span>La tua presenza digitale</span><h2>{reachability.score || 0}% completato</h2><p>Questa percentuale misura ciò che hai realmente predisposto. I dati Google sono separati perché dipendono dalla scansione e non possono essere promessi.</p></div>
+                <div className="presence-score" style={{ '--score': `${reachability.score || 0}%` }}><strong>{reachability.score || 0}%</strong><span>configurazione</span></div>
+              </section>
+
+              <section className="google-progress-panel">
+                <div className="google-progress-heading"><div><span>Monitoraggio automatico incluso</span><h3>Google: copertura delle pagine</h3></div><small>{reachability.google?.has_evidence ? 'Dati Google aggiornati automaticamente' : 'Raccolta dati in corso'}</small></div>
+                <div className="google-progress-grid">
+                  {[
+                    ['Monitoraggio', 100, 'Gestito centralmente da All Social To Web: non devi configurare nulla'],
+                    ['Pagine rilevate', reachability.google?.presence_percent || 0, `${reachability.google?.visible_pages || 0} su ${reachability.google?.published_pages || 0} pagine con segnali Google`],
+                  ].map(([label, value, detail]) => <div className="google-progress-card" key={label}><div><strong>{value}%</strong><span>{label}</span></div><div className="progress-track"><span style={{ width: `${value}%` }} /></div><p>{detail}</p></div>)}
+                </div>
+                <div className="google-progress-note">La percentuale “Pagine rilevate” misura la copertura osservata, non la posizione. I dati possono comparire dopo alcuni giorni dalla pubblicazione.</div>
+              </section>
+
+              
 
               <section className="presence-status-summary"><header><div><span>Verifiche tecniche</span><h3>Cosa è già pronto</h3></div><p>Questi controlli si aggiornano dalle risposte e dal lavoro reale della piattaforma.</p></header><div>{(reachability.checks || []).map(check => <article key={check.id} className={check.done ? 'is-done' : ''}><span>{check.done ? '✓' : '○'}</span><div><strong>{check.label}</strong><small>{check.detail}</small></div></article>)}</div></section>
             </div>}
@@ -3293,14 +3299,7 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
                 <label className="btn btn-primary">{uploadingLogo ? 'Caricamento…' : `${brandVisualMode === 'cover' ? 'Carica immagine' : 'Carica logo'}`}<input type="file" accept="image/png,image/jpeg,image/webp" onChange={event => uploadSiteVisual(event, brandVisualMode)} disabled={uploadingLogo} /></label>
               </div>
             </section>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: '1rem' }}>
-              {[
-                ['01', 'Orientamento immediato', 'Home, articoli, argomenti e informazioni mantengono sempre una posizione riconoscibile.'],
-                ['02', 'Lettura accessibile', 'Testi, contrasti, focus visibile e spaziature seguono regole comuni e verificabili.'],
-                ['03', 'Mobile prima di tutto', 'Menu, schede e azioni si adattano senza nascondere i contenuti importanti.'],
-                ['04', 'Identità autentica', 'Il sito usa il tuo marchio e il tuo patrimonio social, senza layout casuali generati.'],
-              ].map(([number, title, description]) => <article className="card" key={number} style={{ padding: '1.25rem', border: '1px solid var(--border)' }}><span style={{ color: 'var(--primary)', fontWeight: 900, fontSize: '12px' }}>{number}</span><h3 style={{ margin: '0.55rem 0', color: 'var(--text)', fontSize: '17px' }}>{title}</h3><p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '13px', lineHeight: 1.65 }}>{description}</p></article>)}
-            </div>
+
           </div>
         )}
 
