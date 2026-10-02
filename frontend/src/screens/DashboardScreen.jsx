@@ -3511,9 +3511,8 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
 
             {visibilitySection !== 'ideas' && <div className="visibility-subnav">
               {[
-                ['overview', 'Statistiche e pagine'],
-                  ['network', 'Rete e Presenza'],
-                ...(isAdmin ? [['lab', 'Laboratorio']] : []),
+                ['overview', 'Panoramica Prestazioni'],
+                ...(isAdmin ? [['network', 'Rete e Presenza'], ['lab', 'Laboratorio']] : []),
               ].map(([section, label]) => <button key={section} className={visibilitySection === section ? 'is-active' : ''} onClick={() => setVisibilitySection(section)}>{label}</button>)}
             </div>}
 
@@ -3580,70 +3579,60 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
               <div style={{ marginTop: '1rem', padding: '1rem 1.15rem', borderRadius: '14px', background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text-muted)', fontSize: '12px', lineHeight: 1.55 }}><strong style={{ color: 'var(--text)' }}>Garanzia operativa:</strong> All Social To Web può garantire pubblicazione, accessibilità, collegamenti, segnali tecnici e monitoraggio. L’indicizzazione e la posizione finale restano decisioni dei motori di ricerca.</div>
             </>}
 
-            {visibilitySection === 'overview' && <div className="data-workspace">
-              <section className="data-hero">
+            {visibilitySection === 'overview' && <div className="data-workspace" style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+              <section className="data-hero" style={{ background: 'linear-gradient(135deg, var(--primary), #6366f1)', color: 'white', padding: '2.5rem', borderRadius: 'var(--radius-lg)', boxShadow: '0 8px 32px rgba(79,140,255,0.28)' }}>
                 <div>
-                  <span className="section-eyebrow">Pagine, dati e fonti</span>
-                  <h2>Capisci subito cosa esiste e cosa sta vedendo Google</h2>
-                  <p>I numeri non vengono mescolati: ogni indicatore mostra la propria fonte e la data dell'ultimo aggiornamento.</p>
-                </div>
-                <div className="coverage-dial" style={{ '--coverage': `${reachability.google?.presence_percent || 0}%` }}>
-                  <strong>{reachability.google?.presence_percent || 0}%</strong>
-                  <span>pagine rilevate</span>
+                  <span className="section-eyebrow" style={{ color: 'rgba(255,255,255,0.8)' }}>Monitoraggio Semplificato</span>
+                  <h2 style={{ color: 'white', margin: '0.5rem 0', fontSize: 'clamp(24px, 4vw, 36px)' }}>Come stanno andando i tuoi contenuti</h2>
+                  <p style={{ color: 'rgba(255,255,255,0.9)', fontSize: '16px' }}>Ecco una panoramica chiara dei risultati che stai ottenendo negli ultimi 30 giorni.</p>
                 </div>
               </section>
 
-              <section className="metric-grid">
+              <section style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1.5rem' }}>
                 {[
-                  { value: networkPublishedPages, label: 'Pagine pubbliche nella rete', source: 'Database All Social To Web', tone: 'violet' },
-                  { value: reachability.google?.has_evidence ? (reachability.google?.visible_pages || visibility.visible_pages || 0) : '—', label: 'Pagine rilevate da Google', source: reachability.google?.has_evidence ? 'Monitoraggio automatico' : 'Raccolta dati in corso', tone: 'blue' },
-                  { value: reachability.google?.has_evidence ? Number(visibility.impressions || 0).toLocaleString('it-IT') : '—', label: 'Visualizzazioni su Google · 30 gg', source: reachability.google?.has_evidence ? 'Monitoraggio automatico' : 'Dato non ancora disponibile', tone: 'amber' },
-                  { value: Number(visibility.unique_visitors || 0).toLocaleString('it-IT'), label: 'Visitatori dello Spazio · 30 gg', source: 'Analytics interno', tone: 'teal' },
-                  { value: Number(visibility.actions || 0).toLocaleString('it-IT'), label: 'Contatti e azioni · 30 gg', source: 'Analytics interno', tone: 'green' },
-                ].map(metric => <article key={metric.label} className={`metric-card tone-${metric.tone}`}>
-                  <span className="metric-source">{metric.source}</span>
-                  <strong>{metric.value}</strong>
-                  <p>{metric.label}</p>
-                </article>)}
+                  { value: reachability.google?.has_evidence ? Number(visibility.impressions || 0).toLocaleString('it-IT') : '—', label: 'Visualizzazioni su Google', icon: '👁️', desc: 'Quante volte i tuoi contenuti sono apparsi nelle ricerche' },
+                  { value: reachability.google?.has_evidence ? Number(visibility.clicks || 0).toLocaleString('it-IT') : '—', label: 'Clic da Google', icon: '🖱️', desc: 'Quante persone hanno cliccato per leggere di più' },
+                  { value: Number(visibility.unique_visitors || 0).toLocaleString('it-IT'), label: 'Visitatori del Sito', icon: '👥', desc: 'Persone che hanno navigato nel tuo sito web' },
+                  { value: Number(visibility.actions || 0).toLocaleString('it-IT'), label: 'Azioni e Contatti', icon: '🎯', desc: 'Telefonate, messaggi e clic sui bottoni di contatto' },
+                ].map(metric => (
+                  <article key={metric.label} className="card" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '0.5rem', border: '1px solid var(--border)' }}>
+                    <div style={{ fontSize: '2rem' }}>{metric.icon}</div>
+                    <strong style={{ fontSize: '2.5rem', lineHeight: '1.2', color: 'var(--text)' }}>{metric.value}</strong>
+                    <h3 style={{ fontSize: '1.1rem', margin: 0, color: 'var(--text)' }}>{metric.label}</h3>
+                    <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)', margin: 0 }}>{metric.desc}</p>
+                  </article>
+                ))}
               </section>
 
-              <div className="data-columns">
-                <section className="data-panel source-panel">
-                  <header><div><span className="section-eyebrow">Trasparenza</span><h3>Da dove arrivano i dati</h3></div><span className="live-badge">Fonti separate</span></header>
-                  <div className="source-list">
-                    {(reachability.data_sources || []).map(source => <div key={source.key} className={`source-row ${source.connected ? 'is-connected' : ''}`}>
-                      <span className="source-status">{source.connected ? '✓' : '!'}</span>
-                      <div><strong>{source.source || source.label}</strong><small>{source.label} · {source.connected ? 'fonte attiva' : 'da collegare per ottenere dati reali'}</small></div>
-                      <time>{source.updated_at ? new Date(source.updated_at).toLocaleDateString('it-IT') : 'Nessun dato'}</time>
-                    </div>)}
+              {visibility.top_queries && visibility.top_queries.length > 0 && (
+                <section className="card">
+                  <header style={{ marginBottom: '1.5rem' }}>
+                    <h3 style={{ margin: 0, fontSize: '1.25rem', color: 'var(--text)' }}>Cosa cercano le persone</h3>
+                    <p style={{ color: 'var(--text-muted)', margin: '0.5rem 0 0', fontSize: '14px' }}>Le parole chiave esatte che hanno portato visitatori ai tuoi contenuti.</p>
+                  </header>
+                  <div style={{ display: 'grid', gap: '0.5rem' }}>
+                    {visibility.top_queries.slice(0, 5).map(q => (
+                      <div key={q.query} style={{ display: 'flex', justifyContent: 'space-between', padding: '1rem', background: 'var(--bg)', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
+                        <span style={{ fontWeight: 600, color: 'var(--text)' }}>{q.query}</span>
+                        <span style={{ color: 'var(--text-muted)', fontSize: '14px' }}>{q.clicks} clic</span>
+                      </div>
+                    ))}
                   </div>
                 </section>
+              )}
 
-                <section className="data-panel foundation-panel">
-                  <header><div><span className="section-eyebrow">Struttura</span><h3>Pagine fondamentali</h3></div><button className="btn btn-outline" onClick={rebuildSeoFoundation} disabled={savingProfile}>{savingProfile ? 'Aggiorno…' : 'Aggiorna'}</button></header>
-                  <p>Il sistema le costruisce con informazioni reali del profilo e le collega agli articoli pertinenti.</p>
-                  <div className="foundation-list">
-                    {(seoFoundation.pages || []).map(page => <a key={page.slug} href={`${siteUrl}/${page.slug}`} target="_blank" rel="noopener"><span>↗</span><strong>{page.title}</strong><small>Pagina pubblica</small></a>)}
-                    {!(seoFoundation.pages || []).length && <div className="data-empty">Completa il Profilo attività: da lì nasceranno le prime pagine.</div>}
+              <section className="card" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+                  <header style={{ marginBottom: '1.5rem' }}>
+                    <h3 style={{ margin: 0, fontSize: '1.25rem', color: 'var(--text)' }}>Copertura e Pagine fondamentali</h3>
+                    <p style={{ color: 'var(--text-muted)', margin: '0.5rem 0 0', fontSize: '14px' }}>Il tuo sito ha <strong>{networkPublishedPages}</strong> pagine pubbliche. {reachability.google?.has_evidence ? `Di queste, Google ne ha già rilevate ${reachability.google?.visible_pages || visibility.visible_pages || 0}.` : 'Stiamo raccogliendo i dati sulla copertura Google.'}</p>
+                  </header>
+                  <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
+                    <a href={`${siteUrl}/sitemap.xml`} target="_blank" rel="noopener" className="btn btn-outline">Apri la sitemap</a>
+                    <button className="btn btn-outline" onClick={rebuildSeoFoundation} disabled={savingProfile}>{savingProfile ? 'Aggiorno…' : 'Rigenera pagine fondamentali'}</button>
                   </div>
-                </section>
-                </div>
-
-              <section className="data-panel map-panel">
-                <header className="map-heading">
-                  <div><span className="section-eyebrow">Mappa della presenza</span><h3>Come persone e motori raggiungono i contenuti</h3><p>La mappa è costruita dalle pagine pubblicate, dai collegamenti HTML e dalla sitemap.</p></div>
-                  <div className="map-stats">
-                    <span><strong>{networkPublishedPages}</strong> pagine</span>
-                    <span><strong>{sources.length}</strong> fonti</span>
-                    <span><strong>{publishedPosts.length}</strong> articoli</span>
-                  </div>
-                </header>
-                <div className="map-legend"><span><i className="legend-hub" />Hub pubblico</span><span><i className="legend-space" />Spazio Vivo</span><span><i className="legend-page" />Pagine e articoli</span></div>
-                <SiteMapGraph posts={posts} siteUrl={siteUrl} siteTitle={data?.site?.title || user?.name || user?.slug} foundationPages={seoFoundation.pages || []} />
-                <div className="map-actions"><a href="/scopri" target="_blank" rel="noopener" className="btn btn-outline">Apri la rete pubblica</a><a href={`${siteUrl}/sitemap.xml`} target="_blank" rel="noopener" className="btn btn-outline">Apri la sitemap</a></div>
               </section>
             </div>}
-
+            
             {false && visibilitySection === 'overview' && <>
             <div className="glass-modal" style={{ marginBottom: '1.5rem', padding: '1.5rem' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap', alignItems: 'flex-start' }}>
