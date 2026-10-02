@@ -188,7 +188,7 @@ jobs:
           mkdir -p release/api/services/publication release/cron
           cp api/services/publication/{security,service,wordpress}.php release/api/services/publication/
           cp cron/{publish,sync,fetch_seo,check_alerts}.php release/cron/
-          cp -r frontend/dist/. release/
+          cp -r frontend/dist/. release/\n          mkdir -p release/builder\n          cp -r frontend/openpage/dist/. release/builder/
           cp .htaccess robots.txt deploy-info.json release/
           cp monitor.php release/
           cp google*.html release/ 2>/dev/null || true
