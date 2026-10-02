@@ -46,7 +46,7 @@ class ProfileInterview {
             . "   {\"activity_type\": \"Avvocato per startup\", \"primary_audience\": \"Fondatori di startup tech\"}\n"
             . "   ```\n"
             . "   Il sistema intercetterà questo JSON e aggiornerà il database. Non mostrare questo JSON all'utente a parole, usalo solo nel blocco di codice.\n"
-            . "6. Se la strategia (current_user_strategy_draft) è già ben popolata (almeno 3-4 campi pieni), puoi concludere l'intervista congratulandoti.\n\n"
+            . "6. Se la strategia (current_user_strategy_draft) è già ben popolata (almeno 3-4 campi pieni), non chiudere la conversazione, ma chiedi all'utente se c'è altro che vuole approfondire o aggiungere per rendere il suo Agente Editoriale ancora più preciso, oppure scava più a fondo nei suoi punti distintivi e nel pubblico.\n\n"
             . "STATO ATTUALE (JSON):\n" . json_encode($context, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) . "\n\n"
             . "CRONOLOGIA DELLA CHAT:\n" . implode("\n", $conversation) . "\n\n"
             . "Scrivi ora la TUA PROSSIMA RISPOSTA (e includi il blocco JSON alla fine se hai appena dedotto nuovi campi).";

@@ -143,21 +143,39 @@ class SeoFoundation {
         return $cached ?: self::fallback($site, $sources, $posts, $understanding);
     }
 
-    public static function rebuild(int $userId, bool $force = false, bool $allowAi = true): array {
+    public static function rebuild(int $userId, bool $force = false, bool $allowAi = true, bool $dryRun = false): array {
         self::ensureSchema();
         $site = DB::fetch('SELECT * FROM sites WHERE user_id=?', [$userId]) ?: [];
         $sources = DB::fetchAll('SELECT platform, label, url, topic_summary FROM social_sources WHERE user_id=? AND active=1 ORDER BY id', [$userId]);
         $posts = DB::fetchAll('SELECT id, generated_title, edited_title, generated_excerpt, edited_excerpt, raw_content, transcript, tags, published_at FROM posts WHERE user_id=? AND published=1 AND seo_score>0 ORDER BY published_at DESC, id DESC LIMIT 50', [$userId]);
         $understanding = self::decode($site['site_understanding'] ?? null);
         $fingerprint = hash('sha256', json_encode([$site['profile_summary'] ?? '', $site['role_mission'] ?? '', $site['content_strategy'] ?? '', $understanding, $sources, array_map(static fn($post) => [$post['id'], $post['generated_title'], $post['tags']], $posts)], JSON_UNESCAPED_UNICODE));
-        if (!$force && !empty($site['seo_foundation']) && hash_equals((string)($site['seo_foundation_hash'] ?? ''), $fingerprint)) {
+        
+        if (!$force && !$dryRun && !empty($site['seo_foundation']) && hash_equals((string)($site['seo_foundation_hash'] ?? ''), $fingerprint)) {
             return self::decode($site['seo_foundation']);
         }
         $fallback = self::fallback($site, $sources, $posts, $understanding);
         $foundation = $fallback;
         if ($posts && $allowAi) {
-            try { $foundation = self::normalize(AI::seoFoundation($site, $sources, $posts, $understanding), $posts, $fallback); } catch (Throwable $e) {}
+            try { $foundation = self::normalize(AI::seoFoundation($site, $sources, $posts, $understanding), $posts, $fallback); } catch (Throwable $e) {
+                if (class_exists('Logger')) Logger::warn('rebuild', 'Errore', ['error' => $e->getMessage()]);
+            }
         }
+        
+        if (!$dryRun) {
+            DB::execute('UPDATE sites SET seo_foundation=?, seo_foundation_hash=?, seo_foundation_updated_at=NOW() WHERE user_id=?', [json_encode($foundation, JSON_UNESCAPED_UNICODE), $fingerprint, $userId]);
+        } else {
+            $foundation['_fingerprint'] = $fingerprint;
+        }
+        
+        return $foundation;
+    }
+
+    public static function save(int $userId, array $foundation, string $fingerprint = ''): array {
+        self::ensureSchema();
+        $foundation = self::normalize($foundation, [], []);
+        if (isset($foundation['_fingerprint'])) unset($foundation['_fingerprint']);
+        
         DB::execute('UPDATE sites SET seo_foundation=?, seo_foundation_hash=?, seo_foundation_updated_at=NOW() WHERE user_id=?', [json_encode($foundation, JSON_UNESCAPED_UNICODE), $fingerprint, $userId]);
         return $foundation;
     }

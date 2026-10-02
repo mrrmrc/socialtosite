@@ -1592,12 +1592,29 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
     setSavingProfile(false);
   }
 
-  async function rebuildSeoFoundation() {
-    setSavingProfile(true);
+    const [seoPreview, setSeoPreview] = useState(null);
+  const [loadingPreview, setLoadingPreview] = useState(false);
+
+  async function generateSeoPreview() {
+    setLoadingPreview(true);
+    setSyncMsg(null);
     try {
-      await apiFetch('/api/index.php?action=rebuild-seo-foundation', { method: 'POST', body: JSON.stringify({}) }, token);
+      const res = await apiFetch('/api/index.php?action=preview-seo-foundation', { method: 'POST', body: JSON.stringify({}) }, token);
+      setSeoPreview(res.seo_foundation);
+    } catch (err) {
+      setSyncMsg({ ok: false, text: err.message });
+    }
+    setLoadingPreview(false);
+  }
+
+  async function saveSeoFoundation() {
+    setSavingProfile(true);
+    setSyncMsg(null);
+    try {
+      await apiFetch('/api/index.php?action=save-seo-foundation', { method: 'POST', body: JSON.stringify({ seo_foundation: seoPreview }) }, token);
       await loadData();
-      setSyncMsg({ ok: true, text: 'Pagine SEO fondamentali ricostruite usando le informazioni verificate.' });
+      setSeoPreview(null);
+      setSyncMsg({ ok: true, text: 'Pagine SEO fondamentali salvate con successo.' });
     } catch (err) {
       setSyncMsg({ ok: false, text: err.message });
     }
@@ -2593,13 +2610,7 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
               <h1>{pageTitle}</h1>
               <p>{pageSubtitle}</p>
             </div>
-            <div className="page-actions">
-              {user?.role !== 'admin' && (!isBasePlan || activeChannelCount > 0) && (
-                <button className="btn btn-primary" onClick={isBasePlan ? () => acquireBaseContent(false) : syncNow} disabled={syncing}>
-                  {syncing ? '⟳ Aggiornamento…' : isBasePlan ? '↻ Aggiorna contenuti' : '↻ Cerca nuovi contenuti'}
-                </button>
-              )}
-            </div>
+            <div className="page-actions"></div>
           </header>
         {syncMsg && (
           <div style={{ marginBottom: '1rem', padding: '12px 16px', borderRadius: 'var(--radius-sm)', fontSize: '14px',
@@ -3671,7 +3682,7 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
                   </header>
                   <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
                     <a href={`${siteUrl}/sitemap.xml`} target="_blank" rel="noopener" className="btn btn-outline">Apri la sitemap XML</a>
-                    <button className="btn btn-outline" onClick={() => { if (window.confirm('Attenzione: questa operazione ricalcolerà i testi delle tue pagine principali (Chi Siamo, Cosa Offriamo, ecc.) basandosi sui tuoi ultimi post.\n\nLe vecchie pagine verranno sovrascritte.\n\nSei sicuro di voler procedere?')) rebuildSeoFoundation(); }} disabled={savingProfile}>{savingProfile ? 'Aggiorno...' : 'Rigenera pagine fondamentali'}</button>
+                    <button className="btn btn-outline" onClick={() => generateSeoPreview()} disabled={loadingPreview}>{loadingPreview ? 'Generazione anteprima...' : 'Rigenera pagine fondamentali'}</button>
                   </div>
               </section>
             </div>}
@@ -4731,6 +4742,31 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
             <div className="social-visual-brief"><strong>Visuale consigliato</strong><p>{socialComposer.visual_brief || 'Usa una foto o un video autentico e coerente con il contenuto.'}</p></div>
             <footer><button className="btn btn-outline" onClick={async () => { await navigator.clipboard.writeText(socialShareText()); setSyncMsg({ ok: true, text: 'Testo social copiato.' }); }}>Copia testo</button><button className="btn btn-primary" onClick={shareSocialContent}>Condividi e conferma nel social</button></footer>
           </section>
+        </div>
+      )}
+
+      
+      {seoPreview && (
+        <div className="modal-overlay" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
+          <div className="modal-content glass-modal" style={{ background: 'var(--bg)', maxWidth: '800px', width: '100%', maxHeight: '90vh', overflowY: 'auto', padding: '2rem', borderRadius: '1rem', border: '1px solid var(--border)' }}>
+            <h2 style={{ marginTop: 0, color: 'var(--text)' }}>Anteprima Pagine Fondamentali</h2>
+            <p style={{ color: 'var(--text-muted)' }}>Controlla i testi generati prima di confermare il salvataggio. Le pagine esistenti verranno sovrascritte.</p>
+            
+            <div style={{ display: 'grid', gap: '1.5rem', margin: '1.5rem 0' }}>
+              {(seoPreview.pages || []).map(page => (
+                <div key={page.slug} style={{ padding: '1.25rem', border: '1px solid var(--border)', borderRadius: '0.75rem', background: 'var(--surface)' }}>
+                  <h3 style={{ margin: '0 0 0.5rem', color: 'var(--primary)' }}>{page.title}</h3>
+                  <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '1.25rem', padding: '0.4rem 0.6rem', background: 'var(--bg)', borderRadius: '6px', display: 'inline-block' }}>Percorso: /{page.slug}</div>
+                  <div style={{ whiteSpace: 'pre-wrap', fontSize: '0.95rem', color: 'var(--text)', lineHeight: 1.6 }}>{page.content}</div>
+                </div>
+              ))}
+            </div>
+
+            <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end', marginTop: '2rem', paddingTop: '1.5rem', borderTop: '1px solid var(--border)' }}>
+              <button className="btn btn-outline" onClick={() => setSeoPreview(null)} disabled={savingProfile}>Annulla</button>
+              <button className="btn btn-primary" onClick={saveSeoFoundation} disabled={savingProfile}>{savingProfile ? 'Salvataggio...' : 'Conferma e Salva'}</button>
+            </div>
+          </div>
         </div>
       )}
 

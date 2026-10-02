@@ -1604,6 +1604,21 @@ if ($action === 'rebuild-seo-foundation' && $method === 'POST') {
     json(['ok' => true, 'seo_foundation' => SeoFoundation::rebuild($userId, true)]);
 }
 
+if ($action === 'preview-seo-foundation' && $method === 'POST') {
+    // $force = true, $allowAi = true, $dryRun = true
+    json(['ok' => true, 'seo_foundation' => SeoFoundation::rebuild($userId, true, true, true)]);
+}
+
+if ($action === 'save-seo-foundation' && $method === 'POST') {
+    $payload = body();
+    if (empty($payload['seo_foundation'])) {
+        jsonError('Dati mancanti', 400);
+    }
+    $fingerprint = $payload['seo_foundation']['_fingerprint'] ?? '';
+    $saved = SeoFoundation::save($userId, $payload['seo_foundation'], (string)$fingerprint);
+    json(['ok' => true, 'seo_foundation' => $saved]);
+}
+
 if ($action === 'reachability-update' && $method === 'POST') {
     $profile = ReachabilityNetwork::update($userId, body());
     json(['ok' => true, 'profile' => $profile]);
