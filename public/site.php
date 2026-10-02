@@ -1731,11 +1731,15 @@ $dynamicBaseCss = "
   {$modelBlendCss}
 ";
 
-// Selezione CSS tema + inject accent color
-// Se stiamo usando un tema legacy, usa il CSS legacy, altrimenti usa la base dinamica
-$activeCss = isset($themeCSS[$archetype]) ? $themeCSS[$archetype] : $dynamicBaseCss;
-if (!isset($themeCSS[$archetype]) || !empty($site['site_ai_data'])) {
-    // Forza CSS dinamico se l'AI ha generato il sito (o se l'archetipo non e' nei fallback)
+// ── Selezione CSS: il CSS dinamico AI ha SEMPRE la precedenza ────────────────
+// Se site_ai_data esiste, i temi legacy vengono ignorati completamente.
+// I temi legacy restano solo per siti che non hanno mai generato con LIA.
+$hasAiData = !empty($site['site_ai_data']) && strlen(trim($site['site_ai_data'])) > 10;
+if ($hasAiData) {
+    $activeCss = $dynamicBaseCss;
+} elseif (isset($themeCSS[$archetype])) {
+    $activeCss = $themeCSS[$archetype];
+} else {
     $activeCss = $dynamicBaseCss;
 }
 
