@@ -2774,9 +2774,9 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
                 <header style={{ marginBottom: '1.5rem' }}>
                   <h2 style={{ margin: 0, fontSize: '1.5rem', color: 'var(--text)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M12 2a7 7 0 0 0-7 7c0 2.38 1.19 4.67 3.03 6.17a1 1 0 0 1 .37.78V17h7v-1.05a1 1 0 0 1 .37-.78C17.81 13.67 19 11.38 19 9a7 7 0 0 0-7-7z"/></svg>
-                    Idea e Scrittura AI
+                    Articoli suggeriti da LIA oggi
                   </h2>
-                  <p style={{ margin: '0.5rem 0 0', color: 'var(--text-muted)' }}>Fai generare all'AI 2 brani/testi. Dalle istruzioni e scegli la variante migliore per i tuoi Articoli.</p>
+                  <p style={{ margin: '0.5rem 0 0', color: 'var(--text-muted)' }}>Indica a LIA fornendo o il titolo o una breve sintesi di quello che vuoi trattare 2 articoli che lei genererà. (italiano, formattazione, a tutto il resto pensa lei!)</p>
                 </header>
                 
                 {!ideaGenState.variants ? (
@@ -2790,7 +2790,7 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
                       <input type="checkbox" checked={ideaGenState.usa_profilo} onChange={e => setIdeaGenState(p => ({...p, usa_profilo: e.target.checked}))} style={{ width: '20px', height: '20px' }} />
                       <div style={{ display: 'flex', flexDirection: 'column' }}>
                         <span style={{ fontWeight: '600' }}>Usa il mio profilo e Internet</span>
-                        <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>L'AI baserà il testo sulla tua identità e cercherà aggiornamenti in tempo reale su Google per arricchirlo.</span>
+                        <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>LIA baserà il testo sulla tua identità e cercherà aggiornamenti in tempo reale su Google per arricchirlo.</span>
                       </div>
                     </label>
                     

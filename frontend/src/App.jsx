@@ -92,7 +92,7 @@ export default function App() {
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
       <div style={{ flex: 1 }}>{screen}</div>
       <footer style={{ padding: '8px', textAlign: 'center', fontSize: '11px', color: 'var(--text-faint)', background: 'var(--surface)', borderTop: '1px solid var(--border)', zIndex: 1000 }}>
-        {now.toLocaleString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+        Build: {typeof __BUILD_TIMESTAMP__ !== 'undefined' ? __BUILD_TIMESTAMP__ : 'Dev'}
       </footer>
     </div>
   );
