@@ -3604,11 +3604,38 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
                 ))}
               </section>
 
+              {visibility.event_counts && Object.keys(visibility.event_counts).length > 0 && (
+                <section className="card" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+                  <header style={{ marginBottom: '1.5rem' }}>
+                    <h3 style={{ margin: 0, fontSize: '1.25rem', color: 'var(--text)' }}>Cosa interessa di più ai tuoi visitatori</h3>
+                    <p style={{ color: 'var(--text-muted)', margin: '0.5rem 0 0', fontSize: '14px' }}>Scopri esattamente quali azioni compiono le persone quando arrivano sui tuoi contenuti.</p>
+                  </header>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
+                    {[
+                      ['Letture di contenuti', visibility.event_counts?.path_content_click || 0, '📖'],
+                      ['Clic sul Telefono', visibility.event_counts?.call_click || 0, '📞'],
+                      ['Clic su WhatsApp', visibility.event_counts?.whatsapp_click || 0, '💬'],
+                      ['Clic su Indicazioni stradali', visibility.event_counts?.directions_click || 0, '🗺️'],
+                      ['Clic su Prenota', visibility.event_counts?.booking_click || 0, '📅'],
+                      ['Visite ai Social', visibility.event_counts?.social_click || 0, '🔗']
+                    ].filter(item => item[1] > 0).map(([label, count, icon]) => (
+                      <div key={label} style={{ display: 'flex', alignItems: 'center', gap: '1rem', padding: '1rem', background: 'var(--bg)', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
+                        <div style={{ fontSize: '1.5rem' }}>{icon}</div>
+                        <div>
+                          <strong style={{ display: 'block', fontSize: '1.25rem', color: 'var(--text)' }}>{count}</strong>
+                          <span style={{ fontSize: '13px', color: 'var(--text-muted)' }}>{label}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </section>
+              )}
+
               {visibility.top_queries && visibility.top_queries.length > 0 && (
                 <section className="card">
                   <header style={{ marginBottom: '1.5rem' }}>
-                    <h3 style={{ margin: 0, fontSize: '1.25rem', color: 'var(--text)' }}>Cosa cercano le persone</h3>
-                    <p style={{ color: 'var(--text-muted)', margin: '0.5rem 0 0', fontSize: '14px' }}>Le parole chiave esatte che hanno portato visitatori ai tuoi contenuti.</p>
+                    <h3 style={{ margin: 0, fontSize: '1.25rem', color: 'var(--text)' }}>Cosa cercano le persone su Google</h3>
+                    <p style={{ color: 'var(--text-muted)', margin: '0.5rem 0 0', fontSize: '14px' }}>Le parole esatte che hanno portato visitatori sul tuo sito negli ultimi 30 giorni.</p>
                   </header>
                   <div style={{ display: 'grid', gap: '0.5rem' }}>
                     {visibility.top_queries.slice(0, 5).map(q => (
@@ -3621,13 +3648,28 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
                 </section>
               )}
 
+              <section className="data-panel map-panel card" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+                <header className="map-heading" style={{ marginBottom: '1.5rem' }}>
+                  <div>
+                    <h3 style={{ margin: 0, fontSize: '1.25rem', color: 'var(--text)' }}>Mappa della presenza online</h3>
+                    <p style={{ color: 'var(--text-muted)', margin: '0.5rem 0 0', fontSize: '14px' }}>Come i vari contenuti sono collegati tra loro per farti trovare dai motori di ricerca.</p>
+                  </div>
+                </header>
+                <div className="map-legend" style={{ marginBottom: '1rem' }}>
+                  <span><i className="legend-hub" />Hub pubblico</span>
+                  <span><i className="legend-space" />Spazio Vivo</span>
+                  <span><i className="legend-page" />Pagine e articoli</span>
+                </div>
+                <SiteMapGraph posts={posts} siteUrl={siteUrl} siteTitle={data?.site?.title || user?.name || user?.slug} foundationPages={seoFoundation.pages || []} />
+              </section>
+
               <section className="card" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
                   <header style={{ marginBottom: '1.5rem' }}>
-                    <h3 style={{ margin: 0, fontSize: '1.25rem', color: 'var(--text)' }}>Copertura e Pagine fondamentali</h3>
+                    <h3 style={{ margin: 0, fontSize: '1.25rem', color: 'var(--text)' }}>Struttura e Pagine fondamentali</h3>
                     <p style={{ color: 'var(--text-muted)', margin: '0.5rem 0 0', fontSize: '14px' }}>Il tuo sito ha <strong>{networkPublishedPages}</strong> pagine pubbliche. {reachability.google?.has_evidence ? `Di queste, Google ne ha già rilevate ${reachability.google?.visible_pages || visibility.visible_pages || 0}.` : 'Stiamo raccogliendo i dati sulla copertura Google.'}</p>
                   </header>
                   <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
-                    <a href={`${siteUrl}/sitemap.xml`} target="_blank" rel="noopener" className="btn btn-outline">Apri la sitemap</a>
+                    <a href={`${siteUrl}/sitemap.xml`} target="_blank" rel="noopener" className="btn btn-outline">Apri la sitemap XML</a>
                     <button className="btn btn-outline" onClick={rebuildSeoFoundation} disabled={savingProfile}>{savingProfile ? 'Aggiorno…' : 'Rigenera pagine fondamentali'}</button>
                   </div>
               </section>
