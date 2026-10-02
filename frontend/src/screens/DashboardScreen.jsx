@@ -3509,10 +3509,11 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
               </label>
             </div>
 
-            {visibilitySection !== 'ideas' && <div className="visibility-subnav">
+            {visibilitySection !== 'ideas' && isAdmin && <div className="visibility-subnav">
               {[
                 ['overview', 'Panoramica Prestazioni'],
-                ...(isAdmin ? [['network', 'Rete e Presenza'], ['lab', 'Laboratorio']] : []),
+                ['network', 'Rete e Presenza'],
+                ['lab', 'Laboratorio']
               ].map(([section, label]) => <button key={section} className={visibilitySection === section ? 'is-active' : ''} onClick={() => setVisibilitySection(section)}>{label}</button>)}
             </div>}
 
