@@ -2749,10 +2749,7 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
           </div>
         )}
 
-        {(tab === 'overview' || (tab === 'profile' && profileSubTab === 'who')) && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
-            
-            {tab === 'idea' && (
+        {tab === 'idea' && (
               <section className="card" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
                 <header style={{ marginBottom: '1.5rem' }}>
                   <h2 style={{ margin: 0, fontSize: '1.5rem', color: 'var(--text)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -2811,6 +2808,11 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
                 )}
               </section>
             )}
+
+{(tab === 'overview' || (tab === 'profile' && profileSubTab === 'who')) && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+            
+            
 {tab === 'overview' && (
               <section className="project-command-center" aria-labelledby="project-command-title">
                 <div className="project-command-main">
