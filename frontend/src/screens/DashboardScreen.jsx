@@ -3670,7 +3670,7 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
                   </header>
                   <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
                     <a href={`${siteUrl}/sitemap.xml`} target="_blank" rel="noopener" className="btn btn-outline">Apri la sitemap XML</a>
-                    <button className="btn btn-outline" onClick={rebuildSeoFoundation} disabled={savingProfile}>{savingProfile ? 'Aggiorno...' : 'Rigenera pagine fondamentali'}</button>
+                    <button className="btn btn-outline" onClick={() => { if (window.confirm('Attenzione: questa operazione ricalcolerà i testi delle tue pagine principali (Chi Siamo, Cosa Offriamo, ecc.) basandosi sui tuoi ultimi post.\n\nLe vecchie pagine verranno sovrascritte.\n\nSei sicuro di voler procedere?')) rebuildSeoFoundation(); }} disabled={savingProfile}>{savingProfile ? 'Aggiorno...' : 'Rigenera pagine fondamentali'}</button>
                   </div>
               </section>
             </div>}
