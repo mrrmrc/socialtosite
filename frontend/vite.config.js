@@ -5,7 +5,7 @@ import react from '@vitejs/plugin-react'
 export default defineConfig({
   plugins: [react()],
   define: {
-    __BUILD_TIMESTAMP__: JSON.stringify(new Date().toLocaleString('it-IT'))
+    __BUILD_TIMESTAMP__: JSON.stringify(new Date().toLocaleString('it-IT', { timeZone: 'Europe/Rome' }))
   },
   server: {
     port: 5173,
