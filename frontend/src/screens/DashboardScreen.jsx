@@ -444,32 +444,52 @@ function GuidedStrategy({
 }
 
 function SiteMapGraph({ posts, siteUrl, siteTitle, foundationPages = [] }) {
-  const visiblePosts = posts.filter(post => Number(post.published) === 1).slice(0, 6);
-  const positions = [[105,365],[235,365],[365,365],[495,365],[625,365],[755,365]];
-  const topicCounts = {};
-  visiblePosts.forEach(post => (post.tags || []).forEach(tag => { topicCounts[tag] = (topicCounts[tag] || 0) + 1; }));
-  const topTopics = Object.entries(topicCounts).sort((a,b) => b[1] - a[1]).slice(0, 3).map(([label]) => label);
-  const graphLabels = foundationPages.length ? foundationPages.slice(0, 4).map(page => page.title) : topTopics;
-  const topicPositions = graphLabels.map((label, index) => ({ label, x: 235 + (index * 130) }));
-  const short = value => String(value || 'Articolo').replace(/\s+/g, ' ').slice(0, 24);
+  const visiblePosts = posts.filter(post => Number(post.published) === 1);
+  const graphLabels = foundationPages.length > 0 ? foundationPages : [{ title: 'I tuoi articoli', slug: '' }];
+
   return (
-    <div style={{ overflowX: 'auto', paddingBottom: '0.5rem' }}>
-      <svg viewBox="0 0 860 445" role="img" aria-label="Grafo dei collegamenti dalla rete All Social To Web allo Spazio Vivo, ai temi e ai suoi contenuti" style={{ width: '100%', minWidth: '690px', height: 'auto', display: 'block' }}>
-        <defs>
-          <linearGradient id="graphRoot" x1="0" x2="1"><stop stopColor="#6366f1"/><stop offset="1" stopColor="#06b6d4"/></linearGradient>
-          <filter id="graphShadow"><feDropShadow dx="0" dy="5" stdDeviation="7" floodOpacity="0.13"/></filter>
-        </defs>
-        <path d="M430 82 L430 142" stroke="var(--border-strong)" strokeWidth="3" />
-        {graphLabels.length === 0 && visiblePosts.length > 0 && <path d="M430 224 L430 312" stroke="var(--border-strong)" strokeWidth="2" />}
-        {topicPositions.map(topic => <path key={topic.label} d={`M430 224 C430 250 ${topic.x} 242 ${topic.x} 276`} fill="none" stroke="var(--primary)" strokeOpacity=".55" strokeWidth="2" />)}
-        {positions.slice(0, visiblePosts.length).map(([x], index) => { const postTags=visiblePosts[index]?.tags || []; const parent=foundationPages.length ? topicPositions[index % Math.max(topicPositions.length, 1)] : topicPositions.find(topic => postTags.includes(topic.label)); const fromX=parent?.x || 430; return <path key={index} d={`M${fromX} 312 C${fromX} 334 ${x} 326 ${x} 350`} fill="none" stroke="var(--border-strong)" strokeWidth="2" />; })}
-        <g filter="url(#graphShadow)"><rect x="310" y="22" width="240" height="60" rx="18" fill="url(#graphRoot)"/><text x="430" y="48" textAnchor="middle" fill="#fff" fontSize="15" fontWeight="800">ALL SOCIAL TO WEB</text><text x="430" y="67" textAnchor="middle" fill="rgba(255,255,255,.82)" fontSize="11">Rete pubblica /scopri</text></g>
-        <g filter="url(#graphShadow)"><rect x="285" y="142" width="290" height="82" rx="20" fill="var(--surface)" stroke="var(--primary)" strokeWidth="2"/><text x="430" y="174" textAnchor="middle" fill="var(--text)" fontSize="17" fontWeight="800">{short(siteTitle || 'Spazio Vivo')}</text><text x="430" y="198" textAnchor="middle" fill="var(--text-muted)" fontSize="12">{siteUrl.replace(window.location.origin, '')}</text></g>
-        {topicPositions.map(topic => <g key={topic.label}><rect x={topic.x-58} y="276" width="116" height="36" rx="18" fill="var(--primary-light)" stroke="var(--primary)"/><text x={topic.x} y="299" textAnchor="middle" fill="var(--primary)" fontSize="10" fontWeight="800">{short(topic.label).slice(0,19)}</text></g>)}
-        {visiblePosts.map((post, index) => { const [x,y]=positions[index]; return <g key={post.id}><rect x={x-56} y={y-15} width="112" height="58" rx="14" fill="var(--bg)" stroke="var(--border-strong)"/><text x={x} y={y+7} textAnchor="middle" fill="var(--text)" fontSize="10" fontWeight="700"><tspan x={x}>{short(post.generated_title).slice(0,16)}</tspan><tspan x={x} dy="14">{short(post.generated_title).slice(16,32)}</tspan></text></g> })}
-        {visiblePosts.length === 0 && <text x="430" y="350" textAnchor="middle" fill="var(--text-muted)" fontSize="14">I prossimi articoli compariranno qui</text>}
-      </svg>
-      <p style={{ margin: '0.5rem 0 0', color: 'var(--text-muted)', fontSize: '13px', textAlign: 'center' }}>Le linee rappresentano collegamenti HTML percorribili da persone e motori di ricerca.</p>
+    <div className="sitemap-tree" style={{ padding: '1.5rem', background: 'var(--bg)', borderRadius: 'var(--radius)', border: '1px solid var(--border)', overflowX: 'auto' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.5rem' }}>
+        <div style={{ width: '40px', height: '40px', borderRadius: '8px', background: 'var(--primary-light)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--primary)' }}>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
+        </div>
+        <div>
+          <a href={siteUrl} target="_blank" rel="noopener" style={{ fontWeight: '800', fontSize: '1.15rem', color: 'var(--text)', textDecoration: 'none' }}>{siteTitle || 'Spazio Vivo'}</a>
+          <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Dominio principale ({siteUrl.replace(/^https?:\/\//, '')})</div>
+        </div>
+      </div>
+      
+      <div style={{ paddingLeft: '1.25rem', borderLeft: '2px solid var(--border-strong)', marginLeft: '1.1rem', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+        {graphLabels.map((page, pIndex) => {
+          const assignedPosts = foundationPages.length > 0 
+            ? visiblePosts.filter((_, i) => i % Math.max(foundationPages.length, 1) === pIndex)
+            : visiblePosts;
+            
+          return (
+            <div key={page.slug || pIndex} className="sitemap-node">
+              <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}>
+                <div style={{ position: 'absolute', left: '-1.25rem', top: '50%', width: '1rem', height: '2px', background: 'var(--border-strong)' }} />
+                <a href={page.slug ? `${siteUrl}/${page.slug}` : siteUrl} target="_blank" rel="noopener" style={{ padding: '0.4rem 0.8rem', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '6px', fontWeight: '700', color: 'var(--primary)', textDecoration: 'none', fontSize: '0.95rem' }}>
+                  {page.title}
+                </a>
+              </div>
+              
+              {assignedPosts.length > 0 && (
+                <div style={{ paddingLeft: '1.5rem', borderLeft: '1px dashed var(--border)', marginLeft: '0.5rem', display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+                  {assignedPosts.map((post, postIdx) => (
+                    <div key={post.slug || post.id || postIdx} style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                      <div style={{ position: 'absolute', left: '-1.5rem', top: '50%', width: '1.25rem', height: '1px', background: 'var(--border)' }} />
+                      <a href={`${siteUrl}/post/${post.slug}`} target="_blank" rel="noopener" style={{ color: 'var(--text-muted)', fontSize: '0.9rem', textDecoration: 'none', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '400px' }}>
+                        {post.edited_title || post.generated_title}
+                      </a>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }
@@ -3675,6 +3695,7 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
                 <SiteMapGraph posts={posts} siteUrl={siteUrl} siteTitle={data?.site?.title || user?.name || user?.slug} foundationPages={seoFoundation.pages || []} />
               </section>
 
+              {!isBasePlan && (
               <section className="card" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
                   <header style={{ marginBottom: '1.5rem' }}>
                     <h3 style={{ margin: 0, fontSize: '1.25rem', color: 'var(--text)' }}>Struttura e Pagine fondamentali</h3>
@@ -3685,6 +3706,7 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
                     <button className="btn btn-outline" onClick={() => generateSeoPreview()} disabled={loadingPreview}>{loadingPreview ? 'Generazione anteprima...' : 'Rigenera pagine fondamentali'}</button>
                   </div>
               </section>
+              )}
             </div>}
             
             {false && visibilitySection === 'overview' && <>
