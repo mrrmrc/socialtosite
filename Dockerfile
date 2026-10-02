@@ -4,7 +4,8 @@ WORKDIR /app
 COPY frontend/package*.json ./
 RUN npm install --legacy-peer-deps
 COPY frontend/ ./
-RUN npm run build\nRUN cd openpage && npm install --legacy-peer-deps && npm run build
+RUN npm run build
+RUN cd openpage && npm install --legacy-peer-deps && npm run build
 
 # Fase 2: Configurazione Server Web (Apache + PHP 8)
 FROM php:8.2-apache
@@ -35,7 +36,8 @@ COPY . ./
 RUN rm -rf frontend/
 
 # Copia il frontend compilato (file statici in radice) dalla Fase 1
-COPY --from=frontend-builder /app/dist/ ./\nCOPY --from=frontend-builder /app/openpage/dist/ ./builder/
+COPY --from=frontend-builder /app/dist/ ./
+COPY --from=frontend-builder /app/openpage/dist/ ./builder/
 
 # Crea la cartella media per i volumi e imposta i permessi per Apache
 RUN mkdir -p /var/www/html/public/media \
