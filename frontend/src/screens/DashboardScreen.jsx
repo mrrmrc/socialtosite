@@ -2770,16 +2770,124 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
         )}
 
         {tab === 'idea' && (
-              <section className="card" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
-                <header style={{ marginBottom: '1.5rem' }}>
-                  <h2 style={{ margin: 0, fontSize: '1.5rem', color: 'var(--text)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M12 2a7 7 0 0 0-7 7c0 2.38 1.19 4.67 3.03 6.17a1 1 0 0 1 .37.78V17h7v-1.05a1 1 0 0 1 .37-.78C17.81 13.67 19 11.38 19 9a7 7 0 0 0-7-7z"/></svg>
-                    Articoli suggeriti da LIA oggi
-                  </h2>
-                  <p style={{ margin: '0.5rem 0 0', color: 'var(--text-muted)' }}>Indica a LIA fornendo o il titolo o una breve sintesi di quello che vuoi trattare 2 articoli che lei genererà. (italiano, formattazione, a tutto il resto pensa lei!)</p>
-                </header>
-                
-                {!ideaGenState.variants ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+                <section className="card" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+                  <header style={{ marginBottom: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem' }}>
+                    <div>
+                      <h2 style={{ margin: 0, fontSize: '1.5rem', color: 'var(--text)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
+                        Articoli suggeriti da LIA oggi vuoi generarli?
+                      </h2>
+                      <p style={{ margin: '0.5rem 0 0', color: 'var(--text-muted)' }}>LIA analizza il tuo profilo e le tue priorità per proporti 3 nuove idee.</p>
+                    </div>
+                    <button className="btn btn-primary" onClick={generateAiContentIdeas} disabled={generatingIdeas}>
+                      {generatingIdeas ? 'Cerco e genero…' : '✦ Genera'}
+                    </button>
+                  </header>
+                  
+                  {contentIdeas.length > 0 && (
+                    <div style={{ marginTop: '1.5rem' }}>
+                      <ol className="ideas-list">
+                {contentIdeas.map((idea, index) => {
+                  const inModifica = editingIdea?.index === index;
+                  const occupato = preparingIdea !== -1;
+                  const ideaKey = editorialIdeaKey(idea);
+                  return (
+                    <li key={`${idea.title}-${index}`} className={`idea-row ${inModifica ? 'is-editing' : ''}`}>
+                      <div className="idea-rank">{index + 1}</div>
+                      <div className="idea-main">
+                        {inModifica ? (
+                          <div className="idea-edit">
+                            <label>
+                              <span>Titolo del contenuto</span>
+                              <input
+                                type="text" value={editingIdea.title} autoFocus
+                                onChange={e => setEditingIdea({ ...editingIdea, title: e.target.value })}
+                                placeholder="Di cosa parla il contenuto"
+                              />
+                            </label>
+                            <label>
+                              <span>Cosa deve dire, in breve</span>
+                              <textarea
+                                rows={2} value={editingIdea.reason}
+                                onChange={e => setEditingIdea({ ...editingIdea, reason: e.target.value })}
+                                placeholder="Il punto che vuoi far arrivare al lettore"
+                              />
+                            </label>
+                            <div className="idea-actions">
+                              <button className="btn btn-primary" disabled={occupato}
+                                onClick={() => createIdeaDraft({ ...idea, title: editingIdea.title, reason: editingIdea.reason }, index, 'ai')}>
+                                ✨ Genera con l’AI
+                              </button>
+                              <button className="btn btn-outline" disabled={occupato}
+                                onClick={() => createIdeaDraft({ ...idea, title: editingIdea.title, reason: editingIdea.reason }, index, 'manual')}>
+                                ✎ Scrivo io
+                              </button>
+                              <button className="btn btn-outline" disabled={occupato || generatingSocial}
+                                onClick={() => generateSocialContent({ ...idea, title: editingIdea.title, reason: editingIdea.reason })}>Genera post social</button>
+                              <button className="btn btn-ghost" onClick={() => setEditingIdea(null)}>Annulla</button>
+                              <button className="btn btn-ghost idea-delete" disabled={occupato || dismissingIdeaKey === ideaKey}
+                                onClick={() => dismissContentIdea(idea)}>
+                                {dismissingIdeaKey === ideaKey ? 'Elimino…' : 'Elimina proposta'}
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <>
+                            <div className="idea-title-row">
+                              <h4>{idea.title}</h4>
+                              <span className="idea-tag">{idea.type}</span>
+                            </div>
+                            <p className="idea-reason">{idea.reason}</p>
+                            <div className="idea-origin">Da: {idea.source}{idea.freshness ? ` · ${idea.freshness}` : ''}{idea.source_url ? <> · <a href={idea.source_url} target="_blank" rel="noopener">vedi fonte</a></> : null}</div>
+                            <div className="idea-actions">
+                              <button className="btn btn-primary" disabled={occupato}
+                                onClick={() => createIdeaDraft(idea, index, 'ai')}>
+                                {preparingIdea === index ? 'Creo la bozza…' : '✨ Genera con l’AI'}
+                              </button>
+                              <button className="btn btn-outline" disabled={occupato}
+                                onClick={() => createIdeaDraft(idea, index, 'manual')}>
+                                ✎ Scrivo io
+                              </button>
+                              <button className="btn btn-outline" disabled={occupato || generatingSocial}
+                                onClick={() => generateSocialContent(idea)}>{generatingSocial ? 'Preparo il social…' : 'Genera post social'}</button>
+                              <button className="btn btn-ghost" disabled={occupato}
+                                onClick={() => setEditingIdea({ index, title: idea.title, reason: idea.reason })}>
+                                Adatta l’idea
+                              </button>
+                              <button className="btn btn-ghost idea-delete" disabled={occupato || dismissingIdeaKey === ideaKey}
+                                onClick={() => dismissContentIdea(idea)}>
+                                {dismissingIdeaKey === ideaKey ? 'Elimino…' : 'Elimina'}
+                              </button>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    </li>
+                  );
+                })}
+
+                {!contentIdeas.length && (
+                  <li className="idea-empty">
+                    Ancora nessuna proposta: servono contenuti pubblicati o il Profilo guidato compilato.
+                    Puoi comunque partire da un’idea tua, qui sotto.
+                  </li>
+                )}
+              </ol>
+                    </div>
+                  )}
+                </section>
+
+                <section className="card" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+                  <header style={{ marginBottom: '1.5rem' }}>
+                    <h2 style={{ margin: 0, fontSize: '1.5rem', color: 'var(--text)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M12 2a7 7 0 0 0-7 7c0 2.38 1.19 4.67 3.03 6.17a1 1 0 0 1 .37.78V17h7v-1.05a1 1 0 0 1 .37-.78C17.81 13.67 19 11.38 19 9a7 7 0 0 0-7-7z"/></svg>
+                      Generazione manuale di 2 articoli
+                    </h2>
+                    <p style={{ margin: '0.5rem 0 0', color: 'var(--text-muted)' }}>Indica a LIA fornendo o il titolo o una breve sintesi di quello che vuoi trattare 2 articoli che lei genererà. (italiano, formattazione, a tutto il resto pensa lei!)</p>
+                  </header>
+                  
+                  {!ideaGenState.variants ? (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
                     <label style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                       <span style={{ fontWeight: '600' }}>Di cosa vuoi scrivere? (Argomento)</span>
@@ -2795,7 +2903,7 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
                     </label>
                     
                     <label style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                      <span style={{ fontWeight: '600' }}>Link di spunto (Opzionali)</span>
+                      <span style={{ fontWeight: '600' }}>Hai qualche sito di riferimento? (Link di spunto opzionali)</span>
                       <textarea className="form-input" rows={3} value={ideaGenState.links} onChange={e => setIdeaGenState(p => ({...p, links: e.target.value}))} placeholder="Incolla qui gli URL (uno per riga) da cui prendere ispirazione o informazioni." />
                     </label>
                     
@@ -2826,7 +2934,9 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
                     </div>
                   </div>
                 )}
-              </section>
+                </section>
+              </div>
+
             )}
 
 {(tab === 'overview' || (tab === 'profile' && profileSubTab === 'who')) && (
