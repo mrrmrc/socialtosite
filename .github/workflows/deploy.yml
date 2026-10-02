@@ -107,7 +107,7 @@ jobs:
             api/routes/publication.php api/services/plan_policy.php \
             api/services/publication/{security,service,wordpress}.php cron/publish.php cron/sync.php cron/fetch_seo.php cron/check_alerts.php \
             integrations/wordpress/allsocialtoweb/allsocialtoweb.php \
-            public/site.php public/discover.php public/sitemap.php public/site-professional.php public/import_db.php \
+            public/site.php public/discover.php public/sitemap.php public/site-professional.php \
             config/db.php)
           [ "$errors" -eq 0 ] || exit 1
 
@@ -208,7 +208,7 @@ jobs:
           append_secret SOCIALTOSITE_RUNTIME_GEMINI_MODEL "$GEMINI_MODEL"
           append_secret SOCIALTOSITE_RUNTIME_BASE_URL "$PUBLIC_BASE_URL"
           mkdir -p release/public/media
-          cp public/{site,discover,sitemap,site-professional,import_db}.php release/public/
+          cp public/{site,discover,sitemap,site-professional}.php release/public/
 
           if find release \( -name 'config.php' -o -name 'keys.php' -o -name '*.env' \
                            -o -name 'reset-*' -o -name 'test_*' -o -name 'test-*' \
