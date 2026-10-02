@@ -1425,6 +1425,21 @@ if ($action === 'toggle-publish-post' && $method === 'POST') {
     json(['ok' => true]);
 }
 
+// ── PUBBLICA TUTTI i post processati ────────────────────────────────────────
+// Pubblica tutti i post che hanno seo_score > 0 e un titolo generato,
+// utile per l'onboarding quando l'utente ha tanti contenuti ancora in bozza.
+if ($action === 'publish-all' && $method === 'POST') {
+    $count = DB::fetch(
+        'SELECT COUNT(*) as n FROM posts WHERE user_id=? AND published=0 AND seo_score>0 AND (generated_title IS NOT NULL AND generated_title != "")',
+        [$userId]
+    )['n'] ?? 0;
+    DB::execute(
+        'UPDATE posts SET published=1, published_at=COALESCE(published_at, NOW()) WHERE user_id=? AND published=0 AND seo_score>0 AND (generated_title IS NOT NULL AND generated_title != "")',
+        [$userId]
+    );
+    json(['ok' => true, 'published' => (int)$count]);
+}
+
 // Ã”Ã¶Ã‡Ã”Ã¶Ã‡ FEATURE post (metti in evidenza) Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡
 if ($action === 'post-feature' && $method === 'POST') {
     $b = body();

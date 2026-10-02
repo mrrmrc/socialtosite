@@ -3292,7 +3292,8 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
   }
 
   function renderAiGenerateCard() {
-    const hasContent = posts.length > 0;
+    // Basta avere il profilo compilato O dei social collegati per poter generare
+    const hasContent = posts.length > 0 || (site?.profile_summary?.trim().length > 0) || (sources?.length > 0);
     return (
       <section className="card ai-site-card">
         <div>
@@ -5744,6 +5745,36 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
                     </section>
 
                     {renderAiGenerateCard()}
+
+                    {/* Pubblica tutti i contenuti pronti */}
+                    {posts.length > publishedPosts.length && (
+                      <section className="glass-modal" style={{ padding: '1.25rem 1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap', border: '1px solid var(--teal)' }}>
+                        <div>
+                          <div style={{ fontSize: 12, fontWeight: 850, textTransform: 'uppercase', letterSpacing: '.06em', color: 'var(--teal)' }}>Articoli pronti</div>
+                          <div style={{ fontWeight: 700, fontSize: 15, color: 'var(--text)', marginTop: 4 }}>
+                            {posts.length - publishedPosts.length} contenuti in bozza non ancora sul sito
+                          </div>
+                          <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
+                            Solo i contenuti con titolo e score SEO vengono pubblicati
+                          </div>
+                        </div>
+                        <button
+                          className="btn btn-primary"
+                          style={{ background: 'var(--teal)', whiteSpace: 'nowrap', flexShrink: 0 }}
+                          onClick={async () => {
+                            try {
+                              const res = await apiFetch('/api/index.php?action=publish-all', { method: 'POST' }, token);
+                              await loadData();
+                              setSyncMsg({ ok: true, text: `${res.published} articoli pubblicati sul sito!` });
+                            } catch (e) {
+                              setSyncMsg({ ok: false, text: e.message });
+                            }
+                          }}
+                        >
+                          📤 Pubblica tutti sul sito
+                        </button>
+                      </section>
+                    )}
 
                     <section
                       className="base-summary"
