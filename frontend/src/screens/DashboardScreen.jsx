@@ -8,6 +8,7 @@ import { ProductGuide } from '../components/ProductGuide';
 import { PublicationConnections } from '../components/PublicationConnections';
 import { ProSiteBuilder } from '../components/ProSiteBuilder';
 import { BrandMark } from './LandingScreen';
+import { EditorLayout } from '../openpage/editor/EditorLayout';
 const STUDIO_DEFAULTS = {
   font_heading: 'Outfit',
   font_body: 'Inter',
@@ -2727,7 +2728,7 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
               {[
                 { id: 'who', label: '✍️ Stile Editoriale', desc: "Istruisci l'AI su come scrivere" },
                 { id: 'presence', label: '🌐 Presenza e Contatti', desc: 'Sito ufficiale, territori e recapiti' },
-                { id: 'identity', label: '🎨 Identità e Aspetto', desc: 'Logo, stile e impaginazione' },
+                
                 
               ].map(opt => (
                 <button
@@ -2952,7 +2953,7 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
                   <p>Contenuti, pubblicazione e identità visiva riuniti in un unico spazio di lavoro.</p>
                   <div className="project-command-actions">
                     <a className="btn btn-primary" href={siteUrl} target="_blank" rel="noopener">Apri il sito ↗</a>
-                    <button className="btn btn-outline" onClick={() => { setTab('profile'); setProfileSubTab('themes'); setMobileMenuOpen(false); }}>Gestisci l’aspetto</button>
+                    
                   </div>
                 </div>
                 <div className="project-command-grid" aria-label="Stato del progetto">
@@ -3512,74 +3513,15 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
           );
         })()}
 
-        {(tab === 'profile' && profileSubTab === 'identity') && (
-          <div style={{ display: 'grid', gap: '1rem' }}>
-            {/* MODIFICA SITO — azione principale sempre visibile */}
-            <section style={{
-              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-              gap: '1rem', flexWrap: 'wrap',
-              padding: 'clamp(1.25rem, 3vw, 2rem)',
-              borderRadius: 'var(--radius-lg)',
-              background: 'linear-gradient(135deg, var(--primary) 0%, #6366f1 100%)',
-              boxShadow: '0 8px 32px rgba(79,140,255,0.28)',
-            }}>
-              <div>
-                <span style={{ color: 'rgba(255,255,255,0.78)', fontSize: '12px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.09em' }}>Sito pubblico</span>
-                <h2 style={{ color: '#fff', margin: '0.4rem 0 0.5rem', fontSize: 'clamp(20px, 3vw, 28px)', lineHeight: 1.15 }}>Modifica il tuo sito</h2>
-                <p style={{ color: 'rgba(255,255,255,0.82)', margin: 0, fontSize: '14px', lineHeight: 1.6 }}>
-                  Apri l&apos;editor per personalizzare layout, colori, testi, menu e struttura del tuo sito pubblico.
-                </p>
-              </div>
-              <button
-                type="button"
-                style={{
-                  background: '#fff', color: 'var(--primary)', fontWeight: 800,
-                  padding: '14px 28px', fontSize: '16px', flexShrink: 0,
-                  border: 'none', borderRadius: 'var(--radius)', cursor: 'pointer',
-                  boxShadow: '0 4px 16px rgba(0,0,0,0.15)',
-                }}
-                onClick={() => openStudioWorkspace(templateStudio, 'Workspace corrente')}
-              >
-                ✏️ Apri editor sito →
-              </button>
-            </section>
-            <section className="card" style={{ padding: 'clamp(1.25rem, 3vw, 2rem)', background: 'linear-gradient(135deg, var(--surface), var(--primary-light))', border: '1px solid var(--border)' }}>
-              <span style={{ display: 'inline-flex', padding: '6px 10px', borderRadius: '999px', background: 'var(--teal-light)', color: 'var(--teal)', fontSize: '12px', fontWeight: 850 }}>100 TEMI · STRUTTURA OTTIMIZZATA</span>
-              <h2 style={{ margin: '0.8rem 0 0.55rem', color: 'var(--text)', fontSize: 'clamp(24px, 4vw, 36px)', lineHeight: 1.08 }}>Il tuo stile, senza perdere chiarezza</h2>
-              <p style={{ maxWidth: '760px', margin: 0, color: 'var(--text-muted)', fontSize: '15px', lineHeight: 1.7 }}>Scegli tra layout realmente diversi per settore, atmosfera e modo di presentare i contenuti. Ogni tema conserva una base accessibile e responsive, mentre cambiano gerarchie, tipografia, palette, navigazione e composizione delle schede.</p>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', marginTop: '1.25rem' }}>
-                <a className="btn btn-primary" href={siteUrl} target="_blank" rel="noopener">Apri il sito pubblico ↗</a>
-                <button className="btn btn-outline" type="button" onClick={() => document.getElementById('visual-identity')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}>Scegli logo o immagine</button>
-              </div>
-            </section>
-            <section className="card visual-identity-panel" id="visual-identity">
-              <header><div><span className="section-eyebrow">Identità del sito</span><h2>Scegli nome e immagine</h2><p>Il cliente decide come presentarsi: il nome scritto qui resta prioritario e non viene sostituito dalle successive importazioni social.</p></div><a className="btn btn-outline" href={siteUrl} target="_blank" rel="noopener">Vedi anteprima ↗</a></header>
-              <form className="site-name-editor" onSubmit={saveSiteTitle}>
-                <label htmlFor="site-title"><strong>Nome del sito</strong><span>Comparirà nell’intestazione, nelle pagine e nei risultati condivisi.</span></label>
-                <div><input id="site-title" type="text" maxLength={120} required value={siteTitleDraft} onChange={event => setSiteTitleDraft(event.target.value)} placeholder="Es. Studio Rossi, Casa Verde, Marco Bianchi" /><button className="btn btn-primary" type="submit" disabled={savingSiteTitle}>{savingSiteTitle ? 'Salvataggio…' : 'Salva nome'}</button></div>
-              </form>
-              <div className="visual-choice-intro"><strong>Immagine del sito</strong><span>Usa un logo se hai un marchio riconoscibile; scegli una foto per raccontare subito attività, luogo o persona.</span></div>
-              <div className="visual-choice-grid" role="radiogroup" aria-label="Tipo di immagine del sito">
-                {[
-                  ['logo', 'Logo', 'Ideale per marchi e professionisti', logoUrl],
-                  ['cover', 'Immagine rappresentativa', 'Ideale per luoghi, persone e attività', coverUrl],
-                ].map(([mode, label, description, image]) => (
-                  <button type="button" role="radio" aria-checked={brandVisualMode === mode} className={brandVisualMode === mode ? 'is-selected' : ''} onClick={() => selectBrandVisualMode(mode)} disabled={savingVisualMode} key={mode}>
-                    <span className={`visual-choice-preview is-${mode}`}>{image ? <img src={image} alt="" /> : <b>{mode === 'logo' ? 'LOGO' : 'IMMAGINE'}</b>}</span>
-                    <span><strong>{label}</strong><small>{description}</small></span><i>{brandVisualMode === mode ? '✓' : ''}</i>
-                  </button>
-                ))}
-              </div>
-              <div className="visual-upload-row">
-                <div><strong>{brandVisualMode === 'cover' ? 'Immagine orizzontale consigliata' : 'Logo quadrato o orizzontale'}</strong><span>{brandVisualMode === 'cover' ? 'JPG, PNG o WebP · massimo 8 MB · rapporto consigliato 16:9' : 'JPG, PNG o WebP · massimo 3 MB · sfondo trasparente consigliato'}</span></div>
-                <label className="btn btn-primary">{uploadingLogo ? 'Caricamento…' : `${brandVisualMode === 'cover' ? 'Carica immagine' : 'Carica logo'}`}<input type="file" accept="image/png,image/jpeg,image/webp" onChange={event => uploadSiteVisual(event, brandVisualMode)} disabled={uploadingLogo} /></label>
-              </div>
-            </section>
-
-          </div>
-        )}
+        
 
         {/* Tab: Sito */}
+        
+        {tab === 'openpage' && (
+          <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, background: '#fff', zIndex: 100 }}>
+            <EditorLayout />
+          </div>
+        )}
         {tab === 'site' && (() => {
           const allPlatforms = [...new Set(posts.map(p => p.platform))].sort();
           const allTags = [...new Set(posts.flatMap(p => p.tags || []).map(t => t.toLowerCase()))].sort();
@@ -3979,21 +3921,6 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
             </div>
 
             <div className="glass-modal" style={{ marginBottom: '1.5rem', padding: '1.5rem' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem', alignItems: 'flex-start', flexWrap: 'wrap' }}>
-                <div>
-                  <h3 style={{ margin: '0 0 0.4rem', color: 'var(--text)' }}>Pagine fondamentali gestite dal sistema</h3>
-                  <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '14px', lineHeight: 1.6, maxWidth: '680px' }}>Il sistema crea pagine sostenute da informazioni reali nei contenuti. Le conferme raccolte nel Profilo guidato le rendono ancora più mirate.</p>
-                </div>
-                <button className="btn btn-primary" onClick={rebuildSeoFoundation} disabled={savingProfile}>{savingProfile ? 'Aggiornamento…' : 'Aggiorna pagine SEO'}</button>
-              </div>
-              <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginTop: '1.2rem' }}>
-                {(seoFoundation.pages || []).map(page => <a key={page.slug} href={`${siteUrl}/${page.slug}`} target="_blank" rel="noopener" style={{ padding: '9px 12px', borderRadius: '999px', background: 'var(--primary-light)', color: 'var(--primary)', fontWeight: 750, fontSize: '13px', textDecoration: 'none' }}>{page.title}</a>)}
-                {!(seoFoundation.pages || []).length && <span style={{ color: 'var(--text-muted)', fontSize: '14px' }}>Le prime pagine saranno create dopo l’analisi dei contenuti.</span>}
-              </div>
-              {!!site?.seo_foundation_updated_at && <div style={{ marginTop: '0.9rem', color: 'var(--text-muted)', fontSize: '12px' }}>Ultimo aggiornamento: {new Date(site.seo_foundation_updated_at).toLocaleString('it-IT')}</div>}
-            </div>
-
-            <div className="glass-modal" style={{ marginBottom: '1.5rem', padding: '1.5rem' }}>
               <h3 style={{ margin: '0 0 0.4rem', color: 'var(--text)' }}>🕸️ Mappa del tuo spazio nella rete</h3>
               <p style={{ margin: '0 0 1rem', color: 'var(--text-muted)', fontSize: '14px' }}>Questa è la struttura che rende i contenuti raggiungibili dal dominio principale fino ai singoli articoli.</p>
               <SiteMapGraph posts={posts} siteUrl={siteUrl} siteTitle={data?.site?.title || user?.name || user?.slug} foundationPages={seoFoundation.pages || []} />
@@ -4282,269 +4209,7 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
         {tab === 'services' && renderVisibilityServices()}
 
         {/* Tab: Impostazioni */}
-        {(tab === 'profile' && profileSubTab === 'identity') && (
-          <div>
-            {isAdmin && (
-            <>
-            <div className="glass-modal" style={{ marginBottom: '1rem', border: '1px solid var(--primary)' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-                <div>
-                  <h3 style={{ marginBottom: '0.25rem', color: 'var(--primary)', fontSize: '20px' }}>✨ Layout generati dall'AI</h3>
-                  <p style={{ color: 'var(--text-muted)', fontSize: '14px', margin: 0, fontWeight: 500 }}>
-                    Lascia che il Graphic Designer crei proposte su misura in base al tuo profilo.
-                  </p>
-                </div>
-                <button className="btn btn-primary" onClick={forceDesignSite} disabled={designingSite} style={{ padding: '12px 20px', fontSize: '14px' }}>
-                  {designingSite ? '⟳ Generazione in corso...' : 'Rigenera Proposte Layout'}
-                </button>
-              </div>
-
-              {(() => {
-                let layouts = null;
-                try {
-                  if (data?.site?.generated_layouts) {
-                    let raw = data.site.generated_layouts.trim();
-                    if (raw.startsWith('```json')) raw = raw.replace(/```json/g, '').replace(/```/g, '');
-                    else if (raw.startsWith('```')) raw = raw.replace(/```/g, '');
-                    layouts = JSON.parse(raw);
-                  }
-                } catch(e) { console.error('Errore parse generated_layouts:', e); }
-                
-                if (!Array.isArray(layouts) || layouts.length === 0) return null;
-                
-                return (
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px' }}>
-                    {layouts.map((layout, i) => (
-                      <div key={i} style={{ background: 'var(--surface)', border: '1px solid var(--border-strong)', borderRadius: 'var(--radius)', padding: '1rem', textAlign: 'center' }}>
-                        <div style={{ fontWeight: 600, fontSize: '14px', marginBottom: '5px' }}>Proposta {i + 1}</div>
-                        <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '8px' }}>
-                          Archetipo: <b>{layout.design_archetype || layout.theme}</b><br/>
-                          Layout: <b>{layout.header_layout}</b><br/>
-                          Font: <b>{layout.font_heading || 'Inter'}</b>
-                        </div>
-                        <div style={{ display: 'flex', justifyContent: 'center', gap: '5px', marginBottom: '12px' }}>
-                          {layout.color_palette ? (
-                            <>
-                              <div style={{ width: '20px', height: '20px', borderRadius: '50%', background: layout.color_palette.primary, border: '1px solid rgba(0,0,0,0.1)' }} title={layout.color_palette.primary} />
-                              <div style={{ width: '20px', height: '20px', borderRadius: '50%', background: layout.color_palette.secondary, border: '1px solid rgba(0,0,0,0.1)' }} title={layout.color_palette.secondary} />
-                              <div style={{ width: '20px', height: '20px', borderRadius: '50%', background: layout.color_palette.background, border: '1px solid rgba(0,0,0,0.1)' }} title={layout.color_palette.background} />
-                            </>
-                          ) : (
-                            <div style={{ width: '20px', height: '20px', borderRadius: '50%', background: layout.accent_color, border: '1px solid rgba(0,0,0,0.1)' }} title={layout.accent_color} />
-                          )}
-                        </div>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                          <button className="btn btn-outline btn-full" onClick={() => { setPreviewingTheme(null); setActivePreviewUrl(`${siteUrl}?preview_index=${i}`); }} style={{ fontSize: '12px', padding: '6px' }}>
-                            👁️ Anteprima
-                          </button>
-                          <button className="btn btn-outline btn-full" onClick={() => loadTemplateIntoStudio(layout)} style={{ fontSize: '12px', padding: '6px' }}>
-                            Apri nello Studio
-                          </button>
-                          <button className="btn btn-primary btn-full" onClick={() => applyLayout(i)} style={{ fontSize: '12px', padding: '6px' }}>
-                            ✓ Applica
-                          </button>
-                          <button className="btn btn-outline btn-full" onClick={() => removeGeneratedLayout(i)} style={{ fontSize: '12px', padding: '6px', color: 'var(--red)', borderColor: 'var(--red-light)' }}>
-                            ❌ Elimina
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                );
-              })()}
-            </div>
-
-
-            <div className="glass-modal" style={{ marginTop: '2rem', border: '1px solid var(--border-strong)' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
-                <div>
-                  <h3 style={{ marginBottom: '0.35rem', fontSize: '20px' }}>Template Studio</h3>
-                  <p style={{ color: 'var(--text-muted)', fontSize: '14px', margin: 0, fontWeight: 500 }}>
-                    Lo studio ora si apre in una workspace dedicata del frontend: dentro trovi solo gli strumenti per modellare il sito.
-                  </p>
-                </div>
-                <button
-                  className="btn btn-primary"
-                  onClick={() => openStudioWorkspace(templateStudio, 'Workspace corrente')}
-                  style={{ padding: '12px 20px', fontWeight: 700 }}
-                >
-                  Modifica sito pubblico
-                </button>
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem', marginTop: '1.5rem' }}>
-                <div className="card" style={{ padding: '1.25rem' }}>
-                  <div style={{ fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>Sorgente attiva</div>
-                  <div style={{ fontWeight: 700, fontSize: '16px', color: 'var(--text)' }}>{studioSourceLabel}</div>
-                </div>
-                <div className="card" style={{ padding: '1.25rem' }}>
-                  <div style={{ fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>Archetipo</div>
-                  <div style={{ fontWeight: 700, fontSize: '16px', color: 'var(--text)' }}>{templateStudio.design_archetype || 'custom'}</div>
-                </div>
-                <div className="card" style={{ padding: '1.25rem' }}>
-                  <div style={{ fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>Palette primaria</div>
-                  <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                    <div style={{ width: '28px', height: '28px', borderRadius: '999px', background: templateStudio.color_palette?.primary || '#2563eb', border: '1px solid var(--border-strong)' }} />
-                    <strong>{templateStudio.color_palette?.primary || '#2563eb'}</strong>
-                  </div>
-                </div>
-              </div>
-            </div>
-            </>
-            )}
-
-            <div className="glass-modal" style={{ marginTop: '2rem' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-                <div>
-                  <h3 style={{ marginBottom: '0.5rem', fontSize: '20px' }}>Catalogo temi professionali</h3>
-                  <p style={{ color: 'var(--text-muted)', fontSize: '14px', margin: 0, fontWeight: 500 }}>
-                    100 proposte originali organizzate per attività. Guarda l’anteprima sui tuoi contenuti prima di applicare il tema.
-                  </p>
-                </div>
-              </div>
-
-              <div style={{ display: 'grid', gap: '1rem', marginBottom: '2rem' }}>
-                <input
-                  className="form-control"
-                  type="search"
-                  value={themeQuery}
-                  onChange={(event) => setThemeQuery(event.target.value)}
-                  placeholder="Cerca un tema, un settore o uno stile…"
-                  aria-label="Cerca nel catalogo temi"
-                  style={{ width: '100%', padding: '16px 24px', fontSize: '18px', borderRadius: 'var(--radius-lg)', border: '2px solid var(--border-strong)', background: 'var(--surface)' }}
-                />
-                
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px' }} aria-label="Filtra i temi per categoria">
-                  {SITE_LAYOUT_CATEGORIES.map(category => (
-                    <button
-                      key={category}
-                      type="button"
-                      onClick={() => setThemeCategory(category)}
-                      style={{ 
-                        padding: '12px 24px', 
-                        fontSize: '16px', 
-                        fontWeight: 800,
-                        borderRadius: '30px', 
-                        border: 'none',
-                        cursor: 'pointer',
-                        transition: 'all 0.2s',
-                        background: themeCategory === category ? 'var(--primary)' : 'var(--surface)',
-                        color: themeCategory === category ? '#fff' : 'var(--text)',
-                        boxShadow: '0 4px 10px rgba(0,0,0,0.05)'
-                      }}
-                    >
-                      {category}
-                    </button>
-                  ))}
-                </div>
-                
-                <div style={{ color: 'var(--text-muted)', fontSize: '16px', fontWeight: 800 }}>
-                  {visibleSiteLayouts.length} {visibleSiteLayouts.length === 1 ? 'tema disponibile' : 'temi disponibili'}
-                </div>
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '1rem' }}>
-                {visibleSiteLayouts.map(layout => (
-                  <div key={layout.id}
-                    style={{ 
-                      border: selectedTheme === layout.id ? '2px solid var(--primary)' : '1px solid var(--border-strong)', 
-                      borderRadius: 'var(--radius)', 
-                      padding: '1.5rem', 
-                      background: selectedTheme === layout.id ? 'rgba(0,240,255,0.05)' : 'rgba(255,255,255,0.02)', 
-                      position: 'relative', 
-                      cursor: 'pointer', 
-                      transition: 'all 0.3s ease', 
-                      boxShadow: selectedTheme === layout.id ? '0 0 20px rgba(0, 240, 255, 0.2)' : 'none' 
-                    }} 
-                    onClick={() => openThemePreview(layout)}>
-                    
-                    {selectedTheme === layout.id && <div style={{ position: 'absolute', top: 16, right: 16, background: 'var(--primary)', color: '#000', borderRadius: '50%', width: 28, height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '16px', fontWeight: 800, boxShadow: '0 0 10px rgba(0,240,255,0.5)' }}>✓</div>}
-                    
-                    
-{/* CSS Mini-Preview */}
-<div style={{ width: '100%', aspectRatio: '16/10', borderRadius: '8px', marginBottom: '1rem', overflow: 'hidden', display: 'flex', flexDirection: 'column', background: layout.colors[0] || '#fff', border: '1px solid rgba(0,0,0,0.1)' }}>
-   <div style={{ height: '20%', background: layout.colors[1] || '#eee', display: 'flex', alignItems: 'center', padding: '0 10px' }}>
-      <div style={{ width: '20%', height: '40%', background: 'rgba(0,0,0,0.2)', borderRadius: '2px' }} />
-   </div>
-   <div style={{ flex: 1, padding: '10px', display: 'flex', gap: '10px' }}>
-      <div style={{ flex: 2, display: 'flex', flexDirection: 'column', gap: '6px' }}>
-         <div style={{ width: '80%', height: '20%', background: layout.colors[2] || '#ccc', borderRadius: '2px' }} />
-         <div style={{ width: '100%', height: '10%', background: 'rgba(0,0,0,0.1)', borderRadius: '2px' }} />
-         <div style={{ width: '90%', height: '10%', background: 'rgba(0,0,0,0.1)', borderRadius: '2px' }} />
-      </div>
-      <div style={{ flex: 1, background: layout.colors[1] || '#eee', borderRadius: '4px' }} />
-   </div>
-</div>
-
-                    <div style={{ display: 'inline-flex', marginBottom: '8px', padding: '4px 8px', borderRadius: '999px', background: 'var(--surface)', color: 'var(--primary)', fontSize: '10px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.06em' }}>{layout.category}</div>
-                    <div style={{ fontWeight: 800, fontSize: '18px', marginBottom: '8px', color: 'var(--text)' }}>{layout.name}</div>
-                    <div style={{ fontSize: '14px', color: 'var(--text-muted)', marginBottom: '1.5rem', minHeight: '40px', lineHeight: 1.5, fontWeight: 500 }}>{layout.desc}</div>
-                    
-                    <div style={{ display: 'flex', gap: '8px', marginBottom: '1.5rem' }}>
-                      {layout.colors.map((c, idx) => <div key={idx} style={{ width: 28, height: 28, borderRadius: '50%', background: c, border: '1px solid rgba(255,255,255,0.1)' }} title={c} />)}
-                    </div>
-                    
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                      <button className={selectedTheme === layout.id ? "btn btn-primary btn-full" : "btn btn-outline btn-full"} style={{ fontSize: '14px', padding: '12px', fontWeight: 700 }}>
-                        {selectedTheme === layout.id ? 'Attivo' : 'Vedi'}
-                      </button>
-                      {isAdmin && (
-                        <button className="btn btn-outline btn-full" onClick={(e) => { e.stopPropagation(); loadPresetIntoStudio(layout); }} style={{ fontSize: '13px', padding: '10px', fontWeight: 700 }}>
-                          Apri nello Studio
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                ))}
-                {visibleSiteLayouts.length === 0 && (
-                  <div className="card" style={{ gridColumn: '1 / -1', padding: '2.5rem', textAlign: 'center', color: 'var(--text-muted)' }}>
-                    Nessun tema corrisponde ai filtri. Prova un’altra categoria o cancella la ricerca.
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Iframe Anteprima Modale */}
-            {activePreviewUrl && (
-              <div role="dialog" aria-modal="true" aria-label="Anteprima tema" style={{ position: 'fixed', inset: 0, background: '#080a0f', zIndex: 11000 }}>
-                {activePreviewUrl.startsWith('http') ? (
-                  <iframe
-                    title={`Anteprima ${previewingLayout?.name || 'tema'}`}
-                    src={activePreviewUrl}
-                    style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', background: '#fff', border: 'none' }}
-                  />
-                ) : (
-                  <iframe
-                    title={`Anteprima ${previewingLayout?.name || 'tema'}`}
-                    srcDoc={themePreviewHtml || ''}
-                    style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', background: '#fff', border: 'none' }}
-                  />
-                )}
-                <div style={{ position: 'absolute', left: '50%', bottom: 'max(14px, env(safe-area-inset-bottom))', transform: 'translateX(-50%)', zIndex: 2, display: 'flex', alignItems: 'center', gap: '6px', width: 'max-content', maxWidth: 'calc(100% - 20px)', padding: '7px', border: '1px solid rgba(255,255,255,.12)', borderRadius: '999px', background: 'rgba(10,12,18,.92)', color: '#fff', boxShadow: '0 12px 38px rgba(0,0,0,.35)', backdropFilter: 'blur(18px)' }}>
-                  <button type="button" aria-label="Tema precedente" onClick={() => moveThemePreview(-1)} style={{ width: 38, height: 38, flex: '0 0 38px', border: 0, borderRadius: '50%', background: 'rgba(255,255,255,.1)', color: '#fff', cursor: 'pointer', fontSize: '24px', lineHeight: 1 }}>‹</button>
-                  <div style={{ minWidth: 0, width: 'clamp(44px, 16vw, 190px)', padding: '0 4px', overflow: 'hidden' }}>
-                    <div style={{ fontSize: '9px', lineHeight: 1.2, opacity: .58, fontWeight: 800, letterSpacing: '.08em', textTransform: 'uppercase', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{previewingLayout?.category || 'Tema'}</div>
-                    <div style={{ marginTop: 2, fontSize: '13px', lineHeight: 1.2, fontWeight: 800, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{previewingLayout?.name || 'Anteprima'}</div>
-                  </div>
-                  <button type="button" aria-label="Tema successivo" onClick={() => moveThemePreview(1)} style={{ width: 38, height: 38, flex: '0 0 38px', border: 0, borderRadius: '50%', background: 'rgba(255,255,255,.1)', color: '#fff', cursor: 'pointer', fontSize: '24px', lineHeight: 1 }}>›</button>
-                  {previewingTheme && (
-                    <button type="button" onClick={async () => {
-                      const applied = await chooseTheme(previewingTheme);
-                      if (applied) {
-                        setActivePreviewUrl(null);
-                        setPreviewingTheme(null);
-                      }
-                    }} style={{ minHeight: 38, border: 0, borderRadius: '999px', background: 'var(--primary)', color: '#05070a', cursor: 'pointer', padding: '0 13px', fontSize: '12px', fontWeight: 850, whiteSpace: 'nowrap' }}>Applica</button>
-                  )}
-                  <button type="button" aria-label="Chiudi anteprima" onClick={() => { setActivePreviewUrl(null); setPreviewingTheme(null); }} style={{ width: 38, height: 38, flex: '0 0 38px', border: 0, borderRadius: '50%', background: 'rgba(255,255,255,.1)', color: '#fff', cursor: 'pointer', fontSize: '20px', lineHeight: 1 }}>×</button>
-                </div>
-              </div>
-            )}
-
-
-            
-          </div>
-        )}
+        
 
         {tab === 'account' && renderAccountProfile()}
 
