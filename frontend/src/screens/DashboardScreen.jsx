@@ -3590,13 +3590,13 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
 
               <section style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1.5rem' }}>
                 {[
-                  { value: reachability.google?.has_evidence ? Number(visibility.impressions || 0).toLocaleString('it-IT') : '—', label: 'Visualizzazioni su Google', icon: '👁️', desc: 'Quante volte i tuoi contenuti sono apparsi nelle ricerche' },
-                  { value: reachability.google?.has_evidence ? Number(visibility.clicks || 0).toLocaleString('it-IT') : '—', label: 'Clic da Google', icon: '🖱️', desc: 'Quante persone hanno cliccato per leggere di più' },
-                  { value: Number(visibility.unique_visitors || 0).toLocaleString('it-IT'), label: 'Visitatori del Sito', icon: '👥', desc: 'Persone che hanno navigato nel tuo sito web' },
-                  { value: Number(visibility.actions || 0).toLocaleString('it-IT'), label: 'Azioni e Contatti', icon: '🎯', desc: 'Telefonate, messaggi e clic sui bottoni di contatto' },
+                  { value: Number(visibility.impressions || 0).toLocaleString('it-IT'), label: 'Visualizzazioni su Google', icon: <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>, desc: 'Quante volte i tuoi contenuti sono apparsi nelle ricerche' },
+                  { value: Number(visibility.clicks || 0).toLocaleString('it-IT'), label: 'Clic da Google', icon: <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z"></path><path d="M13 13l6 6"></path></svg>, desc: 'Quante persone hanno cliccato per leggere di piu' },
+                  { value: Number(visibility.unique_visitors || 0).toLocaleString('it-IT'), label: 'Visitatori del Sito', icon: <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>, desc: 'Persone che hanno navigato nel tuo sito web' },
+                  { value: Number(visibility.actions || 0).toLocaleString('it-IT'), label: 'Azioni e Contatti', icon: <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="6"></circle><circle cx="12" cy="12" r="2"></circle></svg>, desc: 'Telefonate, messaggi e clic sui bottoni di contatto' },
                 ].map(metric => (
                   <article key={metric.label} className="card" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '0.5rem', border: '1px solid var(--border)' }}>
-                    <div style={{ fontSize: '2rem' }}>{metric.icon}</div>
+                    <div style={{ fontSize: '2rem', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '48px', height: '48px', background: 'var(--bg)', borderRadius: '12px', color: 'var(--primary)' }}>{metric.icon}</div>
                     <strong style={{ fontSize: '2.5rem', lineHeight: '1.2', color: 'var(--text)' }}>{metric.value}</strong>
                     <h3 style={{ fontSize: '1.1rem', margin: 0, color: 'var(--text)' }}>{metric.label}</h3>
                     <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)', margin: 0 }}>{metric.desc}</p>
@@ -3607,20 +3607,20 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
               {visibility.event_counts && Object.keys(visibility.event_counts).length > 0 && (
                 <section className="card" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
                   <header style={{ marginBottom: '1.5rem' }}>
-                    <h3 style={{ margin: 0, fontSize: '1.25rem', color: 'var(--text)' }}>Cosa interessa di più ai tuoi visitatori</h3>
+                    <h3 style={{ margin: 0, fontSize: '1.25rem', color: 'var(--text)' }}>Cosa interessa di piu ai tuoi visitatori</h3>
                     <p style={{ color: 'var(--text-muted)', margin: '0.5rem 0 0', fontSize: '14px' }}>Scopri esattamente quali azioni compiono le persone quando arrivano sui tuoi contenuti.</p>
                   </header>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
                     {[
-                      ['Letture di contenuti', visibility.event_counts?.path_content_click || 0, '📖'],
-                      ['Clic sul Telefono', visibility.event_counts?.call_click || 0, '📞'],
-                      ['Clic su WhatsApp', visibility.event_counts?.whatsapp_click || 0, '💬'],
-                      ['Clic su Indicazioni stradali', visibility.event_counts?.directions_click || 0, '🗺️'],
-                      ['Clic su Prenota', visibility.event_counts?.booking_click || 0, '📅'],
-                      ['Visite ai Social', visibility.event_counts?.social_click || 0, '🔗']
+                      ['Letture di contenuti', visibility.event_counts?.path_content_click || 0, <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path></svg>],
+                      ['Clic sul Telefono', visibility.event_counts?.call_click || 0, <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>],
+                      ['Clic su WhatsApp', visibility.event_counts?.whatsapp_click || 0, <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg>],
+                      ['Clic su Indicazioni stradali', visibility.event_counts?.directions_click || 0, <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>],
+                      ['Clic su Prenota', visibility.event_counts?.booking_click || 0, <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>],
+                      ['Visite ai Social', visibility.event_counts?.social_click || 0, <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>]
                     ].filter(item => item[1] > 0).map(([label, count, icon]) => (
                       <div key={label} style={{ display: 'flex', alignItems: 'center', gap: '1rem', padding: '1rem', background: 'var(--bg)', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
-                        <div style={{ fontSize: '1.5rem' }}>{icon}</div>
+                        <div style={{ fontSize: '1.5rem', display: 'flex', color: 'var(--primary)' }}>{icon}</div>
                         <div>
                           <strong style={{ display: 'block', fontSize: '1.25rem', color: 'var(--text)' }}>{count}</strong>
                           <span style={{ fontSize: '13px', color: 'var(--text-muted)' }}>{label}</span>
@@ -3666,11 +3666,11 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
               <section className="card" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
                   <header style={{ marginBottom: '1.5rem' }}>
                     <h3 style={{ margin: 0, fontSize: '1.25rem', color: 'var(--text)' }}>Struttura e Pagine fondamentali</h3>
-                    <p style={{ color: 'var(--text-muted)', margin: '0.5rem 0 0', fontSize: '14px' }}>Il tuo sito ha <strong>{networkPublishedPages}</strong> pagine pubbliche. {reachability.google?.has_evidence ? `Di queste, Google ne ha già rilevate ${reachability.google?.visible_pages || visibility.visible_pages || 0}.` : 'Stiamo raccogliendo i dati sulla copertura Google.'}</p>
+                    <p style={{ color: 'var(--text-muted)', margin: '0.5rem 0 0', fontSize: '14px' }}>Il tuo sito ha <strong>{networkPublishedPages}</strong> pagine pubbliche. {reachability.google?.has_evidence ? `Di queste, Google ne ha gia rilevate ${reachability.google?.visible_pages || visibility.visible_pages || 0}.` : 'Stiamo raccogliendo i dati sulla copertura Google.'}</p>
                   </header>
                   <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
                     <a href={`${siteUrl}/sitemap.xml`} target="_blank" rel="noopener" className="btn btn-outline">Apri la sitemap XML</a>
-                    <button className="btn btn-outline" onClick={rebuildSeoFoundation} disabled={savingProfile}>{savingProfile ? 'Aggiorno…' : 'Rigenera pagine fondamentali'}</button>
+                    <button className="btn btn-outline" onClick={rebuildSeoFoundation} disabled={savingProfile}>{savingProfile ? 'Aggiorno...' : 'Rigenera pagine fondamentali'}</button>
                   </div>
               </section>
             </div>}
