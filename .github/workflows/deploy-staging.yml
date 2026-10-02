@@ -30,6 +30,9 @@ jobs:
           cd frontend
           npm install --legacy-peer-deps
           npm run build
+          cd ../frontend/openpage
+          npm install --legacy-peer-deps
+          npm run build
 
       - name: Test PHP syntax
         run: |
@@ -45,8 +48,7 @@ jobs:
           SSH_KEY: ${{ secrets.STAGING_SSH_PRIVATE_KEY }}
         run: |
           mkdir -p ~/.ssh
-          printf '%s
-' "$SSH_KEY" | tr -d '\r' > ~/.ssh/deploy_key
+          printf '%s\n' "$SSH_KEY" | tr -d '\r' > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
           ssh-keyscan -H ${{ secrets.STAGING_SSH_HOST }} >> ~/.ssh/known_hosts 2>/dev/null
 

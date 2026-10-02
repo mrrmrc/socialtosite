@@ -55,8 +55,7 @@ jobs:
           # Keep the canonical FTP deploy deterministic by using Ubuntu's
           # public mirror and bounded network retries.
           if [ -f /etc/apt/apt-mirrors.txt ]; then
-            printf '%s
-' 'https://archive.ubuntu.com/ubuntu/' | sudo tee /etc/apt/apt-mirrors.txt >/dev/null
+            printf '%s\n' 'https://archive.ubuntu.com/ubuntu/' | sudo tee /etc/apt/apt-mirrors.txt >/dev/null
           fi
           apt_options=(-o Acquire::Retries=5 -o Acquire::http::Timeout=20 -o Acquire::https::Timeout=20)
           for attempt in 1 2 3; do
@@ -118,8 +117,7 @@ jobs:
           set -euo pipefail
           # Connector tests do not access DB or external providers.
           if [ ! -f config/config.php ]; then
-            printf '%s
-' '<?php' > config/config.php
+            printf '%s\n' '<?php' > config/config.php
             trap 'rm -f config/config.php' EXIT
           fi
           php tools/test_publication.php
@@ -137,6 +135,9 @@ jobs:
         run: |
           set -euo pipefail
           cd frontend
+          npm install --legacy-peer-deps
+          npm run build
+          cd openpage
           npm install --legacy-peer-deps
           npm run build
 
@@ -199,14 +200,12 @@ jobs:
 
           mkdir -p release/config
           cp config/db.php release/config/
-          printf '%s
-' '<?php' > release/config/runtime-secrets.php
+          printf '%s\n' '<?php' > release/config/runtime-secrets.php
           append_secret() {
             local name="$1" value="$2" encoded
             [ -n "$value" ] || return 0
             encoded="$(printf '%s' "$value" | base64 -w0)"
-            printf "if (!defined('%s')) define('%s', base64_decode('%s'));
-" "$name" "$name" "$encoded" \
+            printf "if (!defined('%s')) define('%s', base64_decode('%s'));\n" "$name" "$name" "$encoded" \
               >> release/config/runtime-secrets.php
           }
           append_secret SOCIALTOSITE_RUNTIME_APIFY_API_TOKEN "$APIFY_API_TOKEN"
