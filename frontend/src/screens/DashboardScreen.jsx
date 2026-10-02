@@ -3724,10 +3724,10 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
                     {/* Contenuto Testuale */}
                     <div style={{ padding: '24px', flex: 1, display: 'flex', flexDirection: 'column' }}>
                       <h4 style={{ fontSize: '20px', fontWeight: 800, marginBottom: '16px', lineHeight: 1.4, color: 'var(--text)' }}>
-                        {post.generated_title || (post.raw_content ? post.raw_content.substring(0, 80) : 'Nuovo contenuto')}
+                        {post.edited_title || post.generated_title || (post.raw_content ? post.raw_content.substring(0, 80) : 'Nuovo contenuto')}
                       </h4>
                       <div style={{ fontSize: '16px', color: 'var(--text-muted)', display: '-webkit-box', WebkitLineClamp: 4, WebkitBoxOrient: 'vertical', overflow: 'hidden', lineHeight: 1.6, fontWeight: 500 }}>
-                        {post.generated_excerpt || (post.generated_body ? post.generated_body.substring(0, 200) : Number(post.seo_score) < 0 ? postProcessingStatus(post) === 'failed' ? (post.processing_error || String(post.agent_notes || '').replace(/^Errore:\s*/, '')) : postProcessingStatus(post) === 'processing' ? 'Creazione articolo in corso.' : "Contenuto acquisito, pronto per essere elaborato." : '')}
+                        {post.edited_excerpt || post.generated_excerpt || (post.edited_body ? post.edited_body.replace(/<[^>]*>?/gm, '').substring(0, 200) : post.generated_body ? post.generated_body.replace(/<[^>]*>?/gm, '').substring(0, 200) : Number(post.seo_score) < 0 ? postProcessingStatus(post) === 'failed' ? (post.processing_error || String(post.agent_notes || '').replace(/^Errore:\s*/, '')) : postProcessingStatus(post) === 'processing' ? 'Creazione articolo in corso.' : "Contenuto acquisito, pronto per essere elaborato." : '')}
                       </div>
                     </div>
 
