@@ -508,7 +508,58 @@ export function DashboardScreen({ token, user, onLogout }) {
   const baseAutoSyncStarted = useRef(false);
   const [baseAcquisition, setBaseAcquisition] = useState({ status: 'idle', message: '' });
 
-  const [viewMode, setViewMode] = useState('grid');
+  
+  const [ideaGenState, setIdeaGenState] = useState({ 
+    argomento: '', 
+    usa_profilo: false, 
+    links: '', 
+    loading: false, 
+    variants: null,
+    error: null,
+    savingVariantIndex: -1
+  });
+  
+  async function generateIdeaTexts() {
+    setIdeaGenState(prev => ({ ...prev, loading: true, error: null, variants: null }));
+    try {
+      const res = await apiFetch('/api/index.php?action=generate-ai-texts', {
+        method: 'POST',
+        body: JSON.stringify({ 
+          argomento: ideaGenState.argomento, 
+          usa_profilo: ideaGenState.usa_profilo, 
+          links: ideaGenState.links 
+        })
+      }, token);
+      if (res.variants && res.variants.length >= 2) {
+        setIdeaGenState(prev => ({ ...prev, loading: false, variants: res.variants }));
+      } else {
+        throw new Error('Formato risposta non valido.');
+      }
+    } catch (err) {
+      setIdeaGenState(prev => ({ ...prev, loading: false, error: err.message }));
+    }
+  }
+  
+  async function saveIdeaVariant(variant, index) {
+    setIdeaGenState(prev => ({ ...prev, savingVariantIndex: index }));
+    try {
+      await apiFetch('/api/index.php?action=post-create', {
+        method: 'POST',
+        body: JSON.stringify({
+          edited_title: variant.title,
+          edited_body: variant.content
+        })
+      }, token);
+      await loadData();
+      setTab('site');
+      setIdeaGenState({ argomento: '', usa_profilo: false, links: '', loading: false, variants: null, error: null, savingVariantIndex: -1 });
+    } catch (err) {
+      setSyncMsg({ ok: false, text: err.message });
+      setIdeaGenState(prev => ({ ...prev, savingVariantIndex: -1 }));
+    }
+  }
+  
+const [viewMode, setViewMode] = useState('grid');
   const [postSearch, setPostSearch] = useState('');
   const [postPlatformFilter, setPostPlatformFilter] = useState('all');
   const [postTagFilter, setPostTagFilter] = useState('all');
@@ -2434,7 +2485,8 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
       label: 'Amministrazione',
       items: [
         { id: 'admin', icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>, label: 'Utenti', hint: 'Account e accessi' },
-      ],
+      ,
+        { id: 'idea', icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M12 2a7 7 0 0 0-7 7c0 2.38 1.19 4.67 3.03 6.17a1 1 0 0 1 .37.78V17h7v-1.05a1 1 0 0 1 .37-.78C17.81 13.67 19 11.38 19 9a7 7 0 0 0-7-7z"/></svg>, label: 'IDEA 💡', hint: 'Genera contenuti con l\'AI' }],
     }
   ] : [
     {
@@ -2445,7 +2497,8 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
         { id: 'site', icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>, label: 'Articoli', hint: 'Bozze da pubblicare e già online' },
         { id: 'sources', icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="2" y="2" width="20" height="20" rx="5" y="5"></rect><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line></svg>, label: 'Social collegati', hint: 'Da qui arrivano i tuoi contenuti' },
         { id: 'seo', icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-4-4"></path><path d="M8 11h6M11 8v6"></path></svg>, label: 'Monitoraggio e SEO', hint: 'Come ti trovano online' },
-      ],
+      ,
+        { id: 'idea', icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M12 2a7 7 0 0 0-7 7c0 2.38 1.19 4.67 3.03 6.17a1 1 0 0 1 .37.78V17h7v-1.05a1 1 0 0 1 .37-.78C17.81 13.67 19 11.38 19 9a7 7 0 0 0-7-7z"/></svg>, label: 'IDEA 💡', hint: 'Genera contenuti con l\'AI' }],
     },
     ];
   const visibleNavigationGroups = navigationGroups;
@@ -2698,7 +2751,67 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
 
         {(tab === 'overview' || (tab === 'profile' && profileSubTab === 'who')) && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
-            {tab === 'overview' && (
+            
+            {tab === 'idea' && (
+              <section className="card" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+                <header style={{ marginBottom: '1.5rem' }}>
+                  <h2 style={{ margin: 0, fontSize: '1.5rem', color: 'var(--text)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M12 2a7 7 0 0 0-7 7c0 2.38 1.19 4.67 3.03 6.17a1 1 0 0 1 .37.78V17h7v-1.05a1 1 0 0 1 .37-.78C17.81 13.67 19 11.38 19 9a7 7 0 0 0-7-7z"/></svg>
+                    Idea e Scrittura AI
+                  </h2>
+                  <p style={{ margin: '0.5rem 0 0', color: 'var(--text-muted)' }}>Fai generare all'AI 2 brani/testi. Dalle istruzioni e scegli la variante migliore per i tuoi Articoli.</p>
+                </header>
+                
+                {!ideaGenState.variants ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                    <label style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                      <span style={{ fontWeight: '600' }}>Di cosa vuoi scrivere? (Argomento)</span>
+                      <textarea className="form-input" rows={2} value={ideaGenState.argomento} onChange={e => setIdeaGenState(p => ({...p, argomento: e.target.value}))} placeholder="Es. I 3 errori più comuni nel mio settore..." />
+                    </label>
+                    
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', cursor: 'pointer', padding: '1rem', background: 'var(--bg)', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
+                      <input type="checkbox" checked={ideaGenState.usa_profilo} onChange={e => setIdeaGenState(p => ({...p, usa_profilo: e.target.checked}))} style={{ width: '20px', height: '20px' }} />
+                      <div style={{ display: 'flex', flexDirection: 'column' }}>
+                        <span style={{ fontWeight: '600' }}>Usa il mio profilo e Internet</span>
+                        <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>L'AI baserà il testo sulla tua identità e cercherà aggiornamenti in tempo reale su Google per arricchirlo.</span>
+                      </div>
+                    </label>
+                    
+                    <label style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                      <span style={{ fontWeight: '600' }}>Link di spunto (Opzionali)</span>
+                      <textarea className="form-input" rows={3} value={ideaGenState.links} onChange={e => setIdeaGenState(p => ({...p, links: e.target.value}))} placeholder="Incolla qui gli URL (uno per riga) da cui prendere ispirazione o informazioni." />
+                    </label>
+                    
+                    {ideaGenState.error && (
+                      <div style={{ padding: '1rem', background: 'rgba(239,68,68,0.1)', color: '#ef4444', borderRadius: 'var(--radius)', border: '1px solid rgba(239,68,68,0.3)' }}>
+                        {ideaGenState.error}
+                      </div>
+                    )}
+                    
+                    <button className="btn btn-primary" onClick={generateIdeaTexts} disabled={ideaGenState.loading || (!ideaGenState.argomento.trim() && !ideaGenState.links.trim())} style={{ padding: '0.75rem 1.5rem', fontSize: '1.1rem' }}>
+                      {ideaGenState.loading ? 'Generazione in corso (può richiedere fino a 1 minuto)...' : '✨ Genera 2 Varianti'}
+                    </button>
+                  </div>
+                ) : (
+                  <div>
+                    <button className="btn btn-outline" onClick={() => setIdeaGenState(p => ({...p, variants: null}))} style={{ marginBottom: '1.5rem' }}>← Cambia richiesta</button>
+                    
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.5rem' }}>
+                      {ideaGenState.variants.map((variant, i) => (
+                        <div key={i} style={{ padding: '1.5rem', background: 'var(--bg)', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
+                          <h3 style={{ margin: '0 0 1rem', color: 'var(--primary)' }}>Variante {i + 1}: {variant.title}</h3>
+                          <div style={{ color: 'var(--text)', fontSize: '0.95rem', lineHeight: '1.6', maxHeight: '400px', overflowY: 'auto', marginBottom: '1.5rem', paddingRight: '0.5rem' }} dangerouslySetInnerHTML={{ __html: variant.content }} />
+                          <button className="btn btn-primary" style={{ width: '100%' }} disabled={ideaGenState.savingVariantIndex !== -1} onClick={() => saveIdeaVariant(variant, i)}>
+                            {ideaGenState.savingVariantIndex === i ? 'Salvataggio...' : '✓ Scegli e vai agli Articoli'}
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </section>
+            )}
+{tab === 'overview' && (
               <section className="project-command-center" aria-labelledby="project-command-title">
                 <div className="project-command-main">
                   <div className="project-command-status"><i aria-hidden="true" /> Sito attivo</div>

@@ -1437,6 +1437,26 @@ if ($action === 'post-feature' && $method === 'POST') {
 }
 
 // Ã”Ã¶Ã‡Ã”Ã¶Ã‡ EDIT post (CMS editoriale) Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡
+if ($action === 'post-create' && $method === 'POST') {
+    $b = body();
+    $title = trim((string)($b['edited_title'] ?? ''));
+    $body = trim((string)($b['edited_body'] ?? ''));
+    
+    if ($title === '') jsonError('Titolo mancante');
+    
+    $draftSlug = slugify($title . '-' . bin2hex(random_bytes(3)));
+    $metaDescription = function_exists('mb_substr') ? mb_substr(strip_tags($body), 0, 155, 'UTF-8') : substr(strip_tags($body), 0, 155);
+    $contentHash = hash('sha256', $userId . '|manual|' . bin2hex(random_bytes(10)));
+    
+    $postId = DB::insert(
+        'INSERT INTO posts (user_id, platform, platform_post_id, raw_content, generated_title, generated_body, generated_excerpt, tags, meta_description, slug, published_at, imported_at, content_hash, seo_score, published, edited_title, edited_body)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW(), ?, 10, 0, ?, ?)',
+        [$userId, 'manual', 'manual_'.bin2hex(random_bytes(5)), '', '', '', '', '[]', $metaDescription, $draftSlug, $contentHash, $title, $body]
+    );
+    
+    json(['ok' => true, 'id' => $postId]);
+}
+
 if ($action === 'post-update' && $method === 'POST') {
     ensurePostMediaSchema();
     $b = body();
@@ -2012,6 +2032,36 @@ if ($action === 'generate-social-content' && $method === 'POST') {
 }
 
 // Trasforma un suggerimento editoriale in una bozza, senza pubblicarla.
+if ($action === 'generate-ai-texts' && $method === 'POST') {
+    $b = body();
+    $argomento = trim((string)($b['argomento'] ?? ''));
+    $usaProfilo = !empty($b['usa_profilo']);
+    $links = trim((string)($b['links'] ?? ''));
+    
+    $prompt = "Devi generare ESATTAMENTE 2 varianti distinte per un testo/brano richiesto dall'utente.\n";
+    if ($argomento) $prompt .= "L'argomento o la richiesta è: {$argomento}\n";
+    if ($usaProfilo) {
+        require_once __DIR__ . '/services/ai.php';
+        $understanding = json_decode((string)($me['understanding'] ?? '{}'), true) ?: [];
+        $profile = "Nome: " . ($me['name']??'') . "\nRuolo/Mission: " . ($understanding['role_mission']??'') . "\nFocus: " . implode(', ', $understanding['key_topics']??[]);
+        $prompt .= "Scrivi tenendo conto di questo profilo (usa anche informazioni da internet aggiornate alla data di oggi se necessario per contestualizzare al meglio):\n{$profile}\n";
+    }
+    if ($links) {
+        $prompt .= "Prendi spunto e leggi queste fonti/link forniti dall'utente:\n{$links}\n";
+    }
+    $prompt .= "Fornisci il risultato esclusivamente come JSON array valido. L'array deve contenere esattamente 2 oggetti, ognuno con le chiavi 'title' (titolo) e 'content' (il testo finale curato in HTML: usa paragrafi <p>, titoli <h2>, <strong>, liste <ul> se appropriato). NON inserire blockcode markdown, solo l'array JSON.";
+    
+    require_once __DIR__ . '/services/ai.php';
+    $result = AI::gemini([['text' => $prompt]], ['response_mime_type' => 'application/json', 'temperature' => 0.7]);
+    
+    $json = json_decode($result, true);
+    if (!is_array($json) || count($json) < 2) {
+        // Fallback or retry?
+        jsonError('Errore nella generazione dei testi AI. Riprova. Risposta: ' . $result, 500);
+    }
+    json(['variants' => $json]);
+}
+
 if ($action === 'create-idea-draft' && $method === 'POST') {
     $b = body();
     $ideaTitle = trim((string)($b['title'] ?? ''));
