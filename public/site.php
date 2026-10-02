@@ -3444,6 +3444,60 @@ ob_start();
 <?php
 $mainContentHtml = ob_get_clean();
 
+
+// -- OPENPAGE INTEGRATION --
+if (!empty($site['openpage_html'])) {
+    $out = $site['openpage_html'];
+    
+    // 1) Inject dynamic articles grid
+    $out = str_replace('<div id="sts-dynamic-articles"></div>', $mainContentHtml, $out);
+    
+    // 2) Edit button for logged in users
+    $editBtnHtml = '<script>
+      const stsToken = localStorage.getItem("sts_token") || localStorage.getItem("token");
+      if (stsToken && window.parent === window) {
+        const payloadBase64 = stsToken.split(".")[1];
+        if (payloadBase64) {
+          const payloadStr = atob(payloadBase64.replace(/-/g, "+").replace(/_/g, "/"));
+          const payload = JSON.parse(payloadStr);
+          if (payload && payload.slug === "' . h($slug) . '") {
+            const editBtn = document.createElement("a");
+            editBtn.href = "/builder/";
+            editBtn.innerHTML = "<span style=\"margin-right:8px;font-size:16px;\">✏️</span> <span style=\"font-weight:800;letter-spacing:0.02em;\">OpenPage Builder</span>";
+            editBtn.style.cssText = "position:fixed; bottom:24px; right:24px; background:#1a1a24; color:#fff; padding:12px 24px; border-radius:99px; text-decoration:none; font-family:sans-serif; font-size:14px; box-shadow:0 8px 30px rgba(0,0,0,0.3); z-index:999999; border:1px solid rgba(255,255,255,0.1); display:flex; align-items:center;";
+            document.body.appendChild(editBtn);
+          }
+        }
+      }
+    </script>';
+    $out = str_replace('</body>', $editBtnHtml . '</body>', $out);
+    
+    // 3) Single post SEO overwrite
+    if (!empty($single)) {
+        $singleTitle = h(postTitle($single)) . ' - ' . h($title);
+        $singleDesc = h(postExcerpt($single));
+        $out = preg_replace('/<title>.*?<\/title>/is', "<title>{$singleTitle}</title>", $out);
+        $out = preg_replace('/<meta name="description" content=".*?">/is', "<meta name=\"description\" content=\"{$singleDesc}\">", $out);
+        $out = preg_replace('/<meta property="og:title" content=".*?">/is', "<meta property=\"og:title\" content=\"{$singleTitle}\">", $out);
+        $out = preg_replace('/<meta property="og:description" content=".*?">/is', "<meta property=\"og:description\" content=\"{$singleDesc}\">", $out);
+        if (!empty($single['media_url'])) {
+            $ogImage = h(normalizeMediaUrl($single['media_url']));
+            if (strpos($out, '<meta property="og:image"') !== false) {
+                $out = preg_replace('/<meta property="og:image" content=".*?">/is', "<meta property=\"og:image\" content=\"{$ogImage}\">", $out);
+            } else {
+                $out = str_replace('</head>', "<meta property=\"og:image\" content=\"{$ogImage}\">\n</head>", $out);
+            }
+        }
+    }
+    
+    // 4) Timestamp under footer
+    $timestampHtml = '<div style="text-align:center; padding:10px; font-size:10px; color:#999; background:rgba(0,0,0,0.02);">Ultimo aggiornamento al: ' . date('d/m/Y H:i:s') . '</div>';
+    $out = str_replace('</body>', $timestampHtml . '</body>', $out);
+    
+    echo $out;
+    exit;
+}
+
 ob_start();
 ?>
 <?php if ($useHospitalityLanding && !$single && !$foundationPage && $view === '' && !$activeTag): ?>
@@ -3819,4 +3873,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     }
   } catch(e) {}
-</script>\n</body>\n</html>\n
+</script>
+<div style="text-align:center; padding:10px; font-size:10px; color:#999; background:rgba(0,0,0,0.02);">Ultimo aggiornamento al: <?= date('d/m/Y H:i:s') ?></div>
+</body>
+</html>

@@ -20,6 +20,7 @@ import { ContentBlock } from './content/ContentBlock'
 import { ImageBlock } from './image/ImageBlock'
 import { VideoBlock } from './video/VideoBlock'
 import { GalleryBlock } from './gallery/GalleryBlock'
+import { ArticlesBlock } from './articles/ArticlesBlock'
 
 // Error boundary for individual blocks
 class BlockErrorBoundary extends Component<
@@ -78,6 +79,7 @@ const blockRenderers: Record<string, React.ComponentType<{ block: BlockConfig }>
   image: ImageBlock,
   video: VideoBlock,
   gallery: GalleryBlock,
+  articles: ArticlesBlock,
 }
 
 export function RenderBlock({ block }: { block: BlockConfig }): ReactNode {

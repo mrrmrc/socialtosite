@@ -21,14 +21,6 @@ export interface PublishSiteResult {
   deploymentId: string
 }
 
-function buildSlug(projectName?: string): string {
-  const base = (projectName || 'site')
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-|-$/g, '')
-    .slice(0, 40)
-  return base || 'site'
-}
 
 async function readDeployError(response: Response): Promise<string> {
   try {
@@ -42,35 +34,29 @@ async function readDeployError(response: Response): Promise<string> {
 }
 
 export async function publishSite(input: PublishSiteInput): Promise<PublishSiteResult> {
-  const { config, projectName, settings } = input
-  const deployAccessKey = settings?.deployAccessKey?.trim()
-  if (!deployAccessKey) {
-    throw new Error('Deploy Access Key is required. Set it in Settings -> API Keys.')
-  }
+  const { config, settings } = input
 
+  const token = localStorage.getItem('token') || ''
+  
   const html = exportSiteToHTML(config, { settings })
-  const slug = buildSlug(projectName || settings?.siteName || config.name)
+  const configJson = JSON.stringify(config)
 
-  const response = await fetch('/api/deploy', {
+  const response = await fetch('/api/index.php?action=openpage-publish', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'x-openpage-deploy-key': deployAccessKey,
+      'Authorization': `Bearer ${token}`
     },
-    body: JSON.stringify({ html, slug }),
+    body: JSON.stringify({ html, config: configJson }),
   })
 
   if (!response.ok) {
     throw new Error(await readDeployError(response))
   }
 
-  const data = await response.json() as DeployApiResponse
-  const liveUrl = data.projectUrl || data.url
-  const deploymentId = data.deploymentId
-
-  if (!liveUrl || !deploymentId) {
-    throw new Error('Deploy response did not include a valid URL and deployment id')
-  }
-
-  return { liveUrl, deploymentId }
+  await response.json()
+  
+  // The PHP backend just returns {ok: true}.
+  // We can return a generic success indicator.
+  return { liveUrl: 'Pubblicato sul tuo URL!', deploymentId: 'success' }
 }

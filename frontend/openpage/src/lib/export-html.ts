@@ -1178,6 +1178,8 @@ function renderBlock(block: BlockConfig): string {
       return renderNewsletter(block)
     case 'logocloud':
       return renderLogoCloud(block)
+    case 'articles':
+      return `  <div id="sts-dynamic-articles"></div>`
     default:
       return `  <!-- Unknown block type: ${escapeHtml(block.type)} -->`
   }

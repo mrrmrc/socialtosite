@@ -188,12 +188,38 @@ function PromptSection() {
 
         {/* Start blank + API key hint */}
         <div className="mt-3 flex flex-col items-center gap-1.5">
-          <button
-            onClick={startBlank}
-            className="text-text-3 text-[11px] hover:text-text-1 transition-colors"
-          >
-            or start blank
-          </button>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={startBlank}
+              className="text-text-3 text-[11px] hover:text-text-1 transition-colors"
+            >
+              or start blank
+            </button>
+            <span className="text-text-3 text-[11px]">•</span>
+            <button
+              onClick={async () => {
+                try {
+                  const t = localStorage.getItem('token')
+                  if (!t) return toast.error('Devi effettuare il login')
+                  const r = await fetch('/api/index.php?action=site', { headers: { 'Authorization': `Bearer ${t}` }})
+                  const d = await r.json()
+                  if (d.site && d.site.openpage_config) {
+                    const id = addProject('Live Site')
+                    setActiveProject(id)
+                    setConfig(JSON.parse(d.site.openpage_config))
+                    navigate('/editor')
+                  } else {
+                    toast.error('Nessun sito OpenPage trovato sul server.')
+                  }
+                } catch(e) {
+                  toast.error('Errore nel caricamento del sito live.')
+                }
+              }}
+              className="text-green text-[11px] hover:text-green-dim transition-colors font-semibold"
+            >
+              Load Live Site
+            </button>
+          </div>
           {!hasGeminiKey && (
             <p className="text-text-3 text-[10.5px]">
               Using template mode.{' '}

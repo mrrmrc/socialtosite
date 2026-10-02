@@ -83,6 +83,7 @@ function ensureSiteSchemaUpgrades(): void {
         'dismissed_content_ideas'=>'LONGTEXT NULL',
         'living_space_mode_updated_at'=>'DATETIME NULL',
         'user_agent_prompt'=>'LONGTEXT NULL',
+        'openpage_html'=>'LONGTEXT NULL', 'openpage_config'=>'LONGTEXT NULL',
     ];
     $existing = [];
     try {
@@ -1790,6 +1791,28 @@ if ($action === 'site-ai' && $method === 'POST') {
         json(['ok' => true, 'result' => $result]);
     } catch (Throwable $e) {
         jsonError('Errore Site AI: ' . $e->getMessage());
+    }
+}
+
+// ── POST openpage-publish (Salva l'HTML e il config di OpenPage) ─────────────
+if ($action === 'openpage-publish' && $method === 'POST') {
+    try {
+        ensureSiteSchemaUpgrades();
+        $b = body();
+        $html = trim((string)($b['html'] ?? ''));
+        $config = trim((string)($b['config'] ?? ''));
+        
+        if ($html === '' || $config === '') {
+            jsonError('HTML and config are required');
+        }
+
+        DB::execute(
+            'UPDATE sites SET openpage_html=?, openpage_config=? WHERE user_id=?',
+            [$html, $config, $userId]
+        );
+        json(['ok' => true]);
+    } catch (Throwable $e) {
+        jsonError('Errore OpenPage Publish: ' . $e->getMessage());
     }
 }
 

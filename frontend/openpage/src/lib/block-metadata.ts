@@ -162,6 +162,14 @@ export const blockMetadata: BlockMeta[] = [
     variants: ['ribbon', 'bar'],
     defaultProps: { text: 'New: We just launched v2.0!', linkText: 'Learn more' },
   },
+  {
+    type: 'articles',
+    label: 'Dynamic Articles',
+    description: 'Grid of your latest published articles (SocialToSite dynamic)',
+    category: 'SocialToSite',
+    variants: ['default'],
+    defaultProps: {},
+  },
 ]
 
 export const categories = [...new Set(blockMetadata.map((b) => b.category))]

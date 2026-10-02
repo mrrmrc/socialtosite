@@ -33,7 +33,6 @@ export function Deploy() {
   const project = activeProjectId ? projects.find((p) => p.id === activeProjectId) : null
   const deployUrl = project?.deployUrl
   const lastDeployedAt = project?.lastDeployedAt
-  const hasDeployKey = !!project?.settings?.deployAccessKey?.trim()
 
   const [exporting, setExporting] = useState(false)
   const [publishing, setPublishing] = useState(false)
@@ -138,8 +137,7 @@ export function Deploy() {
         </div>
       </div>
 
-      {hasDeployKey && (
-        <div className="px-4 md:px-12 pt-8 animate-fade-in-up stagger-3">
+      <div className="px-4 md:px-12 pt-8 animate-fade-in-up stagger-3">
           <h2 className="text-[11px] font-semibold uppercase tracking-wider text-text-3 mb-3">Publish</h2>
           <div className="p-5 rounded-xl border bg-bg-1 border-border-default">
             <div className="flex items-start gap-3">
@@ -212,7 +210,6 @@ export function Deploy() {
             </div>
           </div>
         </div>
-      )}
 
       <div className="pb-12" />
     </div>
