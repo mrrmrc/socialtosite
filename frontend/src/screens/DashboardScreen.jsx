@@ -543,14 +543,34 @@ export function DashboardScreen({ token, user, onLogout }) {
   async function saveIdeaVariant(variant, index) {
     setIdeaGenState(prev => ({ ...prev, savingVariantIndex: index }));
     try {
-      await apiFetch('/api/index.php?action=post-create', {
+      const resp = await apiFetch('/api/index.php?action=post-create', {
         method: 'POST',
         body: JSON.stringify({
           edited_title: variant.title,
           edited_body: variant.content
         })
       }, token);
-      await loadData();
+      
+      // Apri subito l'editor per questa nuova bozza
+      setEditingPost({
+        id: resp.id,
+        title: variant.title,
+        body: variant.content,
+        rawContent: '',
+        excerpt: '',
+        tags: '',
+        published: 0,
+        noindex: 0,
+        mediaUrl: '',
+        mediaType: '',
+        mediaWidth: 100,
+        mediaAlignment: 'center',
+        imagePixelWidth: 1200
+      });
+      
+      // Carica i dati per aggiornare la lista delle bozze in background
+      loadData();
+      
       setTab('site');
       setIdeaGenState({ argomento: '', usa_profilo: false, links: '', loading: false, variants: null, error: null, savingVariantIndex: -1 });
     } catch (err) {
