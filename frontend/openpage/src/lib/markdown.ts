@@ -1,4 +1,5 @@
 import { createElement, type ReactNode } from 'react'
+import { safeSiteUrl } from './social-site'
 
 /**
  * Simple markdown-to-React renderer. No dangerouslySetInnerHTML, no XSS surface.
@@ -63,10 +64,20 @@ function inlineFormat(text: string): ReactNode[] {
     const boldMatch = remaining.match(/\*\*(.+?)\*\*/)
     // Italic
     const italicMatch = remaining.match(/\*(.+?)\*/)
+    const linkMatch = remaining.match(/\[([^\]]+)\]\(([^)]+)\)/)
 
     // Find earliest match
     const boldIdx = boldMatch?.index ?? Infinity
     const italicIdx = italicMatch?.index ?? Infinity
+    const linkIdx = linkMatch?.index ?? Infinity
+
+    if (linkMatch && linkIdx <= boldIdx && linkIdx <= italicIdx) {
+      if (linkIdx > 0) parts.push(remaining.slice(0, linkIdx))
+      const href = safeSiteUrl(linkMatch[2])
+      parts.push(href ? createElement('a', { key: key++, href, className: 'text-green underline' }, linkMatch[1]) : linkMatch[1])
+      remaining = remaining.slice(linkIdx + linkMatch[0].length)
+      continue
+    }
 
     if (boldIdx === Infinity && italicIdx === Infinity) {
       parts.push(remaining)

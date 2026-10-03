@@ -1,5 +1,9 @@
 import type { SiteConfig, BlockConfig } from '@/blocks/types'
 import { resolveTheme } from '@/lib/theme-presets'
+import { safeSiteUrl } from './social-site'
+import { renderMarkdown } from './markdown'
+import { createElement } from 'react'
+import { renderToStaticMarkup } from 'react-dom/server'
 
 export interface ExportSiteSettings {
   siteName?: string
@@ -15,6 +19,7 @@ export interface ExportSiteSettings {
 
 export interface ExportSiteOptions {
   settings?: ExportSiteSettings
+  dynamicArticles?: boolean
 }
 
 // ---------------------------------------------------------------------------
@@ -33,7 +38,7 @@ function escapeHtml(str: string): string {
 function renderLink(text: string, url?: string, className?: string): string {
   const cls = className ? ` class="${escapeHtml(className)}"` : ''
   const escaped = escapeHtml(text)
-  if (url && url.trim()) {
+  if (url && safeSiteUrl(url)) {
     return `<a href="${escapeHtml(url)}"${cls}>${escaped}</a>`
   }
   return `<span${cls}>${escaped}</span>`
@@ -81,9 +86,6 @@ const SVG_CHECK =
 
 const SVG_CHEVRON_DOWN =
   '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>'
-
-const SVG_MENU =
-  '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" x2="20" y1="12" y2="12"/><line x1="4" x2="20" y1="6" y2="6"/><line x1="4" x2="20" y1="18" y2="18"/></svg>'
 
 const SVG_SPARKLES =
   '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3Z"/></svg>'
@@ -136,12 +138,11 @@ function renderNavbar(block: BlockConfig): string {
   const logo = escapeHtml(prop(block.props, 'logo', 'Brand'))
   const logoImage = prop<string>(block.props, 'logoImage', '')
   const links = prop<string[]>(block.props, 'links', [])
-  const ctaText = escapeHtml(prop(block.props, 'ctaText', 'Get Started'))
+  const linkUrls = prop<string[]>(block.props, 'linkUrls', [])
 
   const navLinks = links
     .map(
-      (l) =>
-        `          <span class="text-[13px] text-text-2 hover:text-text-0 transition-colors cursor-pointer">${escapeHtml(l)}</span>`
+      (l, i) => renderLink(l, safeSiteUrl(linkUrls[i]) || '#sts-dynamic-articles', 'text-[13px] text-text-2 hover:text-text-0')
     )
     .join('\n')
 
@@ -149,19 +150,16 @@ function renderNavbar(block: BlockConfig): string {
     ? `<img src="${escapeHtml(logoImage)}" alt="${logo}" class="h-8 w-auto object-contain" />`
     : `<div class="w-8 h-8 rounded-lg bg-green/10 flex items-center justify-center"><div class="w-4 h-4 rounded-full bg-green"></div></div>`
 
-  return `  <nav class="px-6 md:px-10 py-4 flex items-center justify-between">
+  return `  <nav class="px-6 md:px-10 py-4 flex flex-wrap gap-4 items-center justify-between">
     <div class="flex items-center gap-2">
       ${logoHtml}
       <span class="font-semibold text-[15px] text-text-0 tracking-tight">${logo}</span>
     </div>
-    <div class="hidden lg:flex items-center gap-6">
+    <div class="flex flex-wrap items-center gap-6">
 ${navLinks}
     </div>
     <div class="flex items-center gap-3">
-      <button class="px-4 py-2 rounded-lg bg-green text-black text-[13px] font-semibold hover:bg-green-dim transition-colors">${ctaText}</button>
-      <button class="lg:hidden w-9 h-9 rounded-lg border border-border-default flex items-center justify-center text-text-2 hover:text-text-0 hover:bg-bg-3 transition-colors">
-        ${SVG_MENU}
-      </button>
+      ${renderLink(prop<string>(block.props, 'ctaText', ''), safeSiteUrl(block.props.ctaUrl) || '#sts-contact', 'px-4 py-2 rounded-lg bg-green text-black text-[13px] font-semibold')}
     </div>
   </nav>`
 }
@@ -1150,7 +1148,7 @@ ${logosHtml}
 // Block dispatcher
 // ---------------------------------------------------------------------------
 
-function renderBlock(block: BlockConfig): string {
+function renderBlock(block: BlockConfig, dynamicArticles = false): string {
   switch (block.type) {
     case 'navbar':
       return renderNavbar(block)
@@ -1178,8 +1176,13 @@ function renderBlock(block: BlockConfig): string {
       return renderNewsletter(block)
     case 'logocloud':
       return renderLogoCloud(block)
-    case 'articles':
-      return `  <div id="sts-dynamic-articles"></div>`
+    case 'articles': {
+      const items = prop<{ title: string; excerpt: string; href: string; image?: string }[]>(block.props, 'items', [])
+      const content = dynamicArticles ? '' : `<div class="grid md:grid-cols-2 lg:grid-cols-3 gap-6">${items.map(item => `<article class="bg-bg-2 p-5 rounded-xl">${item.image && safeSiteUrl(item.image) ? `<img src="${escapeHtml(item.image)}" alt="" class="w-full h-48 object-cover" />` : ''}<h3 class="text-xl font-semibold">${escapeHtml(item.title)}</h3><p>${escapeHtml(item.excerpt)}</p>${renderLink('Leggi l’articolo →', item.href, 'text-green')}</article>`).join('')}</div>`
+      return `  <section class="py-16 px-6 bg-bg-1"><h2 class="text-3xl font-semibold mb-8">${escapeHtml(prop(block.props, 'title', 'Articoli'))}</h2><div id="sts-dynamic-articles">${content}</div></section>`
+    }
+    case 'content':
+      return renderToStaticMarkup(createElement('section', { className: 'px-6 py-12 max-w-3xl mx-auto' }, ...renderMarkdown(prop(block.props, 'body', ''))))
     default:
       return `  <!-- Unknown block type: ${escapeHtml(block.type)} -->`
   }
@@ -1197,7 +1200,8 @@ export function exportSiteToHTML(config: SiteConfig, options?: ExportSiteOptions
 
   const hasFaq = config.blocks.some((b) => b.type === 'faq')
 
-  const blocksHtml = config.blocks.map((b) => renderBlock(b)).join('\n\n')
+  const homeBlocks = config.pages?.find(p => p.path === '/')?.blocks || config.blocks
+  const blocksHtml = homeBlocks.map((b) => `<div id="${escapeHtml(b.id)}">${renderBlock(b, options?.dynamicArticles)}</div>`).join('\n\n')
 
   const pageTitle = (settings?.seoTitle || settings?.siteName || config.name || 'Website').trim()
   const pageDescription = (settings?.seoDescription || settings?.siteDescription || '').trim()

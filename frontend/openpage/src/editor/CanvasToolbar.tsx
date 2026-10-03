@@ -201,7 +201,7 @@ export function CanvasToolbar() {
           className="cursor-pointer hover:text-text-1 transition-colors"
           onClick={() => navigate('/')}
         >
-          Projects
+          Il mio sito
         </span>
         <span>/</span>
         <span className="text-text-0 font-medium max-w-[120px] truncate">{projectName}</span>
@@ -344,6 +344,12 @@ export function CanvasToolbar() {
         <div className="w-px h-5 bg-border-default mx-1" />
 
         <button
+          onClick={() => navigate('/deploy')}
+          className="h-7 px-3 rounded-lg bg-green text-bg-0 text-[11.5px] font-semibold"
+        >
+          Pubblica
+        </button>
+        <button
           onClick={handleExport}
           disabled={exporting}
           className="h-7 px-3 rounded-lg bg-green text-bg-0 text-[11.5px] font-semibold hover:bg-green/90 transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5"
@@ -356,7 +362,7 @@ export function CanvasToolbar() {
           ) : (
             <>
               <Download size={12} />
-              <span>Export</span>
+              <span>Scarica HTML</span>
             </>
           )}
         </button>

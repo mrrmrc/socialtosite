@@ -1087,7 +1087,7 @@ function SiteMapGraph({ posts, siteUrl, siteTitle, foundationPages = [] }) {
 
 import StrategyInterview from "./StrategyInterview";
 export function DashboardScreen({ token, user, onLogout }) {
-  const [tab, setTab] = useState(user?.role === "admin" ? "admin" : "overview");
+  const [tab, setTab] = useState(new URLSearchParams(window.location.search).get("tab") === "profile" ? "profile" : user?.role === "admin" ? "admin" : "overview");
   const [visibilitySection, setVisibilitySection] = useState("overview");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [dashboardFilter, setDashboardFilter] = useState("all");
@@ -3308,7 +3308,7 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
             }}
           >
             {hasContent
-              ? "Lascia che l'AI scriva titolo, presentazione e stile del sito partendo da quello che pubblichi sui social. Puoi rifarlo quante volte vuoi."
+              ? "Crea una proposta grafica dal profilo, dalle istruzioni editoriali, dalla presenza e dai tuoi articoli. Modificala nel builder prima di pubblicare."
               : "Appena avrai collegato un social e ci saranno dei contenuti, l'AI potrà scrivere titolo, presentazione e stile del tuo sito da sola."}
           </p>
           <button
@@ -3322,29 +3322,10 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
             Vedi e modifica il profilo che l'AI usa per generare il sito →
           </button>
         </div>
-        <label style={{ display: "grid", gap: 6 }}>
-          <span
-            style={{
-              fontSize: 12,
-              fontWeight: 700,
-              color: "var(--text-muted)",
-            }}
-          >
-            Hai un sito a cui ispirarti? (facoltativo)
-          </span>
-          <input
-            className="form-control"
-            type="url"
-            value={referenceUrlDraft}
-            onChange={(e) => setReferenceUrlDraft(e.target.value)}
-            placeholder="https://esempio.it"
-            disabled={!hasContent || generatingSite}
-          />
-        </label>
         <div>
           <button
             className="btn btn-primary"
-            onClick={generateSiteWithAi}
+            onClick={() => window.location.assign("/builder/create")}
             disabled={!hasContent || generatingSite}
           >
             {generatingSite
@@ -4267,7 +4248,7 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
                   </svg>
                 ),
                 label: "Il mio profilo",
-                hint: "Chi sei, presenza e aspetto",
+                hint: "Stile editoriale, presenza e contatti",
               },
               {
                 id: "overview",
@@ -4376,7 +4357,7 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
             ],
           },
         ];
-  const visibleNavigationGroups = navigationGroups;
+  const visibleNavigationGroups = [...navigationGroups, { label: "Sito e grafica", items: [{ id: "builder", icon: <span>🎨</span>, label: "Modifica il sito", hint: "Identità, menu e articoli già caricati" }] }];
   const flatNavigation = visibleNavigationGroups.flatMap((group) =>
     group.items.map((item) => ({ ...item, group: group.label })),
   );
@@ -4444,6 +4425,7 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
       ? seoMeta
       : pageMeta[tab] || ["Dashboard", "Gestisci il tuo spazio digitale."];
   const selectNavigation = (item) => {
+    if (item.id === "builder") { window.location.assign("/builder/"); return; }
     setTab(item.id);
     if (item.section) setVisibilitySection(item.section);
     setMobileMenuOpen(false);
@@ -4971,17 +4953,12 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
                     label: "🌐 Presenza e Contatti",
                     desc: "Sito ufficiale, territori e recapiti",
                   },
-                  {
-                    id: "openpage",
-                    label: "🎨 Costruttore Sito",
-                    desc: "Costruisci il tuo sito web in tempo reale",
-                  },
                 ].map((opt) => (
                   <button
                     key={opt.id}
                     type="button"
                     onClick={() => {
-                      if (opt.id === 'openpage') { window.open('/builder/', '_blank'); } else { setProfileSubTab(opt.id); }
+                      setProfileSubTab(opt.id);
                     }}
                     style={{
                       padding: "12px 20px",
@@ -5027,8 +5004,8 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
                   {profileSubTab === "who"
                     ? "Il tuo stile editoriale"
                     : profileSubTab === "identity"
-                      ? "Identità e Layout del tuo sito"
-                      : "Identità e Layout del tuo sito"}
+                      ? "Presenza e contatti"
+                      : "Presenza e contatti"}
                 </h2>
                 <p
                   style={{
@@ -5040,8 +5017,8 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
                   {profileSubTab === "who"
                     ? "Le informazioni inserite qui istruiscono l'AI su come presentare il tuo progetto."
                     : profileSubTab === "identity"
-                      ? "Personalizza il logo, i contatti e scegli il design professionale più adatto per i tuoi contenuti."
-                      : "Personalizza il logo, i contatti e scegli il design professionale più adatto per i tuoi contenuti."}
+                      ? "Definisci presenza ufficiale, attività, territori e recapiti. Queste informazioni alimentano anche la creazione del sito."
+                      : "Definisci presenza ufficiale, attività, territori e recapiti. Queste informazioni alimentano anche la creazione del sito."}
                 </p>
               </div>
             </div>

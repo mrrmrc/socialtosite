@@ -1391,7 +1391,7 @@ if ($action === 'site' && $method === 'GET') {
         $visibility['top_queries'] = VisibilityAnalytics::topQueries($userId, 6);
         $visibility['top_pages'] = VisibilityAnalytics::topPages($userId, 6);
         $reachability = ReachabilityNetwork::summary($userId, $site, $sources, $posts, $visibility);
-        json(['site' => $site, 'posts' => $posts, 'sources' => $sources, 'visibility' => $visibility, 'reachability' => $reachability]);
+        json(['site' => $site, 'posts' => $posts, 'sources' => $sources, 'visibility' => $visibility, 'reachability' => $reachability, 'user' => ['id' => $userId, 'slug' => $me['slug']]]);
     } catch (Throwable $e) {
         file_put_contents(__DIR__ . '/site_error.log', $e->getMessage() . "\n" . $e->getTraceAsString());
         jsonError($e->getMessage());
@@ -1795,6 +1795,16 @@ if ($action === 'site-ai' && $method === 'POST') {
 }
 
 // ── POST openpage-publish (Salva l'HTML e il config di OpenPage) ─────────────
+if ($action === 'openpage-generate' && $method === 'POST') {
+    try {
+        require_once __DIR__ . '/services/openpage.php';
+        $config = OpenPageSite::generate($userId, (string)(body()['instructions'] ?? ''));
+        json(['ok' => true, 'config' => $config]);
+    } catch (Throwable $e) {
+        jsonError('Generazione del sito non riuscita: ' . $e->getMessage());
+    }
+}
+
 if ($action === 'openpage-publish' && $method === 'POST') {
     try {
         ensureSiteSchemaUpgrades();
@@ -1805,12 +1815,16 @@ if ($action === 'openpage-publish' && $method === 'POST') {
         if ($html === '' || $config === '') {
             jsonError('HTML and config are required');
         }
+        $decodedConfig = json_decode($config, true);
+        if (!is_array($decodedConfig) || !is_array($decodedConfig['blocks'] ?? null)) {
+            jsonError('Configurazione del sito non valida', 422);
+        }
 
         DB::execute(
             'UPDATE sites SET openpage_html=?, openpage_config=? WHERE user_id=?',
             [$html, $config, $userId]
         );
-        json(['ok' => true]);
+        json(['ok' => true, 'url' => '/' . rawurlencode($me['slug']), 'deploymentId' => 'site-' . time()]);
     } catch (Throwable $e) {
         jsonError('Errore OpenPage Publish: ' . $e->getMessage());
     }

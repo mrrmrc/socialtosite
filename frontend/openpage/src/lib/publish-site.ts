@@ -1,3 +1,4 @@
+import { getSiteToken } from './social-site'
 import type { SiteConfig } from '@/blocks/types'
 import { exportSiteToHTML } from '@/lib/export-html'
 import type { ProjectSettings } from '@/store/projectsStore'
@@ -36,9 +37,9 @@ async function readDeployError(response: Response): Promise<string> {
 export async function publishSite(input: PublishSiteInput): Promise<PublishSiteResult> {
   const { config, settings } = input
 
-  const token = localStorage.getItem('token') || ''
+  const token = getSiteToken()
   
-  const html = exportSiteToHTML(config, { settings })
+  const html = exportSiteToHTML(config, { settings, dynamicArticles: true })
   const configJson = JSON.stringify(config)
 
   const response = await fetch('/api/index.php?action=openpage-publish', {
@@ -54,9 +55,10 @@ export async function publishSite(input: PublishSiteInput): Promise<PublishSiteR
     throw new Error(await readDeployError(response))
   }
 
-  await response.json()
+  const data = await response.json() as DeployApiResponse
+  if (!data.url || !data.deploymentId) throw new Error(data.error || "Risposta di pubblicazione non valida")
   
   // The PHP backend just returns {ok: true}.
   // We can return a generic success indicator.
-  return { liveUrl: 'Pubblicato sul tuo URL!', deploymentId: 'success' }
+  return { liveUrl: new URL(data.url, window.location.origin).href, deploymentId: data.deploymentId }
 }

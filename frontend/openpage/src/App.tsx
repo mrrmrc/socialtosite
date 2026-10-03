@@ -2,6 +2,8 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { ErrorBoundary } from './layout/ErrorBoundary'
 import { AppLayout } from './layout/AppLayout'
 import { Dashboard } from './routes/Dashboard'
+import { SiteWorkspace } from './routes/SiteWorkspace'
+import { useEditorStore } from './store/editorStore'
 import { Editor } from './routes/Editor'
 import { Components } from './routes/Components'
 import { Deploy } from './routes/Deploy'
@@ -11,15 +13,18 @@ import { useKeyboardShortcuts } from './lib/useKeyboardShortcuts'
 
 function AppRoutes() {
   useKeyboardShortcuts()
+  const activeProjectId = useEditorStore(s => s.activeProjectId)
 
   return (
     <Routes>
       <Route element={<AppLayout />}>
-        <Route index element={<Dashboard />} />
+        <Route index element={<SiteWorkspace />} />
+        <Route path="create" element={<SiteWorkspace generate />} />
+        <Route path="projects" element={<Dashboard />} />
         <Route path="new" element={<Navigate to="/" replace />} />
-        <Route path="editor" element={<Editor />} />
+        <Route path="editor" element={activeProjectId ? <Editor /> : <SiteWorkspace />} />
         <Route path="components" element={<Components />} />
-        <Route path="deploy" element={<Deploy />} />
+        <Route path="deploy" element={activeProjectId ? <Deploy /> : <SiteWorkspace />} />
         <Route path="settings" element={<Settings />} />
         <Route path="*" element={<NotFound />} />
       </Route>

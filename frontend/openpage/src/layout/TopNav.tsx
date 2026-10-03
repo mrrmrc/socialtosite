@@ -3,9 +3,9 @@ import { LayoutDashboard, Pencil, Settings, Menu, X, Star } from 'lucide-react'
 import { useState } from 'react'
 
 const links = [
-  { to: '/', label: 'Dashboard', icon: LayoutDashboard },
-  { to: '/editor', label: 'Editor', icon: Pencil },
-  { to: '/settings', label: 'Settings', icon: Settings },
+  { to: '/', label: 'Il mio sito', icon: LayoutDashboard },
+  { to: '/editor', label: 'Modifica grafica', icon: Pencil },
+  { to: '/create', label: 'Crea dal profilo', icon: Settings },
 ]
 
 export function TopNav() {
@@ -47,14 +47,12 @@ export function TopNav() {
       {/* Right side */}
       <div className="ml-auto flex items-center gap-2">
         <a
-          href="https://github.com/buildingopen/openpage"
-          target="_blank"
-          rel="noopener noreferrer"
+          href="/dashboard?tab=profile"
           className="hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-border-default text-text-2 text-[11.5px] hover:text-text-0 hover:border-border-hover hover:bg-bg-2 transition-all"
-          title="Star on GitHub"
+          title="Profilazione e contenuti"
         >
           <Star size={12} />
-          GitHub
+          Profilazione
         </a>
 
         {/* Mobile hamburger */}

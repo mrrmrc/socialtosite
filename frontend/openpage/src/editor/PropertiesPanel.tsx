@@ -11,6 +11,7 @@ interface FieldDef {
 }
 
 const blockFields: Partial<Record<BlockType, { sections: { title: string; fields: FieldDef[] }[] }>> = {
+  articles: { sections: [{ title: 'Articoli', fields: [{ key: 'title', label: 'Titolo della sezione', type: 'text' }] }] },
   navbar: {
     sections: [
       {
@@ -19,7 +20,9 @@ const blockFields: Partial<Record<BlockType, { sections: { title: string; fields
           { key: 'logo', label: 'Logo Text', type: 'text' },
           { key: 'logoImage', label: 'Logo Image URL', type: 'text' },
           { key: 'ctaText', label: 'CTA Button', type: 'text' },
-          { key: 'links', label: 'Nav Links', type: 'array-strings' },
+          { key: 'links', label: 'Voci del menu', type: 'array-strings' },
+          { key: 'linkUrls', label: 'Destinazioni (stesso ordine)', type: 'array-strings' },
+          { key: 'ctaUrl', label: 'Destinazione pulsante', type: 'text' },
         ],
       },
       {

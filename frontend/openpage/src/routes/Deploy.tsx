@@ -86,7 +86,7 @@ export function Deploy() {
         settings: project?.settings,
       })
       setDeployInfo(activeProjectId, liveUrl, deploymentId)
-      toast.success('Published')
+      toast.success('Sito pubblicato')
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Deploy failed')
     } finally {
@@ -111,8 +111,8 @@ export function Deploy() {
   return (
     <div className="h-full overflow-y-auto">
       <div className="px-4 md:px-12 pt-8">
-        <h1 className="text-[22px] font-display font-semibold tracking-tight animate-fade-in-up stagger-1">Export</h1>
-        <p className="text-text-2 text-[13px] mt-1 animate-fade-in-up stagger-2">Download or publish your site</p>
+        <h1 className="text-[22px] font-display font-semibold tracking-tight animate-fade-in-up stagger-1">Pubblica il tuo sito</h1>
+        <p className="text-text-2 text-[13px] mt-1 animate-fade-in-up stagger-2">Controlla l’anteprima e pubblica quando sei pronto.</p>
       </div>
 
       <div className="px-4 md:px-12 pt-6">
@@ -138,16 +138,16 @@ export function Deploy() {
       </div>
 
       <div className="px-4 md:px-12 pt-8 animate-fade-in-up stagger-3">
-          <h2 className="text-[11px] font-semibold uppercase tracking-wider text-text-3 mb-3">Publish</h2>
+          <h2 className="text-[11px] font-semibold uppercase tracking-wider text-text-3 mb-3">Pubblicazione</h2>
           <div className="p-5 rounded-xl border bg-bg-1 border-border-default">
             <div className="flex items-start gap-3">
               <div className="w-10 h-10 rounded-lg bg-green/10 border border-green/20 flex items-center justify-center text-green shrink-0">
                 <Globe size={18} />
               </div>
               <div className="flex-1 min-w-0">
-                <h3 className="text-sm font-semibold">Publish to Web</h3>
+                <h3 className="text-sm font-semibold">Il tuo sito online</h3>
                 <p className="text-[11.5px] text-text-2 mt-0.5">
-                  Deploy your site to a live URL in seconds
+                  Il sito online cambia solo quando premi Pubblica.
                 </p>
 
                 {deployUrl && (
@@ -191,7 +191,7 @@ export function Deploy() {
                     {publishing ? (
                       <>
                         <Loader2 size={13} className="animate-spin" />
-                        Publishing...
+                        Pubblicazione…
                       </>
                     ) : deployUrl ? (
                       <>
@@ -199,7 +199,7 @@ export function Deploy() {
                         Update
                       </>
                     ) : (
-                      'Publish'
+                      'Pubblica'
                     )}
                   </button>
                   {timeAgo && (

@@ -3450,7 +3450,35 @@ if (!empty($site['openpage_html'])) {
     $out = $site['openpage_html'];
     
     // 1) Inject dynamic articles grid
-    $out = str_replace('<div id="sts-dynamic-articles"></div>', $mainContentHtml, $out);
+    ob_start();
+    if ($single || $foundationPage) {
+        echo $mainContentHtml;
+    } else {
+        ?>
+        <div class="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <?php foreach ($posts as $article): ?>
+          <article class="bg-bg-2 border border-border-default rounded-xl overflow-hidden">
+            <?= mediaHtml($article) ?>
+            <div class="p-5">
+              <h3 class="text-xl font-semibold"><a href="<?= h($siteUrl . '/' . $article['slug']) ?>"><?= h(postTitle($article)) ?></a></h3>
+              <p class="mt-3 text-text-2"><?= h(postExcerpt($article)) ?></p>
+              <a class="inline-block mt-4 text-green" href="<?= h($siteUrl . '/' . $article['slug']) ?>">Leggi l’articolo →</a>
+            </div>
+          </article>
+        <?php endforeach; ?>
+        </div>
+        <?php
+    }
+    $openpageContent = ob_get_clean();
+    if (strpos($out, '<div id="sts-dynamic-articles"></div>') !== false) {
+        $out = str_replace('<div id="sts-dynamic-articles"></div>', '<div id="sts-dynamic-articles">' . $openpageContent . '</div>', $out);
+    } elseif ($single || $foundationPage) {
+        $out = str_replace('</body>', $openpageContent . '</body>', $out);
+    }
+    $out = str_replace('</head>', '<style>.single-post,.answer-cta,.answer-author,.answer-related{max-width:900px;margin:2rem auto;padding:1.5rem}.single-post h1{font-size:2rem;font-weight:700;margin:1em 0}.body-content{line-height:1.8}.body-content p{margin:1em 0}.body-content h2{font-size:1.5em;font-weight:700;margin:1em 0}.body-content img,.post-media img,.post-media video,article img,article video{max-width:100%;height:auto}.answer-cta-actions,.tags{display:flex;flex-wrap:wrap;gap:1rem;margin:1rem 0}</style></head>', $out);
+    if (!$searchVisible) {
+        $out = str_replace('</head>', '<meta name="robots" content="noindex,nofollow"></head>', $out);
+    }
     
     // 2) Edit button for logged in users
     $editBtnHtml = '<script>
@@ -3477,13 +3505,13 @@ if (!empty($site['openpage_html'])) {
         $singleTitle = h(postTitle($single)) . ' - ' . h($title);
         $singleDesc = h(postExcerpt($single));
         $out = preg_replace('/<title>.*?<\/title>/is', "<title>{$singleTitle}</title>", $out);
-        $out = preg_replace('/<meta name="description" content=".*?">/is', "<meta name=\"description\" content=\"{$singleDesc}\">", $out);
-        $out = preg_replace('/<meta property="og:title" content=".*?">/is', "<meta property=\"og:title\" content=\"{$singleTitle}\">", $out);
-        $out = preg_replace('/<meta property="og:description" content=".*?">/is', "<meta property=\"og:description\" content=\"{$singleDesc}\">", $out);
+        $out = preg_replace('/<meta name="description" content=".*?"\s*\/?>/is', "<meta name=\"description\" content=\"{$singleDesc}\">", $out);
+        $out = preg_replace('/<meta property="og:title" content=".*?"\s*\/?>/is', "<meta property=\"og:title\" content=\"{$singleTitle}\">", $out);
+        $out = preg_replace('/<meta property="og:description" content=".*?"\s*\/?>/is', "<meta property=\"og:description\" content=\"{$singleDesc}\">", $out);
         if (!empty($single['media_url'])) {
             $ogImage = h(normalizeMediaUrl($single['media_url']));
             if (strpos($out, '<meta property="og:image"') !== false) {
-                $out = preg_replace('/<meta property="og:image" content=".*?">/is', "<meta property=\"og:image\" content=\"{$ogImage}\">", $out);
+                $out = preg_replace('/<meta property="og:image" content=".*?"\s*\/?>/is', "<meta property=\"og:image\" content=\"{$ogImage}\">", $out);
             } else {
                 $out = str_replace('</head>', "<meta property=\"og:image\" content=\"{$ogImage}\">\n</head>", $out);
             }
