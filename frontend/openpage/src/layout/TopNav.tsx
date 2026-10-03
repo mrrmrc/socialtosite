@@ -27,7 +27,7 @@ export function TopNav() {
       </NavLink>
 
       {/* Desktop nav */}
-      <nav className="hidden md:flex h-full items-stretch gap-0.5" aria-label={t("Main navigation")}>
+      <nav className="hidden xl:flex h-full items-stretch gap-0.5" aria-label={t("Main navigation")}>
         <a href="/dashboard" className="px-3 flex items-center text-[15px] text-text-1">Home</a>
         {links.map(({ to, label, icon: Icon }) => (
           <NavLink
@@ -52,7 +52,7 @@ export function TopNav() {
       <div className="ml-auto flex items-center gap-2">
         <a
           href="/dashboard?tab=profile"
-          className="hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-border-default text-text-2 text-[15px] hover:text-text-0 hover:border-border-hover hover:bg-bg-2 transition-all"
+          className="hidden xl:flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-border-default text-text-2 text-[15px] hover:text-text-0 hover:border-border-hover hover:bg-bg-2 transition-all"
           title={t("Profilazione e contenuti")}
         >
           <Star size={12} />
@@ -61,7 +61,7 @@ export function TopNav() {
 
         {/* Mobile hamburger */}
         <button
-          className="md:hidden w-8 h-8 flex items-center justify-center text-text-2 hover:text-text-0"
+          className="xl:hidden w-8 h-8 flex items-center justify-center text-text-2 hover:text-text-0"
           onClick={() => setMobileOpen(!mobileOpen)}
           aria-label={mobileOpen ? t('Close menu') : t('Open menu')}
           aria-expanded={mobileOpen}
@@ -72,7 +72,7 @@ export function TopNav() {
 
       {/* Mobile dropdown */}
       {mobileOpen && (
-        <div className="absolute top-12 left-0 right-0 bg-bg-1 border-b border-border-default md:hidden z-50">
+        <div className="absolute top-12 left-0 right-0 bg-bg-1 border-b border-border-default xl:hidden z-50">
           <a href="/dashboard" className="block px-4 py-3">Home</a>
           <a href="/dashboard?tab=profile" className="block px-4 py-3">{t('Profilazione')}</a>
           {links.map(({ to, label, icon: Icon }) => (
