@@ -1829,6 +1829,9 @@ if ($single) {
 header('Link: <' . $siteUrl . '/sitemap.xml>; rel="sitemap"');
 header('Link: <' . $siteUrl . '/feed.xml>; rel="alternate"; type="application/atom+xml"');
 
+// OpenPage must emit one document, without the fallback layout's unlayered CSS.
+if (!empty($site['openpage_html'])) ob_start();
+
 ?>
 <!DOCTYPE html>
 <html lang="it">
@@ -3447,8 +3450,20 @@ $mainContentHtml = ob_get_clean();
 
 // -- OPENPAGE INTEGRATION --
 if (!empty($site['openpage_html'])) {
+    $legacyPrefix = ob_get_clean();
     $out = $site['openpage_html'];
     
+    // Retain public SEO data, but never carry fallback CSS or body classes across.
+    preg_match_all('~<script\b[^>]*type="application/ld\+json"[^>]*>.*?</script>|<link\b[^>]*rel="(?:canonical|sitemap|alternate)"[^>]*>|<meta\b[^>]*property="(?:og:type|og:site_name|article:[^"]+)"[^>]*>~is', $legacyPrefix, $seoTags);
+    $out = str_replace('</head>', implode("\n", $seoTags[0]) . "\n</head>", $out);
+
+    // Only our self-hosted runtime executes under CSP. Stored inline scripts
+    // are not granted a nonce, including the old exporter interaction script.
+    $out = preg_replace('~<script\b[^>]*data-openpage-runtime[^>]*>.*?</script>~is', '', $out);
+    $out = preg_replace("~<script\b[^>]*>\s*document\.querySelectorAll\('\[data-site-menu\]'\).*?</script>~is", '', $out);
+    $runtimeVersion = substr(hash_file('sha256', __DIR__ . '/openpage-runtime.js'), 0, 12);
+    $out = str_replace('</body>', '<script defer src="/public/openpage-runtime.js?v=' . $runtimeVersion . '"></script></body>', $out);
+
     // 1) Inject dynamic articles grid
     ob_start();
     if ($single || $foundationPage) {
@@ -3475,13 +3490,13 @@ if (!empty($site['openpage_html'])) {
     } elseif ($single || $foundationPage) {
         $out = str_replace('</body>', $openpageContent . '</body>', $out);
     }
-    $out = str_replace('</head>', '<style>.single-post,.answer-cta,.answer-author,.answer-related{max-width:900px;margin:2rem auto;padding:1.5rem}.single-post h1{font-size:2rem;font-weight:700;margin:1em 0}.body-content{line-height:1.8}.body-content p{margin:1em 0}.body-content h2{font-size:1.5em;font-weight:700;margin:1em 0}.body-content img,.body-content video{max-width:100%;height:auto}#sts-dynamic-articles .post-media img,#sts-dynamic-articles .post-media video{width:100%;height:12rem;object-fit:cover}.answer-cta-actions,.tags{display:flex;flex-wrap:wrap;gap:1rem;margin:1rem 0}</style></head>', $out);
+    $out = str_replace('</head>', '<style>.site-render{max-width:880px;margin-inline:auto}.single-post,.answer-cta,.answer-author,.answer-related{max-width:900px;margin:2rem auto;padding:1.5rem}.single-post h1{font-size:2rem;font-weight:700;margin:1em 0}.body-content{line-height:1.8}.body-content p{margin:1em 0}.body-content h2{font-size:1.5em;font-weight:700;margin:1em 0}.body-content img,.body-content video{max-width:100%;height:auto}#sts-dynamic-articles .post-media img,#sts-dynamic-articles .post-media video{width:100%;height:12rem;object-fit:cover}.answer-cta-actions,.tags{display:flex;flex-wrap:wrap;gap:1rem;margin:1rem 0}</style></head>', $out);
     if (!$searchVisible) {
         $out = str_replace('</head>', '<meta name="robots" content="noindex,nofollow"></head>', $out);
     }
     
     // 2) Edit button for logged in users
-    $editBtnHtml = '<script>
+    $editBtnHtml = '<script nonce="' . h($cspNonce) . '">
       const stsToken = localStorage.getItem("sts_token") || localStorage.getItem("token");
       if (stsToken && window.parent === window) {
         const payloadBase64 = stsToken.split(".")[1];
