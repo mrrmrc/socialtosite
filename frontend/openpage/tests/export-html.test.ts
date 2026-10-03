@@ -4,6 +4,7 @@ import type { SiteConfig } from '../src/blocks/types'
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { RenderBlock } from '../src/blocks/registry'
+import { readFileSync } from 'node:fs'
 
 const baseConfig: SiteConfig = {
   name: 'Test Site',
@@ -22,6 +23,11 @@ const baseConfig: SiteConfig = {
 }
 
 describe('exportSiteToHTML', () => {
+  it('keeps standalone and CSP-safe public interactions identical across build contexts', () => {
+    const standalone = readFileSync(new URL('../src/lib/site-interactions.js', import.meta.url), 'utf8')
+    const publicRuntime = readFileSync(new URL('../../../public/openpage-runtime.js', import.meta.url), 'utf8')
+    expect(standalone.replace(/\r\n/g, '\n')).toBe(publicRuntime.replace(/\r\n/g, '\n'))
+  })
   it('exports the actual editor renderer and compiled CSS with the chosen theme', () => {
     const config: SiteConfig = { ...baseConfig, theme: { accent: '#8844cc', fontDisplay: 'Poppins' }, blocks: [{
       ...baseConfig.blocks[0], variant: 'split', props: { ...baseConfig.blocks[0].props,

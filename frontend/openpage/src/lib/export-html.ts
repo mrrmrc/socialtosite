@@ -1,4 +1,4 @@
-import siteInteractions from '../../../../public/openpage-runtime.js?raw'
+import siteInteractions from './site-interactions.js?raw'
 import type { SiteConfig } from '@/blocks/types'
 import { resolveTheme, themeToCSS } from '@/lib/theme-presets'
 import { RenderBlock } from '@/blocks/registry'
