@@ -30,7 +30,19 @@ export function publishedArticles(data: SiteData): Data[] {
 export function refreshArticles(config: SiteConfig, data: SiteData): SiteConfig {
   const refresh = (blocks: BlockConfig[]) => {
     const realMenu = blocks.find(b => b.type === 'navbar' && b.props.logo !== 'Brand')
-    return blocks.map(b => b.type === 'articles' ? { ...b, props: { ...b.props, items: publishedArticles(data) } } : b.type === 'navbar' ? homeFirst(b.props.logo === 'Brand' && realMenu ? { ...b, props: { ...b.props, ...realMenu.props } } : b, `/${encodeURIComponent(data.user.slug)}`) : b.type === 'hero' && b.props.secondaryCta === 'Learn More' ? { ...b, props: { ...b.props, secondaryCta: 'Scopri di più' } } : b)
+    const destination = (url: unknown) => {
+      if ((url === '#progetti' || url === '#projects') && !blocks.some(b => b.id === String(url).slice(1))) {
+        const projects = blocks.find(b => b.type === 'features' || b.type === 'gallery')
+        if (projects) return '#' + projects.id
+      }
+      return url
+    }
+    return blocks.map(b => {
+      let block = b.type === 'articles' ? { ...b, props: { ...b.props, items: publishedArticles(data) } } : b.type === 'navbar' ? homeFirst(b.props.logo === 'Brand' && realMenu ? { ...b, props: { ...b.props, ...realMenu.props } } : b, `/${encodeURIComponent(data.user.slug)}`) : b.type === 'hero' && b.props.secondaryCta === 'Learn More' ? { ...b, props: { ...b.props, secondaryCta: 'Scopri di più' } } : b
+      if (block.type === 'navbar') block = { ...block, props: { ...block.props, linkUrls: (block.props.linkUrls as unknown[]).map(destination) } }
+      if (block.type === 'hero') block = { ...block, props: { ...block.props, primaryCtaUrl: destination(block.props.primaryCtaUrl), secondaryCtaUrl: destination(block.props.secondaryCtaUrl) } }
+      return block
+    })
   }
   return { ...config, blocks: refresh(config.blocks), pages: config.pages?.map(p => ({ ...p, blocks: refresh(p.blocks) })) }
 }

@@ -1,6 +1,12 @@
 // Shared by self-contained exports and the PHP public page (CSP: script-src self).
 var homeMeta = document.querySelector('meta[name="sts-home"]');
 if (homeMeta) {
+  document.querySelectorAll('.site-render a[href="#progetti"], .site-render a[href="#projects"]').forEach(function(link) {
+    if (document.getElementById(link.hash.slice(1))) return;
+    var heading = Array.from(document.querySelectorAll('.site-render h2')).find(function(item) { return /progett|iniziativ|applicativ|projects/i.test(item.textContent); });
+    var section = heading && heading.closest('[id]');
+    if (section) link.href = '#' + section.id;
+  });
   // Repair stock scaffolding in already-published Italian drafts without dropping sections.
   if (document.documentElement.lang.toLowerCase().startsWith('it')) {
     var firstMenu = document.querySelector('[data-site-menu-links]');
