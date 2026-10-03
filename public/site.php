@@ -3491,7 +3491,7 @@ if (!empty($site['openpage_html'])) {
     } elseif ($single || $foundationPage) {
         $out = str_replace('</body>', $openpageContent . '</body>', $out);
     }
-    $out = str_replace('</head>', '<style>.site-render{max-width:880px;margin-inline:auto}.single-post,.answer-cta,.answer-author,.answer-related{max-width:900px;margin:2rem auto;padding:1.5rem}.single-post h1{font-size:2rem;font-weight:700;margin:1em 0}.body-content{line-height:1.8}.body-content p{margin:1em 0}.body-content h2{font-size:1.5em;font-weight:700;margin:1em 0}.body-content img,.body-content video{max-width:100%;height:auto}#sts-dynamic-articles .post-media img,#sts-dynamic-articles .post-media video{width:100%;height:12rem;object-fit:cover}.answer-cta-actions,.tags{display:flex;flex-wrap:wrap;gap:1rem;margin:1rem 0}</style></head>', $out);
+    $out = str_replace('</head>', '<style>.site-render{max-width:880px;margin-inline:auto}.site-render a.bg-bg-3{color:var(--color-text-0)}.single-post,.answer-cta,.answer-author,.answer-related{max-width:900px;margin:2rem auto;padding:1.5rem}.single-post h1{font-size:2rem;font-weight:700;margin:1em 0}.body-content{line-height:1.8}.body-content p{margin:1em 0}.body-content h2{font-size:1.5em;font-weight:700;margin:1em 0}.body-content img,.body-content video{max-width:100%;height:auto}#sts-dynamic-articles .post-media img,#sts-dynamic-articles .post-media video{width:100%;height:12rem;object-fit:cover}.answer-cta-actions,.tags{display:flex;flex-wrap:wrap;gap:1rem;margin:1rem 0}</style></head>', $out);
     if (!$searchVisible) {
         $out = str_replace('</head>', '<meta name="robots" content="noindex,nofollow"></head>', $out);
     }

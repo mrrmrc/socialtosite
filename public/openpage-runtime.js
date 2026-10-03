@@ -1,6 +1,29 @@
 // Shared by self-contained exports and the PHP public page (CSP: script-src self).
 var homeMeta = document.querySelector('meta[name="sts-home"]');
 if (homeMeta) {
+  // Repair stock scaffolding in already-published Italian drafts without dropping sections.
+  if (document.documentElement.lang.toLowerCase().startsWith('it')) {
+    var firstMenu = document.querySelector('[data-site-menu-links]');
+    var firstBrand = firstMenu && firstMenu.closest('nav').querySelector('strong');
+    document.querySelectorAll('[data-site-menu-links]').forEach(function(menu) {
+      var brand = menu.closest('nav').querySelector('strong');
+      if (brand && brand.textContent.trim() === 'Brand' && firstBrand && brand !== firstBrand) {
+        brand.textContent = firstBrand.textContent;
+        var destinations = { Features: 'Progetti', Pricing: 'Contatti', About: 'Chi Sono', Contact: 'Contatti' };
+        menu.querySelectorAll('a').forEach(function(link) {
+          var label = destinations[link.textContent.trim()];
+          if (!label) return;
+          var source = Array.from(firstMenu.querySelectorAll('a')).find(function(item) { return item.textContent.trim().toLowerCase() === label.toLowerCase(); });
+          link.textContent = label;
+          link.href = source ? source.href : homeMeta.content + '#sts-contact';
+        });
+      }
+    });
+    document.querySelectorAll('.site-render a').forEach(function(link) {
+      if (link.textContent.trim() === 'Learn More') link.textContent = 'Scopri di più';
+      if (link.textContent.trim() === 'Get Started') { link.textContent = 'Contattami'; link.href = homeMeta.content + '#sts-contact'; }
+    });
+  }
   document.querySelectorAll('[data-site-menu-links]').forEach(function(menu) {
     var home = Array.from(menu.querySelectorAll('a')).find(function(link) { return link.textContent.trim().toLowerCase() === 'home'; });
     if (!home) { home = document.createElement('a'); home.textContent = 'Home'; home.className = 'text-text-1 hover:text-green'; }

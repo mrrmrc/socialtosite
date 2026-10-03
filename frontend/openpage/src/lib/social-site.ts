@@ -28,7 +28,10 @@ export function publishedArticles(data: SiteData): Data[] {
   }))
 }
 export function refreshArticles(config: SiteConfig, data: SiteData): SiteConfig {
-  const refresh = (blocks: BlockConfig[]) => blocks.map(b => b.type === 'articles' ? { ...b, props: { ...b.props, items: publishedArticles(data) } } : b.type === 'navbar' ? homeFirst(b, `/${encodeURIComponent(data.user.slug)}`) : b)
+  const refresh = (blocks: BlockConfig[]) => {
+    const realMenu = blocks.find(b => b.type === 'navbar' && b.props.logo !== 'Brand')
+    return blocks.map(b => b.type === 'articles' ? { ...b, props: { ...b.props, items: publishedArticles(data) } } : b.type === 'navbar' ? homeFirst(b.props.logo === 'Brand' && realMenu ? { ...b, props: { ...b.props, ...realMenu.props } } : b, `/${encodeURIComponent(data.user.slug)}`) : b.type === 'hero' && b.props.secondaryCta === 'Learn More' ? { ...b, props: { ...b.props, secondaryCta: 'Scopri di più' } } : b)
+  }
   return { ...config, blocks: refresh(config.blocks), pages: config.pages?.map(p => ({ ...p, blocks: refresh(p.blocks) })) }
 }
 export function homeFirst(block: BlockConfig, homeUrl: string): BlockConfig {
