@@ -1,3 +1,4 @@
+import { t, getBrowserLanguage } from '@/lib/i18n'
 import { useState } from 'react'
 import {
   Globe,
@@ -18,9 +19,9 @@ import { exportToHTML, downloadHTML, previewHTML } from '@/lib/export-html'
 import { publishSite } from '@/lib/publish-site'
 
 const readyOptions = [
-  { icon: Download, label: 'Static HTML', description: 'Download a standalone HTML file', action: 'html' },
-  { icon: FileJson, label: 'JSON Config', description: 'Download the raw JSON config file', action: 'json' },
-  { icon: Eye, label: 'Preview in Browser', description: 'Open a standalone preview in a new tab', action: 'preview' },
+  { icon: Download, label: t('Static HTML'), description: t('Download a standalone HTML file'), action: 'html' },
+  { icon: FileJson, label: t('JSON Config'), description: t('Download the raw JSON config file'), action: 'json' },
+  { icon: Eye, label: t('Preview in Browser'), description: t('Open a standalone preview in a new tab'), action: 'preview' },
 ] as const
 
 
@@ -50,7 +51,7 @@ export function Deploy() {
       a.click()
       document.body.removeChild(a)
       URL.revokeObjectURL(url)
-      toast('JSON config downloaded')
+      toast(t('JSON config downloaded'))
       return
     }
 
@@ -61,12 +62,12 @@ export function Deploy() {
       if (action === 'html') {
         const filename = `${(project?.name || config.name || 'site').toLowerCase().replace(/\s+/g, '-')}.html`
         downloadHTML(html, filename)
-        toast('HTML exported')
+        toast(t('HTML exported'))
       } else {
         previewHTML(html)
       }
     } catch {
-      toast.error(action === 'preview' ? 'Preview failed' : 'Export failed')
+      toast.error(action === 'preview' ? t('Preview failed') : t('Export failed'))
     } finally {
       setExporting(false)
     }
@@ -74,7 +75,7 @@ export function Deploy() {
 
   async function handlePublish() {
     if (!activeProjectId) {
-      toast.error('Save your project first')
+      toast.error(t('Save your project first'))
       return
     }
 
@@ -86,9 +87,9 @@ export function Deploy() {
         settings: project?.settings,
       })
       setDeployInfo(activeProjectId, liveUrl, deploymentId)
-      toast.success('Sito pubblicato')
+      toast.success(t('Sito pubblicato'))
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Deploy failed')
+      toast.error(err instanceof Error ? err.message : t('Deploy failed'))
     } finally {
       setPublishing(false)
     }
@@ -100,10 +101,10 @@ export function Deploy() {
       .writeText(deployUrl)
       .then(() => {
         setCopied(true)
-        toast('URL copied')
+        toast(t('URL copied'))
         setTimeout(() => setCopied(false), 2000)
       })
-      .catch(() => toast.error('Could not copy URL'))
+      .catch(() => toast.error(t('Could not copy URL')))
   }
 
   const timeAgo = lastDeployedAt ? formatTimeAgo(lastDeployedAt) : null
@@ -111,8 +112,8 @@ export function Deploy() {
   return (
     <div className="h-full overflow-y-auto">
       <div className="px-4 md:px-12 pt-8">
-        <h1 className="text-[22px] font-display font-semibold tracking-tight animate-fade-in-up stagger-1">Pubblica il tuo sito</h1>
-        <p className="text-text-2 text-[13px] mt-1 animate-fade-in-up stagger-2">Controlla l’anteprima e pubblica quando sei pronto.</p>
+        <h1 className="text-[22px] font-display font-semibold tracking-tight animate-fade-in-up stagger-1">{t("Pubblica il tuo sito")}</h1>
+        <p className="text-text-2 text-[15px] mt-1 animate-fade-in-up stagger-2">{t("Controlla l’anteprima e pubblica quando sei pronto.")}</p>
       </div>
 
       <div className="px-4 md:px-12 pt-6">
@@ -129,7 +130,7 @@ export function Deploy() {
               </div>
               <div className="flex-1">
                 <span className="text-sm font-semibold">{opt.label}</span>
-                <p className="text-[11.5px] text-text-2 mt-0.5">{opt.description}</p>
+                <p className="text-[15px] text-text-2 mt-0.5">{opt.description}</p>
               </div>
               <ExternalLink size={14} className="text-text-3 mt-1 shrink-0" />
             </div>
@@ -138,16 +139,16 @@ export function Deploy() {
       </div>
 
       <div className="px-4 md:px-12 pt-8 animate-fade-in-up stagger-3">
-          <h2 className="text-[11px] font-semibold uppercase tracking-wider text-text-3 mb-3">Pubblicazione</h2>
+          <h2 className="text-[15px] font-semibold uppercase tracking-wider text-text-3 mb-3">{t("Pubblicazione")}</h2>
           <div className="p-5 rounded-xl border bg-bg-1 border-border-default">
             <div className="flex items-start gap-3">
               <div className="w-10 h-10 rounded-lg bg-green/10 border border-green/20 flex items-center justify-center text-green shrink-0">
                 <Globe size={18} />
               </div>
               <div className="flex-1 min-w-0">
-                <h3 className="text-sm font-semibold">Il tuo sito online</h3>
-                <p className="text-[11.5px] text-text-2 mt-0.5">
-                  Il sito online cambia solo quando premi Pubblica.
+                <h3 className="text-sm font-semibold">{t("Il tuo sito online")}</h3>
+                <p className="text-[15px] text-text-2 mt-0.5">
+                  {t("Il sito online cambia solo quando premi Pubblica.")}
                 </p>
 
                 {deployUrl && (
@@ -158,7 +159,7 @@ export function Deploy() {
                         href={deployUrl}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-[12px] text-green hover:underline truncate"
+                        className="text-[15px] text-green hover:underline truncate"
                       >
                         {deployUrl.replace('https://', '')}
                       </a>
@@ -166,7 +167,7 @@ export function Deploy() {
                     <button
                       onClick={handleCopy}
                       className="w-8 h-8 rounded-lg border border-border-default hover:border-border-hover flex items-center justify-center text-text-3 hover:text-text-1 transition-all shrink-0"
-                      title="Copy URL"
+                      title={t("Copy URL")}
                     >
                       {copied ? <Check size={13} /> : <Copy size={13} />}
                     </button>
@@ -175,7 +176,7 @@ export function Deploy() {
                       target="_blank"
                       rel="noopener noreferrer"
                       className="w-8 h-8 rounded-lg border border-border-default hover:border-border-hover flex items-center justify-center text-text-3 hover:text-text-1 transition-all shrink-0"
-                      title="Visit site"
+                      title={t("Visit site")}
                     >
                       <ExternalLink size={13} />
                     </a>
@@ -186,24 +187,24 @@ export function Deploy() {
                   <button
                     onClick={handlePublish}
                     disabled={publishing}
-                    className="px-4 py-1.5 rounded-lg bg-green text-bg-0 text-[12.5px] font-semibold hover:bg-green/90 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5"
+                    className="px-4 py-1.5 rounded-lg bg-green text-bg-0 text-[15px] font-semibold hover:bg-green/90 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5"
                   >
                     {publishing ? (
                       <>
                         <Loader2 size={13} className="animate-spin" />
-                        Pubblicazione…
+                        {t("Pubblicazione…")}
                       </>
                     ) : deployUrl ? (
                       <>
                         <RefreshCw size={13} />
-                        Update
+                        {t("Update")}
                       </>
                     ) : (
                       'Pubblica'
                     )}
                   </button>
                   {timeAgo && (
-                    <span className="text-[11px] text-text-3">Last published {timeAgo}</span>
+                    <span className="text-[15px] text-text-3">{t("Last published")} {timeAgo}</span>
                   )}
                 </div>
               </div>
@@ -217,12 +218,10 @@ export function Deploy() {
 }
 
 function formatTimeAgo(iso: string): string {
-  const diff = Date.now() - new Date(iso).getTime()
-  const mins = Math.floor(diff / 60000)
-  if (mins < 1) return 'just now'
-  if (mins < 60) return `${mins}m ago`
-  const hours = Math.floor(mins / 60)
-  if (hours < 24) return `${hours}h ago`
-  const days = Math.floor(hours / 24)
-  return `${days}d ago`
+  const minutes = Math.floor((Date.now() - new Date(iso).getTime()) / 60000)
+  const formatter = new Intl.RelativeTimeFormat(getBrowserLanguage(), { numeric: 'auto' })
+  if (minutes < 1) return formatter.format(0, 'minute')
+  if (minutes < 60) return formatter.format(-minutes, 'minute')
+  if (minutes < 1440) return formatter.format(-Math.floor(minutes / 60), 'hour')
+  return formatter.format(-Math.floor(minutes / 1440), 'day')
 }

@@ -1,3 +1,4 @@
+import { t } from '@/lib/i18n'
 import { useEffect, useRef } from 'react'
 import { X, Clock, RotateCcw } from 'lucide-react'
 import { useEditorStore } from '@/store/editorStore'
@@ -54,8 +55,8 @@ export function VersionHistory() {
       <div className="px-4 py-3.5 border-b border-border-default flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Clock size={14} className="text-text-2" />
-          <h3 className="text-sm font-semibold">Version History</h3>
-          <span className="text-[10px] text-text-3">({entries.length})</span>
+          <h3 className="text-sm font-semibold">{t("Version History")}</h3>
+          <span className="text-[15px] text-text-3">({entries.length})</span>
         </div>
         <button
           onClick={toggleHistory}
@@ -69,13 +70,13 @@ export function VersionHistory() {
       <div className="flex-1 overflow-y-auto p-2">
         {/* Current state */}
         <div className="p-3 rounded-lg bg-green-glow mb-0.5">
-          <div className="flex items-center gap-1.5 text-[11px] text-text-2 mb-1">
-            <span>Current</span>
-            <span className="text-[9px] px-1.5 py-0.5 rounded-full font-semibold bg-green-glow text-green">
-              latest
+          <div className="flex items-center gap-1.5 text-[15px] text-text-2 mb-1">
+            <span>{t("Current")}</span>
+            <span className="text-[15px] px-1.5 py-0.5 rounded-full font-semibold bg-green-glow text-green">
+              {t("latest")}
             </span>
           </div>
-          <div className="text-[12.5px] text-text-1">Current state</div>
+          <div className="text-[15px] text-text-1">{t("Current state")}</div>
         </div>
 
         {entries.map((entry, i) => (
@@ -86,22 +87,22 @@ export function VersionHistory() {
             }}
             className="p-3 rounded-lg cursor-pointer transition-colors mb-0.5 hover:bg-bg-3 group"
           >
-            <div className="flex items-center gap-1.5 text-[11px] text-text-2 mb-1">
+            <div className="flex items-center gap-1.5 text-[15px] text-text-2 mb-1">
               <span>{timeAgo(entry.timestamp)}</span>
-              <span className="text-[9px] px-1.5 py-0.5 rounded-full font-semibold bg-status-blue/10 text-status-blue">
-                manual
+              <span className="text-[15px] px-1.5 py-0.5 rounded-full font-semibold bg-status-blue/10 text-status-blue">
+                {t("manual")}
               </span>
             </div>
             <div className="flex items-center justify-between">
-              <div className="text-[12.5px] text-text-1">{entry.label}</div>
+              <div className="text-[15px] text-text-1">{entry.label}</div>
               <RotateCcw size={12} className="text-text-3 opacity-0 group-hover:opacity-100 transition-opacity" />
             </div>
           </div>
         ))}
 
         {entries.length === 0 && (
-          <div className="p-4 text-center text-[11px] text-text-3">
-            No history yet. Make some changes to see history.
+          <div className="p-4 text-center text-[15px] text-text-3">
+            {t("No history yet. Make some changes to see history.")}
           </div>
         )}
       </div>

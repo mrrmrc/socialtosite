@@ -24,6 +24,8 @@ function AccordionItem({ item, isOpen, onToggle }: { item: FaqItem; isOpen: bool
   return (
     <div className="border-b border-border-subtle">
       <button
+        data-faq-toggle
+        aria-expanded={isOpen}
         onClick={onToggle}
         className="w-full flex items-center justify-between py-4 text-left group"
       >

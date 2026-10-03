@@ -1,3 +1,4 @@
+import { t } from '@/lib/i18n'
 import { useState, useMemo } from 'react'
 import { ChevronDown } from 'lucide-react'
 import { useConfigStore } from '@/store/configStore'
@@ -25,7 +26,7 @@ function ColorInput({ value, onInput, onChange }: { value: string; onInput: (v: 
           const v = e.target.value
           if (/^#[0-9a-fA-F]{6}$/.test(v)) onChange(v)
         }}
-        className="w-[72px] px-1.5 py-1 rounded border border-border-default bg-bg-2 text-text-1 text-[10px] font-mono outline-none focus:border-green"
+        className="w-[100px] px-1.5 py-1 rounded border border-border-default bg-bg-2 text-text-1 text-[15px] font-mono outline-none focus:border-green"
       />
     </div>
   )
@@ -49,7 +50,7 @@ function ColorSection({ title, colors, defaultOpen = false }: {
         className="w-full flex items-center justify-between px-3 py-2 bg-bg-2 hover:bg-bg-3 transition-colors text-left"
       >
         <div className="flex items-center gap-2">
-          <span className="text-[11px] font-semibold">{title}</span>
+          <span className="text-[15px] font-semibold">{t(title)}</span>
           <div className="flex gap-0.5">
             {colors.slice(0, 4).map((c) => (
               <div
@@ -65,8 +66,8 @@ function ColorSection({ title, colors, defaultOpen = false }: {
       {open && (
         <div className="px-3 py-2.5 space-y-2.5 bg-bg-1">
           {colors.map((c) => (
-            <div key={c.key} className="flex items-center justify-between">
-              <span className="text-[10.5px] text-text-2">{c.label}</span>
+            <div key={c.key} className="flex flex-wrap items-center justify-between gap-2">
+              <span className="text-[15px] text-text-2">{t(c.label)}</span>
               <ColorInput
                 value={resolved[c.key] as string}
                 onInput={(v) => previewTheme({ [c.key]: v })}
@@ -100,7 +101,7 @@ export function DesignPanel() {
     <div className="px-3.5 py-3.5">
       {/* Preset grid */}
       <div className="mb-4">
-        <div className="text-[10px] font-semibold uppercase tracking-wider text-text-3 mb-2">Presets</div>
+        <div className="text-[15px] font-semibold uppercase tracking-wider text-text-3 mb-2">{t("Presets")}</div>
         <div className="grid grid-cols-2 gap-1.5">
           {themePresets.map((preset) => (
             <button
@@ -118,7 +119,7 @@ export function DesignPanel() {
                 <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: preset.theme.accent }} />
                 <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: preset.theme.text0 }} />
               </div>
-              <div className="text-[10px] font-medium truncate">{preset.name}</div>
+              <div className="text-[15px] font-medium truncate">{t(preset.name)}</div>
             </button>
           ))}
         </div>
@@ -127,59 +128,59 @@ export function DesignPanel() {
       {/* Color sections */}
       <div className="space-y-2 mb-4">
         <ColorSection
-          title="Backgrounds"
+          title={t("Backgrounds")}
           defaultOpen
           colors={[
-            { key: 'bg0', label: 'Base' },
-            { key: 'bg1', label: 'Surface 1' },
-            { key: 'bg2', label: 'Surface 2' },
-            { key: 'bg3', label: 'Surface 3' },
-            { key: 'bg4', label: 'Surface 4' },
-            { key: 'bg5', label: 'Surface 5' },
+            { key: 'bg0', label: t('Base') },
+            { key: 'bg1', label: t('Surface 1') },
+            { key: 'bg2', label: t('Surface 2') },
+            { key: 'bg3', label: t('Surface 3') },
+            { key: 'bg4', label: t('Surface 4') },
+            { key: 'bg5', label: t('Surface 5') },
           ]}
         />
         <ColorSection
-          title="Text"
+          title={t("Text")}
           colors={[
-            { key: 'text0', label: 'Primary' },
-            { key: 'text1', label: 'Secondary' },
-            { key: 'text2', label: 'Muted' },
-            { key: 'text3', label: 'Dimmed' },
+            { key: 'text0', label: t('Primary') },
+            { key: 'text1', label: t('Secondary') },
+            { key: 'text2', label: t('Muted') },
+            { key: 'text3', label: t('Dimmed') },
           ]}
         />
         <ColorSection
-          title="Accent"
+          title={t("Accent")}
           defaultOpen
           colors={[
-            { key: 'accent', label: 'Accent' },
-            { key: 'accentDim', label: 'Accent Dim' },
+            { key: 'accent', label: t('Accent') },
+            { key: 'accentDim', label: t('Accent Dim') },
           ]}
         />
         <ColorSection
-          title="Borders"
+          title={t("Borders")}
           colors={[
-            { key: 'borderDefault', label: 'Default' },
-            { key: 'borderSubtle', label: 'Subtle' },
-            { key: 'borderHover', label: 'Hover' },
+            { key: 'borderDefault', label: t('Default') },
+            { key: 'borderSubtle', label: t('Subtle') },
+            { key: 'borderHover', label: t('Hover') },
           ]}
         />
       </div>
 
       {/* Fonts */}
       <div className="mb-4">
-        <div className="text-[10px] font-semibold uppercase tracking-wider text-text-3 mb-2">Fonts</div>
+        <div className="text-[15px] font-semibold uppercase tracking-wider text-text-3 mb-2">{t("Fonts")}</div>
         <div className="space-y-2.5">
           {([
-            { key: 'fontSans' as const, label: 'Body' },
-            { key: 'fontDisplay' as const, label: 'Display' },
-            { key: 'fontMono' as const, label: 'Mono' },
+            { key: 'fontSans' as const, label: t('Body') },
+            { key: 'fontDisplay' as const, label: t('Display') },
+            { key: 'fontMono' as const, label: t('Mono') },
           ]).map(({ key, label }) => (
             <div key={key}>
-              <label className="block text-[10.5px] text-text-2 mb-1">{label}</label>
+              <label className="block text-[15px] text-text-2 mb-1">{t(label)}</label>
               <select
                 value={resolved[key]}
                 onChange={(e) => updateTheme({ [key]: e.target.value })}
-                className="w-full px-2 py-1.5 rounded-lg border border-border-default bg-bg-2 text-text-0 text-[11px] outline-none focus:border-green cursor-pointer"
+                className="w-full px-2 py-1.5 rounded-lg border border-border-default bg-bg-2 text-text-0 text-[15px] outline-none focus:border-green cursor-pointer"
                 style={{ fontFamily: `"${resolved[key]}", sans-serif` }}
               >
                 {googleFontOptions.map((f) => (
@@ -193,28 +194,28 @@ export function DesignPanel() {
 
       {/* Radius */}
       <div>
-        <div className="text-[10px] font-semibold uppercase tracking-wider text-text-3 mb-2">Radius</div>
+        <div className="text-[15px] font-semibold uppercase tracking-wider text-text-3 mb-2">{t("Radius")}</div>
         <div className="grid grid-cols-2 gap-2">
           <div>
-            <label className="block text-[10.5px] text-text-2 mb-1">Default</label>
+            <label className="block text-[15px] text-text-2 mb-1">{t("Default")}</label>
             <input
               type="number"
               min={0}
               max={24}
               value={resolved.radius}
               onChange={(e) => updateTheme({ radius: Number(e.target.value) })}
-              className="w-full px-2 py-1.5 rounded-lg border border-border-default bg-bg-2 text-text-0 text-[11px] outline-none focus:border-green"
+              className="w-full px-2 py-1.5 rounded-lg border border-border-default bg-bg-2 text-text-0 text-[15px] outline-none focus:border-green"
             />
           </div>
           <div>
-            <label className="block text-[10.5px] text-text-2 mb-1">Large</label>
+            <label className="block text-[15px] text-text-2 mb-1">{t("Large")}</label>
             <input
               type="number"
               min={0}
               max={32}
               value={resolved.radiusLg}
               onChange={(e) => updateTheme({ radiusLg: Number(e.target.value) })}
-              className="w-full px-2 py-1.5 rounded-lg border border-border-default bg-bg-2 text-text-0 text-[11px] outline-none focus:border-green"
+              className="w-full px-2 py-1.5 rounded-lg border border-border-default bg-bg-2 text-text-0 text-[15px] outline-none focus:border-green"
             />
           </div>
         </div>

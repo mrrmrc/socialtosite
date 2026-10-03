@@ -1,3 +1,4 @@
+import { t } from '@/lib/i18n'
 import { type ReactNode, useRef, useEffect } from 'react'
 import { Copy, Trash2, ChevronUp, ChevronDown } from 'lucide-react'
 import { toast } from 'sonner'
@@ -65,7 +66,7 @@ export function BlockWrapper({ block, isSelected, onSelect, children }: Props) {
           : 'hover:bg-green-glow2'
       }`}
       role="button"
-      aria-label={`${block.type} block${isSelected ? ', selected' : ''}`}
+      aria-label={t(block.type) + (isSelected ? ', ' + t('Selected') : '')}
       aria-selected={isSelected}
       tabIndex={0}
       onKeyDown={(e) => {
@@ -78,7 +79,7 @@ export function BlockWrapper({ block, isSelected, onSelect, children }: Props) {
     >
       {/* Block type tag */}
       <span
-        className={`absolute top-1.5 left-1.5 text-[9px] font-semibold uppercase tracking-wider text-green bg-green-glow px-1.5 py-0.5 rounded transition-opacity z-10 ${
+        className={`absolute top-1.5 left-1.5 text-[15px] font-semibold uppercase tracking-wider text-green bg-green-glow px-1.5 py-0.5 rounded transition-opacity z-10 ${
           isSelected ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
         }`}
       >
@@ -94,9 +95,9 @@ export function BlockWrapper({ block, isSelected, onSelect, children }: Props) {
         {!isFirst && (
           <button
             onClick={(e) => { e.stopPropagation(); moveBlock(index, index - 1) }}
-            className="w-6 h-6 rounded bg-bg-2/80 border border-border-default backdrop-blur-sm flex items-center justify-center text-text-3 hover:text-text-0 hover:bg-bg-3 transition-colors"
-            title="Move up"
-            aria-label={`Move ${block.type} block up`}
+            className="w-8 h-8 rounded bg-bg-2/80 border border-border-default backdrop-blur-sm flex items-center justify-center text-text-3 hover:text-text-0 hover:bg-bg-3 transition-colors"
+            title={t("Move up")}
+            aria-label={t('Move up') + ': ' + t(block.type)}
           >
             <ChevronUp size={12} />
           </button>
@@ -104,18 +105,18 @@ export function BlockWrapper({ block, isSelected, onSelect, children }: Props) {
         {!isLast && (
           <button
             onClick={(e) => { e.stopPropagation(); moveBlock(index, index + 1) }}
-            className="w-6 h-6 rounded bg-bg-2/80 border border-border-default backdrop-blur-sm flex items-center justify-center text-text-3 hover:text-text-0 hover:bg-bg-3 transition-colors"
-            title="Move down"
-            aria-label={`Move ${block.type} block down`}
+            className="w-8 h-8 rounded bg-bg-2/80 border border-border-default backdrop-blur-sm flex items-center justify-center text-text-3 hover:text-text-0 hover:bg-bg-3 transition-colors"
+            title={t("Move down")}
+            aria-label={t('Move down') + ': ' + t(block.type)}
           >
             <ChevronDown size={12} />
           </button>
         )}
         <button
           onClick={(e) => { e.stopPropagation(); duplicateBlock(block.id) }}
-          className="w-6 h-6 rounded bg-bg-2/80 border border-border-default backdrop-blur-sm flex items-center justify-center text-text-3 hover:text-text-0 hover:bg-bg-3 transition-colors"
-          title="Duplicate"
-          aria-label={`Duplicate ${block.type} block`}
+          className="w-8 h-8 rounded bg-bg-2/80 border border-border-default backdrop-blur-sm flex items-center justify-center text-text-3 hover:text-text-0 hover:bg-bg-3 transition-colors"
+          title={t("Duplicate")}
+          aria-label={t('Duplicate') + ': ' + t(block.type)}
         >
           <Copy size={12} />
         </button>
@@ -124,20 +125,20 @@ export function BlockWrapper({ block, isSelected, onSelect, children }: Props) {
             e.stopPropagation()
             if (selectedBlockId === block.id) selectBlock(null)
             removeBlock(block.id)
-            toast('Block removed', {
+            toast(t('Block removed'), {
               action: {
-                label: 'Undo',
+                label: t('Undo'),
                 onClick: () => {
                   useConfigStore.getState().undo()
-                  toast('Block restored')
+                  toast(t('Block restored'))
                 },
               },
               duration: 3000,
             })
           }}
-          className="w-6 h-6 rounded bg-bg-2/80 border border-border-default backdrop-blur-sm flex items-center justify-center text-text-3 hover:text-status-red hover:bg-status-red/10 transition-colors"
-          title="Delete"
-          aria-label={`Delete ${block.type} block`}
+          className="w-8 h-8 rounded bg-bg-2/80 border border-border-default backdrop-blur-sm flex items-center justify-center text-text-3 hover:text-status-red hover:bg-status-red/10 transition-colors"
+          title={t("Delete")}
+          aria-label={t('Delete') + ': ' + t(block.type)}
         >
           <Trash2 size={12} />
         </button>

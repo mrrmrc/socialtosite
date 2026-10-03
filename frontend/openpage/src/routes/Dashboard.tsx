@@ -1,3 +1,4 @@
+import { t } from '@/lib/i18n'
 import { useState, useRef, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
@@ -15,19 +16,19 @@ const templateIcons: Record<string, typeof Briefcase> = {
 
 const suggestions = [
   {
-    label: 'SaaS landing page',
+    label: t('SaaS landing page'),
     prompt: 'Create a SaaS landing page for a project management tool called "FlowBoard". Include a hero with a compelling headline about team productivity, a features grid highlighting task boards, real-time collaboration, and analytics. Add a pricing section with Free, Pro ($12/mo), and Enterprise tiers. Use a clean, modern dark theme with blue accents.',
   },
   {
-    label: 'Portfolio site',
+    label: t('Portfolio site'),
     prompt: 'Create a portfolio site for a freelance product designer named Alex Chen. Include a hero section with a strong personal headline, a project gallery showcasing 4-6 case studies with titles and descriptions, a testimonials section with client quotes, an about/bio section, and a contact form. Use a minimal, sophisticated aesthetic with warm neutral tones.',
   },
   {
-    label: 'Restaurant website',
+    label: t('Restaurant website'),
     prompt: 'Create a website for an upscale Italian restaurant called "Trattoria Luna". Include a hero with an inviting headline about authentic cuisine, a features section highlighting handmade pasta, wood-fired pizza, and a curated wine list. Add a content block with the chef\'s philosophy, a testimonials section with diner reviews, and a CTA to make reservations. Use warm, earthy tones with gold accents.',
   },
   {
-    label: 'AI startup',
+    label: t('AI startup'),
     prompt: 'Create a landing page for an AI startup called "NeuralFlow" that builds intelligent document processing tools. Include a hero with a bold headline about automating workflows, a features grid with smart extraction, multi-language support, and enterprise security. Add a stats section with impressive numbers, a pricing comparison table, customer testimonials from CTOs, and a strong CTA. Use a sleek dark theme with green accents.',
   },
 ]
@@ -94,8 +95,8 @@ function PromptSection() {
       </div>
 
       <div className="relative flex flex-col items-center pt-16 pb-6 px-6">
-        <h1 className="text-[36px] font-display font-bold tracking-tight mb-2 text-center animate-fade-in-up stagger-1">What will you build?</h1>
-        <p className="text-text-2 text-[15px] mb-8 text-center animate-fade-in-up stagger-2">Describe your site and AI generates the layout, copy, and theme.</p>
+        <h1 className="text-[36px] font-display font-bold tracking-tight mb-2 text-center animate-fade-in-up stagger-1">{t("What will you build?")}</h1>
+        <p className="text-text-2 text-[15px] mb-8 text-center animate-fade-in-up stagger-2">{t("Describe your site and AI generates the layout, copy, and theme.")}</p>
 
         {/* Prompt card - gradient border wrapper */}
         <div className={`w-full max-w-[680px] rounded-2xl p-px transition-all duration-300 animate-scale-in stagger-3 ${
@@ -114,7 +115,7 @@ function PromptSection() {
                 }
               }}
               rows={3}
-              placeholder="A landing page for a modern fitness app with dark theme..."
+              placeholder={t("A landing page for a modern fitness app with dark theme...")}
               className="w-full px-5 pt-5 pb-3 bg-transparent text-text-0 text-[14px] placeholder:text-text-3 resize-none leading-relaxed"
             />
 
@@ -125,7 +126,7 @@ function PromptSection() {
                   <button
                     key={s.label}
                     onClick={() => { setPrompt(s.prompt); textareaRef.current?.focus() }}
-                    className="px-2.5 py-1 rounded-full text-text-3 text-[11px] border border-border-default hover:text-text-0 hover:bg-bg-3 hover:border-border-hover transition-all"
+                    className="px-2.5 py-1 rounded-full text-text-3 text-[15px] border border-border-default hover:text-text-0 hover:bg-bg-3 hover:border-border-hover transition-all"
                   >
                     {s.label}
                   </button>
@@ -133,17 +134,17 @@ function PromptSection() {
               </div>
               <div className="flex items-center gap-2 shrink-0 ml-3">
                 {prompt.trim() && (
-                  <span className="text-[10px] text-text-3 hidden sm:inline">
-                    {navigator.platform?.includes('Mac') ? '\u2318' : 'Ctrl'}+Enter
+                  <span className="text-[15px] text-text-3 hidden sm:inline">
+                    {navigator.platform?.includes('Mac') ? '\u2318' : 'Ctrl'}{t("+Enter")}
                   </span>
                 )}
                 <button
                   onClick={() => generate(prompt)}
                   disabled={!prompt.trim()}
-                  className="px-5 py-2.5 rounded-xl bg-green text-black text-[13px] font-semibold hover:bg-green-dim active:scale-[0.97] transition-all disabled:opacity-20 disabled:cursor-not-allowed inline-flex items-center gap-2 shadow-[0_0_20px_rgba(34,197,94,0.3)] hover:shadow-[0_0_30px_rgba(34,197,94,0.4)]"
+                  className="px-5 py-2.5 rounded-xl bg-green text-black text-[15px] font-semibold hover:bg-green-dim active:scale-[0.97] transition-all disabled:opacity-20 disabled:cursor-not-allowed inline-flex items-center gap-2 shadow-[0_0_20px_rgba(34,197,94,0.3)] hover:shadow-[0_0_30px_rgba(34,197,94,0.4)]"
                 >
                   <Sparkles size={14} />
-                  Generate
+                  {t("Generate")}
                 </button>
               </div>
             </div>
@@ -173,12 +174,12 @@ function PromptSection() {
                     >
                       <Icon size={14} />
                     </div>
-                    <div className="text-[12.5px] font-semibold text-text-0">{tpl.name}</div>
+                    <div className="text-[15px] font-semibold text-text-0">{tpl.name}</div>
                   </div>
-                  <div className="text-[10.5px] text-text-2 leading-snug">{tpl.description}</div>
-                  <div className="mt-2.5 flex items-center gap-1 text-[10px] text-text-3">
+                  <div className="text-[15px] text-text-2 leading-snug">{tpl.description}</div>
+                  <div className="mt-2.5 flex items-center gap-1 text-[15px] text-text-3">
                     <Layers size={10} />
-                    {tpl.blockCount} blocks
+                    {tpl.blockCount} {t("blocks")}
                   </div>
                 </div>
               </button>
@@ -191,17 +192,17 @@ function PromptSection() {
           <div className="flex items-center gap-3">
             <button
               onClick={startBlank}
-              className="text-text-3 text-[11px] hover:text-text-1 transition-colors"
+              className="text-text-3 text-[15px] hover:text-text-1 transition-colors"
             >
-              or start blank
+              {t("or start blank")}
             </button>
-            <span className="text-text-3 text-[11px]">•</span>
+            <span className="text-text-3 text-[15px]">{"•"}</span>
             <button
               onClick={async () => {
                 try {
-                  const t = localStorage.getItem('token')
-                  if (!t) return toast.error('Devi effettuare il login')
-                  const r = await fetch('/api/index.php?action=site', { headers: { 'Authorization': `Bearer ${t}` }})
+                  const token = localStorage.getItem('sts_token') || localStorage.getItem('token')
+                  if (!token) return toast.error(t('Devi effettuare il login'))
+                  const r = await fetch('/api/index.php?action=site', { headers: { 'Authorization': `Bearer ${token}` }})
                   const d = await r.json()
                   if (d.site && d.site.openpage_config) {
                     const id = addProject('Live Site')
@@ -209,24 +210,24 @@ function PromptSection() {
                     setConfig(JSON.parse(d.site.openpage_config))
                     navigate('/editor')
                   } else {
-                    toast.error('Nessun sito OpenPage trovato sul server.')
+                    toast.error(t('Nessun sito OpenPage trovato sul server.'))
                   }
                 } catch(e) {
-                  toast.error('Errore nel caricamento del sito live.')
+                  toast.error(t('Errore nel caricamento del sito live.'))
                 }
               }}
-              className="text-green text-[11px] hover:text-green-dim transition-colors font-semibold"
+              className="text-green text-[15px] hover:text-green-dim transition-colors font-semibold"
             >
-              Load Live Site
+              {t("Load Live Site")}
             </button>
           </div>
           {!hasGeminiKey && (
-            <p className="text-text-3 text-[10.5px]">
-              Using template mode.{' '}
+            <p className="text-text-3 text-[15px]">
+              {t("Using template mode.")}{' '}
               <NavLink to="/settings" className="text-green hover:text-green-dim transition-colors">
-                Add a Gemini API key
+                {t("Add a Gemini API key")}
               </NavLink>
-              {' '}for AI-generated sites.
+              {' '}{t("for AI-generated sites.")}
             </p>
           )}
         </div>
@@ -301,8 +302,8 @@ function ProjectCard({ project }: { project: Project }) {
         {/* Action buttons */}
         <div className="absolute top-2 right-2 z-10 flex gap-1">
           <button
-            onClick={(e) => { e.stopPropagation(); duplicateProject(project.id); toast('Project duplicated') }}
-            aria-label={`Duplicate ${project.name}`}
+            onClick={(e) => { e.stopPropagation(); duplicateProject(project.id); toast(t('Project duplicated')) }}
+            aria-label={t(`Duplicate ${project.name}`)}
             className="p-1.5 rounded-md border bg-bg-0/80 border-border-default text-text-3 opacity-0 group-hover:opacity-100 hover:text-green hover:border-green/30 transition-all"
           >
             <Copy size={12} />
@@ -312,7 +313,7 @@ function ProjectCard({ project }: { project: Project }) {
             aria-label={confirming ? `Confirm delete ${project.name}` : `Delete ${project.name}`}
             className={`rounded-md border transition-all ${
               confirming
-                ? 'px-2 py-1 bg-status-red/90 border-status-red text-white text-[10px] font-medium opacity-100'
+                ? 'px-2 py-1 bg-status-red/90 border-status-red text-white text-[15px] font-medium opacity-100'
                 : 'p-1.5 bg-bg-0/80 border-border-default text-text-3 opacity-0 group-hover:opacity-100 hover:text-status-red hover:border-status-red/30'
             }`}
           >
@@ -376,19 +377,19 @@ function ProjectCard({ project }: { project: Project }) {
               if (e.key === 'Escape') { setName(project.name); setEditing(false) }
             }}
             onClick={(e) => e.stopPropagation()}
-            className="text-[13px] font-semibold mb-1 bg-transparent border-b border-green outline-none w-full"
+            className="text-[15px] font-semibold mb-1 bg-transparent border-b border-green outline-none w-full"
           />
         ) : (
           <div
-            className="text-[13px] font-semibold mb-1 transition-colors text-text-0 flex items-center gap-1.5 group/name"
+            className="text-[15px] font-semibold mb-1 transition-colors text-text-0 flex items-center gap-1.5 group/name"
             onDoubleClick={(e) => { e.stopPropagation(); setEditing(true) }}
-            title="Double-click to rename"
+            title={t("Double-click to rename")}
           >
             <span className="truncate">{project.name}</span>
             <Pencil size={10} className="text-text-3 opacity-0 group-hover:opacity-100 group-hover/name:opacity-60 transition-opacity shrink-0" />
           </div>
         )}
-        <div className="text-[10.5px] text-text-2 flex items-center gap-2">
+        <div className="text-[15px] text-text-2 flex items-center gap-2">
           <span className="flex items-center gap-1.5">
             <span
               className={`w-1.5 h-1.5 rounded-full ${
@@ -429,8 +430,8 @@ export function Dashboard() {
 
           <div className="px-4 md:px-12 pt-5 flex flex-col sm:flex-row gap-2 items-start sm:items-center sm:justify-between">
             <div className="flex items-center gap-3">
-              <h2 className="text-[13px] font-semibold text-text-1 animate-fade-in">
-                Your projects
+              <h2 className="text-[15px] font-semibold text-text-1 animate-fade-in">
+                {t("Your projects")}
                 <span className="text-text-3 font-normal ml-1.5">({projects.length})</span>
               </h2>
               <div className="flex gap-1">
@@ -438,7 +439,7 @@ export function Dashboard() {
                   <button
                     key={f}
                     onClick={() => setFilter(f)}
-                    className={`px-2.5 py-1 rounded-full text-[11px] transition-all ${
+                    className={`px-2.5 py-1 rounded-full text-[15px] transition-all ${
                       filter === f
                         ? 'text-text-0 bg-bg-3 border border-border-default'
                         : 'text-text-2 border border-transparent hover:text-text-1 hover:bg-bg-2'
@@ -456,10 +457,10 @@ export function Dashboard() {
               />
               <input
                 type="text"
-                placeholder="Search..."
+                placeholder={t("Search...")}
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="pl-7 pr-3 py-1.5 rounded-md border border-border-default bg-bg-2 text-text-0 text-[12px] w-44 outline-none focus:border-green placeholder:text-text-3"
+                className="pl-7 pr-3 py-1.5 rounded-md border border-border-default bg-bg-2 text-text-0 text-[15px] w-44 outline-none focus:border-green placeholder:text-text-3"
               />
             </div>
           </div>
@@ -475,12 +476,12 @@ export function Dashboard() {
           ) : (
             <div className="px-4 md:px-12 pt-8 pb-12 flex flex-col items-center text-center">
               <FolderOpen size={28} className="text-text-3 mb-2" />
-              <p className="text-text-2 text-[13px]">No projects match your filter</p>
+              <p className="text-text-2 text-[15px]">{t("No projects match your filter")}</p>
               <button
                 onClick={() => { setFilter('All'); setSearch('') }}
-                className="mt-2 text-green text-[12px] hover:text-green-dim transition-colors"
+                className="mt-2 text-green text-[15px] hover:text-green-dim transition-colors"
               >
-                Clear filters
+                {t("Clear filters")}
               </button>
             </div>
           )}

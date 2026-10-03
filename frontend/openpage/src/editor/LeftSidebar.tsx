@@ -1,3 +1,4 @@
+import { t } from '@/lib/i18n'
 import { useState } from 'react'
 import { toast } from 'sonner'
 import { Search, Layout, Type, Grid3X3, DollarSign, Megaphone, PanelBottom, MessageSquare, BarChart3, HelpCircle, Users, Mail, Newspaper, Image, Plus, Minus, Flag, FileText, ImageIcon, Play, GalleryHorizontalEnd } from 'lucide-react'
@@ -21,8 +22,8 @@ function ComponentsPanel() {
   const selectBlock = useEditorStore((s) => s.selectBlock)
 
   const filtered = blockMetadata.filter((b) =>
-    b.label.toLowerCase().includes(search.toLowerCase()) ||
-    b.category.toLowerCase().includes(search.toLowerCase())
+    t(b.label).toLowerCase().includes(search.toLowerCase()) ||
+    t(b.category).toLowerCase().includes(search.toLowerCase())
   )
 
   const grouped = filtered.reduce<Record<string, typeof blockMetadata>>((acc, b) => {
@@ -42,7 +43,7 @@ function ComponentsPanel() {
     }
     addBlock(block)
     selectBlock(block.id)
-    toast(`${meta.label} added`)
+    toast(`${t(meta.label)} added`)
   }
 
   return (
@@ -52,10 +53,10 @@ function ComponentsPanel() {
           <Search size={12} className="absolute left-2 top-1/2 -translate-y-1/2 text-text-3" />
           <input
             type="text"
-            placeholder="Search components..."
+            placeholder={t("Search components...")}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full pr-2 py-1.5 rounded-md border border-border-default bg-bg-2 text-text-0 text-[11px] outline-none focus:border-green placeholder:text-text-3"
+            className="w-full pr-2 py-1.5 rounded-md border border-border-default bg-bg-2 text-text-0 text-[15px] outline-none focus:border-green placeholder:text-text-3"
             style={{ paddingLeft: '1.625rem' }}
           />
         </div>
@@ -64,8 +65,8 @@ function ComponentsPanel() {
       <div className="flex-1 overflow-y-auto px-2 pb-2">
         {Object.entries(grouped).map(([category, items]) => (
           <div key={category}>
-            <div className="text-[9px] font-semibold uppercase tracking-wider text-text-3 px-1.5 pt-2.5 pb-1">
-              {category}
+            <div className="text-[15px] font-semibold uppercase tracking-wider text-text-3 px-1.5 pt-2.5 pb-1">
+              {t(category)}
             </div>
             {items.map((meta) => {
               const Icon = blockIcons[meta.type] || Layout
@@ -73,12 +74,12 @@ function ComponentsPanel() {
                 <button
                   key={meta.type}
                   onClick={() => handleAdd(meta.type)}
-                  className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-md text-[12px] text-text-1 hover:bg-bg-3 hover:text-text-0 transition-colors text-left group"
+                  className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-md text-[15px] text-text-1 hover:bg-bg-3 hover:text-text-0 transition-colors text-left group"
                 >
-                  <div className="w-[22px] h-[22px] rounded border border-border-default bg-bg-3 flex items-center justify-center text-[10px] shrink-0">
+                  <div className="w-[22px] h-[22px] rounded border border-border-default bg-bg-3 flex items-center justify-center text-[15px] shrink-0">
                     <Icon size={12} />
                   </div>
-                  <span className="flex-1">{meta.label}</span>
+                  <span className="flex-1">{t(meta.label)}</span>
                   <Plus size={11} className="text-text-3 opacity-0 group-hover:opacity-100 transition-opacity" />
                 </button>
               )
@@ -86,8 +87,8 @@ function ComponentsPanel() {
           </div>
         ))}
         {filtered.length === 0 && (
-          <div className="px-2 py-6 text-center text-[11px] text-text-3">
-            No components match "{search}"
+          <div className="px-2 py-6 text-center text-[15px] text-text-3">
+            {t("No components match \"")}{search}{"\""}
           </div>
         )}
       </div>
@@ -101,27 +102,27 @@ export function LeftSidebar() {
   const [tab, setTab] = useState<Tab>('layers')
 
   return (
-    <div className="hidden md:flex w-[280px] bg-bg-1 border-r border-border-default flex-col shrink-0">
+    <div className="hidden md:flex w-[300px] bg-bg-1 border-r border-border-default flex-col shrink-0">
       <div className="flex border-b border-border-default shrink-0">
         <button
           onClick={() => setTab('layers')}
-          className={`flex-1 py-2 text-[11px] font-medium transition-colors ${
+          className={`flex-1 py-3 text-[15px] font-medium transition-colors ${
             tab === 'layers'
               ? 'text-text-0 border-b border-green'
               : 'text-text-3 hover:text-text-1'
           }`}
         >
-          Layers
+          {t("Layers")}
         </button>
         <button
           onClick={() => setTab('components')}
-          className={`flex-1 py-2 text-[11px] font-medium transition-colors ${
+          className={`flex-1 py-2 text-[15px] font-medium transition-colors ${
             tab === 'components'
               ? 'text-text-0 border-b border-green'
               : 'text-text-3 hover:text-text-1'
           }`}
         >
-          Components
+          {t("Components")}
         </button>
       </div>
       {tab === 'layers' ? <LayersPanel /> : <ComponentsPanel />}

@@ -1,3 +1,4 @@
+import { t } from '@/lib/i18n'
 import { Plus } from 'lucide-react'
 import { toast } from 'sonner'
 import { useConfigStore } from '@/store/configStore'
@@ -19,21 +20,21 @@ export function CanvasEmpty() {
     }
     addBlock(block)
     selectBlock(block.id)
-    toast('Hero block added')
+    toast(t('Hero block added'))
   }
 
   return (
     <div className="flex-1 flex flex-col items-center justify-center gap-4 text-center p-10 relative z-[1]">
-      <h3 className="text-lg font-semibold text-text-1">Start building</h3>
-      <p className="text-[13px] text-text-3 max-w-[360px] leading-relaxed">
-        Add your first component from the library, or use the Components page to browse all blocks.
+      <h3 className="text-lg font-semibold text-text-1">{t("Start building")}</h3>
+      <p className="text-[15px] text-text-3 max-w-[360px] leading-relaxed">
+        {t("Add your first component from the library, or use the Components page to browse all blocks.")}
       </p>
       <button
         onClick={handleAddBlock}
-        className="px-3.5 py-1.5 rounded-md bg-green text-black text-[12.5px] font-semibold border border-green hover:bg-green-dim transition-colors flex items-center gap-1.5"
+        className="px-3.5 py-1.5 rounded-md bg-green text-black text-[15px] font-semibold border border-green hover:bg-green-dim transition-colors flex items-center gap-1.5"
       >
         <Plus size={14} />
-        Add Hero Block
+        {t("Add Hero Block")}
       </button>
     </div>
   )

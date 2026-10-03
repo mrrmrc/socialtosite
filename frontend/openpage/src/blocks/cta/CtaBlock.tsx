@@ -1,9 +1,11 @@
+import { safeSiteUrl } from '../../lib/social-site'
 import type { BlockConfig } from '../types'
 import { ArrowRight } from 'lucide-react'
 
 interface CtaProps {
   headline: string
   subheadline?: string
+  buttonUrl?: string
   buttonText: string
 }
 
@@ -23,10 +25,10 @@ function CtaSimple({ props }: { props: CtaProps }) {
           </p>
         )}
         <div className="reveal-fade-up reveal-d3">
-          <button className="px-8 py-3 rounded-lg bg-green text-black text-sm font-semibold hover:bg-green-dim transition-all hover:accent-glow-xl inline-flex items-center gap-2">
+          <a href={safeSiteUrl(props.buttonUrl) || '#sts-contact'} className="px-8 py-3 rounded-lg bg-green text-black text-sm font-semibold hover:bg-green-dim transition-all hover:accent-glow-xl inline-flex items-center gap-2">
             {props.buttonText}
             <ArrowRight size={16} />
-          </button>
+          </a>
         </div>
       </div>
     </section>
@@ -46,10 +48,10 @@ function CtaSplit({ props }: { props: CtaProps }) {
             <p className="text-text-2 text-sm">{props.subheadline}</p>
           )}
         </div>
-        <button className="relative z-10 px-6 py-3 rounded-lg bg-green text-black text-sm font-semibold hover:bg-green-dim transition-all shrink-0 flex items-center gap-2">
+        <a href={safeSiteUrl(props.buttonUrl) || '#sts-contact'} className="relative z-10 px-6 py-3 rounded-lg bg-green text-black text-sm font-semibold hover:bg-green-dim transition-all shrink-0 flex items-center gap-2">
           {props.buttonText}
           <ArrowRight size={16} />
-        </button>
+        </a>
       </div>
     </section>
   )

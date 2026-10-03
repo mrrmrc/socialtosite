@@ -1,11 +1,12 @@
+import { t } from '@/lib/i18n'
 import { NavLink } from 'react-router-dom'
 import { LayoutDashboard, Pencil, Settings, Menu, X, Star } from 'lucide-react'
 import { useState } from 'react'
 
 const links = [
-  { to: '/', label: 'Il mio sito', icon: LayoutDashboard },
-  { to: '/editor', label: 'Modifica grafica', icon: Pencil },
-  { to: '/create', label: 'Crea dal profilo', icon: Settings },
+  { to: '/', label: t('Il mio sito'), icon: LayoutDashboard },
+  { to: '/editor', label: t('Modifica grafica'), icon: Pencil },
+  { to: '/create', label: t('Crea dal profilo'), icon: Settings },
 ]
 
 export function TopNav() {
@@ -19,19 +20,19 @@ export function TopNav() {
           <circle cx="12" cy="12" r="10" fill="#22c55e" />
         </svg>
         <span className="font-display font-bold text-base text-text-0 tracking-tight">
-          OpenPage
+          {t("OpenPage")}
         </span>
       </NavLink>
 
       {/* Desktop nav */}
-      <nav className="hidden md:flex h-full items-stretch gap-0.5" aria-label="Main navigation">
+      <nav className="hidden md:flex h-full items-stretch gap-0.5" aria-label={t("Main navigation")}>
         {links.map(({ to, label, icon: Icon }) => (
           <NavLink
             key={to}
             to={to}
             end={to === '/'}
             className={({ isActive }) =>
-              `px-3.5 flex items-center text-[13px] relative transition-colors whitespace-nowrap gap-1.5 after:content-[""] after:absolute after:bottom-0 after:left-2 after:right-2 after:h-0.5 after:rounded-t after:transition-all after:duration-200 ${
+              `px-3.5 flex items-center text-[15px] relative transition-colors whitespace-nowrap gap-1.5 after:content-[""] after:absolute after:bottom-0 after:left-2 after:right-2 after:h-0.5 after:rounded-t after:transition-all after:duration-200 ${
                 isActive
                   ? 'text-text-0 after:bg-green after:opacity-100'
                   : 'text-text-2 hover:text-text-1 after:bg-transparent after:opacity-0'
@@ -48,18 +49,18 @@ export function TopNav() {
       <div className="ml-auto flex items-center gap-2">
         <a
           href="/dashboard?tab=profile"
-          className="hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-border-default text-text-2 text-[11.5px] hover:text-text-0 hover:border-border-hover hover:bg-bg-2 transition-all"
-          title="Profilazione e contenuti"
+          className="hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-border-default text-text-2 text-[15px] hover:text-text-0 hover:border-border-hover hover:bg-bg-2 transition-all"
+          title={t("Profilazione e contenuti")}
         >
           <Star size={12} />
-          Profilazione
+          {t("Profilazione")}
         </a>
 
         {/* Mobile hamburger */}
         <button
           className="md:hidden w-8 h-8 flex items-center justify-center text-text-2 hover:text-text-0"
           onClick={() => setMobileOpen(!mobileOpen)}
-          aria-label={mobileOpen ? 'Close menu' : 'Open menu'}
+          aria-label={mobileOpen ? t('Close menu') : t('Open menu')}
           aria-expanded={mobileOpen}
         >
           {mobileOpen ? <X size={18} /> : <Menu size={18} />}
@@ -76,7 +77,7 @@ export function TopNav() {
               end={to === '/'}
               onClick={() => setMobileOpen(false)}
               className={({ isActive }) =>
-                `flex items-center gap-2 px-4 py-3 text-[13px] transition-colors ${
+                `flex items-center gap-2 px-4 py-3 text-[15px] transition-colors ${
                   isActive ? 'text-green bg-green-glow' : 'text-text-1 hover:bg-bg-2'
                 }`
               }

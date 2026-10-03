@@ -82,7 +82,8 @@ const blockRenderers: Record<string, React.ComponentType<{ block: BlockConfig }>
   articles: ArticlesBlock,
 }
 
-export function RenderBlock({ block }: { block: BlockConfig }): ReactNode {
+export function RenderBlock({ block, dynamicArticles }: { block: BlockConfig; dynamicArticles?: boolean }): ReactNode {
+  if (block.type === 'articles' && dynamicArticles) return <ArticlesBlock block={block} dynamic />
   const Renderer = blockRenderers[block.type] || PlaceholderBlock
   return (
     <BlockErrorBoundary blockType={block.type}>

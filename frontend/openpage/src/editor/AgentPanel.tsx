@@ -1,3 +1,4 @@
+import { t } from '@/lib/i18n'
 import { useState, useRef, useEffect } from 'react'
 import { Send, Check, X } from 'lucide-react'
 import { toast } from 'sonner'
@@ -81,7 +82,7 @@ function generateResponse(input: string, blocks: { id: string; type: string; var
   const addMatch = lower.match(/add\s+(?:a\s+)?(\w+)/)
   if (addMatch) {
     const blockType = addMatch[1].replace(/s$/, '') // strip trailing s
-    const meta = blockMetadata.find((b) => b.type === blockType || b.label.toLowerCase().includes(blockType))
+    const meta = blockMetadata.find((b) => b.type === blockType || t(b.label).toLowerCase().includes(blockType))
     if (meta) {
       const block: BlockConfig = {
         id: `block-${Date.now()}`,
@@ -89,7 +90,7 @@ function generateResponse(input: string, blocks: { id: string; type: string; var
         variant: meta.variants[0],
         props: { ...meta.defaultProps },
       }
-      return { action: 'addBlock', block, message: `Adding a ${meta.label} block.` }
+      return { action: 'addBlock', block, message: `Adding a ${t(meta.label)} block.` }
     }
   }
 
@@ -124,7 +125,7 @@ function generateResponse(input: string, blocks: { id: string; type: string; var
     const themeName = themeMatch[1]
     const preset = themePresets.find((p) => p.id.includes(themeName) || p.name.toLowerCase().includes(themeName))
     if (preset) {
-      return { action: 'changeTheme', themeId: preset.id, message: `Switching to the ${preset.name} theme.` }
+      return { action: 'changeTheme', themeId: preset.id, message: `Switching to the ${t(preset.name)} theme.` }
     }
   }
 
@@ -152,21 +153,21 @@ export function AgentPanel() {
 
   function handleApply(msg: ChatMessage) {
     if (!msg.patch?.blockId || !msg.patch?.propKey || !msg.patch?.value) {
-      toast.error('Cannot apply: missing patch data')
+      toast.error(t('Cannot apply: missing patch data'))
       return
     }
     updateBlockProps(msg.patch.blockId, { [msg.patch.propKey]: msg.patch.value })
     setMessages((prev) =>
       prev.map((m) => (m.id === msg.id ? { ...m, applied: true } : m))
     )
-    toast('Patch applied')
+    toast(t('Patch applied'))
   }
 
   function handleReject(msg: ChatMessage) {
     setMessages((prev) =>
       prev.map((m) => (m.id === msg.id ? { ...m, applied: false, patch: undefined } : m))
     )
-    toast('Patch rejected')
+    toast(t('Patch rejected'))
   }
 
   function handleSend() {
@@ -198,7 +199,7 @@ export function AgentPanel() {
           toast(`${response.block.type} block added`)
         } else if (response.action === 'removeBlock') {
           removeBlock(response.blockId)
-          toast('Block removed')
+          toast(t('Block removed'))
         } else if (response.action === 'changeVariant') {
           updateBlock(response.blockId, { variant: response.variant })
           toast(`Variant changed to ${response.variant}`)
@@ -206,7 +207,7 @@ export function AgentPanel() {
           const preset = themePresets.find((p) => p.id === response.themeId)
           if (preset) {
             setTheme(preset.theme)
-            toast(`Theme changed to ${preset.name}`)
+            toast(`Theme changed to ${t(preset.name)}`)
           }
         }
       } else {
@@ -226,7 +227,7 @@ export function AgentPanel() {
         {messages.map((msg) => (
           <div
             key={msg.id}
-            className={`max-w-[94%] px-3 py-2.5 rounded-xl text-[12.5px] leading-relaxed ${
+            className={`max-w-[94%] px-3 py-2.5 rounded-xl text-[15px] leading-relaxed ${
               msg.role === 'user'
                 ? 'self-end bg-bg-3 text-text-0 rounded-br-sm'
                 : 'self-start bg-green-glow text-text-0 rounded-bl-sm border border-green/10'
@@ -236,34 +237,34 @@ export function AgentPanel() {
 
             {/* JSON patch diff */}
             {msg.patch && (
-              <div className="bg-bg-2 border border-border-default rounded-md p-2 mt-2 font-mono text-[10.5px] leading-relaxed">
+              <div className="bg-bg-2 border border-border-default rounded-md p-2 mt-2 font-mono text-[15px] leading-relaxed">
                 <div className="flex items-center justify-between mb-1">
-                  <span className="font-sans text-[9px] font-semibold uppercase tracking-wider text-text-3">
-                    JSON Patch
+                  <span className="font-sans text-[15px] font-semibold uppercase tracking-wider text-text-3">
+                    {t("JSON Patch")}
                   </span>
                   {!msg.applied && (
                     <div className="flex gap-1">
                       <button
                         onClick={() => handleApply(msg)}
-                        className="px-1.5 py-0.5 rounded text-[9px] bg-green/20 text-green hover:bg-green/30 transition-colors flex items-center gap-0.5"
+                        className="px-1.5 py-0.5 rounded text-[15px] bg-green/20 text-green hover:bg-green/30 transition-colors flex items-center gap-0.5"
                       >
-                        <Check size={9} /> Apply
+                        <Check size={9} /> {t("Apply")}
                       </button>
                       <button
                         onClick={() => handleReject(msg)}
-                        className="px-1.5 py-0.5 rounded text-[9px] bg-status-red/10 text-status-red hover:bg-status-red/20 transition-colors flex items-center gap-0.5"
+                        className="px-1.5 py-0.5 rounded text-[15px] bg-status-red/10 text-status-red hover:bg-status-red/20 transition-colors flex items-center gap-0.5"
                       >
-                        <X size={9} /> Reject
+                        <X size={9} /> {t("Reject")}
                       </button>
                     </div>
                   )}
                   {msg.applied && (
-                    <span className="text-[9px] text-green font-medium flex items-center gap-0.5">
-                      <Check size={9} /> Applied
+                    <span className="text-[15px] text-green font-medium flex items-center gap-0.5">
+                      <Check size={9} /> {t("Applied")}
                     </span>
                   )}
                 </div>
-                <div className="text-text-3 text-[10px] mb-1">{msg.patch.path}</div>
+                <div className="text-text-3 text-[15px] mb-1">{msg.patch.path}</div>
                 {msg.patch.removed?.map((line, i) => (
                   <div key={`r-${i}`} className="text-status-red line-through opacity-60">
                     - {line}
@@ -287,16 +288,16 @@ export function AgentPanel() {
         <div className="flex gap-1.5">
           <input
             type="text"
-            placeholder="Ask the agent..."
+            placeholder={t("Ask the agent...")}
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => { if (e.key === 'Enter') handleSend() }}
-            className="flex-1 px-3 py-2 rounded-lg border border-border-default bg-bg-2 text-text-0 text-[13px] outline-none focus:border-green placeholder:text-text-3"
+            className="flex-1 px-3 py-2 rounded-lg border border-border-default bg-bg-2 text-text-0 text-[15px] outline-none focus:border-green placeholder:text-text-3"
           />
           <button
             onClick={handleSend}
             className="w-9 h-9 rounded-lg bg-green flex items-center justify-center text-black shrink-0 hover:bg-green-dim transition-colors"
-            aria-label="Send message"
+            aria-label={t("Send message")}
           >
             <Send size={14} />
           </button>
@@ -306,7 +307,7 @@ export function AgentPanel() {
             <span
               key={hint}
               onClick={() => handleHint(hint)}
-              className="px-2 py-0.5 rounded-full text-[10.5px] text-text-2 border border-border-default bg-bg-2 cursor-pointer hover:border-green hover:text-green hover:bg-green-glow transition-all"
+              className="px-2 py-0.5 rounded-full text-[15px] text-text-2 border border-border-default bg-bg-2 cursor-pointer hover:border-green hover:text-green hover:bg-green-glow transition-all"
             >
               {hint}
             </span>

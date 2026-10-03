@@ -13,5 +13,7 @@ export default defineConfig({
   },
   test: {
     include: ['tests/**/*.test.ts'],
+    // Publication embeds Vite's compiled CSS; test the real stylesheet too.
+    css: { include: /index\.css/ },
   },
 })

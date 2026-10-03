@@ -16,9 +16,9 @@
 
   /* Text */
   --color-text-0: #fafafa;
-  --color-text-1: #a1a1aa;
-  --color-text-2: #71717a;
-  --color-text-3: #52525b;
+  --color-text-1: #d4d4d8;
+  --color-text-2: #b4b4bf;
+  --color-text-3: #a1a1aa;
 
   /* Accent */
   --color-green: #22c55e;
@@ -46,7 +46,7 @@
 }
 
 html {
-  font-size: 14px;
+  font-size: 16px;
 }
 
 body {
@@ -247,3 +247,7 @@ textarea:focus-visible {
   top: 0;
   outline: none;
 }
+
+/* The editor preview and exported website share typography, including theme fonts. */
+.site-render { font-family: var(--font-sans); }
+.site-render :is(h1,h2,h3,h4,h5,h6) { font-family: var(--font-display); }

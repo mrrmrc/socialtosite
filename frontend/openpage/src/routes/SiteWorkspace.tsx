@@ -1,3 +1,4 @@
+import { t } from '@/lib/i18n'
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useConfigStore } from '../store/configStore'
@@ -55,16 +56,16 @@ export function SiteWorkspace({ generate = false }: { generate?: boolean }) {
   return <div className="h-full overflow-y-auto"><div className="max-w-2xl mx-auto p-8 space-y-5">
     <h1 className="text-2xl font-semibold">{generate ? 'Crea il sito dal tuo profilo' : 'Caricamento del tuo sito'}</h1>
     {error && <p role="alert">{error}</p>}
-    {!data && !error && <p>Recupero identità, menu e articoli…</p>}
-    {error && <button disabled={busy} onClick={() => setRevision(r => r + 1)}>Riprova</button>}
+    {!data && !error && <p>{t("Recupero identità, menu e articoli…")}</p>}
+    {error && <button disabled={busy} onClick={() => setRevision(r => r + 1)}>{t("Riprova")}</button>}
     {generate && data && <>
-      <p>La generazione usa identità, intervista, istruzioni editoriali, presenza, contatti, social e articoli. Potrai modificare ogni blocco prima di pubblicare.</p>
+      <p>{t("La generazione usa identità, intervista, istruzioni editoriali, presenza, contatti, social e articoli. Potrai modificare ogni blocco prima di pubblicare.")}</p>
       <p className="text-text-2">{String(data.site.profile_summary || data.site.bio || '')}</p>
-      <label className="block">Preferenze grafiche facoltative<textarea value={instructions} onChange={e => setInstructions(e.target.value)} className="block w-full bg-bg-2 border rounded p-3 mt-2" /></label>
-      <p className="text-text-2">Una nuova proposta sostituisce la bozza nell’editor. Il sito online cambia solo quando premi Pubblica.</p>
+      <label className="block">{t("Preferenze grafiche facoltative")}<textarea value={instructions} onChange={e => setInstructions(e.target.value)} className="block w-full bg-bg-2 border rounded p-3 mt-2" /></label>
+      <p className="text-text-2">{t("Una nuova proposta sostituisce la bozza nell’editor. Il sito online cambia solo quando premi Pubblica.")}</p>
       <button disabled={busy} onClick={createSite} className="bg-green text-black rounded px-5 py-3">{busy ? 'Creazione in corso…' : 'Genera una nuova proposta'}</button>
-      <button disabled={busy} onClick={() => openSite(data)} className="ml-4">Modifica il sito attuale</button>
+      <button disabled={busy} onClick={() => openSite(data)} className="ml-4">{t("Modifica il sito attuale")}</button>
     </>}
-    <a className="block text-green" href="/dashboard?tab=profile">Torna alla profilazione</a>
+    <a className="block text-green" href="/dashboard?tab=profile">{t("Torna alla profilazione")}</a>
   </div></div>
 }

@@ -1,3 +1,4 @@
+import { t } from '@/lib/i18n'
 import { useState } from 'react'
 import { toast } from 'sonner'
 import {
@@ -64,7 +65,7 @@ function SortableLayer({ block, isSelected, onSelect, onDuplicate, onRemove }: {
       ref={setNodeRef}
       style={style}
       onClick={onSelect}
-      className={`group px-2.5 py-2 rounded-md text-[12.5px] flex items-center gap-2 transition-all cursor-pointer select-none relative ${
+      className={`group px-2.5 py-2 rounded-md text-[15px] flex items-center gap-2 transition-all cursor-pointer select-none relative ${
         isSelected ? 'bg-green-glow text-green' : 'text-text-1 hover:bg-bg-3 hover:text-text-0'
       }`}
     >
@@ -72,31 +73,31 @@ function SortableLayer({ block, isSelected, onSelect, onDuplicate, onRemove }: {
         {...attributes}
         {...listeners}
         className="opacity-0 group-hover:opacity-100 transition-opacity text-text-3 cursor-grab active:cursor-grabbing"
-        aria-label={`Drag to reorder ${blockLabels[block.type]}`}
+        aria-label={t(`Drag to reorder ${t(blockLabels[block.type])}`)}
       >
         <GripVertical size={12} />
       </div>
 
-      <div className={`w-[26px] h-[26px] rounded flex items-center justify-center text-[11px] shrink-0 border ${
+      <div className={`w-[26px] h-[26px] rounded flex items-center justify-center text-[15px] shrink-0 border ${
         isSelected ? 'border-green/30 bg-green-glow' : 'border-border-default bg-bg-3'
       }`}>
         <Icon size={13} />
       </div>
 
-      <span className="font-medium flex-1">{blockLabels[block.type]}</span>
+      <span className="font-medium flex-1">{t(blockLabels[block.type])}</span>
 
       <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
         <button
           onClick={(e) => { e.stopPropagation(); onDuplicate() }}
           className="w-[22px] h-[22px] rounded flex items-center justify-center text-text-3 hover:bg-bg-4 hover:text-text-0 transition-all"
-          aria-label={`Duplicate ${blockLabels[block.type]}`}
+          aria-label={t(`Duplicate ${t(blockLabels[block.type])}`)}
         >
           <Copy size={11} />
         </button>
         <button
           onClick={(e) => { e.stopPropagation(); onRemove() }}
           className="w-[22px] h-[22px] rounded flex items-center justify-center text-text-3 hover:bg-status-red/10 hover:text-status-red transition-all"
-          aria-label={`Remove ${blockLabels[block.type]}`}
+          aria-label={t(`Remove ${t(blockLabels[block.type])}`)}
         >
           <Trash2 size={11} />
         </button>
@@ -108,8 +109,8 @@ function SortableLayer({ block, isSelected, onSelect, onDuplicate, onRemove }: {
 function AddComponentPopover({ onAdd, onClose }: { onAdd: (type: BlockType) => void; onClose: () => void }) {
   const [search, setSearch] = useState('')
   const filtered = blockMetadata.filter((b) =>
-    b.label.toLowerCase().includes(search.toLowerCase()) ||
-    b.category.toLowerCase().includes(search.toLowerCase())
+    t(b.label).toLowerCase().includes(search.toLowerCase()) ||
+    t(b.category).toLowerCase().includes(search.toLowerCase())
   )
 
   const grouped = filtered.reduce<Record<string, typeof blockMetadata>>((acc, b) => {
@@ -123,16 +124,16 @@ function AddComponentPopover({ onAdd, onClose }: { onAdd: (type: BlockType) => v
       <input
         autoFocus
         type="text"
-        placeholder="Search components..."
+        placeholder={t("Search components...")}
         value={search}
         onChange={(e) => setSearch(e.target.value)}
         onKeyDown={(e) => e.key === 'Escape' && onClose()}
-        className="w-full px-2 py-1.5 rounded border border-border-default bg-bg-3 text-text-0 text-[11.5px] outline-none focus:border-green mb-1"
+        className="w-full px-2 py-1.5 rounded border border-border-default bg-bg-3 text-text-0 text-[15px] outline-none focus:border-green mb-1"
       />
       {Object.entries(grouped).map(([category, items]) => (
         <div key={category}>
-          <div className="text-[9px] font-semibold uppercase tracking-wider text-text-3 px-1.5 pt-2 pb-1">
-            {category}
+          <div className="text-[15px] font-semibold uppercase tracking-wider text-text-3 px-1.5 pt-2 pb-1">
+            {t(category)}
           </div>
           {items.map((meta) => {
             const Icon = blockIcons[meta.type] || Layout
@@ -140,22 +141,22 @@ function AddComponentPopover({ onAdd, onClose }: { onAdd: (type: BlockType) => v
               <button
                 key={meta.type}
                 onClick={() => { onAdd(meta.type); onClose() }}
-                className="w-full flex items-center gap-2 px-2 py-1.5 rounded text-[12px] text-text-1 hover:bg-bg-3 hover:text-text-0 transition-colors text-left"
+                className="w-full flex items-center gap-2 px-2 py-1.5 rounded text-[15px] text-text-1 hover:bg-bg-3 hover:text-text-0 transition-colors text-left"
               >
-                <div className="w-[22px] h-[22px] rounded border border-border-default bg-bg-3 flex items-center justify-center text-[10px] shrink-0">
+                <div className="w-[22px] h-[22px] rounded border border-border-default bg-bg-3 flex items-center justify-center text-[15px] shrink-0">
                   <Icon size={12} />
                 </div>
-                <span>{meta.label}</span>
-                <span className="ml-auto text-[10px] text-text-3">{meta.variants.length}v</span>
+                <span>{t(meta.label)}</span>
+                <span className="ml-auto text-[15px] text-text-3">{meta.variants.length}{"v"}</span>
               </button>
             )
           })}
         </div>
       ))}
       {filtered.length === 0 && (
-        <div className="px-2 py-3 text-center text-[11px] text-text-3 flex items-center justify-center gap-1.5">
+        <div className="px-2 py-3 text-center text-[15px] text-text-3 flex items-center justify-center gap-1.5">
           <Search size={12} />
-          No components match "{search}"
+          {t("No components match \"")}{search}{"\""}
         </div>
       )}
     </div>
@@ -199,16 +200,16 @@ export function LayersPanel() {
     }
     addBlock(block)
     selectBlock(block.id)
-    toast(`${meta.label} added`)
+    toast(`${t(meta.label)} added`)
   }
 
   return (
     <div className="flex flex-col flex-1 overflow-hidden relative">
       <div className="px-3 pt-2.5 pb-1.5 flex items-center justify-between">
-        <span className="text-[10px] font-semibold uppercase tracking-wider text-text-3">
-          Layers
+        <span className="text-[15px] font-semibold uppercase tracking-wider text-text-3">
+          {t("Layers")}
         </span>
-        <span className="text-[10px] text-text-3">{blocks.length}</span>
+        <span className="text-[15px] text-text-3">{blocks.length}</span>
       </div>
 
       <div className="flex-1 overflow-y-auto px-2 pb-2">
@@ -220,16 +221,16 @@ export function LayersPanel() {
                 block={block}
                 isSelected={selectedBlockId === block.id}
                 onSelect={() => selectBlock(block.id)}
-                onDuplicate={() => { duplicateBlock(block.id); toast('Block duplicated') }}
+                onDuplicate={() => { duplicateBlock(block.id); toast(t('Block duplicated')) }}
                 onRemove={() => {
                   if (selectedBlockId === block.id) selectBlock(null)
                   removeBlock(block.id)
                   toast('Block removed', {
                     action: {
-                      label: 'Undo',
+                      label: t('Undo'),
                       onClick: () => {
                         useConfigStore.getState().undo()
-                        toast('Block restored')
+                        toast(t('Block restored'))
                       },
                     },
                     duration: 3000,
@@ -245,10 +246,10 @@ export function LayersPanel() {
       <div className="p-2 border-t border-border-subtle relative">
         <button
           onClick={() => setShowPopover(!showPopover)}
-          className="w-full py-2 rounded-md border border-dashed border-border-default text-text-2 text-xs flex items-center justify-center gap-1.5 transition-all hover:border-green hover:text-green hover:bg-green-glow2"
+          className="w-full py-2 rounded-md border border-dashed border-border-default text-text-2 text-[15px] flex items-center justify-center gap-1.5 transition-all hover:border-green hover:text-green hover:bg-green-glow2"
         >
           <Plus size={13} />
-          Add Component
+          {t("Add Component")}
         </button>
         {showPopover && (
           <AddComponentPopover onAdd={handleAddBlock} onClose={() => setShowPopover(false)} />

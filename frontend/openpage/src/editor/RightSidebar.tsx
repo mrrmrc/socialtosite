@@ -1,3 +1,4 @@
+import { t } from '@/lib/i18n'
 import { useState, useEffect } from 'react'
 import { MousePointer2 } from 'lucide-react'
 import { useEditorStore } from '@/store/editorStore'
@@ -26,28 +27,28 @@ export function RightSidebar() {
   const activeTab = tab
 
   return (
-    <div className="hidden md:flex w-[280px] bg-bg-1 border-l border-border-default flex-col shrink-0">
+    <div className="hidden md:flex w-[300px] bg-bg-1 border-l border-border-default flex-col shrink-0">
       {/* Tabs */}
       <div className="flex border-b border-border-default shrink-0">
         <button
           onClick={() => setTab('properties')}
-          className={`flex-1 py-2 text-[11px] font-medium transition-colors ${
+          className={`flex-1 py-3 text-[15px] font-medium transition-colors ${
             activeTab === 'properties'
               ? 'text-text-0 border-b border-green'
               : 'text-text-3 hover:text-text-1'
           }`}
         >
-          Properties
+          {t("Properties")}
         </button>
         <button
           onClick={() => setTab('design')}
-          className={`flex-1 py-2 text-[11px] font-medium transition-colors ${
+          className={`flex-1 py-2 text-[15px] font-medium transition-colors ${
             activeTab === 'design'
               ? 'text-text-0 border-b border-green'
               : 'text-text-3 hover:text-text-1'
           }`}
         >
-          Design
+          {t("Design")}
         </button>
       </div>
 
@@ -58,8 +59,8 @@ export function RightSidebar() {
         ) : selectedBlock ? (
           <>
             <PropertiesPanel block={selectedBlock} />
-            <div className="mt-auto px-3.5 py-2.5 font-mono text-[10.5px] text-text-3 break-all border-t border-border-subtle">
-              config.blocks[{blocks.indexOf(selectedBlock)}]
+            <div className="mt-auto px-3.5 py-2.5 font-mono text-[15px] text-text-3 break-all border-t border-border-subtle">
+              {t("config.blocks[")}{blocks.indexOf(selectedBlock)}{t("]")}
             </div>
           </>
         ) : (
@@ -68,8 +69,8 @@ export function RightSidebar() {
               <MousePointer2 size={16} className="text-text-3" />
             </div>
             <div>
-              <p className="text-text-1 text-[12px] font-medium">Click a block to edit</p>
-              <p className="text-text-3 text-[11px] mt-1">Select any block on the canvas to see its properties here</p>
+              <p className="text-text-1 text-[15px] font-medium">{t("Click a block to edit")}</p>
+              <p className="text-text-3 text-[15px] mt-1">{t("Select any block on the canvas to see its properties here")}</p>
             </div>
           </div>
         )}

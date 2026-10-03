@@ -1,12 +1,13 @@
+import { t } from '@/lib/i18n'
 import { useEffect, useReducer } from 'react'
 import { X } from 'lucide-react'
 import { useEditorStore } from '@/store/editorStore'
 
 const steps = [
-  { label: 'Analyzing prompt', duration: 3 },
-  { label: 'Generating layout', duration: 5 },
-  { label: 'Writing copy', duration: 4 },
-  { label: 'Applying theme', duration: 3 },
+  { label: t('Analyzing prompt'), duration: 3 },
+  { label: t('Generating layout'), duration: 5 },
+  { label: t('Writing copy'), duration: 4 },
+  { label: t('Applying theme'), duration: 3 },
 ]
 
 type OverlayState = {
@@ -114,11 +115,11 @@ export function GenerationOverlay() {
         {/* Status */}
         <div className="text-center">
           <p className="text-text-0 text-[16px] font-display font-semibold mb-2 tracking-tight">
-            Building your site
+            {t("Building your site")}
           </p>
-          <div className="flex items-center justify-center gap-2 text-green text-[13px] tabular-nums">
+          <div className="flex items-center justify-center gap-2 text-green text-[15px] tabular-nums">
             <div className="w-4 h-4 rounded-full border-2 border-green/30 border-t-green animate-spin" />
-            <span>{elapsed}s</span>
+            <span>{elapsed}{t("s")}</span>
           </div>
         </div>
 
@@ -126,7 +127,7 @@ export function GenerationOverlay() {
         <div className="w-full space-y-2">
           {steps.map((step, i) => (
             <div key={step.label} className="flex items-center gap-3">
-              <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-semibold border transition-all duration-500 ${
+              <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[15px] font-semibold border transition-all duration-500 ${
                 i < activeStep
                   ? 'bg-green/20 border-green/40 text-green'
                   : i === activeStep
@@ -141,7 +142,7 @@ export function GenerationOverlay() {
                   <span>{i + 1}</span>
                 )}
               </div>
-              <span className={`text-[12px] transition-colors duration-500 ${
+              <span className={`text-[15px] transition-colors duration-500 ${
                 i < activeStep ? 'text-text-2' : i === activeStep ? 'text-text-0 font-medium' : 'text-text-3'
               }`}>
                 {step.label}
@@ -158,10 +159,10 @@ export function GenerationOverlay() {
         {/* Cancel */}
         <button
           onClick={() => clearGeneration()}
-          className="px-4 py-2 rounded-lg bg-bg-2 text-text-2 text-[12px] border border-border-default hover:bg-bg-3 hover:text-text-0 hover:border-border-hover transition-all inline-flex items-center gap-1.5"
+          className="px-4 py-2 rounded-lg bg-bg-2 text-text-2 text-[15px] border border-border-default hover:bg-bg-3 hover:text-text-0 hover:border-border-hover transition-all inline-flex items-center gap-1.5"
         >
           <X size={12} />
-          Cancel
+          {t("Cancel")}
         </button>
       </div>
 

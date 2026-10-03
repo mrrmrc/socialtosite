@@ -3455,7 +3455,7 @@ if (!empty($site['openpage_html'])) {
         echo $mainContentHtml;
     } else {
         ?>
-        <div class="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div class="grid @md:grid-cols-2 @2xl:grid-cols-3 gap-6">
         <?php foreach ($posts as $article): ?>
           <article class="bg-bg-2 border border-border-default rounded-xl overflow-hidden">
             <?= mediaHtml($article) ?>
@@ -3475,7 +3475,7 @@ if (!empty($site['openpage_html'])) {
     } elseif ($single || $foundationPage) {
         $out = str_replace('</body>', $openpageContent . '</body>', $out);
     }
-    $out = str_replace('</head>', '<style>.single-post,.answer-cta,.answer-author,.answer-related{max-width:900px;margin:2rem auto;padding:1.5rem}.single-post h1{font-size:2rem;font-weight:700;margin:1em 0}.body-content{line-height:1.8}.body-content p{margin:1em 0}.body-content h2{font-size:1.5em;font-weight:700;margin:1em 0}.body-content img,.post-media img,.post-media video,article img,article video{max-width:100%;height:auto}.answer-cta-actions,.tags{display:flex;flex-wrap:wrap;gap:1rem;margin:1rem 0}</style></head>', $out);
+    $out = str_replace('</head>', '<style>.single-post,.answer-cta,.answer-author,.answer-related{max-width:900px;margin:2rem auto;padding:1.5rem}.single-post h1{font-size:2rem;font-weight:700;margin:1em 0}.body-content{line-height:1.8}.body-content p{margin:1em 0}.body-content h2{font-size:1.5em;font-weight:700;margin:1em 0}.body-content img,.body-content video{max-width:100%;height:auto}#sts-dynamic-articles .post-media img,#sts-dynamic-articles .post-media video{width:100%;height:12rem;object-fit:cover}.answer-cta-actions,.tags{display:flex;flex-wrap:wrap;gap:1rem;margin:1rem 0}</style></head>', $out);
     if (!$searchVisible) {
         $out = str_replace('</head>', '<meta name="robots" content="noindex,nofollow"></head>', $out);
     }

@@ -1,3 +1,4 @@
+import { t } from '@/lib/i18n'
 import { useState } from 'react'
 import { toast } from 'sonner'
 import { useConfigStore } from '@/store/configStore'
@@ -58,7 +59,7 @@ export function JsonDrawer() {
       setConfig(parsed)
       setEditing(false)
       setError(null)
-      toast('Config updated from JSON')
+      toast(t('Config updated from JSON'))
     } catch (e) {
       setError((e as Error).message)
     }
@@ -76,56 +77,56 @@ export function JsonDrawer() {
     >
       {/* Header */}
       <div
-        className="h-8 min-h-8 bg-bg-1 border-b border-border-default flex items-center px-3 text-[11px] text-text-2 gap-2 cursor-pointer select-none hover:bg-bg-2 transition-colors"
+        className="h-8 min-h-8 bg-bg-1 border-b border-border-default flex items-center px-3 text-[15px] text-text-2 gap-2 cursor-pointer select-none hover:bg-bg-2 transition-colors"
         onClick={toggleJsonDrawer}
       >
         <span className="font-mono">{'{ }'}</span>
-        <span>Site Config</span>
+        <span>{t("Site Config")}</span>
 
         <div className="ml-auto flex items-center gap-2">
           {!editing && (
             <button
               onClick={(e) => { e.stopPropagation(); startEditing() }}
-              className="text-[10px] text-text-3 hover:text-green transition-colors"
+              className="text-[15px] text-text-3 hover:text-green transition-colors"
             >
-              Edit
+              {t("Edit")}
             </button>
           )}
           {editing && (
             <>
               <button
                 onClick={(e) => { e.stopPropagation(); applyEdit() }}
-                className="text-[10px] text-green hover:text-green-dim transition-colors font-medium"
+                className="text-[15px] text-green hover:text-green-dim transition-colors font-medium"
               >
-                Apply
+                {t("Apply")}
               </button>
               <button
                 onClick={(e) => { e.stopPropagation(); cancelEdit() }}
-                className="text-[10px] text-text-3 hover:text-status-red transition-colors"
+                className="text-[15px] text-text-3 hover:text-status-red transition-colors"
               >
-                Cancel
+                {t("Cancel")}
               </button>
             </>
           )}
-          <div className="flex items-center gap-1 text-[10px] text-green">
+          <div className="flex items-center gap-1 text-[15px] text-green">
             <span className="w-1.5 h-1.5 rounded-full bg-green" />
-            Live
+            {t("Live")}
           </div>
         </div>
       </div>
 
       {/* JSON body */}
-      <div className="flex-1 overflow-auto px-3.5 py-2.5 font-mono text-[11.5px] leading-relaxed text-text-1">
+      <div className="flex-1 overflow-auto px-3.5 py-2.5 font-mono text-[15px] leading-relaxed text-text-1">
         {editing ? (
           <div className="h-full flex flex-col">
             <textarea
               value={editValue}
               onChange={(e) => { setEditValue(e.target.value); setError(null) }}
-              className="flex-1 w-full bg-transparent text-text-1 outline-none resize-none font-mono text-[11.5px] leading-relaxed"
+              className="flex-1 w-full bg-transparent text-text-1 outline-none resize-none font-mono text-[15px] leading-relaxed"
               spellCheck={false}
             />
             {error && (
-              <div className="text-status-red text-[10px] mt-1 py-1">
+              <div className="text-status-red text-[15px] mt-1 py-1">
                 {error}
               </div>
             )}

@@ -1,3 +1,4 @@
+import { t } from '@/lib/i18n'
 import { useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
@@ -61,7 +62,7 @@ function useGenerationOrchestration() {
     const timeout = setTimeout(() => {
       controller.abort()
       setGenerationError('Generation timed out')
-      toast.error('Generation timed out. Try again or add a Gemini API key in Settings.')
+      toast.error(t('Generation timed out. Try again or add a Gemini API key in Settings.'))
       clearGeneration()
     }, 30000)
 
@@ -76,7 +77,7 @@ function useGenerationOrchestration() {
         }
         clearGeneration()
         if (source === 'template') {
-          toast('Generated from template. Add a Gemini API key in Settings for AI generation.')
+          toast(t('Generated from template. Add a Gemini API key in Settings for AI generation.'))
         }
       })
       .catch((err) => {
@@ -113,14 +114,14 @@ function EditorEmptyState() {
         <div className="w-12 h-12 rounded-xl bg-bg-3 border border-border-default flex items-center justify-center mb-4">
           <FolderOpen size={20} className="text-text-3" />
         </div>
-        <h2 className="text-[16px] font-display font-semibold text-text-1 mb-1">No project selected</h2>
-        <p className="text-text-2 text-[13px] mb-6">Open a project from the Dashboard, or start from a template.</p>
+        <h2 className="text-[16px] font-display font-semibold text-text-1 mb-1">{t("No project selected")}</h2>
+        <p className="text-text-2 text-[15px] mb-6">{t("Open a project from the Dashboard, or start from a template.")}</p>
 
         <button
           onClick={() => navigate('/')}
-          className="px-5 py-2 rounded-xl bg-green text-black text-[13px] font-semibold hover:bg-green-dim active:scale-[0.97] transition-all mb-6"
+          className="px-5 py-2 rounded-xl bg-green text-black text-[15px] font-semibold hover:bg-green-dim active:scale-[0.97] transition-all mb-6"
         >
-          Go to Dashboard
+          {t("Go to Dashboard")}
         </button>
 
         <div className="grid grid-cols-2 gap-2 w-full">
@@ -145,12 +146,12 @@ function EditorEmptyState() {
                     >
                       <Icon size={12} />
                     </div>
-                    <div className="text-[11.5px] font-semibold text-text-0">{tpl.name}</div>
+                    <div className="text-[15px] font-semibold text-text-0">{tpl.name}</div>
                   </div>
-                  <div className="text-[10px] text-text-2 leading-snug mb-1.5">{tpl.description}</div>
-                  <div className="text-[10px] text-text-3 flex items-center gap-1">
+                  <div className="text-[15px] text-text-2 leading-snug mb-1.5">{tpl.description}</div>
+                  <div className="text-[15px] text-text-3 flex items-center gap-1">
                     <Layers size={9} />
-                    {tpl.blockCount} blocks
+                    {tpl.blockCount} {t("blocks")}
                   </div>
                 </div>
               </button>

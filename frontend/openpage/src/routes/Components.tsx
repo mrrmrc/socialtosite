@@ -1,3 +1,4 @@
+import { t } from '@/lib/i18n'
 import { useState, useMemo } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { Plus, Code, Search } from 'lucide-react'
@@ -34,7 +35,7 @@ export function Components() {
     if (search.trim()) {
       const q = search.toLowerCase()
       results = results.filter((b) =>
-        b.label.toLowerCase().includes(q) ||
+        t(b.label).toLowerCase().includes(q) ||
         b.description.toLowerCase().includes(q) ||
         b.type.toLowerCase().includes(q)
       )
@@ -52,7 +53,7 @@ export function Components() {
     }
     addBlock(block)
     selectBlock(block.id)
-    toast(`${meta.label} added`)
+    toast(`${t(meta.label)} added`)
     if (location.pathname !== '/editor') navigate('/editor')
   }
 
@@ -60,9 +61,9 @@ export function Components() {
     <div className="h-full overflow-y-auto">
       {/* Header */}
       <div className="px-4 md:px-12 pt-8">
-        <h1 className="text-[22px] font-display font-semibold tracking-tight animate-fade-in-up stagger-1">Component Library</h1>
-        <p className="text-text-2 text-[13px] mt-1 animate-fade-in-up stagger-2">
-          {blockMetadata.length} components across {categories.length} categories
+        <h1 className="text-[22px] font-display font-semibold tracking-tight animate-fade-in-up stagger-1">{t("Component Library")}</h1>
+        <p className="text-text-2 text-[15px] mt-1 animate-fade-in-up stagger-2">
+          {blockMetadata.length} {t("components across")} {categories.length} {t("categories")}
         </p>
       </div>
 
@@ -72,10 +73,10 @@ export function Components() {
           <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-text-3" />
           <input
             type="text"
-            placeholder="Search components..."
+            placeholder={t("Search components...")}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-7 pr-3 py-1.5 rounded-md border border-border-default bg-bg-2 text-text-0 text-[12px] outline-none focus:border-green placeholder:text-text-3"
+            className="w-full pl-7 pr-3 py-1.5 rounded-md border border-border-default bg-bg-2 text-text-0 text-[15px] outline-none focus:border-green placeholder:text-text-3"
           />
         </div>
       </div>
@@ -84,13 +85,13 @@ export function Components() {
       <div className="px-4 md:px-12 pt-3 flex gap-1.5 flex-wrap animate-fade-in stagger-3">
         <button
           onClick={() => setActiveCategory(null)}
-          className={`px-3 py-1.5 rounded-full text-xs transition-all ${
+          className={`px-3 py-1.5 rounded-full text-[15px] transition-all ${
             !activeCategory
               ? 'text-text-0 bg-bg-3 border border-border-default'
               : 'text-text-2 border border-transparent hover:text-text-1 hover:bg-bg-2'
           }`}
         >
-          All ({blockMetadata.length})
+          {t("All (")}{blockMetadata.length})
         </button>
         {categories.map((cat) => {
           const count = blockMetadata.filter((b) => b.category === cat).length
@@ -98,7 +99,7 @@ export function Components() {
             <button
               key={cat}
               onClick={() => setActiveCategory(activeCategory === cat ? null : cat)}
-              className={`px-3 py-1.5 rounded-full text-xs transition-all ${
+              className={`px-3 py-1.5 rounded-full text-[15px] transition-all ${
                 activeCategory === cat
                   ? 'text-text-0 bg-bg-3 border border-border-default'
                   : 'text-text-2 border border-transparent hover:text-text-1 hover:bg-bg-2'
@@ -145,7 +146,7 @@ export function Components() {
                       <button
                         key={v}
                         onClick={(e) => { e.stopPropagation(); setActiveVariants((prev) => ({ ...prev, [meta.type]: vi })) }}
-                        className={`px-2 py-0.5 rounded-md text-[10px] transition-all ${
+                        className={`px-2 py-0.5 rounded-md text-[15px] transition-all ${
                           vi === variantIdx
                             ? 'bg-green/10 text-green border border-green/20'
                             : 'bg-bg-3/80 text-text-2 border border-transparent hover:text-text-0'
@@ -162,16 +163,16 @@ export function Components() {
               <div className="px-4 py-3">
                 <div className="flex items-start justify-between mb-1.5">
                   <div>
-                    <h3 className="text-sm font-semibold">{meta.label}</h3>
-                    <p className="text-[11px] text-text-3 mt-0.5">{meta.description}</p>
+                    <h3 className="text-sm font-semibold">{t(meta.label)}</h3>
+                    <p className="text-[15px] text-text-3 mt-0.5">{t(meta.description)}</p>
                   </div>
-                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-bg-3 text-text-2 border border-border-default shrink-0 ml-2">
-                    {meta.variants.length} variant{meta.variants.length !== 1 ? 's' : ''}
+                  <span className="text-[15px] px-2 py-0.5 rounded-full bg-bg-3 text-text-2 border border-border-default shrink-0 ml-2">
+                    {meta.variants.length} {t("variant")}{meta.variants.length !== 1 ? 's' : ''}
                   </span>
                 </div>
 
                 <div className="flex items-center justify-between mt-3">
-                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-green-glow text-green font-medium">
+                  <span className="text-[15px] px-2 py-0.5 rounded-full bg-green-glow text-green font-medium">
                     {meta.category}
                   </span>
 
@@ -179,19 +180,19 @@ export function Components() {
                     {/* JSON schema tooltip hint */}
                     {hoveredBlock === meta.type && (
                       <button
-                        onClick={(e) => { e.stopPropagation(); toast(`${meta.label} schema: ${Object.keys(meta.defaultProps).join(', ')}`) }}
-                        className="flex items-center gap-1 px-2 py-1 rounded text-[10px] text-text-3 hover:text-text-1 hover:bg-bg-3 transition-colors"
+                        onClick={(e) => { e.stopPropagation(); toast(`${t(meta.label)} schema: ${Object.keys(meta.defaultProps).join(', ')}`) }}
+                        className="flex items-center gap-1 px-2 py-1 rounded text-[15px] text-text-3 hover:text-text-1 hover:bg-bg-3 transition-colors"
                       >
                         <Code size={10} />
-                        Schema
+                        {t("Schema")}
                       </button>
                     )}
                     <button
                       onClick={(e) => { e.stopPropagation(); handleAdd(meta) }}
-                      className="flex items-center gap-1 px-2 py-1 rounded text-[10px] bg-green/10 text-green hover:bg-green/20 active:scale-[0.97] transition-all font-medium"
+                      className="flex items-center gap-1 px-2 py-1 rounded text-[15px] bg-green/10 text-green hover:bg-green/20 active:scale-[0.97] transition-all font-medium"
                     >
                       <Plus size={10} />
-                      Add
+                      {t("Add")}
                     </button>
                   </div>
                 </div>
