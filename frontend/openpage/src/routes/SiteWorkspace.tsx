@@ -8,7 +8,7 @@ import { completeGeneratedSite, configFromProfile, decode, refreshArticles, site
 import { validateSiteConfig } from '../lib/generate-site'
 import type { SiteConfig } from '../blocks/types'
 
-export function SiteWorkspace({ generate = false }: { generate?: boolean }) {
+export function SiteWorkspace({ generate = false, destination = '/editor' }: { generate?: boolean; destination?: string }) {
   const navigate = useNavigate()
   const [data, setData] = useState<SiteData>()
   const [error, setError] = useState('')
@@ -28,7 +28,7 @@ export function SiteWorkspace({ generate = false }: { generate?: boolean }) {
     if (!draft?.settings) store.updateProjectSettings(id, { language: 'Italian', siteName: config.name, seoDescription: String(d.site.hero_tagline || d.site.profile_summary || ''), ogImageUrl: String(d.site.cover_url || '') })
     useConfigStore.getState().setConfig(config)
     useEditorStore.getState().setActiveProject(id)
-    navigate('/editor', { replace: true })
+    navigate(destination, { replace: true })
   }
 
   useEffect(() => {
@@ -49,6 +49,13 @@ export function SiteWorkspace({ generate = false }: { generate?: boolean }) {
     setError('')
     try {
       const result = await siteRequest('openpage-generate', { instructions })
+      const store = useProjectsStore.getState()
+      const previous = store.projects.find(p => p.id === `social-site-${data.user.id}`)
+      if (previous?.config) {
+        const backupId = store.addProject(`${previous.name} · ${t('Previous draft')}`)
+        store.updateProjectConfig(backupId, previous.config)
+        if (previous.settings) store.updateProjectSettings(backupId, previous.settings)
+      }
       openSite(data, completeGeneratedSite(validateSiteConfig(result.config), data))
     } catch (e) { setError(e instanceof Error ? e.message : 'Generazione non riuscita') }
     finally { setBusy(false) }
@@ -62,7 +69,7 @@ export function SiteWorkspace({ generate = false }: { generate?: boolean }) {
       <p>{t("La generazione usa identità, intervista, istruzioni editoriali, presenza, contatti, social e articoli. Potrai modificare ogni blocco prima di pubblicare.")}</p>
       <p className="text-text-2">{String(data.site.profile_summary || data.site.bio || '')}</p>
       <label className="block">{t("Preferenze grafiche facoltative")}<textarea value={instructions} onChange={e => setInstructions(e.target.value)} className="block w-full bg-bg-2 border rounded p-3 mt-2" /></label>
-      <p className="text-text-2">{t("Una nuova proposta sostituisce la bozza nell’editor. Il sito online cambia solo quando premi Pubblica.")}</p>
+      <p className="text-text-2">{t("Your previous draft is kept in Projects. The online site changes only when you publish.")}</p>
       <button disabled={busy} onClick={createSite} className="bg-green text-black rounded px-5 py-3">{busy ? 'Creazione in corso…' : 'Genera una nuova proposta'}</button>
       <button disabled={busy} onClick={() => openSite(data)} className="ml-4">{t("Modifica il sito attuale")}</button>
     </>}

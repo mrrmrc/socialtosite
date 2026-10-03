@@ -83,7 +83,7 @@ export function BlockWrapper({ block, isSelected, onSelect, children }: Props) {
           isSelected ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
         }`}
       >
-        {block.type}
+        {t(block.type)}
       </span>
 
       {/* Action buttons */}

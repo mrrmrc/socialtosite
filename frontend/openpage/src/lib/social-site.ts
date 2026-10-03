@@ -28,8 +28,16 @@ export function publishedArticles(data: SiteData): Data[] {
   }))
 }
 export function refreshArticles(config: SiteConfig, data: SiteData): SiteConfig {
-  const refresh = (blocks: BlockConfig[]) => blocks.map(b => b.type === 'articles' ? { ...b, props: { ...b.props, items: publishedArticles(data) } } : b)
+  const refresh = (blocks: BlockConfig[]) => blocks.map(b => b.type === 'articles' ? { ...b, props: { ...b.props, items: publishedArticles(data) } } : b.type === 'navbar' ? homeFirst(b, `/${encodeURIComponent(data.user.slug)}`) : b)
   return { ...config, blocks: refresh(config.blocks), pages: config.pages?.map(p => ({ ...p, blocks: refresh(p.blocks) })) }
+}
+export function homeFirst(block: BlockConfig, homeUrl: string): BlockConfig {
+  const links = [...(Array.isArray(block.props.links) ? block.props.links : [])]
+  const urls = links.map((_, i) => Array.isArray(block.props.linkUrls) ? block.props.linkUrls[i] || '' : '')
+  const index = links.findIndex(label => /^home$/i.test(String(label).trim()))
+  if (index >= 0) { links.unshift(links.splice(index, 1)[0]); urls.splice(index, 1); urls.unshift(homeUrl) }
+  else { links.unshift('Home'); urls.unshift(homeUrl) }
+  return { ...block, props: { ...block.props, links, linkUrls: urls } }
 }
 export function completeGeneratedSite(config: SiteConfig, data: SiteData): SiteConfig {
   const fallback = configFromProfile(data)
@@ -74,7 +82,8 @@ export function configFromProfile(data: SiteData): SiteConfig {
   ]
   const theme = { ...themePresets.find(p => p.id === 'ivory')?.theme }
   if (/^#[\da-f]{6}$/i.test(text(s.accent_color))) theme.accent = text(s.accent_color)
-  return { name, theme, blocks, pages: [{ id: 'page-home', name: 'Home', path: '/', blocks }] }
+  const withHome = blocks.map(b => b.type === 'navbar' ? homeFirst(b, `/${encodeURIComponent(data.user.slug)}`) : b)
+  return { name, theme, blocks: withHome, pages: [{ id: 'page-home', name: 'Home', path: '/', blocks: withHome }] }
 }
 export function getSiteToken(): string { return localStorage.getItem('sts_token') || localStorage.getItem('token') || '' }
 export async function siteRequest(action: string, body?: unknown, signal?: AbortSignal) {

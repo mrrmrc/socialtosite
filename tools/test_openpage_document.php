@@ -16,6 +16,8 @@ $documentCode = substr($source, $integration, $articles - $integration) . "\n}";
 $documentCode = str_replace('__DIR__', var_export(dirname($publicFile), true), $documentCode);
 
 $site = ['openpage_html' => '<!DOCTYPE html><html lang="it"><head><style>:root{--color-bg-1:#ffffff}</style></head><body><main class="site-render">Customer site</main><script data-openpage-runtime>oldRuntime()</script><script>untrusted()</script></body></html>'];
+$siteUrl = '/customer';
+function h($value) { return htmlspecialchars((string)$value, ENT_QUOTES, 'UTF-8'); }
 ob_start();
 eval($bufferCode);
 echo '<!DOCTYPE html><html><head><style>body{background:black}*{padding:0}</style><link rel="canonical" href="/customer"><script type="application/ld+json" nonce="test-nonce">{"@type":"WebSite"}</script></head><body class="legacy-layout">';
@@ -29,6 +31,7 @@ $checks = [
     'no fallback body classes' => strpos($response, 'legacy-layout') === false,
     'customer theme preserved' => strpos($response, '--color-bg-1:#ffffff') !== false,
     'SEO preserved' => strpos($response, 'rel="canonical"') !== false && strpos($response, '"@type":"WebSite"') !== false,
+    'home destination available for saved sites' => strpos($response, 'name="sts-home" content="/customer"') !== false,
     'runtime allowed by self-only CSP' => strpos($response, 'src="/public/openpage-runtime.js?v=') !== false,
     'old inline runtime removed' => strpos($response, 'oldRuntime()') === false,
     'untrusted scripts never granted nonce' => strpos($response, '<script>untrusted()</script>') !== false,

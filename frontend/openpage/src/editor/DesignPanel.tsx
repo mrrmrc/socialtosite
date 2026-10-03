@@ -1,5 +1,6 @@
 import { t } from '@/lib/i18n'
 import { useState, useMemo } from 'react'
+import { Link } from 'react-router-dom'
 import { ChevronDown } from 'lucide-react'
 import { useConfigStore } from '@/store/configStore'
 import type { ThemeConfig } from '@/blocks/types'
@@ -99,6 +100,7 @@ export function DesignPanel() {
 
   return (
     <div className="px-3.5 py-3.5">
+      <Link to="/themes" className="block border border-green rounded-lg p-3 mb-4 text-green font-semibold">{t('Themes and layouts')} →</Link>
       {/* Preset grid */}
       <div className="mb-4">
         <div className="text-[15px] font-semibold uppercase tracking-wider text-text-3 mb-2">{t("Presets")}</div>

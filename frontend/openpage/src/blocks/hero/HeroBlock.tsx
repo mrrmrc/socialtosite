@@ -156,14 +156,6 @@ function HeroMinimal({ props }: { props: HeroProps }) {
 export function HeroBlock({ block }: { block: BlockConfig }) {
   const props = block.props as unknown as HeroProps
 
-  switch (block.variant) {
-    case 'split':
-      return <HeroSplit props={props} />
-    case 'gradient':
-      return <HeroGradient props={props} />
-    case 'minimal':
-      return <HeroMinimal props={props} />
-    default:
-      return <HeroCentered props={props} />
-  }
+  const hero = block.variant === 'split' ? <HeroSplit props={props} /> : block.variant === 'gradient' ? <HeroGradient props={props} /> : block.variant === 'minimal' ? <HeroMinimal props={props} /> : <HeroCentered props={props} />
+  return <>{hero}{block.variant !== 'split' && safeSiteUrl(props.heroImage) && <div className="px-6 pb-12"><img src={safeSiteUrl(props.heroImage)} alt="" className="w-full max-h-[420px] object-cover rounded-xl" /></div>}</>
 }

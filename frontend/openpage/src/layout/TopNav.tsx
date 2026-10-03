@@ -4,9 +4,11 @@ import { LayoutDashboard, Pencil, Settings, Menu, X, Star } from 'lucide-react'
 import { useState } from 'react'
 
 const links = [
-  { to: '/', label: t('Il mio sito'), icon: LayoutDashboard },
-  { to: '/editor', label: t('Modifica grafica'), icon: Pencil },
+  { to: '/editor', label: t('Modifica sito'), icon: Pencil },
+  { to: '/themes', label: t('Themes and layouts'), icon: LayoutDashboard },
   { to: '/create', label: t('Crea dal profilo'), icon: Settings },
+  { to: '/settings', label: t('Settings'), icon: Settings },
+  { to: '/projects', label: t('Projects'), icon: LayoutDashboard },
 ]
 
 export function TopNav() {
@@ -26,6 +28,7 @@ export function TopNav() {
 
       {/* Desktop nav */}
       <nav className="hidden md:flex h-full items-stretch gap-0.5" aria-label={t("Main navigation")}>
+        <a href="/dashboard" className="px-3 flex items-center text-[15px] text-text-1">Home</a>
         {links.map(({ to, label, icon: Icon }) => (
           <NavLink
             key={to}
@@ -70,6 +73,8 @@ export function TopNav() {
       {/* Mobile dropdown */}
       {mobileOpen && (
         <div className="absolute top-12 left-0 right-0 bg-bg-1 border-b border-border-default md:hidden z-50">
+          <a href="/dashboard" className="block px-4 py-3">Home</a>
+          <a href="/dashboard?tab=profile" className="block px-4 py-3">{t('Profilazione')}</a>
           {links.map(({ to, label, icon: Icon }) => (
             <NavLink
               key={to}

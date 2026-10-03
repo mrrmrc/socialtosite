@@ -28,6 +28,7 @@ interface ConfigState {
   undoStack: UndoEntry[]
   redoStack: UndoEntry[]
   setConfig: (config: SiteConfig) => void
+  applyPresentation: (config: SiteConfig) => void
   setActivePage: (id: string) => void
   getActivePageBlocks: () => BlockConfig[]
   updateBlock: (id: string, updates: Partial<BlockConfig>) => void
@@ -165,6 +166,7 @@ export const useConfigStore = create<ConfigState>()(
       },
 
       setActivePage: (id) => set({ activePageId: id }),
+      applyPresentation: (config) => set((state) => ({ ...pushUndo(state, 'Change layout'), config })),
 
       getActivePageBlocks: () => {
         const state = get()

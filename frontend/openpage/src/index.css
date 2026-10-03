@@ -251,3 +251,9 @@ textarea:focus-visible {
 /* The editor preview and exported website share typography, including theme fonts. */
 .site-render { font-family: var(--font-sans); max-width: 880px; margin-inline: auto; }
 .site-render :is(h1,h2,h3,h4,h5,h6) { font-family: var(--font-display); }
+.site-render [data-articles-layout="list"] .grid { grid-template-columns: 1fr; }
+.site-render [data-articles-layout="list"] article { display: flex; flex-wrap: wrap; align-items: center; }
+.site-render [data-articles-layout="list"] article > img,
+.site-render [data-articles-layout="list"] article > .post-media { width: 220px; max-width: 100%; flex-shrink: 0; }
+.site-render [data-articles-layout="list"] article > .p-5 { flex: 1; min-width: 200px; }
+.site-render a.bg-bg-3 { color: var(--color-text-0); }

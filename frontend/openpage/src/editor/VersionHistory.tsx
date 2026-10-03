@@ -1,17 +1,17 @@
-import { t } from '@/lib/i18n'
+import { t, getBrowserLanguage } from '@/lib/i18n'
 import { useEffect, useRef } from 'react'
 import { X, Clock, RotateCcw } from 'lucide-react'
 import { useEditorStore } from '@/store/editorStore'
 import { useConfigStore } from '@/store/configStore'
 
 function timeAgo(ts: number): string {
-  const seconds = Math.floor((Date.now() - ts) / 1000)
-  if (seconds < 10) return 'Just now'
-  if (seconds < 60) return `${seconds}s ago`
+  const seconds = Math.max(0, Math.floor((Date.now() - ts) / 1000))
+  if (seconds < 10) return t('Just now')
+  const formatter = new Intl.RelativeTimeFormat(getBrowserLanguage(), { numeric: 'auto' })
+  if (seconds < 60) return formatter.format(-seconds, 'second')
   const minutes = Math.floor(seconds / 60)
-  if (minutes < 60) return `${minutes}m ago`
-  const hours = Math.floor(minutes / 60)
-  return `${hours}h ago`
+  if (minutes < 60) return formatter.format(-minutes, 'minute')
+  return formatter.format(-Math.floor(minutes / 60), 'hour')
 }
 
 export function VersionHistory() {
@@ -94,7 +94,7 @@ export function VersionHistory() {
               </span>
             </div>
             <div className="flex items-center justify-between">
-              <div className="text-[15px] text-text-1">{entry.label}</div>
+              <div className="text-[15px] text-text-1">{t(entry.label)}</div>
               <RotateCcw size={12} className="text-text-3 opacity-0 group-hover:opacity-100 transition-opacity" />
             </div>
           </div>

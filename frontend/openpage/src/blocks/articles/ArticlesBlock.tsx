@@ -2,7 +2,7 @@ import type { BlockConfig } from '../types'
 import { safeSiteUrl } from '../../lib/social-site'
 export function ArticlesBlock({ block, dynamic = false }: { block: BlockConfig; dynamic?: boolean }) {
   const items = (block.props.items || []) as { id: number; title: string; excerpt: string; href: string; image?: string }[]
-  return <section id={dynamic ? undefined : "sts-dynamic-articles"} className="py-16 px-6 bg-bg-1"><div className="max-w-7xl mx-auto">
+  return <section data-articles-layout={block.variant} id={dynamic ? undefined : "sts-dynamic-articles"} className="py-16 px-6 bg-bg-1"><div className="max-w-7xl mx-auto">
     <h2 className="text-3xl font-semibold mb-8">{String(block.props.title || 'Articoli')}</h2>
     {dynamic ? <div id="sts-dynamic-articles"></div> : items.length ? <div className="grid @md:grid-cols-2 @2xl:grid-cols-3 gap-6">{items.map(item => <article key={item.id} className="bg-bg-2 border border-border-default rounded-xl overflow-hidden">
       {item.image && <img src={safeSiteUrl(item.image)} alt="" className="w-full h-48 object-cover" />}

@@ -3456,6 +3456,7 @@ if (!empty($site['openpage_html'])) {
     // Retain public SEO data, but never carry fallback CSS or body classes across.
     preg_match_all('~<script\b[^>]*type="application/ld\+json"[^>]*>.*?</script>|<link\b[^>]*rel="(?:canonical|sitemap|alternate)"[^>]*>|<meta\b[^>]*property="(?:og:type|og:site_name|article:[^"]+)"[^>]*>~is', $legacyPrefix, $seoTags);
     $out = str_replace('</head>', implode("\n", $seoTags[0]) . "\n</head>", $out);
+    $out = str_replace('</head>', '<meta name="sts-home" content="' . h($siteUrl) . '"></head>', $out);
 
     // Only our self-hosted runtime executes under CSP. Stored inline scripts
     // are not granted a nonce, including the old exporter interaction script.
@@ -3506,7 +3507,7 @@ if (!empty($site['openpage_html'])) {
           if (payload && payload.slug === "' . h($slug) . '") {
             const editBtn = document.createElement("a");
             editBtn.href = "/builder/";
-            editBtn.innerHTML = "<span style=\"margin-right:8px;font-size:16px;\">✏️</span> <span style=\"font-weight:800;letter-spacing:0.02em;\">OpenPage Builder</span>";
+            editBtn.innerHTML = "<span style=\"margin-right:8px;font-size:16px;\">✏️</span> <span style=\"font-weight:800;letter-spacing:0.02em;\">Modifica sito</span>";
             editBtn.style.cssText = "position:fixed; bottom:24px; right:24px; background:#1a1a24; color:#fff; padding:12px 24px; border-radius:99px; text-decoration:none; font-family:sans-serif; font-size:14px; box-shadow:0 8px 30px rgba(0,0,0,0.3); z-index:999999; border:1px solid rgba(255,255,255,0.1); display:flex; align-items:center;";
             document.body.appendChild(editBtn);
           }

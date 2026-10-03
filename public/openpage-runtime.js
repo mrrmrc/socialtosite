@@ -1,4 +1,13 @@
 // Shared by self-contained exports and the PHP public page (CSP: script-src self).
+var homeMeta = document.querySelector('meta[name="sts-home"]');
+if (homeMeta) {
+  document.querySelectorAll('[data-site-menu-links]').forEach(function(menu) {
+    var home = Array.from(menu.querySelectorAll('a')).find(function(link) { return link.textContent.trim().toLowerCase() === 'home'; });
+    if (!home) { home = document.createElement('a'); home.textContent = 'Home'; home.className = 'text-text-1 hover:text-green'; }
+    home.href = homeMeta.content;
+    menu.prepend(home);
+  });
+}
 document.querySelectorAll('[data-site-menu]').forEach(function(button) {
       button.addEventListener('click', function() {
         var open = button.getAttribute('aria-expanded') !== 'true';

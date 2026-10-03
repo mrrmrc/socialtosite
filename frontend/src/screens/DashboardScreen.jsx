@@ -1087,7 +1087,7 @@ function SiteMapGraph({ posts, siteUrl, siteTitle, foundationPages = [] }) {
 
 import StrategyInterview from "./StrategyInterview";
 export function DashboardScreen({ token, user, onLogout }) {
-  const [tab, setTab] = useState(new URLSearchParams(window.location.search).get("tab") === "profile" ? "profile" : user?.role === "admin" ? "admin" : "overview");
+  const [tab, setTab] = useState(new URLSearchParams(window.location.search).get("tab") === "profile" ? "profile" : "overview");
   const [visibilitySection, setVisibilitySection] = useState("overview");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [dashboardFilter, setDashboardFilter] = useState("all");
@@ -3089,7 +3089,7 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
       await loadData();
       setSyncMsg({
         ok: true,
-        text: `Tema “${layout.name}” applicato al tuo sito.`,
+        text: `Tema “${layout.name}” applicato al sito classico. Per OpenPage usa Temi e layout.`,
       });
       return true;
     } catch (err) {
@@ -3431,7 +3431,7 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
       );
       await loadData();
       setActivePreviewUrl(null);
-      alert("Layout applicato con successo!");
+      alert("Layout applicato al sito classico. Per OpenPage usa Temi e layout.");
     } catch (err) {
       alert(err.message);
     }
@@ -4357,7 +4357,25 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
             ],
           },
         ];
-  const visibleNavigationGroups = [...navigationGroups, { label: "Sito e grafica", items: [{ id: "builder", icon: <span>🎨</span>, label: "Modifica il sito", hint: "Identità, menu e articoli già caricati" }] }];
+  const existingNavigation = navigationGroups.flatMap(group => group.items).filter(Boolean);
+  const navItem = id => existingNavigation.find(item => item.id === id);
+  const visibleNavigationGroups = [
+    { label: "Inizio", items: [{ id: "overview", icon: <span>⌂</span>, label: "Home", hint: "Stato del progetto e prossime azioni" }] },
+    { label: "Profilo e contenuti", items: [navItem("profile") || { id: "profile", icon: <span>◎</span>, label: "Il mio profilo", hint: "Identità, stile editoriale e contatti" }, navItem("sources"), navItem("site"), navItem("idea")].filter(Boolean) },
+    { label: "Sito e grafica", items: [
+      { id: "builder", icon: <span>✎</span>, label: "Modifica sito", hint: "Testi, immagini, menu e sezioni" },
+      { id: "themes", icon: <span>▦</span>, label: "Temi e layout", hint: "Cambia struttura mantenendo i contenuti" },
+      { id: "generate", icon: <span>✧</span>, label: "Crea dal profilo", hint: "Genera una nuova proposta con l’AI" },
+      { id: "identity", icon: <span>◈</span>, label: "Identità e studio precedente", hint: "Logo, immagini e strumenti del sito classico" },
+      navItem("seo"),
+    ].filter(Boolean) },
+    { label: "Account", items: [
+      { id: "account", icon: <span>◎</span>, label: "Il mio account", hint: "Dati personali" },
+      { id: "security", icon: <span>⌑</span>, label: "Password e sicurezza", hint: "Proteggi l’accesso" },
+      { id: "services", icon: <span>◇</span>, label: "Piano e servizi", hint: "Funzionalità e abbonamento" },
+    ] },
+    ...(user?.role === "admin" ? [{ label: "Amministrazione", items: [navItem("admin"), { id: "general", icon: <span>⚙</span>, label: "Impostazioni di sistema", hint: "Agenti e automazioni" }].filter(Boolean) }] : []),
+  ];
   const flatNavigation = visibleNavigationGroups.flatMap((group) =>
     group.items.map((item) => ({ ...item, group: group.label })),
   );
@@ -4365,8 +4383,10 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
     tab === item.id && (!item.section || visibilitySection === item.section);
   const activeNavigation = flatNavigation.find(isNavigationActive);
   const pageMeta = {
+    profile: ["Il mio profilo", "Identità, obiettivi e contatti guidano i contenuti e la creazione del sito."],
+    idea: ["Idee e nuovi contenuti", "Crea contenuti coerenti con il tuo profilo e rivedili prima di pubblicare."],
     overview: [
-      "Panoramica",
+      "Home",
       "Controlla cosa sta funzionando e scegli la prossima azione.",
     ],
     strategy: [
@@ -4425,7 +4445,9 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
       ? seoMeta
       : pageMeta[tab] || ["Dashboard", "Gestisci il tuo spazio digitale."];
   const selectNavigation = (item) => {
-    if (item.id === "builder") { window.location.assign("/builder/"); return; }
+    const destinations = { builder: "/builder/", themes: "/builder/themes", generate: "/builder/create" };
+    if (destinations[item.id]) { window.location.assign(destinations[item.id]); return; }
+    if (item.id === "identity") { openSiteIdentity(); return; }
     setTab(item.id);
     if (item.section) setVisibilitySection(item.section);
     setMobileMenuOpen(false);
@@ -4928,7 +4950,7 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
           )}
 
           {/* Profile Sub-Navigation */}
-          {tab === "profile" && (
+          {tab === "profile" && profileSubTab !== "identity" && (
             <div style={{ marginBottom: "2rem" }}>
               <div
                 style={{
@@ -5024,6 +5046,7 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
             </div>
           )}
 
+          {tab === "overview" && (<section className="card" style={{ padding: "1.5rem", marginBottom: "1.5rem" }}><h2>Il tuo progetto, dall’identità al sito</h2><p style={{ margin: "0.75rem 0", lineHeight: 1.6 }}>Completa il profilo, collega i social e rivedi gli articoli. Poi scegli il layout, personalizza il sito e pubblica dall’editor.</p><div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}><button className="btn btn-outline" onClick={() => setTab("profile")}>Completa il profilo</button><a className="btn btn-primary" href="/builder/">Modifica sito</a><a className="btn btn-outline" href="/builder/themes">Scegli tema e layout</a><a className="btn btn-outline" href={siteUrl} target="_blank" rel="noopener">Vedi sito pubblico ↗</a></div></section>)}
           {tab === "idea" && (
             <div
               style={{ display: "flex", flexDirection: "column", gap: "2rem" }}
@@ -5595,7 +5618,7 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
                     className="project-command-grid"
                     aria-label="Stato del progetto"
                   >
-                    <article onClick={() => window.open('/builder/', '_blank')} style={{cursor: 'pointer'}}>
+                    <article onClick={() => window.location.assign('/builder/')} style={{cursor: 'pointer'}}>
                       <span
                         className="project-command-icon is-ai"
                         aria-hidden="true"
@@ -5603,7 +5626,7 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
                         🎨
                       </span>
                       <div>
-                        <small>Costruttore Sito</small>
+                        <small>Editor del sito</small>
                         <strong>OpenPage Builder</strong>
                         <p>Disegna e crea le pagine del tuo sito</p>
                       </div>
@@ -7642,6 +7665,7 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
 
           {tab === "profile" && profileSubTab === "identity" && (
             <div style={{ display: "grid", gap: "1rem" }}>
+              <div className="card" style={{ padding: "1.5rem", lineHeight: 1.7 }}><h2>Grafica del sito OpenPage</h2><p>Per il sito generato con OpenPage, scegli il layout nella nuova galleria e personalizzalo nell’editor. Gli strumenti dello studio classico qui sotto restano disponibili per i siti precedenti.</p><a className="btn btn-primary" href="/builder/themes">Scegli tema e layout</a> <a className="btn btn-outline" href="/builder/">Modifica sito OpenPage</a></div>
               {/* MODIFICA SITO — azione principale sempre visibile */}
               <section
                 style={{
@@ -7732,7 +7756,7 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
                     fontWeight: 850,
                   }}
                 >
-                  100 TEMI · STRUTTURA OTTIMIZZATA
+                  STUDIO DEL SITO CLASSICO
                 </span>
                 <h2
                   style={{
@@ -7742,7 +7766,7 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
                     lineHeight: 1.08,
                   }}
                 >
-                  Il tuo stile, senza perdere chiarezza
+                  Identità e strumenti precedenti
                 </h2>
                 <p
                   style={{
