@@ -1087,7 +1087,7 @@ function SiteMapGraph({ posts, siteUrl, siteTitle, foundationPages = [] }) {
 
 import StrategyInterview from "./StrategyInterview";
 export function DashboardScreen({ token, user, onLogout }) {
-  const [tab, setTab] = useState(new URLSearchParams(window.location.search).get("tab") === "profile" ? "profile" : "overview");
+  const [tab, setTab] = useState((() => { const requested = new URLSearchParams(window.location.search).get("tab"); return ["overview", "profile", "site", "sources", "seo", "idea", "account", "security", "services"].includes(requested) ? requested : "overview"; })());
   const [visibilitySection, setVisibilitySection] = useState("overview");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [dashboardFilter, setDashboardFilter] = useState("all");

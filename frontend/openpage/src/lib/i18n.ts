@@ -5,6 +5,10 @@ export function getBrowserLanguage(languages?: readonly string[]): BrowserLangua
   return preferred[0]?.toLowerCase().startsWith('it') ? 'it' : 'en'
 }
 const italian: Record<string, string> = {
+"Website editor": "Editor del sito",
+"Workspace": "Area di lavoro",
+"Back to workspace": "Torna all’area di lavoro",
+"Social channels": "Social collegati",
 "Projects": "Progetti",
 "Previous draft": "Bozza precedente",
 "Your previous draft is kept in Projects. The online site changes only when you publish.": "La bozza precedente viene conservata in Progetti. Il sito online cambia solo quando premi Pubblica.",

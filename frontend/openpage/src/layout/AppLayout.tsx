@@ -8,10 +8,10 @@ export function AppLayout() {
   const location = useLocation()
 
   return (
-    <div className="h-screen w-screen flex flex-col overflow-hidden">
+    <div className="builder-shell h-screen w-screen flex flex-col overflow-hidden">
       <a href="#main-content" className="skip-to-content">{t("Skip to content")}</a>
       <TopNav />
-      <main id="main-content" className="flex-1 mt-12 overflow-hidden" role="main">
+      <main id="main-content" className="flex-1 mt-20 overflow-hidden" role="main">
         <div key={location.pathname} className="h-full animate-fade-in-up">
           <Outlet />
         </div>
@@ -23,7 +23,7 @@ export function AppLayout() {
             background: 'var(--color-bg-3)',
             border: '1px solid var(--color-border-default)',
             color: 'var(--color-text-0)',
-            fontSize: '13px',
+            fontSize: '15px',
           },
         }}
       />

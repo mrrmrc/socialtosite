@@ -15,16 +15,12 @@ export function TopNav() {
   const [mobileOpen, setMobileOpen] = useState(false)
 
   return (
-    <header className="h-12 bg-bg-1 border-b border-border-default flex items-center px-4 gap-2 fixed top-0 left-0 right-0 z-50">
+    <header className="h-20 bg-bg-1 border-b border-border-default flex items-center px-4 gap-2 fixed top-0 left-0 right-0 z-50">
       {/* Logo */}
-      <NavLink to="/" className="flex items-center gap-2 mr-6 select-none">
-        <svg viewBox="0 0 24 24" className="w-5 h-5">
-          <circle cx="12" cy="12" r="10" fill="#22c55e" />
-        </svg>
-        <span className="font-display font-bold text-base text-text-0 tracking-tight">
-          {t("OpenPage")}
-        </span>
-      </NavLink>
+      <a href="/dashboard" className="flex items-center gap-3 mr-3 select-none shrink-0" aria-label="All Social To Web · Home">
+        <img src="/logo-cropped.png" alt="" width={38} height={38} className="object-contain" />
+        <span className="leading-tight"><strong className="block text-base text-text-0">All Social <span className="text-green">To Web</span></strong><span className="block text-sm text-text-2 mt-1">{t('Website editor')}</span></span>
+      </a>
 
       {/* Desktop nav */}
       <nav className="hidden xl:flex h-full items-stretch gap-0.5" aria-label={t("Main navigation")}>
@@ -51,12 +47,12 @@ export function TopNav() {
       {/* Right side */}
       <div className="ml-auto flex items-center gap-2">
         <a
-          href="/dashboard?tab=profile"
+          href="/dashboard"
           className="hidden xl:flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-border-default text-text-2 text-[15px] hover:text-text-0 hover:border-border-hover hover:bg-bg-2 transition-all"
-          title={t("Profilazione e contenuti")}
+          title={t('Back to workspace')}
         >
           <Star size={12} />
-          {t("Profilazione")}
+          {t('Workspace')}
         </a>
 
         {/* Mobile hamburger */}
@@ -72,9 +68,11 @@ export function TopNav() {
 
       {/* Mobile dropdown */}
       {mobileOpen && (
-        <div className="absolute top-12 left-0 right-0 bg-bg-1 border-b border-border-default xl:hidden z-50">
+        <div className="absolute top-20 left-0 right-0 bg-bg-1 border-b border-border-default xl:hidden z-50 max-h-[calc(100vh-80px)] overflow-auto">
           <a href="/dashboard" className="block px-4 py-3">Home</a>
           <a href="/dashboard?tab=profile" className="block px-4 py-3">{t('Profilazione')}</a>
+          <a href="/dashboard?tab=site" className="block px-4 py-3">{t('Articoli')}</a>
+          <a href="/dashboard?tab=sources" className="block px-4 py-3">{t('Social channels')}</a>
           {links.map(({ to, label, icon: Icon }) => (
             <NavLink
               key={to}

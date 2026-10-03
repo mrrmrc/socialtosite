@@ -250,6 +250,31 @@ textarea:focus-visible {
 
 /* The editor preview and exported website share typography, including theme fonts. */
 .site-render { font-family: var(--font-sans); max-width: 880px; margin-inline: auto; }
+/* Platform chrome shares All Social To Web's palette. Canvas themes override
+   these variables locally; exports never include the builder-shell element. */
+.builder-shell {
+  --color-bg-0: #f3f0e8;
+  --color-bg-1: #ffffff;
+  --color-bg-2: #f5f3ef;
+  --color-bg-3: #eeeae2;
+  --color-bg-4: #e1ddd5;
+  --color-bg-5: #d2cdc3;
+  --color-text-0: #171917;
+  --color-text-1: #353833;
+  --color-text-2: #4a4d49;
+  --color-text-3: #6b6e69;
+  --color-border-default: #d8d5cc;
+  --color-border-subtle: #e7e3db;
+  --color-border-hover: #aaa59b;
+  --color-green: #6d5ce7;
+  --color-green-dim: #5a48d1;
+  --color-green-glow: rgba(109,92,231,.10);
+  --color-green-glow2: rgba(109,92,231,.06);
+  --color-accent-rgb: 109,92,231;
+  background: var(--color-bg-0);
+  color: var(--color-text-0);
+}
+.builder-shell button.bg-green:not(.site-render *) { color: #fff; }
 .site-render :is(h1,h2,h3,h4,h5,h6) { font-family: var(--font-display); }
 .site-render [data-articles-layout="list"] .grid { grid-template-columns: 1fr; }
 .site-render [data-articles-layout="list"] article { display: flex; flex-wrap: wrap; align-items: center; }
