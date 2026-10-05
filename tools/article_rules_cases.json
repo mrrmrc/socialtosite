@@ -1,0 +1,19 @@
+{
+  "now": "2026-10-05T12:00:00Z",
+  "posts": [
+    {"id":1,"published_at":"2026-09-01 12:00:00","featured":1},
+    {"id":2,"published_at":"2026-10-04 23:59:59","featured":0},
+    {"id":3,"published_at":"2026-10-05 00:00:00","featured":0},
+    {"id":4,"published_at":"2026-10-06 00:00:00","featured":0},
+    {"id":5,"published_at":null,"imported_at":"2026-10-03 08:00:00","featured":0}
+  ],
+  "cases": [
+    {"rules":{},"ids":[1,4,3,2,5]},
+    {"rules":{"recentDays":1},"ids":[3]},
+    {"rules":{"recentDays":3,"maxArticles":2},"ids":[3,2]},
+    {"rules":{"dateFrom":"2026-10-03","dateTo":"2026-10-04","articleOrder":"oldest"},"ids":[5,2]},
+    {"rules":{"dateTo":"2026-09-30","maxArticles":1},"ids":[1]},
+    {"rules":{"dateFrom":"2026-10-05","dateTo":"2026-10-04"},"ids":[]},
+    {"rules":{"dateFrom":"2026-14-01","articleOrder":"newest","maxArticles":1},"ids":[4]}
+  ]
+}

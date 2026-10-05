@@ -5,6 +5,16 @@ export function getBrowserLanguage(languages?: readonly string[]): BrowserLangua
   return preferred[0]?.toLowerCase().startsWith('it') ? 'it' : 'en'
 }
 const italian: Record<string, string> = {
+  'Display rules': 'Regole di visualizzazione',
+  'Last days (0 = all dates)': 'Ultimi giorni (0 = tutte le date)',
+  'From date (optional)': 'Dal giorno (facoltativo)',
+  'Until date (inclusive, optional)': 'Fino al giorno incluso (facoltativo)',
+  'Maximum articles (0 = all)': 'Numero massimo (0 = tutti)',
+  'Article order': 'Ordine degli articoli',
+  'featured': 'In evidenza, poi più recenti',
+  'newest': 'Più recenti prima',
+  'oldest': 'Meno recenti prima',
+  'Rules filter this section only. Articles remain published and accessible. Dates use UTC. Publish to apply these rules online.': 'Le regole filtrano questa sezione. Gli articoli restano pubblicati e raggiungibili. Le date usano UTC. Premi Pubblica per applicare le regole online.',
   'All': 'Tutti',
   'Some references could not be read. Your description was used.': 'Alcuni riferimenti non erano leggibili. Abbiamo usato la tua descrizione.',
 "Personal": "Autori e professionisti",

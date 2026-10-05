@@ -16,6 +16,8 @@ import { useProjectsStore } from '@/store/projectsStore'
 import { generateSiteConfig } from '@/lib/generate-site'
 import { templateMeta, buildTemplate } from '@/lib/templates'
 import { hexToRgb } from '@/lib/theme-presets'
+import { publishedArticles, siteRequest } from '@/lib/social-site'
+import type { BlockConfig } from '@/blocks/types'
 
 const templateIcons: Record<string, typeof Briefcase> = {
   Briefcase, UtensilsCrossed, Building2, BookOpen,
@@ -165,6 +167,21 @@ function EditorEmptyState() {
 
 export function EditorLayout() {
   useAutoSaveToProject()
+  const articleProjectId = useEditorStore(s => s.activeProjectId)
+  useEffect(() => {
+    if (!articleProjectId?.startsWith('social-site-')) return
+    const controller = new AbortController()
+    siteRequest('site', undefined, controller.signal).then(data => {
+      if (controller.signal.aborted || useEditorStore.getState().activeProjectId !== articleProjectId) return
+      // Refresh source data without replacing a draft or clearing undo history.
+      const items = publishedArticles(data)
+      useConfigStore.setState(state => {
+        const refresh = (blocks: BlockConfig[]) => blocks.map(block => block.type === 'articles' ? { ...block, props: { ...block.props, items } } : block)
+        return { config: { ...state.config, blocks: refresh(state.config.blocks), pages: state.config.pages?.map(page => ({ ...page, blocks: refresh(page.blocks) })) } }
+      })
+    }).catch(error => { if (!controller.signal.aborted) toast.warning(error.message) })
+    return () => controller.abort()
+  }, [articleProjectId])
   useGenerationOrchestration()
   const previewMode = useEditorStore((s) => s.previewMode)
   const activeProjectId = useEditorStore((s) => s.activeProjectId)

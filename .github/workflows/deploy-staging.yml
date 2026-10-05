@@ -41,6 +41,8 @@ jobs:
           php -l api/services/openpage.php
           php -l api/services/design_references.php
           php tools/test_design_references.php
+          php -l api/services/article_display.php
+          php tools/test_article_display.php
           php tools/test_openpage_document.php
           php -l api/index.php > php_lint_output.txt 2>&1 || true
           php -l api/services/profile_interview.php >> php_lint_output.txt 2>&1 || true

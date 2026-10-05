@@ -7,12 +7,19 @@ import { useConfigStore } from '@/store/configStore'
 interface FieldDef {
   key: string
   label: string
-  type: 'text' | 'textarea' | 'select' | 'array-strings' | 'array-items'
+  type: 'text' | 'number' | 'date' | 'textarea' | 'select' | 'array-strings' | 'array-items'
   options?: string[]
 }
 
 const blockFields: Partial<Record<BlockType, { sections: { title: string; fields: FieldDef[] }[] }>> = {
-  articles: { sections: [{ title: t('Articoli'), fields: [{ key: 'title', label: t('Titolo della sezione'), type: 'text' }] }] },
+  articles: { sections: [{ title: t('Articoli'), fields: [{ key: 'title', label: t('Titolo della sezione'), type: 'text' }] }, { title: t('Display rules'), fields: [
+    { key: 'recentDays', label: t('Last days (0 = all dates)'), type: 'number' },
+    { key: 'dateFrom', label: t('From date (optional)'), type: 'date' },
+    { key: 'dateTo', label: t('Until date (inclusive, optional)'), type: 'date' },
+    { key: 'maxArticles', label: t('Maximum articles (0 = all)'), type: 'number' },
+    { key: 'articleOrder', label: t('Article order'), type: 'select', options: ['featured','newest','oldest'] },
+    { key: 'variant', label: t('Variant'), type: 'select', options: ['grid','list'] },
+  ] }] },
   navbar: {
     sections: [
       {
@@ -358,13 +365,18 @@ function PropertyField({ field, block }: { field: FieldDef; block: BlockConfig }
 
   switch (field.type) {
     case 'text':
+    case 'number':
+    case 'date':
       return (
         <div className="mb-2.5">
-          <label className="block text-[15px] text-text-2 mb-1 font-medium">{t(field.label)}</label>
+          <label htmlFor={`field-${block.id}-${field.key}`} className="block text-[15px] text-text-2 mb-1 font-medium">{t(field.label)}</label>
           <input
-            type="text"
+            id={`field-${block.id}-${field.key}`}
+            type={field.type}
+            min={field.type==='number'?0:undefined}
+            max={field.type==='number'?(field.key==='maxArticles'?1000:36500):undefined}
             value={String(value || '')}
-            onChange={(e) => onChange(e.target.value)}
+            onChange={(e) => onChange(field.type==='number'?Number(e.target.value):e.target.value)}
             className="w-full px-2 py-1.5 rounded border border-border-default bg-bg-2 text-text-0 text-[15px] outline-none focus:border-green"
           />
         </div>
@@ -536,6 +548,7 @@ export function PropertiesPanel({ block }: { block: BlockConfig }) {
       </div>
 
       {/* Property sections */}
+      {block.type==='articles' && <p className="p-3.5 text-[15px] text-text-2">{t('Rules filter this section only. Articles remain published and accessible. Dates use UTC. Publish to apply these rules online.')}</p>}
       {schema?.sections.map((section) => (
         <Section key={section.title} title={section.title}>
           {section.fields.map((field) => (

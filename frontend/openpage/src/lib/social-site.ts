@@ -22,6 +22,7 @@ export function menuDestination(value: unknown, slug: string): string {
 export function publishedArticles(data: SiteData): Data[] {
   return data.posts.filter(p => Number(p.published) === 1).map(p => ({
     id: p.id, title: text(p.edited_title) || text(p.generated_title),
+    publishedAt: text(p.published_at) || text(p.imported_at), featured: Number(p.featured || 0),
     excerpt: text(p.edited_excerpt) || text(p.generated_excerpt),
     image: text(p.media_type).toUpperCase() === 'VIDEO' ? '' : safeSiteUrl(p.media_url),
     href: `/${encodeURIComponent(data.user.slug)}/${encodeURIComponent(text(p.slug))}`,

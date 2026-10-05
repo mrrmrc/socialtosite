@@ -4361,7 +4361,7 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
   const navItem = id => existingNavigation.find(item => item.id === id);
   const visibleNavigationGroups = [
     { label: "Inizio", items: [{ id: "overview", icon: <span>⌂</span>, label: "Home", hint: "Stato del progetto e prossime azioni" }] },
-    { label: "Profilo e contenuti", items: [navItem("profile") || { id: "profile", icon: <span>◎</span>, label: "Il mio profilo", hint: "Identità, stile editoriale e contatti" }, navItem("sources"), navItem("site"), navItem("idea")].filter(Boolean) },
+    { label: "Profilo e contenuti", items: [navItem("profile") || { id: "profile", icon: <span>◎</span>, label: "Il mio profilo", hint: "Identità, stile editoriale e contatti" }, navItem("sources"), { ...navItem("site"), label: "Contenuti" }].filter(Boolean) },
     { label: "Sito e grafica", items: [
       { id: "builder", icon: <span>✎</span>, label: "Modifica sito", hint: "Testi, immagini, menu e sezioni" },
       { id: "themes", icon: <span>▦</span>, label: "Temi e layout", hint: "Cambia struttura mantenendo i contenuti" },
@@ -4394,7 +4394,7 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
       "Definisci pubblico, obiettivi e priorità che guidano tutto il sistema.",
     ],
     site: [
-      "Articoli",
+      "Contenuti",
       "Rivedi le bozze, modifica i testi e decidi cosa pubblicare.",
     ],
     experience: [
@@ -4743,6 +4743,7 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
           className="backend-header-actions"
           style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}
         >
+          <button className={`btn ${tab === "idea" ? "btn-primary" : "btn-outline"}`} aria-pressed={tab === "idea"} onClick={() => setTab("idea")} title="Crea idee e nuovi contenuti"><span aria-hidden="true">{navItem("idea")?.icon || "✧"}</span> IDEA</button>
           <a
             href={siteUrl}
             target="_blank"

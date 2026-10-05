@@ -3467,14 +3467,16 @@ if (!empty($site['openpage_html'])) {
     $out = str_replace('</head>', '<link rel="stylesheet" href="/public/openpage-typography.css?v=' . $typographyVersion . '"></head>', $out);
     $out = str_replace('</body>', '<script defer src="/public/openpage-runtime.js?v=' . $runtimeVersion . '"></script></body>', $out);
 
-    // 1) Inject dynamic articles grid
+    // 1) Inject dynamic articles grid. Filter display only; permalinks, feeds and SEO keep all posts.
+    require_once __DIR__ . '/../api/services/article_display.php';
+    $displayPosts = ArticleDisplay::filter($posts, ArticleDisplay::rules($site['openpage_config'] ?? null));
     ob_start();
     if ($single || $foundationPage) {
         echo $mainContentHtml;
     } else {
         ?>
         <div class="grid @md:grid-cols-2 @2xl:grid-cols-3 gap-6">
-        <?php foreach ($posts as $article): ?>
+        <?php foreach ($displayPosts as $article): ?>
           <article class="bg-bg-2 border border-border-default rounded-xl overflow-hidden">
             <?= mediaHtml($article) ?>
             <div class="p-5">
@@ -3485,6 +3487,7 @@ if (!empty($site['openpage_html'])) {
           </article>
         <?php endforeach; ?>
         </div>
+        <?php if (!$displayPosts): ?><p>Non ci sono articoli nel periodo selezionato.</p><?php endif; ?>
         <?php
     }
     $openpageContent = ob_get_clean();
