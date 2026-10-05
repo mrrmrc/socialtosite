@@ -150,6 +150,15 @@ h3 { font-size: 24px; font-weight: 700; }
    ═══════════════════════════════════════════════════════════════ */
 .dashboard-shell { min-height: 100vh; display: flex; flex-direction: column; background: var(--bg); }
 .dashboard-shell { font-size: 16px; }
+.profile-review-stack { display: grid; gap: 18px; }
+.profile-review-panel h2 { font-size: 23px; margin-bottom: 8px; }
+.profile-review-panel p { color: var(--text-muted); margin-bottom: 18px; }
+.profile-review-fields { display: grid; grid-template-columns: repeat(auto-fit,minmax(260px,1fr)); gap: 16px; margin-bottom: 18px; }
+.profile-review-fields label { display: grid; gap: 6px; align-content: start; }
+.profile-review-fields label > span { font-size: 14px; font-weight: 700; }
+.profile-flow { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 0; margin-bottom: 18px; }
+.profile-flow p { font-size: 14px; color: var(--text-muted); }
+.dashboard-shell details > summary { cursor: pointer; font-size: 16px; font-weight: 700; }
 .dashboard-shell :is(input,button,select,textarea) { font-size: 16px; }
 .dashboard-shell .btn { min-height: 42px; padding: 9px 16px; border-width: 1px; border-radius: 9px; font-size: 15px; gap: 8px; line-height: 1.4; text-decoration: none; }
 .dashboard-shell :is(input[type=text],input[type=url],input[type=email],input[type=password],input[type=number],textarea,select) { padding: 10px 12px; border-width: 1px; }

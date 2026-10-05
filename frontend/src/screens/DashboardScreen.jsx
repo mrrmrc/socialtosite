@@ -14,6 +14,7 @@ import { ProductGuide } from "../components/ProductGuide";
 import { PublicationConnections } from "../components/PublicationConnections";
 import { ProSiteBuilder } from "../components/ProSiteBuilder";
 import { BrandMark } from "./LandingScreen";
+import { ProfileReviewPanel } from "../components/ProfileReviewPanel";
 const STUDIO_DEFAULTS = {
   font_heading: "Outfit",
   font_body: "Inter",
@@ -1262,6 +1263,9 @@ export function DashboardScreen({ token, user, onLogout }) {
   const [savingTemplateStudio, setSavingTemplateStudio] = useState(false);
   const [studioWorkspaceOpen, setStudioWorkspaceOpen] = useState(false);
   const [profileSubTab, setProfileSubTab] = useState("who");
+  const [socialProfileDraft, setSocialProfileDraft] = useState({});
+  const [profileReviewBusy, setProfileReviewBusy] = useState(false);
+  const [profileReviewMessage, setProfileReviewMessage] = useState(null);
   const [studioSourceLabel, setStudioSourceLabel] =
     useState("Workspace corrente");
   const [studioControlsOpen, setStudioControlsOpen] = useState(true);
@@ -1586,10 +1590,12 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
           rawUnderstanding &&
           typeof rawUnderstanding === "object" &&
           Object.keys(rawUnderstanding).length
-            ? prefillStrategyFromAi(rawUnderstanding)
+            ? rawUnderstanding
             : null;
         setUnderstandingReport(parsedUnderstanding);
         setUnderstandingDraft(parsedUnderstanding);
+        const corrections = typeof d.site?.site_understanding_corrections === 'string' ? JSON.parse(d.site.site_understanding_corrections || '{}') : d.site?.site_understanding_corrections || {};
+        setSocialProfileDraft(corrections.social_profile || {});
       } catch (e) {
         console.error("Errore parse site_understanding:", e);
         setUnderstandingReport(null);
@@ -2550,6 +2556,18 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
     setSavingUnderstanding(false);
   }
 
+  async function saveProfileReview(mode) {
+    setProfileReviewBusy(true); setProfileReviewMessage(null);
+    try {
+      const social = { ...(profileUnderstanding || {}), ...socialProfileDraft };
+      const body = mode === 'public' ? { profile_summary: profileDraft, bio: profileDraft, hero_tagline: heroTagline, role_mission: roleMissionDraft, content_strategy: strategyDraft } : { site_understanding_corrections: mode === 'social' ? { social_profile: Object.fromEntries(['summary','activity_type','tone','audiences','topics','goals','locations','offers'].map(key => [key, social[key] || (['audiences','topics','goals','locations','offers'].includes(key) ? [] : '')])) } : { declared_strategy: declaredStrategy } };
+      await apiFetch('/api/index.php?action=site-update', {method:'POST',body:JSON.stringify(body)}, token);
+      await loadData();
+      setProfileReviewMessage({ok:true,text:'Salvato. Il profilo guida l’AI. Per aggiornare il sito esistente, trasferisci i dati alla bozza e pubblica dall’editor.'});
+    } catch(error) {setProfileReviewMessage({ok:false,text:error.message});}
+    setProfileReviewBusy(false);
+  }
+
   async function uploadSiteVisual(event, kind = "logo") {
     const file = event.target.files?.[0];
     event.target.value = "";
@@ -3216,7 +3234,7 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
       );
       setProfileUnderstanding(res.profile || null);
       setProfileQuestions(res.questions || []);
-      setAnswerDrafts((prev) => ({ ...prev, [questionId]: "" }));
+      setAnswerDrafts((prev) => { const next = { ...prev }; delete next[questionId]; return next; });
     } catch (err) {
       setSyncMsg({
         ok: false,
@@ -4367,7 +4385,6 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
       { id: "builder", icon: <span>✎</span>, label: "Modifica sito", hint: "Testi, immagini, menu e sezioni" },
       { id: "themes", icon: <span>▦</span>, label: "Temi e layout", hint: "Cambia struttura mantenendo i contenuti" },
       { id: "generate", icon: <span>✧</span>, label: "Crea dal profilo", hint: "Genera una nuova proposta con l’AI" },
-      { id: "identity", icon: <span>◈</span>, label: "Identità e studio precedente", hint: "Logo, immagini e strumenti del sito classico" },
       navItem("seo"),
     ].filter(Boolean) },
     { label: "Account", items: [
@@ -4944,7 +4961,7 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
           )}
 
           {/* Profile Sub-Navigation */}
-          {tab === "profile" && profileSubTab !== "identity" && (
+          {tab === "profile" && (
             <div style={{ marginBottom: "2rem" }}>
               <div
                 style={{
@@ -4961,14 +4978,16 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
                 {[
                   {
                     id: "who",
-                    label: "✍️ Stile Editoriale",
+                    label: "✍️ Intervista con LIA",
                     desc: "Istruisci l'AI su come scrivere",
                   },
+                  {id:"social", label:"◎ Analisi dei social", desc:"Ipotesi dell’AI e tue correzioni"},
                   {
                     id: "presence",
                     label: "🌐 Presenza e Contatti",
                     desc: "Sito ufficiale, territori e recapiti",
                   },
+                  {id:"identity", label:"◈ Dati pubblici del sito", desc:"Nome, presentazione e immagini"},
                 ].map((opt) => (
                   <button
                     key={opt.id}
@@ -5018,9 +5037,10 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
                   }}
                 >
                   {profileSubTab === "who"
-                    ? "Il tuo stile editoriale"
+                    ? "Intervista e risposte confermate"
+                    : profileSubTab === "social" ? "Analisi dei contenuti social"
                     : profileSubTab === "identity"
-                      ? "Presenza e contatti"
+                      ? "Come ti presenti sul sito"
                       : "Presenza e contatti"}
                 </h2>
                 <p
@@ -5031,14 +5051,18 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
                   }}
                 >
                   {profileSubTab === "who"
-                    ? "Le informazioni inserite qui istruiscono l'AI su come presentare il tuo progetto."
+                    ? "Le tue risposte hanno priorità sulle ipotesi dell’AI. Sono modificabili e guidano contenuti e sito."
+                    : profileSubTab === "social" ? "Distingui ciò che l’AI ha osservato da ciò che confermi o correggi."
                     : profileSubTab === "identity"
-                      ? "Definisci presenza ufficiale, attività, territori e recapiti. Queste informazioni alimentano anche la creazione del sito."
+                      ? "Scrivi i testi pubblici, scegli nome e immagini. Poi rivedi la bozza nell’editor prima di pubblicare."
                       : "Definisci presenza ufficiale, attività, territori e recapiti. Queste informazioni alimentano anche la creazione del sito."}
                 </p>
               </div>
             </div>
           )}
+          {tab === 'profile' && <section className="profile-flow"><p><strong>Un profilo, un percorso:</strong> intervista → analisi dei social → dati pubblici → bozza → pubblicazione.</p><a className="btn btn-outline" href="/builder/profile">Rivedi e aggiorna la bozza dal profilo →</a></section>}
+          {tab === 'profile' && profileReviewMessage && <p role={profileReviewMessage.ok?'status':'alert'}>{profileReviewMessage.text}</p>}
+          {tab === 'profile' && profileSubTab === 'social' && <div className="profile-review-stack"><ProfileReviewPanel social value={{...(profileUnderstanding || {}),...socialProfileDraft}} onChange={(key,value)=>setSocialProfileDraft(prev=>({...prev,[key]:value}))} onSave={()=>saveProfileReview('social')} busy={profileReviewBusy} /><section className="card"><h3>Origine delle informazioni</h3><p>{sources.length} canali collegati · {posts.length} contenuti acquisiti. {profileUnderstanding?.generated_at ? `Ultima analisi: ${profileUnderstanding.generated_at}` : 'Nessuna analisi disponibile: collega i social e avvia l’analisi.'}</p><button className="btn btn-outline" onClick={analyzeProfile} disabled={profileAnalyzing}>{profileAnalyzing?'Analisi in corso…':'Aggiorna l’analisi dai contenuti'}</button> <button className="btn btn-outline" onClick={()=>setTab('sources')}>Gestisci i social collegati</button></section>{profileQuestions.length>0 && <details className="card"><summary>Domande e chiarimenti dell’AI</summary>{profileQuestions.map(question=><div key={question.id}><label><strong>{question.question}</strong><textarea rows={3} value={answerDrafts[question.id] ?? question.answer ?? ''} onChange={event=>setAnswerDrafts(prev=>({...prev,[question.id]:event.target.value}))} /></label><button className="btn btn-outline" disabled={answeringId===question.id} onClick={()=>submitProfileAnswer(question.id)}>Salva risposta</button></div>)}</details>}</div>}
 
           {tab === "overview" && (<section className="card" style={{ padding: "1.5rem", marginBottom: "1.5rem" }}><h2>Il tuo progetto, dall’identità al sito</h2><p style={{ margin: "0.75rem 0", lineHeight: 1.6 }}>Completa il profilo, collega i social e rivedi gli articoli. Poi scegli il layout, personalizza il sito e pubblica dall’editor.</p><div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}><button className="btn btn-outline" onClick={() => setTab("profile")}>Completa il profilo</button><a className="btn btn-primary" href="/builder/">Modifica sito</a><a className="btn btn-outline" href="/builder/themes">Scegli tema e layout</a><a className="btn btn-outline" href={siteUrl} target="_blank" rel="noopener">Vedi sito pubblico ↗</a></div></section>)}
           {tab === "idea" && (
@@ -6008,7 +6032,9 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
 
               {tab === "profile" && profileSubTab === "who" && (
                 <div style={{ display: "grid", gap: "24px" }}>
-                  {(!isStrategyComplete || showInterview) && (
+                  <ProfileReviewPanel value={declaredStrategy} onChange={updateDeclaredStrategy} onSave={()=>saveProfileReview('interview')} busy={profileReviewBusy} />
+                  <button className="btn btn-outline" style={{justifySelf:'start'}} onClick={()=>setShowInterview(value=>!value)}>{showInterview?'Chiudi conversazione':'Parla con LIA per completare le risposte'}</button>
+                  {showInterview && (
                     <>
                       {isStrategyComplete && (
                         <div
@@ -6060,7 +6086,7 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
                   )}
                   {isStrategyComplete &&
                     !showInterview &&
-                    renderEditorialAgentPanel()}
+                    <details className="card"><summary>Istruzioni aggiuntive per l’AI</summary>{renderEditorialAgentPanel()}</details>}
                 </div>
               )}
 
@@ -7659,152 +7685,7 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
 
           {tab === "profile" && profileSubTab === "identity" && (
             <div style={{ display: "grid", gap: "1rem" }}>
-              <div className="card" style={{ padding: "1.5rem", lineHeight: 1.7 }}><h2>Grafica del sito OpenPage</h2><p>Per il sito generato con OpenPage, scegli il layout nella nuova galleria e personalizzalo nell’editor. Gli strumenti dello studio classico qui sotto restano disponibili per i siti precedenti.</p><a className="btn btn-primary" href="/builder/themes">Scegli tema e layout</a> <a className="btn btn-outline" href="/builder/">Modifica sito OpenPage</a></div>
-              {/* MODIFICA SITO — azione principale sempre visibile */}
-              <section
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  gap: "1rem",
-                  flexWrap: "wrap",
-                  padding: "clamp(1.25rem, 3vw, 2rem)",
-                  borderRadius: "var(--radius-lg)",
-                  background:
-                    "linear-gradient(135deg, var(--primary) 0%, #6366f1 100%)",
-                  boxShadow: "0 8px 32px rgba(79,140,255,0.28)",
-                }}
-              >
-                <div>
-                  <span
-                    style={{
-                      color: "rgba(255,255,255,0.78)",
-                      fontSize: "12px",
-                      fontWeight: 800,
-                      textTransform: "uppercase",
-                      letterSpacing: "0.09em",
-                    }}
-                  >
-                    Sito pubblico
-                  </span>
-                  <h2
-                    style={{
-                      color: "#fff",
-                      margin: "0.4rem 0 0.5rem",
-                      fontSize: "clamp(20px, 3vw, 28px)",
-                      lineHeight: 1.15,
-                    }}
-                  >
-                    Modifica il tuo sito
-                  </h2>
-                  <p
-                    style={{
-                      color: "rgba(255,255,255,0.82)",
-                      margin: 0,
-                      fontSize: "14px",
-                      lineHeight: 1.6,
-                    }}
-                  >
-                    Apri l&apos;editor per personalizzare layout, colori, testi,
-                    menu e struttura del tuo sito pubblico.
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  style={{
-                    background: "#fff",
-                    color: "var(--primary)",
-                    fontWeight: 800,
-                    padding: "14px 28px",
-                    fontSize: "16px",
-                    flexShrink: 0,
-                    border: "none",
-                    borderRadius: "var(--radius)",
-                    cursor: "pointer",
-                    boxShadow: "0 4px 16px rgba(0,0,0,0.15)",
-                  }}
-                  onClick={() =>
-                    openStudioWorkspace(templateStudio, "Workspace corrente")
-                  }
-                >
-                  ✏️ Apri editor sito →
-                </button>
-              </section>
-              <section
-                className="card"
-                style={{
-                  padding: "clamp(1.25rem, 3vw, 2rem)",
-                  background:
-                    "linear-gradient(135deg, var(--surface), var(--primary-light))",
-                  border: "1px solid var(--border)",
-                }}
-              >
-                <span
-                  style={{
-                    display: "inline-flex",
-                    padding: "6px 10px",
-                    borderRadius: "999px",
-                    background: "var(--teal-light)",
-                    color: "var(--teal)",
-                    fontSize: "12px",
-                    fontWeight: 850,
-                  }}
-                >
-                  STUDIO DEL SITO CLASSICO
-                </span>
-                <h2
-                  style={{
-                    margin: "0.8rem 0 0.55rem",
-                    color: "var(--text)",
-                    fontSize: "clamp(24px, 4vw, 36px)",
-                    lineHeight: 1.08,
-                  }}
-                >
-                  Identità e strumenti precedenti
-                </h2>
-                <p
-                  style={{
-                    maxWidth: "760px",
-                    margin: 0,
-                    color: "var(--text-muted)",
-                    fontSize: "15px",
-                    lineHeight: 1.7,
-                  }}
-                >
-                  Scegli tra layout realmente diversi per settore, atmosfera e
-                  modo di presentare i contenuti. Ogni tema conserva una base
-                  accessibile e responsive, mentre cambiano gerarchie,
-                  tipografia, palette, navigazione e composizione delle schede.
-                </p>
-                <div
-                  style={{
-                    display: "flex",
-                    flexWrap: "wrap",
-                    gap: "10px",
-                    marginTop: "1.25rem",
-                  }}
-                >
-                  <a
-                    className="btn btn-primary"
-                    href={siteUrl}
-                    target="_blank"
-                    rel="noopener"
-                  >
-                    Apri il sito pubblico ↗
-                  </a>
-                  <button
-                    className="btn btn-outline"
-                    type="button"
-                    onClick={() =>
-                      document
-                        .getElementById("visual-identity")
-                        ?.scrollIntoView({ behavior: "smooth", block: "start" })
-                    }
-                  >
-                    Scegli logo o immagine
-                  </button>
-                </div>
-              </section>
+              <section className="card profile-review-panel"><h2>Presentazione pubblica</h2><p>Questi testi sono destinati ai visitatori. L’intervista e le deduzioni dei social restano nel profilo di lavoro; scegli tu cosa rendere pubblico.</p><div className="profile-review-fields"><label><span>Presentazione breve</span><textarea rows={2} value={heroTagline} onChange={event=>setHeroTagline(event.target.value)} /></label><label><span>Chi sono / Chi siamo</span><textarea rows={6} value={profileDraft} onChange={event=>setProfileDraft(event.target.value)} /></label><label><span>Pubblico e obiettivo · guida per l’AI</span><textarea rows={3} value={roleMissionDraft} onChange={event=>setRoleMissionDraft(event.target.value)} /></label><label><span>Indicazioni sui contenuti · guida per l’AI</span><textarea rows={3} value={strategyDraft} onChange={event=>setStrategyDraft(event.target.value)} /></label></div><button className="btn btn-primary" disabled={profileReviewBusy} onClick={()=>saveProfileReview('public')}>Salva la presentazione</button> <button className="btn btn-outline" onClick={()=>setProfileDraft(socialProfileDraft.summary || profileUnderstanding?.summary || declaredStrategy.activity_type || '')}>Usa la sintesi come base da modificare</button></section>
               <section
                 className="card visual-identity-panel"
                 id="visual-identity"
@@ -7935,6 +7816,152 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
                   </label>
                 </div>
               </section>
+              <details className="card"><summary>Strumenti del sito classico</summary><p>Questi strumenti restano disponibili per i siti creati con il sistema precedente. Per il sito attuale, usa Temi e layout oppure Modifica sito.</p>              {/* MODIFICA SITO — azione principale sempre visibile */}
+              <section
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: "1rem",
+                  flexWrap: "wrap",
+                  padding: "clamp(1.25rem, 3vw, 2rem)",
+                  borderRadius: "var(--radius-lg)",
+                  background:
+                    "linear-gradient(135deg, var(--primary) 0%, #6366f1 100%)",
+                  boxShadow: "0 8px 32px rgba(79,140,255,0.28)",
+                }}
+              >
+                <div>
+                  <span
+                    style={{
+                      color: "rgba(255,255,255,0.78)",
+                      fontSize: "12px",
+                      fontWeight: 800,
+                      textTransform: "uppercase",
+                      letterSpacing: "0.09em",
+                    }}
+                  >
+                    Sito pubblico
+                  </span>
+                  <h2
+                    style={{
+                      color: "#fff",
+                      margin: "0.4rem 0 0.5rem",
+                      fontSize: "clamp(20px, 3vw, 28px)",
+                      lineHeight: 1.15,
+                    }}
+                  >
+                    Modifica il tuo sito
+                  </h2>
+                  <p
+                    style={{
+                      color: "rgba(255,255,255,0.82)",
+                      margin: 0,
+                      fontSize: "14px",
+                      lineHeight: 1.6,
+                    }}
+                  >
+                    Apri l&apos;editor per personalizzare layout, colori, testi,
+                    menu e struttura del tuo sito pubblico.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  style={{
+                    background: "#fff",
+                    color: "var(--primary)",
+                    fontWeight: 800,
+                    padding: "14px 28px",
+                    fontSize: "16px",
+                    flexShrink: 0,
+                    border: "none",
+                    borderRadius: "var(--radius)",
+                    cursor: "pointer",
+                    boxShadow: "0 4px 16px rgba(0,0,0,0.15)",
+                  }}
+                  onClick={() =>
+                    openStudioWorkspace(templateStudio, "Workspace corrente")
+                  }
+                >
+                  ✏️ Apri editor sito →
+                </button>
+              </section>
+              <section
+                className="card"
+                style={{
+                  padding: "clamp(1.25rem, 3vw, 2rem)",
+                  background:
+                    "linear-gradient(135deg, var(--surface), var(--primary-light))",
+                  border: "1px solid var(--border)",
+                }}
+              >
+                <span
+                  style={{
+                    display: "inline-flex",
+                    padding: "6px 10px",
+                    borderRadius: "999px",
+                    background: "var(--teal-light)",
+                    color: "var(--teal)",
+                    fontSize: "12px",
+                    fontWeight: 850,
+                  }}
+                >
+                  STUDIO DEL SITO CLASSICO
+                </span>
+                <h2
+                  style={{
+                    margin: "0.8rem 0 0.55rem",
+                    color: "var(--text)",
+                    fontSize: "clamp(24px, 4vw, 36px)",
+                    lineHeight: 1.08,
+                  }}
+                >
+                  Layout del sito classico
+                </h2>
+                <p
+                  style={{
+                    maxWidth: "760px",
+                    margin: 0,
+                    color: "var(--text-muted)",
+                    fontSize: "15px",
+                    lineHeight: 1.7,
+                  }}
+                >
+                  Scegli tra layout realmente diversi per settore, atmosfera e
+                  modo di presentare i contenuti. Ogni tema conserva una base
+                  accessibile e responsive, mentre cambiano gerarchie,
+                  tipografia, palette, navigazione e composizione delle schede.
+                </p>
+                <div
+                  style={{
+                    display: "flex",
+                    flexWrap: "wrap",
+                    gap: "10px",
+                    marginTop: "1.25rem",
+                  }}
+                >
+                  <a
+                    className="btn btn-primary"
+                    href={siteUrl}
+                    target="_blank"
+                    rel="noopener"
+                  >
+                    Apri il sito pubblico ↗
+                  </a>
+                  <button
+                    className="btn btn-outline"
+                    type="button"
+                    onClick={() =>
+                      document
+                        .getElementById("visual-identity")
+                        ?.scrollIntoView({ behavior: "smooth", block: "start" })
+                    }
+                  >
+                    Scegli logo o immagine
+                  </button>
+                </div>
+              </section>
+</details>
             </div>
           )}
 

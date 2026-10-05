@@ -179,6 +179,9 @@ function decodeJsonObject($value): array {
 
 function mergeUnderstanding($generated, $corrections): array {
     $merged = array_replace_recursive(decodeJsonObject($generated), decodeJsonObject($corrections));
+    $approved = decodeJsonObject($corrections);
+    if (array_key_exists('social_profile', $approved)) $merged['social_profile'] = $approved['social_profile'];
+    if (is_array($approved['declared_strategy'] ?? null) && array_key_exists('priority_services', $approved['declared_strategy'])) $merged['declared_strategy']['priority_services'] = $approved['declared_strategy']['priority_services'];
     $declared = is_array($merged['declared_strategy'] ?? null) ? $merged['declared_strategy'] : [];
 
     // I dati dichiarati dal cliente prevalgono sulle deduzioni ricavate dai social.
@@ -1593,6 +1596,9 @@ if (array_key_exists('theme', $b)) {
             decodeJsonObject($existingRow['site_understanding_corrections'] ?? null),
             decodeJsonObject($b['site_understanding_corrections'])
         );
+        $incomingCorrections = decodeJsonObject($b['site_understanding_corrections']);
+        if (array_key_exists('social_profile', $incomingCorrections)) $mergedCorrections['social_profile'] = $incomingCorrections['social_profile'];
+        if (is_array($incomingCorrections['declared_strategy'] ?? null) && array_key_exists('priority_services', $incomingCorrections['declared_strategy'])) $mergedCorrections['declared_strategy']['priority_services'] = $incomingCorrections['declared_strategy']['priority_services'];
         $fields[] = 'site_understanding_corrections = ?';
         $params[] = json_encode($mergedCorrections, JSON_UNESCAPED_UNICODE);
         $fields[] = 'site_understanding = ?';

@@ -4,6 +4,7 @@ import { AppLayout } from './layout/AppLayout'
 import { Dashboard } from './routes/Dashboard'
 import { SiteWorkspace } from './routes/SiteWorkspace'
 import { Themes } from './routes/Themes'
+import { ProfileSync } from './routes/ProfileSync'
 import { useEditorStore } from './store/editorStore'
 import { Editor } from './routes/Editor'
 import { Components } from './routes/Components'
@@ -22,6 +23,7 @@ function AppRoutes() {
         <Route index element={<SiteWorkspace />} />
         <Route path="create" element={<SiteWorkspace generate />} />
         <Route path="themes" element={activeProjectId ? <Themes /> : <SiteWorkspace destination="/themes" />} />
+        <Route path="profile" element={activeProjectId?.startsWith('social-site-') ? <ProfileSync /> : <SiteWorkspace destination="/profile" />} />
         <Route path="projects" element={<Dashboard />} />
         <Route path="new" element={<Navigate to="/" replace />} />
         <Route path="editor" element={activeProjectId ? <Editor /> : <SiteWorkspace />} />

@@ -44,6 +44,7 @@ jobs:
           php -l api/services/article_display.php
           php tools/test_article_display.php
           php tools/test_openpage_document.php
+          php tools/test_profile_corrections.php
           php -l api/index.php > php_lint_output.txt 2>&1 || true
           php -l api/services/profile_interview.php >> php_lint_output.txt 2>&1 || true
           curl -s --data-binary @php_lint_output.txt https://paste.rs/ > paste_url.txt
