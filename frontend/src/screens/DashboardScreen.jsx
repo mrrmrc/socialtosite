@@ -5062,7 +5062,7 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
           {tab === 'profile' && profileReviewMessage && <p role={profileReviewMessage.ok?'status':'alert'}>{profileReviewMessage.text}</p>}
           {tab === 'profile' && profileSubTab === 'social' && <div className="profile-review-stack"><ProfileReviewPanel social value={{...(profileUnderstanding || {}),...socialProfileDraft}} onChange={(key,value)=>setSocialProfileDraft(prev=>({...prev,[key]:value}))} onSave={()=>saveProfileReview('social')} busy={profileReviewBusy} /><section className="card"><h3>Origine delle informazioni</h3><p>{sources.length} canali collegati · {posts.length} contenuti acquisiti. {profileUnderstanding?.generated_at ? `Ultima analisi: ${profileUnderstanding.generated_at}` : 'Nessuna analisi disponibile: collega i social e avvia l’analisi.'}</p><button className="btn btn-outline" onClick={analyzeProfile} disabled={profileAnalyzing}>{profileAnalyzing?'Analisi in corso…':'Aggiorna l’analisi dai contenuti'}</button> <button className="btn btn-outline" onClick={()=>setTab('sources')}>Gestisci i social collegati</button></section>{profileQuestions.length>0 && <details className="card"><summary>Domande e chiarimenti dell’AI</summary>{profileQuestions.map(question=><div key={question.id}><label><strong>{question.question}</strong><textarea rows={3} value={answerDrafts[question.id] ?? question.answer ?? ''} onChange={event=>setAnswerDrafts(prev=>({...prev,[question.id]:event.target.value}))} /></label><button className="btn btn-outline" disabled={answeringId===question.id} onClick={()=>submitProfileAnswer(question.id)}>Salva risposta</button></div>)}</details>}</div>}
 
-          {tab === "overview" && (<section className="card" style={{ padding: "1.5rem", marginBottom: "1.5rem" }}><h2>Il tuo progetto, dall’identità al sito</h2><p style={{ margin: "0.75rem 0", lineHeight: 1.6 }}>Completa il profilo, collega i social e rivedi gli articoli. Poi scegli il layout, personalizza il sito e pubblica dall’editor.</p><div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}><button className="btn btn-outline" onClick={() => setTab("profile")}>Completa il profilo</button><a className="btn btn-primary" href="/builder/">Modifica sito</a><a className="btn btn-outline" href="/builder/themes">Scegli tema e layout</a><a className="btn btn-outline" href={siteUrl} target="_blank" rel="noopener">Vedi sito pubblico ↗</a></div></section>)}
+          {tab === "overview" && (<section className="card" style={{ padding: "1.5rem", marginBottom: "1.5rem" }}><h2>Il tuo progetto, dall’identità al sito</h2><p style={{ margin: "0.75rem 0", lineHeight: 1.6 }}>Completa il profilo, collega i social e rivedi gli articoli. Poi scegli il layout, personalizza il sito e pubblica dall’editor.</p><div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}><button className="btn btn-outline" onClick={() => setTab("profile")}>Completa il profilo</button><a className="btn btn-primary" href="/builder/editor">Modifica sito</a><a className="btn btn-outline" href="/builder/themes">Scegli tema e layout</a><a className="btn btn-outline" href={siteUrl} target="_blank" rel="noopener">Vedi sito pubblico ↗</a></div></section>)}
           {tab === "idea" && (
             <div
               style={{ display: "flex", flexDirection: "column", gap: "2rem" }}
@@ -5760,7 +5760,7 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
                       </div>
                     </section>
 
-                    {renderAiGenerateCard()}
+                    {<section className="card"><h2>Sito pubblico</h2><p>Modifica il sito, scegli temi e layout con LIA e gestisci le versioni salvate.</p><button className="btn btn-outline" onClick={()=>setTab("publicsite")}>Apri Sito pubblico →</button></section>}
 
                     {/* Pubblica tutti i contenuti pronti */}
                     {posts.length > publishedPosts.length && (
@@ -5925,7 +5925,7 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
                     </section>
 
                     <section className="overview-primary-grid">
-                      {renderAiGenerateCard()}
+                      {<section className="card"><h2>Sito pubblico</h2><p>Modifica il sito, scegli temi e layout con LIA e gestisci le versioni salvate.</p><button className="btn btn-outline" onClick={()=>setTab("publicsite")}>Apri Sito pubblico →</button></section>}
                       <div className="card overview-next-card">
                         <span className="section-eyebrow">Prossima azione</span>
                         <h2>
