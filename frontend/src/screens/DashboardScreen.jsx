@@ -11384,7 +11384,7 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
 
           {/* Tab: Impostazioni */}
           {tab === "profile" && profileSubTab === "identity" && (
-            <div>
+            <details className="card"><summary>Catalogo e impostazioni del sito classico</summary><div>
               {isAdmin && (
                 <>
                   <div
@@ -12285,7 +12285,7 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
                   </div>
                 </div>
               )}
-            </div>
+            </div></details>
           )}
 
           {tab === "account" && renderAccountProfile()}
