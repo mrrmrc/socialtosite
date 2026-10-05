@@ -34,6 +34,10 @@ final class VideoSource {
             $body .= '<p><a href="' . $escape($sourceUrl) . '" rel="noopener noreferrer">Guarda il video originale</a></p>';
         }
         $plain = trim(preg_replace('/\s+/u', ' ', $speech));
-        return ['title'=>mb_substr($plain, 0, 60), 'body'=>$body, 'excerpt'=>mb_substr($plain,0,155), 'tags'=>[], 'meta_description'=>mb_substr($plain,0,155), 'seo_score'=>0];
+        $excerpt = function(int $limit) use ($plain): string {
+            preg_match('/^.{1,' . $limit . '}/us', $plain, $matches);
+            return $matches[0] ?? '';
+        };
+        return ['title'=>$excerpt(60), 'body'=>$body, 'excerpt'=>$excerpt(155), 'tags'=>[], 'meta_description'=>$excerpt(155), 'seo_score'=>0];
     }
 }
