@@ -1089,6 +1089,7 @@ import StrategyInterview from "./StrategyInterview";
 export function DashboardScreen({ token, user, onLogout }) {
   const [tab, setTab] = useState((() => { const requested = new URLSearchParams(window.location.search).get("tab"); return ["overview", "profile", "site", "sources", "seo", "idea", "account", "security", "services"].includes(requested) ? requested : "overview"; })());
   const [visibilitySection, setVisibilitySection] = useState("overview");
+  const [accountMenuOpen, setAccountMenuOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [dashboardFilter, setDashboardFilter] = useState("all");
   const [data, setData] = useState(null);
@@ -4370,8 +4371,6 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
       navItem("seo"),
     ].filter(Boolean) },
     { label: "Account", items: [
-      { id: "account", icon: <span>◎</span>, label: "Il mio account", hint: "Dati personali" },
-      { id: "security", icon: <span>⌑</span>, label: "Password e sicurezza", hint: "Proteggi l’accesso" },
       { id: "services", icon: <span>◇</span>, label: "Piano e servizi", hint: "Funzionalità e abbonamento" },
     ] },
     ...(user?.role === "admin" ? [{ label: "Amministrazione", items: [navItem("admin"), { id: "general", icon: <span>⚙</span>, label: "Impostazioni di sistema", hint: "Agenti e automazioni" }].filter(Boolean) }] : []),
@@ -4381,7 +4380,7 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
   );
   const isNavigationActive = (item) =>
     tab === item.id && (!item.section || visibilitySection === item.section);
-  const activeNavigation = flatNavigation.find(isNavigationActive);
+  const activeNavigation = flatNavigation.find(isNavigationActive) || ({ account: { group: "Account", label: "Il mio account" }, security: { group: "Account", label: "Password e sicurezza" } })[tab];
   const pageMeta = {
     profile: ["Il mio profilo", "Identità, obiettivi e contatti guidano i contenuti e la creazione del sito."],
     idea: ["Idee e nuovi contenuti", "Crea contenuti coerenti con il tuo profilo e rivedili prima di pubblicare."],
@@ -4418,7 +4417,7 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
       "Proteggi il tuo account e gestisci le sessioni attive.",
     ],
     account: [
-      "Impostazioni",
+      "Il mio account",
       "Tutto ciò che configuri meno spesso, raccolto in un unico posto.",
     ],
     services: [
@@ -4765,20 +4764,13 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
             <span className="header-site-label">Apri il mio sito</span>
           </a>
 
-          <div style={{ position: "relative" }}>
+          <div style={{ position: "relative" }} onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) setAccountMenuOpen(false); }} onKeyDown={(event) => { if (event.key === "Escape") { setAccountMenuOpen(false); event.currentTarget.querySelector("button")?.focus(); } }}>
             <button
               className="btn btn-outline btn-icon"
-              onClick={(e) => {
-                const menu = e.currentTarget.nextElementSibling;
-                menu.style.display =
-                  menu.style.display === "block" ? "none" : "block";
-              }}
-              onBlur={(e) => {
-                const menu = e.currentTarget.nextElementSibling;
-                setTimeout(() => {
-                  menu.style.display = "none";
-                }, 200);
-              }}
+              aria-label="Menu account"
+              aria-expanded={accountMenuOpen}
+              aria-controls="account-menu"
+              onClick={() => setAccountMenuOpen(open => !open)}
               style={{
                 borderRadius: "50%",
                 width: "40px",
@@ -4802,8 +4794,9 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
               </svg>
             </button>
             <div
+              id="account-menu"
               style={{
-                display: "none",
+                display: accountMenuOpen ? "block" : "none",
                 position: "absolute",
                 top: "100%",
                 right: "0",
@@ -4813,7 +4806,7 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
                 borderRadius: "var(--radius)",
                 padding: "0.5rem",
                 boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
-                minWidth: "160px",
+                minWidth: "230px",
                 zIndex: 100,
               }}
             >
@@ -4825,9 +4818,9 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
                   textAlign: "left",
                   padding: "0.5rem 1rem",
                 }}
-                onMouseDown={() => selectNavigation({ id: "account" })}
+                onClick={() => { selectNavigation({ id: "account" }); setAccountMenuOpen(false); }}
               >
-                Profilo
+                Il mio account
               </button>
               <button
                 className="btn btn-ghost"
@@ -4837,9 +4830,9 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
                   textAlign: "left",
                   padding: "0.5rem 1rem",
                 }}
-                onMouseDown={() => selectNavigation({ id: "security" })}
+                onClick={() => { selectNavigation({ id: "security" }); setAccountMenuOpen(false); }}
               >
-                Sicurezza
+                Password e sicurezza
               </button>
               <div
                 style={{
@@ -4857,7 +4850,7 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
                   padding: "0.5rem 1rem",
                   color: "var(--red)",
                 }}
-                onMouseDown={onLogout}
+                onClick={onLogout}
               >
                 Esci
               </button>
