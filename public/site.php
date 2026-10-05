@@ -3463,6 +3463,8 @@ if (!empty($site['openpage_html'])) {
     $out = preg_replace('~<script\b[^>]*data-openpage-runtime[^>]*>.*?</script>~is', '', $out);
     $out = preg_replace("~<script\b[^>]*>\s*document\.querySelectorAll\('\[data-site-menu\]'\).*?</script>~is", '', $out);
     $runtimeVersion = substr(hash_file('sha256', __DIR__ . '/openpage-runtime.js'), 0, 12);
+    $typographyVersion = substr(hash_file('sha256', __DIR__ . '/openpage-typography.css'), 0, 12);
+    $out = str_replace('</head>', '<link rel="stylesheet" href="/public/openpage-typography.css?v=' . $typographyVersion . '"></head>', $out);
     $out = str_replace('</body>', '<script defer src="/public/openpage-runtime.js?v=' . $runtimeVersion . '"></script></body>', $out);
 
     // 1) Inject dynamic articles grid

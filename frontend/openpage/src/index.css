@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "./lib/site-typography.css";
 
 @theme {
   /* Background layers */
@@ -249,7 +250,7 @@ textarea:focus-visible {
 }
 
 /* The editor preview and exported website share typography, including theme fonts. */
-.site-render { font-family: var(--font-sans); max-width: 880px; margin-inline: auto; }
+.site-render { max-width: 880px; margin-inline: auto; }
 /* Platform chrome shares All Social To Web's palette. Canvas themes override
    these variables locally; exports never include the builder-shell element. */
 .builder-shell {
@@ -275,7 +276,6 @@ textarea:focus-visible {
   color: var(--color-text-0);
 }
 .builder-shell button.bg-green:not(.site-render *) { color: #fff; }
-.site-render :is(h1,h2,h3,h4,h5,h6) { font-family: var(--font-display); }
 .site-render [data-articles-layout="list"] .grid { grid-template-columns: 1fr; }
 .site-render [data-articles-layout="list"] article { display: flex; flex-wrap: wrap; align-items: center; }
 .site-render [data-articles-layout="list"] article > img,

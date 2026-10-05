@@ -1,0 +1,9 @@
+/* Shared by canvas, export and the public PHP renderer. */
+.site-render { font-family: var(--font-sans); font-size: 16px; line-height: 1.6; font-weight: 400; }
+.site-render :where(p,li,a,button,input,textarea,select) { font-family: var(--font-sans); }
+.site-render :is(h1,h2,h3,h4,h5,h6) { font-family: var(--font-display); }
+.site-render :is(h1,h2,h3,h4,h5,h6) :is(a,strong,em,span) { font-family: inherit; }
+.site-render .body-content :is(p,li,span,div,a,strong,em) { font-family: var(--font-sans) !important; }
+.site-render .body-content :is(h1,h2,h3,h4,h5,h6),
+.site-render .body-content :is(h1,h2,h3,h4,h5,h6) * { font-family: var(--font-display) !important; }
+.site-render :is(code,pre,kbd,samp) { font-family: var(--font-mono); }

@@ -1798,8 +1798,14 @@ if ($action === 'site-ai' && $method === 'POST') {
 if ($action === 'openpage-generate' && $method === 'POST') {
     try {
         require_once __DIR__ . '/services/openpage.php';
-        $config = OpenPageSite::generate($userId, (string)(body()['instructions'] ?? ''));
-        json(['ok' => true, 'config' => $config]);
+        $input = body();
+        if (isset($input['references']) && !is_array($input['references'])) throw new RuntimeException('I riferimenti devono essere una lista di link.');
+        $current = ($input['mode'] ?? '') === 'layout' ? ($input['config'] ?? null) : null;
+        if (($input['mode'] ?? '') === 'layout' && (!is_array($current) || empty($current['blocks']))) throw new RuntimeException('Bozza non valida per la proposta grafica.');
+        $config = OpenPageSite::generate($userId, (string)($input['instructions'] ?? ''), $input['references'] ?? [], $current);
+        $feedback = $config['_referenceFeedback'] ?? [];
+        unset($config['_referenceFeedback']);
+        json(['ok' => true, 'config' => $config, 'references' => $feedback]);
     } catch (Throwable $e) {
         jsonError('Generazione del sito non riuscita: ' . $e->getMessage());
     }

@@ -119,7 +119,7 @@ export const blockMetadata: BlockMeta[] = [
     label: 'Content',
     description: 'Rich text content section',
     category: 'Content',
-    variants: ['prose', 'columns', 'highlight'],
+    variants: ['prose', 'default', 'columns', 'highlight'],
     defaultProps: { body: '## Getting Started\n\nWrite your content here. Supports **bold**, *italic*, and lists.\n\n- First item\n- Second item\n- Third item' },
   },
   {
@@ -167,7 +167,7 @@ export const blockMetadata: BlockMeta[] = [
     label: 'Dynamic Articles',
     description: 'Grid of your latest published articles (SocialToSite dynamic)',
     category: 'SocialToSite',
-    variants: ['default'],
+    variants: ['grid', 'list', 'default'],
     defaultProps: {},
   },
 ]

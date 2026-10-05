@@ -6,6 +6,7 @@ import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import siteCss from '../index.css?inline'
 import { getBrowserLanguage } from './i18n'
+import { googleFontUrl } from './site-fonts'
 
 export interface ExportSiteSettings {
   siteName?: string
@@ -31,14 +32,6 @@ function escapeHtml(str: string): string {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;')
-}
-
-function googleFontUrl(fonts: string[]): string {
-  const unique = [...new Set(fonts.filter(Boolean))]
-  const families = unique.map(
-    (f) => `family=${f.replace(/ /g, '+')}:wght@300;400;500;600;700`
-  )
-  return `https://fonts.googleapis.com/css2?${families.join('&')}&display=swap`
 }
 
 function normalizeLanguage(value?: string): string {

@@ -7,6 +7,10 @@ import { useEditorStore } from '../store/editorStore'
 import { completeGeneratedSite, configFromProfile, decode, refreshArticles, siteRequest, type SiteData } from '../lib/social-site'
 import { validateSiteConfig } from '../lib/generate-site'
 import type { SiteConfig } from '../blocks/types'
+import { Sparkles, ArrowLeft, Pencil, UserRound, Loader2 } from 'lucide-react'
+import { DesignBrief } from '../editor/DesignBrief'
+import { parseDesignReferences } from '../lib/design-brief'
+import { toast } from 'sonner'
 
 export function SiteWorkspace({ generate = false, destination = '/editor' }: { generate?: boolean; destination?: string }) {
   const navigate = useNavigate()
@@ -14,7 +18,7 @@ export function SiteWorkspace({ generate = false, destination = '/editor' }: { g
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
   const [revision, setRevision] = useState(0)
-  const [instructions, setInstructions] = useState('')
+  const [brief, setBrief] = useState({ description: '', references: '' })
 
   function openSite(d: SiteData, generated?: SiteConfig) {
     const id = `social-site-${d.user.id}`
@@ -48,7 +52,8 @@ export function SiteWorkspace({ generate = false, destination = '/editor' }: { g
     setBusy(true)
     setError('')
     try {
-      const result = await siteRequest('openpage-generate', { instructions })
+      const result = await siteRequest('openpage-generate', { instructions: brief.description, references: parseDesignReferences(brief.references) })
+      if (result.references?.some((ref: { status: string }) => ref.status === 'unavailable')) toast.warning(t('Some references could not be read. Your description was used.'))
       const store = useProjectsStore.getState()
       const previous = store.projects.find(p => p.id === `social-site-${data.user.id}`)
       if (previous?.config) {
@@ -60,19 +65,19 @@ export function SiteWorkspace({ generate = false, destination = '/editor' }: { g
     } catch (e) { setError(e instanceof Error ? e.message : 'Generazione non riuscita') }
     finally { setBusy(false) }
   }
-  return <div className="h-full overflow-y-auto"><div className="max-w-2xl mx-auto p-8 space-y-5">
-    <h1 className="text-2xl font-semibold">{generate ? 'Crea il sito dal tuo profilo' : 'Caricamento del tuo sito'}</h1>
+  return <div className="h-full overflow-y-auto"><div className="max-w-4xl mx-auto p-6 md:p-8 space-y-6">
+    <h1 className="text-3xl font-semibold flex items-center gap-3"><Sparkles aria-hidden="true" />{generate ? t('Crea il sito dal tuo profilo') : t('Caricamento del tuo sito')}</h1>
     {error && <p role="alert">{error}</p>}
     {!data && !error && <p>{t("Recupero identità, menu e articoli…")}</p>}
     {error && <button disabled={busy} onClick={() => setRevision(r => r + 1)}>{t("Riprova")}</button>}
     {generate && data && <>
       <p>{t("La generazione usa identità, intervista, istruzioni editoriali, presenza, contatti, social e articoli. Potrai modificare ogni blocco prima di pubblicare.")}</p>
-      <p className="text-text-2">{String(data.site.profile_summary || data.site.bio || '')}</p>
-      <label className="block">{t("Preferenze grafiche facoltative")}<textarea value={instructions} onChange={e => setInstructions(e.target.value)} className="block w-full bg-bg-2 border rounded p-3 mt-2" /></label>
+      <div className="bg-bg-1 border border-border-default rounded-xl p-4"><h2 className="flex gap-2 items-center font-semibold mb-2"><UserRound size={18} aria-hidden="true" />{t('Your profile')}</h2><p className="text-text-2">{String(data.site.profile_summary || data.site.bio || '')}</p></div>
+      <DesignBrief value={brief} onChange={setBrief} disabled={busy} />
       <p className="text-text-2">{t("Your previous draft is kept in Projects. The online site changes only when you publish.")}</p>
-      <button disabled={busy} onClick={createSite} className="bg-green text-black rounded px-5 py-3">{busy ? 'Creazione in corso…' : 'Genera una nuova proposta'}</button>
-      <button disabled={busy} onClick={() => openSite(data)} className="ml-4">{t("Modifica il sito attuale")}</button>
+      <div className="flex flex-wrap gap-3"><button disabled={busy} onClick={createSite} className="bg-green text-black rounded-lg px-5 py-3 flex gap-2 items-center">{busy ? <Loader2 className="animate-spin" size={18} aria-hidden="true" /> : <Sparkles size={18} aria-hidden="true" />}{busy ? t('Creazione in corso…') : t('Genera una nuova proposta')}</button>
+      <button disabled={busy} onClick={() => openSite(data)} className="border border-border-default rounded-lg px-5 py-3 flex items-center gap-2"><Pencil size={18} aria-hidden="true" />{t("Modifica il sito attuale")}</button></div>
     </>}
-    <a className="block text-green" href="/dashboard?tab=profile">{t("Torna alla profilazione")}</a>
+    <a className="flex items-center gap-2 text-green" href="/dashboard?tab=profile"><ArrowLeft size={18} aria-hidden="true" />{t("Torna alla profilazione")}</a>
   </div></div>
 }
