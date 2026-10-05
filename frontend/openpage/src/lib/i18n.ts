@@ -5,6 +5,7 @@ export function getBrowserLanguage(languages?: readonly string[]): BrowserLangua
   return preferred[0]?.toLowerCase().startsWith('it') ? 'it' : 'en'
 }
 const italian: Record<string, string> = {
+  'All': 'Tutti',
   'Some references could not be read. Your description was used.': 'Alcuni riferimenti non erano leggibili. Abbiamo usato la tua descrizione.',
 "Personal": "Autori e professionisti",
 "Creative": "Creatività e portfolio",
