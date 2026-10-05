@@ -24,6 +24,13 @@ it('leaves unchecked information unchanged',()=>{
   const config=configFromProfile(old)
   expect(applyPublicProfile(config,updated,{name:false,images:false,about:false,contacts:false})).toEqual(config)
 })
+it('keeps existing public copy when only private editorial guidance is available',()=>{
+  const config=configFromProfile(old)
+  config.blocks.find(b=>b.type==='hero')!.props.subheadline='My public introduction'
+  const result=applyPublicProfile(config,{...old,site:{title:'Approved name',role_mission:'Private editorial goal'}},{name:true,images:false,about:true,contacts:false})
+  expect(result.blocks.find(b=>b.id==='sts-about')).toEqual(config.blocks.find(b=>b.id==='sts-about'))
+  expect(result.blocks.find(b=>b.type==='hero')?.props.subheadline).toBe('My public introduction')
+})
 it('adds an explicitly selected missing public section while retaining custom sections',()=>{
   const config=configFromProfile(old)
   config.blocks=config.blocks.filter(b=>b.id!=='sts-about')

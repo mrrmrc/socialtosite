@@ -12,7 +12,7 @@ export function ProfileSync(){
   const config=useConfigStore(s=>s.config)
   const [data,setData]=useState<SiteData>()
   const [error,setError]=useState('')
-  const [sections,setSections]=useState<ProfileSections>({name:true,images:true,about:true,contacts:true})
+  const [sections,setSections]=useState<ProfileSections>({name:false,images:false,about:false,contacts:false})
   const navigate=useNavigate()
   useEffect(()=>{const controller=new AbortController();siteRequest('site',undefined,controller.signal).then(setData).catch(e=>{if(!controller.signal.aborted)setError(e.message)});return()=>controller.abort()},[])
   const proposal=useMemo(()=>data?applyPublicProfile(config,data,sections):config,[config,data,sections])

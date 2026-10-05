@@ -9,12 +9,13 @@ export function applyPublicProfile(config:SiteConfig,data:SiteData,sections:Prof
     const result=blocks.map(block=>{
       const props={...block.props}
       if(block.type==='navbar') {if(sections.name)props.logo=navbar.props.logo;if(sections.images)props.logoImage=navbar.props.logoImage}
-      if(block.type==='hero') {if(sections.name) {props.headline=hero.props.headline;props.subheadline=hero.props.subheadline} if(sections.images)props.heroImage=hero.props.heroImage}
-      if(block.id==='sts-about' && block.type==='content' && sections.about)props.body=about.props.body
+      if(block.type==='hero') {if(sections.name) {props.headline=hero.props.headline;if(data.site.hero_tagline)props.subheadline=hero.props.subheadline} if(sections.images)props.heroImage=hero.props.heroImage}
+      if(block.type==='footer' && sections.name)props.logo=navbar.props.logo
+      if(block.id==='sts-about' && block.type==='content' && sections.about && (data.site.bio || data.site.profile_summary))props.body=about.props.body
       if(block.id==='sts-contact' && block.type==='content' && sections.contacts)props.body=contacts.props.body
       return {...block,props}
     })
-    for(const [enabled,block] of [[sections.about,about],[sections.contacts,contacts]] as const) {
+    for(const [enabled,block] of [[sections.about && Boolean(data.site.bio || data.site.profile_summary),about],[sections.contacts,contacts]] as const) {
       if(enabled && !result.some(b=>b.id===block.id)) {const index=result.findIndex(b=>b.type===(block.id==='sts-about'?'articles':'footer'));result.splice(index<0?result.length:index,0,block)}
     }
     return result
