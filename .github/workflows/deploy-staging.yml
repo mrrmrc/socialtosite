@@ -39,6 +39,10 @@ jobs:
           sudo apt-get install -y php-cli
           php -l api/services/apify_client.php
           php tools/test_apify_credentials.php
+          php -l api/services/video_source.php
+          php -l api/services/ai.php
+          php -l api/services/ingest.php
+          php tools/test_video_source.php
           php -l public/site.php
           php -l api/services/openpage.php
           php -l api/services/design_references.php

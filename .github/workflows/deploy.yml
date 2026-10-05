@@ -122,6 +122,7 @@ jobs:
           fi
           php tools/test_publication.php
           php tools/test_apify_credentials.php
+          php tools/test_video_source.php
           php tools/test_wordpress_connector.php
 
       - name: Setup Node.js
@@ -185,7 +186,7 @@ jobs:
           cp api/middleware/{jwt,response,ratelimit,logger}.php release/api/middleware/
           cp api/routes/{auth,migrate,upload}.php release/api/routes/
           cp api/services/{sync,ingest,editorial_engine,visibility,seo_foundation,reachability}.php release/api/services/
-          cp api/services/{raw_import,apify_client,website_source,profile_analyzer,profile_interview,admin_console,editorial_supervisor,provider_config,ai,content_ideas}.php release/api/services/
+          cp api/services/{raw_import,apify_client,video_source,website_source,profile_analyzer,profile_interview,admin_console,editorial_supervisor,provider_config,ai,content_ideas}.php release/api/services/
           cp api/services/{monitor_status,monitor_settings}.php release/api/services/
           cp api/routes/publication.php release/api/routes/
           cp api/services/plan_policy.php release/api/services/

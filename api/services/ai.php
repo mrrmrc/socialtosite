@@ -7,6 +7,7 @@ if (file_exists(__DIR__ . '/../../config/runtime-secrets.php')) require_once __D
 if (file_exists(__DIR__ . '/../middleware/logger.php')) require_once __DIR__ . '/../middleware/logger.php';
 require_once __DIR__ . '/content_ideas.php';
 require_once __DIR__ . '/provider_config.php';
+require_once __DIR__ . '/video_source.php';
 require_once __DIR__ . '/website_source.php';
 
 class AI {
@@ -734,7 +735,8 @@ Restituisci SOLO la nuova memoria aggiornata (testo semplice), nient'altro.";
      */
     public static function analyzePostMedia(string $platform, string $mediaUrl, string $mediaType, string $sourceUrl = ''): string {
         $type = strtoupper(trim($mediaType));
-        if ($mediaUrl === '' || !in_array($type, ['VIDEO', 'IMAGE', 'PHOTO'], true)) return '';
+        if (!in_array($type, ['VIDEO', 'IMAGE', 'PHOTO'], true)) return '';
+        if ($mediaUrl === '' && !($platform === 'youtube' && $type === 'VIDEO' && $sourceUrl !== '')) return '';
 
         if ($type === 'IMAGE' || $type === 'PHOTO') {
             $localPath = self::localPublicMediaPath($mediaUrl);
@@ -753,11 +755,9 @@ Restituisci SOLO la nuova memoria aggiornata (testo semplice), nient'altro.";
     // ── Trascrivi un video YouTube da link ─────────────────────────────────
     // Gemini accetta direttamente l'URL YouTube: niente download né Whisper.
     public static function transcribeYouTube(string $youtubeUrl): string {
-        return trim(self::gemini([
+        return VideoSource::encode(self::gemini([
             ['fileData' => ['fileUri' => $youtubeUrl, 'mimeType' => 'video/mp4']],
-            ['text' => "Trascrivi INTEGRALMENTE e VERBATIM, in italiano, TUTTO il parlato di questo video, "
-                     . "dall'inizio alla fine. NON riassumere, NON saltare parti. "
-                     . "Se nel video NON c'è parlato, analizza visivamente il video e descrivi nel dettaglio tutti i concetti mostrati, le scritte a schermo, i diagrammi e il significato di ciò che avviene, fornendo un testo ricco di informazioni strutturate. Restituisci SOLO il testo della trascrizione o descrizione, senza commenti aggiuntivi."],
+            ['text' => VideoSource::transcriptionPrompt()],
         ], [
             '_timeout'       => 300,
             'temperature'    => 0,
@@ -770,10 +770,14 @@ Restituisci SOLO la nuova memoria aggiornata (testo semplice), nient'altro.";
     public static function transcribeFile(string $path, string $mime = 'video/mp4'): string {
         $bytes = @file_get_contents($path);
         if ($bytes === false || $bytes === '') return '';
-        return trim(self::gemini([
+        $detectedMime = (new finfo(FILEINFO_MIME_TYPE))->buffer($bytes);
+        if (!is_string($detectedMime) || (!str_starts_with($detectedMime, 'video/') && !str_starts_with($detectedMime, 'audio/'))) {
+            throw new RuntimeException('La fonte non contiene un file audio/video: una miniatura o una pagina non possono essere trascritte.');
+        }
+        $mime = $detectedMime;
+        return VideoSource::encode(self::gemini([
             ['inlineData' => ['mimeType' => $mime, 'data' => base64_encode($bytes)]],
-            ['text' => "Trascrivi INTEGRALMENTE e VERBATIM, in italiano, tutto il parlato dall'inizio "
-                     . "alla fine. NON riassumere. Se nel video NON c'è parlato, analizza visivamente il video e descrivi nel dettaglio tutti i concetti mostrati. Solo il testo della trascrizione o descrizione."],
+            ['text' => VideoSource::transcriptionPrompt()],
         ], [
             '_timeout'       => 300,
             'temperature'    => 0,
@@ -1386,9 +1390,11 @@ Restituisci SOLO la nuova memoria aggiornata (testo semplice), nient'altro.";
             @unlink($tmp);
             throw new Exception('Video troppo grande per la trascrizione diretta (>15MB). Lo gestiremo a breve con upload dedicato.');
         }
-        $text = self::transcribeFile($tmp, 'video/mp4');
-        @unlink($tmp);
-        return $text;
+        try {
+            return self::transcribeFile($tmp, 'video/mp4');
+        } finally {
+            @unlink($tmp);
+        }
     }
 
     // ── Genera il Profilo di Brand Voice ──────────────────────────────────────

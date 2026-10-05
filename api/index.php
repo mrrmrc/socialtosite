@@ -2385,7 +2385,9 @@ if ($action === 'process-pending' && $method === 'POST') {
         // visivo. Un evento, un nome o una data possono esistere solo nel
         // fotogramma, nella locandina o nel parlato del video.
         $transcript = trim($post['transcript'] ?? '');
-        if (!$transcript && !empty($post['media_url'])) {
+        // Videos are handled once by Ingest, which requires verified spoken text.
+        // Never reuse legacy visual descriptions as a video transcript.
+        if (!VideoSource::isVideo($post) && !$transcript && !empty($post['media_url'])) {
             $cache = DB::fetch('SELECT transcript FROM posts WHERE (source_url=? OR media_url=?) AND transcript IS NOT NULL AND transcript != "" LIMIT 1', [$post['source_url'], $post['media_url']]);
             if ($cache) {
                 $transcript = trim((string)$cache['transcript']);
@@ -2416,7 +2418,7 @@ if ($action === 'process-pending' && $method === 'POST') {
             trim((string)$transcript),
         ])));
         $raw = trim(implode("\n\n", $rawParts));
-        if ($raw) {
+        if ($raw || VideoSource::isVideo($post)) {
             // Aggiorna trascrizione prima di passare ad armonizza
             DB::execute('UPDATE posts SET transcript=? WHERE id=?', [$transcript, $postId]);
 

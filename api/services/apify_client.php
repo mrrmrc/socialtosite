@@ -177,13 +177,13 @@ final class ApifyClient {
 
         $mediaType = 'text';
         $typeHint = strtolower((string)($result['type'] ?? $result['mediaType'] ?? ''));
-        if (str_contains($typeHint, 'video') || !empty($result['videoUrl']) || $mediaDichiaraVideo || $videoDaMedia !== '') {
+        if (str_contains($typeHint, 'video') || !empty($result['videoUrl']) || !empty($result['hdVideoUrl']) || $mediaDichiaraVideo || $videoDaMedia !== '') {
             $mediaType = 'video';
-            if ($mediaUrl === '') $mediaUrl = $videoDaMedia;
+            $mediaUrl = trim((string)($result['videoUrl'] ?? $result['hdVideoUrl'] ?? $videoDaMedia));
             // Video senza indirizzo riproducibile: si tiene l'anteprima come
             // immagine, cosi' il post conserva un contenuto analizzabile
             // invece di essere buttato via.
-            if ($mediaUrl === '' && $immaginiDaMedia) { $mediaUrl = $immaginiDaMedia[0]; $mediaType = 'image'; }
+            // A thumbnail is not the spoken source. Keep missing videos as videos.
         } elseif ($mediaUrl !== '' || $immaginiDaMedia || str_contains($typeHint, 'image') || str_contains($typeHint, 'photo')) {
             $mediaType = 'image';
             if ($mediaUrl === '' && $immaginiDaMedia) $mediaUrl = $immaginiDaMedia[0];
