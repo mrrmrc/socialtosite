@@ -1,3 +1,4 @@
+import {PresentationApproval} from '../editor/PresentationApproval'
 import { t } from '@/lib/i18n'
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
@@ -13,6 +14,7 @@ import { parseDesignReferences } from '../lib/design-brief'
 import { toast } from 'sonner'
 
 export function SiteWorkspace({ generate = false, destination = '/editor' }: { generate?: boolean; destination?: string }) {
+  const [proposal,setProposal]=useState<SiteConfig>()
   const navigate = useNavigate()
   const [data, setData] = useState<SiteData>()
   const [error, setError] = useState('')
@@ -20,19 +22,20 @@ export function SiteWorkspace({ generate = false, destination = '/editor' }: { g
   const [revision, setRevision] = useState(0)
   const [brief, setBrief] = useState({ description: '', references: '' })
 
-  function openSite(d: SiteData, generated?: SiteConfig) {
+  function openSite(d: SiteData, generated?: SiteConfig, navigateAfter=true) {
     const id = `social-site-${d.user.id}`
     const store = useProjectsStore.getState()
     const draft = store.projects.find(p => p.id === id)
     const saved = decode(d.site.openpage_config)
-    if (!generated && !draft?.config && d.site.openpage_config && !Array.isArray(saved.blocks) && !Array.isArray(saved.pages)) throw new Error('La configurazione salvata non è valida. Il sito pubblicato è stato conservato.')
-    const config = refreshArticles(generated || draft?.config || (d.site.openpage_config ? validateSiteConfig(saved) : configFromProfile(d)), d)
+    const hasSaved=Array.isArray(saved.blocks) || Array.isArray(saved.pages)
+    if (!generated && !draft?.config && d.site.openpage_config && !hasSaved && !saved._versions) throw new Error('La configurazione salvata non è valida. Il sito pubblicato è stato conservato.')
+    const config = refreshArticles(generated || draft?.config || (hasSaved ? validateSiteConfig(saved) : configFromProfile(d)), d)
     if (!draft) useProjectsStore.setState(s => ({ projects: [{ id, name: config.name, status: 'draft', updatedAt: 'Ora', blockCount: config.blocks.length }, ...s.projects] }))
     store.updateProjectConfig(id, config)
     if (!draft?.settings) store.updateProjectSettings(id, { language: 'Italian', siteName: config.name, seoDescription: String(d.site.hero_tagline || d.site.profile_summary || ''), ogImageUrl: String(d.site.cover_url || '') })
     useConfigStore.getState().setConfig(config)
     useEditorStore.getState().setActiveProject(id)
-    navigate(destination, { replace: true })
+    if(navigateAfter)navigate(destination, { replace: true })
   }
 
   useEffect(() => {
@@ -42,7 +45,7 @@ export function SiteWorkspace({ generate = false, destination = '/editor' }: { g
     siteRequest('site', undefined, controller.signal).then(d => {
       if (controller.signal.aborted) return
       setData(d)
-      if (!generate) openSite(d)
+      openSite(d,undefined,!generate)
     }).catch(e => { if (!controller.signal.aborted) setError(e.message) })
     return () => controller.abort()
   }, [generate, revision]) // eslint-disable-line react-hooks/exhaustive-deps
@@ -54,14 +57,7 @@ export function SiteWorkspace({ generate = false, destination = '/editor' }: { g
     try {
       const result = await siteRequest('openpage-generate', { instructions: brief.description, references: parseDesignReferences(brief.references) })
       if (result.references?.some((ref: { status: string }) => ref.status === 'unavailable')) toast.warning(t('Some references could not be read. Your description was used.'))
-      const store = useProjectsStore.getState()
-      const previous = store.projects.find(p => p.id === `social-site-${data.user.id}`)
-      if (previous?.config) {
-        const backupId = store.addProject(`${previous.name} · ${t('Previous draft')}`)
-        store.updateProjectConfig(backupId, previous.config)
-        if (previous.settings) store.updateProjectSettings(backupId, previous.settings)
-      }
-      openSite(data, completeGeneratedSite(validateSiteConfig(result.config), data))
+      setProposal(completeGeneratedSite(validateSiteConfig(result.config), data))
     } catch (e) { setError(e instanceof Error ? e.message : 'Generazione non riuscita') }
     finally { setBusy(false) }
   }
@@ -78,6 +74,6 @@ export function SiteWorkspace({ generate = false, destination = '/editor' }: { g
       <div className="flex flex-wrap gap-3"><button disabled={busy} onClick={createSite} className="bg-green text-black rounded-lg px-5 py-3 flex gap-2 items-center">{busy ? <Loader2 className="animate-spin" size={18} aria-hidden="true" /> : <Sparkles size={18} aria-hidden="true" />}{busy ? t('Creazione in corso…') : t('Genera una nuova proposta')}</button>
       <button disabled={busy} onClick={() => openSite(data)} className="border border-border-default rounded-lg px-5 py-3 flex items-center gap-2"><Pencil size={18} aria-hidden="true" />{t("Modifica il sito attuale")}</button></div>
     </>}
-    <a className="flex items-center gap-2 text-green" href="/dashboard?tab=profile"><ArrowLeft size={18} aria-hidden="true" />{t("Torna alla profilazione")}</a>
-  </div></div>
+    <a className="flex items-center gap-2 text-green" href="/builder/public"><ArrowLeft size={18} aria-hidden="true" />{t('Public website')}</a>
+  </div>{proposal&&<PresentationApproval proposal={proposal} label={t("New website proposal")} onApprove={()=>{if(data)openSite(data,proposal)}} onClose={()=>setProposal(undefined)}/>}</div>
 }

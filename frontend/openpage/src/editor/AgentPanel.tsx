@@ -1,3 +1,5 @@
+import {PresentationApproval} from './PresentationApproval'
+import type {SiteConfig} from '@/blocks/types'
 import { t } from '@/lib/i18n'
 import { useState, useRef, useEffect } from 'react'
 import { Send, Check, X } from 'lucide-react'
@@ -137,14 +139,11 @@ function generateResponse(input: string, blocks: { id: string; type: string; var
 }
 
 export function AgentPanel() {
+  const [proposal,setProposal]=useState<SiteConfig>()
   const [messages, setMessages] = useState<ChatMessage[]>(initialMessages)
   const [input, setInput] = useState('')
   const [showTyping, setShowTyping] = useState(false)
   const updateBlockProps = useConfigStore((s) => s.updateBlockProps)
-  const addBlock = useConfigStore((s) => s.addBlock)
-  const removeBlock = useConfigStore((s) => s.removeBlock)
-  const updateBlock = useConfigStore((s) => s.updateBlock)
-  const setTheme = useConfigStore((s) => s.setTheme)
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -191,25 +190,18 @@ export function AgentPanel() {
 
       // Handle action-based responses
       if ('action' in response) {
-        const agentMsg: ChatMessage = { id: `msg-${Date.now()}`, role: 'agent', text: response.message }
+        const agentMsg: ChatMessage = { id: `msg-${Date.now()}`, role: 'agent', text: t('Review the proposal and authorize it before applying.') }
         setMessages((prev) => [...prev, agentMsg])
 
-        if (response.action === 'addBlock') {
-          addBlock(response.block)
-          toast(`${response.block.type} block added`)
-        } else if (response.action === 'removeBlock') {
-          removeBlock(response.blockId)
-          toast(t('Block removed'))
-        } else if (response.action === 'changeVariant') {
-          updateBlock(response.blockId, { variant: response.variant })
-          toast(`Variant changed to ${response.variant}`)
-        } else if (response.action === 'changeTheme') {
-          const preset = themePresets.find((p) => p.id === response.themeId)
-          if (preset) {
-            setTheme(preset.theme)
-            toast(`Theme changed to ${t(preset.name)}`)
-          }
-        }
+        const proposed = structuredClone(state.config)
+        const activePage = proposed.pages?.find(p=>p.id===state.activePageId) || proposed.pages?.[0]
+        let blocks = activePage?.blocks || proposed.blocks
+        if (response.action === 'addBlock') blocks = [...blocks,response.block]
+        else if (response.action === 'removeBlock') blocks = blocks.filter(b=>b.id!==response.blockId)
+        else if (response.action === 'changeVariant') blocks = blocks.map(b=>b.id===response.blockId?{...b,variant:response.variant}:b)
+        else if (response.action === 'changeTheme') {const preset=themePresets.find(p=>p.id===response.themeId);if(preset)proposed.theme=preset.theme}
+        if(activePage){activePage.blocks=blocks;proposed.blocks=proposed.pages![0].blocks}else proposed.blocks=blocks
+        setProposal(proposed)
       } else {
         setMessages((prev) => [...prev, response])
       }
@@ -222,6 +214,7 @@ export function AgentPanel() {
 
   return (
     <div className="flex flex-col flex-1 overflow-hidden">
+      {proposal&&<PresentationApproval proposal={proposal} label={t("LIA proposal")} onApprove={()=>{useConfigStore.getState().applyPresentation(proposal);setProposal(undefined)}} onClose={()=>setProposal(undefined)}/>}
       {/* Messages */}
       <div className="flex-1 overflow-y-auto p-3 flex flex-col gap-2.5">
         {messages.map((msg) => (

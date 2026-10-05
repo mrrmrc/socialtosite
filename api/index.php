@@ -1817,6 +1817,28 @@ if ($action === 'openpage-generate' && $method === 'POST') {
     }
 }
 
+if ($action === 'openpage-versions' && $method === 'GET') {
+    ensureSiteSchemaUpgrades();
+    $document = decodeJsonObject(DB::fetch('SELECT openpage_config FROM sites WHERE user_id=?', [$userId])['openpage_config'] ?? null);
+    json(['ok'=>true, 'versions'=>$document['_versions'] ?? []]);
+}
+if ($action === 'openpage-version' && $method === 'POST') {
+    $pdo = DB::get();
+    try {
+        ensureSiteSchemaUpgrades();
+        require_once __DIR__ . '/services/openpage_versions.php';
+        $input = body();
+        if (!is_array($input['config'] ?? null) || strlen(json_encode($input['config'])) > 1000000) throw new RuntimeException('Configurazione della versione non valida o troppo grande.');
+        $pdo->beginTransaction();
+        $row = DB::fetch('SELECT openpage_config FROM sites WHERE user_id=? FOR UPDATE', [$userId]);
+        if (!$row) throw new RuntimeException('Sito non trovato.');
+        $document = OpenPageVersions::append(decodeJsonObject($row['openpage_config'] ?? null), $input['config'], (string)($input['label'] ?? ''), is_array($input['settings'] ?? null) ? $input['settings'] : []);
+        DB::execute('UPDATE sites SET openpage_config=? WHERE user_id=?', [json_encode($document, JSON_UNESCAPED_UNICODE), $userId]);
+        $pdo->commit();
+        json(['ok'=>true]);
+    } catch (Throwable $e) { if ($pdo->inTransaction()) $pdo->rollBack(); jsonError($e->getMessage()); }
+}
+
 if ($action === 'openpage-publish' && $method === 'POST') {
     try {
         ensureSiteSchemaUpgrades();
@@ -1832,12 +1854,22 @@ if ($action === 'openpage-publish' && $method === 'POST') {
             jsonError('Configurazione del sito non valida', 422);
         }
 
+        require_once __DIR__ . '/services/openpage_versions.php';
+        $pdo = DB::get();
+        $pdo->beginTransaction();
+        $previous = decodeJsonObject(DB::fetch('SELECT openpage_config FROM sites WHERE user_id=? FOR UPDATE', [$userId])['openpage_config'] ?? null);
+        if (is_array($previous['blocks'] ?? null)) $previous = OpenPageVersions::append($previous, $previous, 'Prima della pubblicazione');
+        $decodedConfig['_versions'] = $previous['_versions'] ?? [];
+        $decodedConfig = OpenPageVersions::append($decodedConfig, $decodedConfig, 'Versione pubblicata', is_array($b['settings'] ?? null) ? $b['settings'] : []);
+        $config = json_encode($decodedConfig, JSON_UNESCAPED_UNICODE);
         DB::execute(
             'UPDATE sites SET openpage_html=?, openpage_config=? WHERE user_id=?',
             [$html, $config, $userId]
         );
+        $pdo->commit();
         json(['ok' => true, 'url' => '/' . rawurlencode($me['slug']), 'deploymentId' => 'site-' . time()]);
     } catch (Throwable $e) {
+        if (isset($pdo) && $pdo->inTransaction()) $pdo->rollBack();
         jsonError('Errore OpenPage Publish: ' . $e->getMessage());
     }
 }

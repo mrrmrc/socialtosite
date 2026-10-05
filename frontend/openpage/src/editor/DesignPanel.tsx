@@ -1,3 +1,4 @@
+import {PresentationApproval} from './PresentationApproval'
 import { t } from '@/lib/i18n'
 import { useState, useMemo } from 'react'
 import { Link } from 'react-router-dom'
@@ -84,6 +85,7 @@ function ColorSection({ title, colors, defaultOpen = false }: {
 
 export function DesignPanel() {
   const theme = useConfigStore((s) => s.config.theme)
+  const [proposal,setProposal]=useState<(typeof themePresets)[number]>()
   const setTheme = useConfigStore((s) => s.setTheme)
   const updateTheme = useConfigStore((s) => s.updateTheme)
   const resolved = useMemo(() => resolveTheme(theme), [theme])
@@ -99,6 +101,8 @@ export function DesignPanel() {
   }, [resolved])
 
   return (
+    <>
+    {proposal&&<PresentationApproval proposal={{...useConfigStore.getState().config,theme:proposal.theme}} label={t(proposal.name)} onApprove={()=>{setTheme(proposal.theme);setProposal(undefined)}} onClose={()=>setProposal(undefined)}/>}
     <div className="px-3.5 py-3.5">
       <Link to="/themes" className="block border border-green rounded-lg p-3 mb-4 text-green font-semibold">{t('Themes and layouts')} →</Link>
       {/* Preset grid */}
@@ -108,7 +112,7 @@ export function DesignPanel() {
           {themePresets.map((preset) => (
             <button
               key={preset.id}
-              onClick={() => setTheme(preset.theme)}
+              onClick={() => setProposal(preset)}
               className={`p-2 rounded-lg border transition-all text-left ${
                 activePresetId === preset.id
                   ? 'border-green bg-green/5'
@@ -223,5 +227,6 @@ export function DesignPanel() {
         </div>
       </div>
     </div>
+    </>
   )
 }

@@ -48,7 +48,7 @@ export async function publishSite(input: PublishSiteInput): Promise<PublishSiteR
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${token}`
     },
-    body: JSON.stringify({ html, config: configJson }),
+    body: JSON.stringify({ html, config: configJson, settings }),
   })
 
   if (!response.ok) {

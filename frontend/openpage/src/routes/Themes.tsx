@@ -1,3 +1,4 @@
+import {PresentationApproval} from '../editor/PresentationApproval'
 import { useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Palette, Search, Check, ArrowLeft, Sparkles, Loader2, BookOpen, BriefcaseBusiness, HeartHandshake, Camera, LayoutGrid, Eye } from 'lucide-react'
@@ -17,6 +18,8 @@ import { t } from '../lib/i18n'
 const categories = [{name:'All',icon:LayoutGrid},{name:'Personal',icon:BookOpen},{name:'Creative',icon:Camera},{name:'Editorial',icon:BookOpen},{name:'Business',icon:BriefcaseBusiness},{name:'Community',icon:HeartHandshake}]
 const categoryOf = (id:string,category?:string) => category || ({author:'Personal',portfolio:'Creative',magazine:'Editorial',business:'Business',community:'Community'}[id] || 'Personal')
 export function Themes() {
+  const [approval,setApproval]=useState(false)
+  const [lia,setLia]=useState({goal:'',feel:'',focus:''})
   const config = useConfigStore(s => s.config)
   const [selected, setSelected] = useState(siteLayouts[0])
   const [category,setCategory] = useState('All')
@@ -36,13 +39,13 @@ export function Themes() {
     if (id) useProjectsStore.getState().updateProjectConfig(id, proposal)
     navigate('/editor')
   }
-  async function customize() {
+  async function customize(instructions=brief.description) {
     setError('');setFeedback([])
     try {
       const references=parseDesignReferences(brief.references)
-      if (!brief.description.trim()) throw new Error(t('Describe the style you want before generating.'))
+      if (!instructions.trim()) throw new Error(t('Describe the style you want before generating.'))
       setBusy(true)
-      const result=await siteRequest('openpage-generate',{instructions:brief.description,references,mode:'layout',config})
+      const result=await siteRequest('openpage-generate',{instructions,references,mode:'layout',config})
       setCustom(applyGeneratedPresentation(config,validateSiteConfig(result.config)))
       setFeedback(result.references || [])
     } catch(e) {setError(e instanceof Error ? e.message : t('Generation failed'))}
@@ -50,6 +53,7 @@ export function Themes() {
   }
   return <div className="h-full overflow-auto p-4 md:p-6"><div className="max-w-7xl mx-auto space-y-6">
     <header><h1 className="flex items-center gap-3 text-3xl font-semibold"><Palette aria-hidden="true" />{t('Themes and layouts')}</h1><p className="text-text-1 mt-3">{t('Preview each layout with your content. Text, menu, articles, contacts and custom sections are preserved. Changes stay in your draft until you publish.')}</p></header>
+    <section className="rounded-xl border border-border-default bg-bg-1 p-5 space-y-4"><h2 className="text-xl font-semibold">{t('Not sure? Ask LIA')}</h2><p>{t('Tell LIA what matters to you. She will use your profile to prepare a visual proposal; nothing is applied automatically.')}</p><div className="grid md:grid-cols-3 gap-3">{([['goal','Website goal'],['feel','Desired atmosphere'],['focus','What should stand out?']] as const).map(([key,label])=><label key={key}>{t(label)}<input className="block w-full border rounded-lg p-3 bg-bg-2" value={lia[key]} onChange={e=>setLia(v=>({...v,[key]:e.target.value}))}/></label>)}</div><button disabled={busy} onClick={()=>customize('Aiuta questo cliente a scegliere una grafica coerente con il profilo, anche se non ha ancora deciso. Obiettivo: '+(lia.goal||'deducilo dal profilo')+'. Atmosfera desiderata: '+(lia.feel||'consiglia tu')+'. In evidenza: '+(lia.focus||'consiglia tu')+'. '+brief.description)} className="bg-green rounded-lg px-4 py-3">{busy?t('Creating proposal…'):t('Ask LIA for a proposal')}</button></section>
     <section className="grid gap-6 lg:grid-cols-2" aria-label={t('Choose and preview')}>
       <div className="space-y-4">
         <div className="flex flex-wrap gap-2">{categories.map(({name,icon:Icon})=><button key={name} aria-pressed={category===name} onClick={()=>setCategory(name)} className={'flex items-center gap-2 px-3 py-2 rounded-lg border '+(category===name?'border-green text-green bg-green-glow':'border-border-default bg-bg-1')}><Icon size={17} aria-hidden="true" />{t(name)}</button>)}</div>
@@ -60,8 +64,8 @@ export function Themes() {
           <strong className="flex gap-2 items-center text-lg"><Icon size={18} aria-hidden="true" />{t(layout.name)}</strong><span className="block mt-2 text-text-1">{t(layout.description)}</span>
         </button>})}</div>{!layouts.length && <p role="status">{t('No layouts match this search.')}</p>}
       </div>
-      <div className="space-y-3"><h2 className="flex gap-2 items-center text-xl font-semibold"><Eye size={20} aria-hidden="true" />{custom?t('Custom proposal'):t(selected.name)}</h2><iframe title={t('Layout preview')} srcDoc={html} sandbox="allow-scripts" className="w-full h-[540px] rounded-xl border border-border-default bg-white" /><div className="flex flex-wrap gap-3"><button disabled={busy} onClick={apply} className="flex items-center gap-2 bg-green text-black rounded-lg px-5 py-3 font-semibold"><Check size={18} aria-hidden="true" />{t('Apply to draft')}</button><Link to="/editor" className="flex items-center gap-2 px-3 py-3"><ArrowLeft size={18} aria-hidden="true" />{t('Back to editor')}</Link></div><p className="text-sm text-text-2">{t('You can undo this change in the editor.')}</p></div>
+      <div className="space-y-3"><h2 className="flex gap-2 items-center text-xl font-semibold"><Eye size={20} aria-hidden="true" />{custom?t('Custom proposal'):t(selected.name)}</h2><iframe title={t('Layout preview')} srcDoc={html} sandbox="allow-scripts" className="w-full h-[540px] rounded-xl border border-border-default bg-white" /><div className="flex flex-wrap gap-3"><button disabled={busy} onClick={()=>setApproval(true)} className="flex items-center gap-2 bg-green text-black rounded-lg px-5 py-3 font-semibold"><Check size={18} aria-hidden="true" />{t('Apply to draft')}</button><Link to="/editor" className="flex items-center gap-2 px-3 py-3"><ArrowLeft size={18} aria-hidden="true" />{t('Back to editor')}</Link></div><p className="text-sm text-text-2">{t('You can undo this change in the editor.')}</p></div>
     </section>
-    <section className="rounded-xl border border-border-default bg-bg-2 p-5 space-y-4"><h2 className="flex items-center gap-2 text-xl font-semibold"><Sparkles size={22} aria-hidden="true" />{t('Design a custom layout')}</h2><p>{t('Describe your visual idea. We keep your existing content and create a proposal to preview before applying it.')}</p><DesignBrief value={brief} onChange={setBrief} disabled={busy} /><button disabled={busy} onClick={customize} className="bg-green text-black rounded-lg px-5 py-3 font-semibold flex items-center gap-2">{busy?<Loader2 className="animate-spin" size={18} aria-hidden="true" />:<Sparkles size={18} aria-hidden="true" />}{busy?t('Creating proposal…'):t('Preview custom proposal')}</button>{error && <p role="alert" className="text-status-red">{error}</p>}{feedback.length>0 && <ul className="text-sm space-y-2" aria-label={t('Reference results')}>{feedback.map((ref,index)=><li key={index}>{ref.url} — {ref.status==='read'?t('HTML reference read'):ref.message}</li>)}</ul>}{custom && <p role="status">{t('Custom preview ready. Review it above and apply it when you are satisfied.')}</p>}</section>
-  </div></div>
+    <section className="rounded-xl border border-border-default bg-bg-2 p-5 space-y-4"><h2 className="flex items-center gap-2 text-xl font-semibold"><Sparkles size={22} aria-hidden="true" />{t('Design a custom layout')}</h2><p>{t('Describe your visual idea. We keep your existing content and create a proposal to preview before applying it.')}</p><DesignBrief value={brief} onChange={setBrief} disabled={busy} /><button disabled={busy} onClick={()=>customize()} className="bg-green text-black rounded-lg px-5 py-3 font-semibold flex items-center gap-2">{busy?<Loader2 className="animate-spin" size={18} aria-hidden="true" />:<Sparkles size={18} aria-hidden="true" />}{busy?t('Creating proposal…'):t('Preview custom proposal')}</button>{error && <p role="alert" className="text-status-red">{error}</p>}{feedback.length>0 && <ul className="text-sm space-y-2" aria-label={t('Reference results')}>{feedback.map((ref,index)=><li key={index}>{ref.url} — {ref.status==='read'?t('HTML reference read'):ref.message}</li>)}</ul>}{custom && <p role="status">{t('Custom preview ready. Review it above and apply it when you are satisfied.')}</p>}</section>
+  </div>{approval&&<PresentationApproval proposal={proposal} label={custom?t("Custom proposal"):t(selected.name)} onApprove={apply} onClose={()=>setApproval(false)}/>}</div>
 }

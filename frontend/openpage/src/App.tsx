@@ -5,6 +5,8 @@ import { Dashboard } from './routes/Dashboard'
 import { SiteWorkspace } from './routes/SiteWorkspace'
 import { Themes } from './routes/Themes'
 import { ProfileSync } from './routes/ProfileSync'
+import { PublicSite } from './routes/PublicSite'
+import { Versions } from './routes/Versions'
 import { useEditorStore } from './store/editorStore'
 import { Editor } from './routes/Editor'
 import { Components } from './routes/Components'
@@ -20,7 +22,9 @@ function AppRoutes() {
   return (
     <Routes>
       <Route element={<AppLayout />}>
-        <Route index element={<SiteWorkspace />} />
+        <Route index element={<PublicSite />} />
+        <Route path="public" element={<PublicSite />} />
+        <Route path="versions" element={activeProjectId ? <Versions /> : <SiteWorkspace destination="/versions" />} />
         <Route path="create" element={<SiteWorkspace generate />} />
         <Route path="themes" element={activeProjectId ? <Themes /> : <SiteWorkspace destination="/themes" />} />
         <Route path="profile" element={activeProjectId?.startsWith('social-site-') ? <ProfileSync /> : <SiteWorkspace destination="/profile" />} />

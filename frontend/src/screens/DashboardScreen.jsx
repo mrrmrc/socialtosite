@@ -1088,7 +1088,7 @@ function SiteMapGraph({ posts, siteUrl, siteTitle, foundationPages = [] }) {
 
 import StrategyInterview from "./StrategyInterview";
 export function DashboardScreen({ token, user, onLogout }) {
-  const [tab, setTab] = useState((() => { const requested = new URLSearchParams(window.location.search).get("tab"); return ["overview", "profile", "site", "sources", "seo", "idea", "account", "security", "services"].includes(requested) ? requested : "overview"; })());
+  const [tab, setTab] = useState((() => { const requested = new URLSearchParams(window.location.search).get("tab"); return ["overview", "profile", "site", "sources", "seo", "idea", "account", "security", "services", "publicsite"].includes(requested) ? requested : "overview"; })());
   const [visibilitySection, setVisibilitySection] = useState("overview");
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -4381,12 +4381,7 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
   const visibleNavigationGroups = [
     { label: "Inizio", items: [{ id: "overview", icon: <span>⌂</span>, label: "Home", hint: "Stato del progetto e prossime azioni" }] },
     { label: "Profilo e contenuti", items: [navItem("profile") || { id: "profile", icon: <span>◎</span>, label: "Il mio profilo", hint: "Identità, stile editoriale e contatti" }, navItem("sources"), { ...navItem("site"), label: "Contenuti" }].filter(Boolean) },
-    { label: "Sito e grafica", items: [
-      { id: "builder", icon: <span>✎</span>, label: "Modifica sito", hint: "Testi, immagini, menu e sezioni" },
-      { id: "themes", icon: <span>▦</span>, label: "Temi e layout", hint: "Cambia struttura mantenendo i contenuti" },
-      { id: "generate", icon: <span>✧</span>, label: "Crea dal profilo", hint: "Genera una nuova proposta con l’AI" },
-      navItem("seo"),
-    ].filter(Boolean) },
+    { label: "Sito pubblico", items: [{ id: "publicsite", icon: <span>▣</span>, label: "Sito pubblico", hint: "Editor, temi, assistenza LIA e versioni" },navItem("seo")].filter(Boolean) },
     { label: "Account", items: [
       { id: "services", icon: <span>◇</span>, label: "Piano e servizi", hint: "Funzionalità e abbonamento" },
     ] },
@@ -4399,6 +4394,7 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
     tab === item.id && (!item.section || visibilitySection === item.section);
   const activeNavigation = flatNavigation.find(isNavigationActive) || ({ account: { group: "Account", label: "Il mio account" }, security: { group: "Account", label: "Password e sicurezza" } })[tab];
   const pageMeta = {
+    publicsite: ["Sito pubblico", "Modifica, scegli il layout con LIA e conserva le versioni del tuo sito."],
     profile: ["Il mio profilo", "Identità, obiettivi e contatti guidano i contenuti e la creazione del sito."],
     idea: ["Idee e nuovi contenuti", "Crea contenuti coerenti con il tuo profilo e rivedili prima di pubblicare."],
     overview: [
@@ -4960,6 +4956,8 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
             </div>
           )}
 
+          {tab === 'publicsite' && <section className="card profile-review-panel"><h2>Il tuo sito, le tue scelte</h2><p>LIA prepara proposte. Le modifiche grafiche si applicano dopo la tua autorizzazione; il sito online cambia quando pubblichi. Le versioni salvate permettono di tornare indietro.</p><div className="profile-review-fields">{[{href:'/builder/editor',icon:'✎',title:'Modifica sito',description:'Testi, immagini, sezioni e menu.'},{href:'/builder/themes',icon:'▦',title:'Temi e layout',description:'Guarda le anteprime o fatti aiutare da LIA a scegliere.'},{href:'/builder/create',icon:'✧',title:'Nuova proposta del sito',description:'Descrivi la tua idea e valuta una proposta prima di autorizzarla.'},{href:'/builder/versions',icon:'◷',title:'Versioni salvate',description:'Salva una versione, confrontala e ripristinala.'},{href:'/builder/profile',icon:'◎',title:'Aggiorna dal profilo',description:'Scegli quali dati pubblici trasferire alla bozza.'}].map(item=><a key={item.href} className="card" href={item.href} style={{textDecoration:'none',color:'inherit'}}><h3>{item.icon} {item.title}</h3><p>{item.description}</p></a>)}</div></section>}
+
           {/* Profile Sub-Navigation */}
           {tab === "profile" && (
             <div style={{ marginBottom: "2rem" }}>
@@ -5060,7 +5058,7 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
               </div>
             </div>
           )}
-          {tab === 'profile' && <section className="profile-flow"><p><strong>Un profilo, un percorso:</strong> intervista → analisi dei social → dati pubblici → bozza → pubblicazione.</p><a className="btn btn-outline" href="/builder/profile">Rivedi e aggiorna la bozza dal profilo →</a></section>}
+          {tab === 'profile' && <section className="profile-flow"><p><strong>Un profilo, un percorso:</strong> intervista → analisi dei social → dati pubblici → bozza → pubblicazione.</p><a className="btn btn-outline" href="/dashboard?tab=publicsite">Vai al Sito pubblico →</a></section>}
           {tab === 'profile' && profileReviewMessage && <p role={profileReviewMessage.ok?'status':'alert'}>{profileReviewMessage.text}</p>}
           {tab === 'profile' && profileSubTab === 'social' && <div className="profile-review-stack"><ProfileReviewPanel social value={{...(profileUnderstanding || {}),...socialProfileDraft}} onChange={(key,value)=>setSocialProfileDraft(prev=>({...prev,[key]:value}))} onSave={()=>saveProfileReview('social')} busy={profileReviewBusy} /><section className="card"><h3>Origine delle informazioni</h3><p>{sources.length} canali collegati · {posts.length} contenuti acquisiti. {profileUnderstanding?.generated_at ? `Ultima analisi: ${profileUnderstanding.generated_at}` : 'Nessuna analisi disponibile: collega i social e avvia l’analisi.'}</p><button className="btn btn-outline" onClick={analyzeProfile} disabled={profileAnalyzing}>{profileAnalyzing?'Analisi in corso…':'Aggiorna l’analisi dai contenuti'}</button> <button className="btn btn-outline" onClick={()=>setTab('sources')}>Gestisci i social collegati</button></section>{profileQuestions.length>0 && <details className="card"><summary>Domande e chiarimenti dell’AI</summary>{profileQuestions.map(question=><div key={question.id}><label><strong>{question.question}</strong><textarea rows={3} value={answerDrafts[question.id] ?? question.answer ?? ''} onChange={event=>setAnswerDrafts(prev=>({...prev,[question.id]:event.target.value}))} /></label><button className="btn btn-outline" disabled={answeringId===question.id} onClick={()=>submitProfileAnswer(question.id)}>Salva risposta</button></div>)}</details>}</div>}
 

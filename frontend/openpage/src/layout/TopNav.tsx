@@ -4,9 +4,10 @@ import { LayoutDashboard, Pencil, Settings, Menu, X, Star } from 'lucide-react'
 import { useState } from 'react'
 
 const links = [
+  { to: '/public', label: t('Public website'), icon: LayoutDashboard },
   { to: '/editor', label: t('Modifica sito'), icon: Pencil },
   { to: '/themes', label: t('Themes and layouts'), icon: LayoutDashboard },
-  { to: '/create', label: t('Crea dal profilo'), icon: Settings },
+  { to: '/versions', label: t('Saved versions'), icon: LayoutDashboard },
   { to: '/settings', label: t('Settings'), icon: Settings },
   { to: '/projects', label: t('Projects'), icon: LayoutDashboard },
 ]
@@ -19,7 +20,7 @@ export function TopNav() {
       {/* Logo */}
       <a href="/dashboard" className="flex items-center gap-3 mr-3 select-none shrink-0" aria-label="All Social To Web · Home">
         <img src="/logo-cropped.png" alt="" width={38} height={38} className="object-contain" />
-        <span className="leading-tight"><strong className="block text-base text-text-0">All Social <span className="text-green">To Web</span></strong><span className="block text-sm text-text-2 mt-1">{t('Website editor')}</span></span>
+        <span className="leading-tight"><strong className="block text-base text-text-0">All Social <span className="text-green">To Web</span></strong><span className="block text-sm text-text-2 mt-1">{t('Public website')}</span></span>
       </a>
 
       {/* Desktop nav */}
