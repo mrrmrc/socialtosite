@@ -38,6 +38,6 @@ final class VideoSource {
             preg_match('/^.{1,' . $limit . '}/us', $plain, $matches);
             return $matches[0] ?? '';
         };
-        return ['title'=>$excerpt(60), 'body'=>$body, 'excerpt'=>$excerpt(155), 'tags'=>[], 'meta_description'=>$excerpt(155), 'seo_score'=>0];
+        return ['title'=>$excerpt(60), 'body'=>$body, 'excerpt'=>$excerpt(155), 'tags'=>[], 'meta_description'=>$excerpt(155), 'seo_score'=>1];
     }
 }

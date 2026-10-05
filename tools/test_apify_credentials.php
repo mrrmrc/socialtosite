@@ -31,6 +31,11 @@ try {
     $disabled = false;
     try { $method->invoke(null); } catch (RuntimeException $e) { $disabled = str_contains($e->getMessage(), 'disattivata'); }
     $check('disabled provider remains blocked', $disabled);
+    $normalize = new ReflectionMethod(ApifyClient::class, 'normalize');
+    $video = $normalize->invoke(null, ['webVideoUrl'=>'https://www.tiktok.com/@test/video/1', 'videoMeta'=>['downloadAddr'=>'https://example.com/spoken.mp4'], 'thumbnailUrl'=>'https://example.com/cover.jpg']);
+    $check('TikTok uses spoken video instead of its thumbnail', $video['media_type'] === 'video' && $video['media_url'] === 'https://example.com/spoken.mp4');
+    $missing = $normalize->invoke(null, ['url'=>'https://www.facebook.com/test/videos/1', 'type'=>'video', 'media'=>[['type'=>'video','photo_image'=>['uri'=>'https://example.com/cover.jpg']]]]);
+    $check('missing video is never reclassified as an image', $missing['media_type'] === 'video' && $missing['media_url'] === '');
 } finally {
     foreach ($names as $i => $name) putenv($original[$i] === false ? $name : $name . '=' . $original[$i]);
     unlink($directory . '/apify_client.php');

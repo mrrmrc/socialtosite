@@ -189,6 +189,8 @@ final class ApifyClient {
             if ($mediaUrl === '' && $immaginiDaMedia) $mediaUrl = $immaginiDaMedia[0];
         }
 
+        $nestedVideo = trim((string)($result['videoMeta']['downloadAddr'] ?? $result['videoMeta']['originalDownloadAddr'] ?? ''));
+        if ($nestedVideo !== '') { $mediaType = 'video'; $mediaUrl = $nestedVideo; }
         $imageUrls = $immaginiDaMedia;
         foreach (['imageUrl', 'displayUrl', 'thumbnailUrl', 'coverUrl'] as $key) {
             if (!empty($result[$key])) $imageUrls[] = $result[$key];
