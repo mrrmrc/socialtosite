@@ -121,6 +121,7 @@ jobs:
             trap 'rm -f config/config.php' EXIT
           fi
           php tools/test_publication.php
+          php tools/test_apify_credentials.php
           php tools/test_wordpress_connector.php
 
       - name: Setup Node.js

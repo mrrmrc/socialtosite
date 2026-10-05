@@ -37,6 +37,8 @@ jobs:
       - name: Test PHP syntax
         run: |
           sudo apt-get install -y php-cli
+          php -l api/services/apify_client.php
+          php tools/test_apify_credentials.php
           php -l public/site.php
           php -l api/services/openpage.php
           php -l api/services/design_references.php

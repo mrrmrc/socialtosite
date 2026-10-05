@@ -47,7 +47,7 @@ final class ApifyClient {
         // storica eventualmente rimasta nel database.
         $envToken = getenv('SOCIALTOSITE_RUNTIME_APIFY_API_TOKEN');
         if ($envToken !== false && trim((string)$envToken) !== '') {
-            $runtimeValue = trim((string)$envToken);
+            return trim((string)$envToken);
         } elseif (defined('SOCIALTOSITE_RUNTIME_APIFY_API_TOKEN')) {
             $runtimeValue = trim((string)constant('SOCIALTOSITE_RUNTIME_APIFY_API_TOKEN'));
             if ($runtimeValue !== '') return $runtimeValue;
