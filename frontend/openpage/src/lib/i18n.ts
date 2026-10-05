@@ -5,6 +5,7 @@ export function getBrowserLanguage(languages?: readonly string[]): BrowserLangua
   return preferred[0]?.toLowerCase().startsWith('it') ? 'it' : 'en'
 }
 const italian: Record<string, string> = {
+  'Loading…':'Caricamento…',
   'Review profile changes':'Rivedi le modifiche dal profilo',
   'Choose which saved public information to transfer to the draft. Your layout, menu, article rules, other pages and custom sections are preserved. Review the preview before applying; publish from the editor when ready.':'Scegli quali dati pubblici salvati trasferire alla bozza. Layout, menu, regole degli articoli, altre pagine e sezioni personalizzate vengono conservati. Controlla l’anteprima, applica le modifiche e pubblica dall’editor quando sei pronto.',
   'Saved public information':'Dati pubblici salvati',
