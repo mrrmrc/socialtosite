@@ -178,6 +178,13 @@ h3 { font-size: 24px; font-weight: 700; }
   backdrop-filter: blur(18px);
 }
 .backend-header .astw-brand { display: inline-flex; align-items: center; gap: .72rem; line-height: .9; text-decoration: none; }
+.backend-header-brand { display: flex; align-items: center; gap: 10px; }
+.backend-header-brand > strong { font-size: 16px; line-height: 1.2; }
+@media (max-width: 520px) {
+  .backend-header-brand > strong, .header-site-label { display: none; }
+  .backend-header { gap: 8px; }
+  .backend-header-actions { gap: 6px !important; }
+}
 .backend-header .astw-brand > span:last-child { display: grid; font-size: .86rem; letter-spacing: -.025em; }
 .backend-header .astw-brand strong { color: #171917; font-weight: 900; }
 .backend-header .astw-brand b { color: #ee6346; font-weight: 900; }
