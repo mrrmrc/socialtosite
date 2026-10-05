@@ -5,6 +5,20 @@ export function getBrowserLanguage(languages?: readonly string[]): BrowserLangua
   return preferred[0]?.toLowerCase().startsWith('it') ? 'it' : 'en'
 }
 const italian: Record<string, string> = {
+  "Complete your profile to give LIA more information.":"Completa il profilo per dare a LIA più informazioni.",
+  "connected channels":"canali collegati",
+  "available contents":"contenuti disponibili",
+  "Review your profile":"Rivedi il tuo profilo",
+  "My profile":"Il mio profilo",
+  "Connected social accounts":"Social collegati",
+  "Contents":"Contenuti",
+  "Monitoring and SEO":"Monitoraggio e SEO",
+  "Plan and services":"Piano e servizi",
+  "Open my website":"Apri il mio sito",
+  "Account menu":"Menu account",
+  "My account":"Il mio account",
+  "Password and security":"Password e sicurezza",
+  "Website tools":"Strumenti del sito",
   "Public website":"Sito pubblico",
   "Manage your website here: edit it, explore layouts with LIA, review proposals and keep versions you can restore. Nothing goes online until you publish.":"Gestisci qui il sito: modificalo, scegli il layout con LIA, rivedi le proposte e conserva le versioni da ripristinare. Il sito online cambia solo quando pubblichi.",
   "Edit pages, text, images and navigation":"Modifica pagine, testi, immagini e menu",

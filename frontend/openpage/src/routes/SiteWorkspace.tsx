@@ -62,13 +62,14 @@ export function SiteWorkspace({ generate = false, destination = '/editor' }: { g
     finally { setBusy(false) }
   }
   return <div className="h-full overflow-y-auto"><div className="max-w-4xl mx-auto p-6 md:p-8 space-y-6">
-    <h1 className="text-3xl font-semibold flex items-center gap-3"><Sparkles aria-hidden="true" />{generate ? t('Crea il sito dal tuo profilo') : t('Caricamento del tuo sito')}</h1>
+    <h1 className="text-3xl font-semibold flex items-center gap-3"><Sparkles aria-hidden="true" />{generate ? t('New website proposal') : t('Caricamento del tuo sito')}</h1>
     {error && <p role="alert">{error}</p>}
     {!data && !error && <p>{t("Recupero identità, menu e articoli…")}</p>}
     {error && <button disabled={busy} onClick={() => setRevision(r => r + 1)}>{t("Riprova")}</button>}
     {generate && data && <>
       <p>{t("La generazione usa identità, intervista, istruzioni editoriali, presenza, contatti, social e articoli. Potrai modificare ogni blocco prima di pubblicare.")}</p>
-      <div className="bg-bg-1 border border-border-default rounded-xl p-4"><h2 className="flex gap-2 items-center font-semibold mb-2"><UserRound size={18} aria-hidden="true" />{t('Your profile')}</h2><p className="text-text-2">{String(data.site.profile_summary || data.site.bio || '')}</p></div>
+      <div className="bg-bg-1 border border-border-default rounded-xl p-4"><h2 className="flex gap-2 items-center font-semibold mb-2"><UserRound size={18} aria-hidden="true" />{t('Your profile')}</h2><p className="text-text-2">{String(data.site.bio || data.site.profile_summary || data.site.role_mission || t('Complete your profile to give LIA more information.'))}</p></div>
+      <p className="text-text-2">{String(data.site.title || data.user.slug)} · {data.sources.length} {t("connected channels")} · {data.posts.length} {t("available contents")}. <a className="text-green underline" href="/dashboard?tab=profile">{t("Review your profile")}</a></p>
       <DesignBrief value={brief} onChange={setBrief} disabled={busy} />
       <p className="text-text-2">{t("Your previous draft is kept in Projects. The online site changes only when you publish.")}</p>
       <div className="flex flex-wrap gap-3"><button disabled={busy} onClick={createSite} className="bg-green text-black rounded-lg px-5 py-3 flex gap-2 items-center">{busy ? <Loader2 className="animate-spin" size={18} aria-hidden="true" /> : <Sparkles size={18} aria-hidden="true" />}{busy ? t('Creazione in corso…') : t('Genera una nuova proposta')}</button>

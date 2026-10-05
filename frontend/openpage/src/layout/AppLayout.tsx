@@ -11,7 +11,7 @@ export function AppLayout() {
     <div className="builder-shell h-screen w-screen flex flex-col overflow-hidden">
       <a href="#main-content" className="skip-to-content">{t("Skip to content")}</a>
       <TopNav />
-      <main id="main-content" className="flex-1 mt-20 overflow-hidden" role="main">
+      <main id="main-content" className="platform-main flex-1 min-h-0 overflow-hidden" role="main">
         <div key={location.pathname} className="h-full animate-fade-in-up">
           <Outlet />
         </div>

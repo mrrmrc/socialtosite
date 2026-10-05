@@ -1,97 +1,59 @@
 import { t } from '@/lib/i18n'
 import { NavLink } from 'react-router-dom'
-import { LayoutDashboard, Pencil, Settings, Menu, X, Star } from 'lucide-react'
-import { useState } from 'react'
+import { Home, UserRound, Instagram, FileText, PanelsTopLeft, Search, Diamond, Pencil, Palette, History, Settings, FolderOpen, Sparkles, Lightbulb, ExternalLink, LockKeyhole } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { siteRequest } from '@/lib/social-site'
 
-const links = [
-  { to: '/public', label: t('Public website'), icon: LayoutDashboard },
-  { to: '/editor', label: t('Modifica sito'), icon: Pencil },
-  { to: '/themes', label: t('Themes and layouts'), icon: LayoutDashboard },
-  { to: '/versions', label: t('Saved versions'), icon: LayoutDashboard },
-  { to: '/settings', label: t('Settings'), icon: Settings },
-  { to: '/projects', label: t('Projects'), icon: LayoutDashboard },
+const sections = [
+  { tab: 'overview', label: 'Home', icon: Home },
+  { tab: 'profile', label: 'My profile', icon: UserRound },
+  { tab: 'sources', label: 'Connected social accounts', icon: Instagram },
+  { tab: 'site', label: 'Contents', icon: FileText },
+  { tab: 'publicsite', label: 'Public website', icon: PanelsTopLeft },
+  { tab: 'seo', label: 'Monitoring and SEO', icon: Search },
+  { tab: 'services', label: 'Plan and services', icon: Diamond },
+]
+const tools = [
+  { to: '/public', label: 'Overview', icon: PanelsTopLeft },
+  { to: '/editor', label: 'Modifica sito', icon: Pencil },
+  { to: '/themes', label: 'Themes and layouts', icon: Palette },
+  { to: '/create', label: 'New website proposal', icon: Sparkles },
+  { to: '/versions', label: 'Saved versions', icon: History },
+  { to: '/settings', label: 'Settings', icon: Settings },
+  { to: '/projects', label: 'Projects', icon: FolderOpen },
 ]
 
 export function TopNav() {
-  const [mobileOpen, setMobileOpen] = useState(false)
-
-  return (
-    <header className="h-20 bg-bg-1 border-b border-border-default flex items-center px-4 gap-2 fixed top-0 left-0 right-0 z-50">
-      {/* Logo */}
-      <a href="/dashboard" className="flex items-center gap-3 mr-3 select-none shrink-0" aria-label="All Social To Web · Home">
-        <img src="/logo-cropped.png" alt="" width={38} height={38} className="object-contain" />
-        <span className="leading-tight"><strong className="block text-base text-text-0">All Social <span className="text-green">To Web</span></strong><span className="block text-sm text-text-2 mt-1">{t('Public website')}</span></span>
+  const [accountOpen, setAccountOpen] = useState(false)
+  const [slug, setSlug] = useState('')
+  useEffect(() => {
+    const controller = new AbortController()
+    siteRequest('site', undefined, controller.signal).then(data => setSlug(data.user.slug || '')).catch(() => {})
+    return () => controller.abort()
+  }, [])
+  return <header className="platform-header bg-bg-1 border-b border-border-default fixed top-0 inset-x-0 z-50">
+    <div className="platform-brandbar flex items-center justify-between gap-3 px-4 md:px-8">
+      <a href="/dashboard" className="flex items-center gap-3 shrink-0" aria-label="All Social To Web · Home">
+        <img src="/logo-cropped.png" alt="" width={36} height={36} className="object-contain" />
+        <strong className="text-base text-text-0">All Social To Web</strong>
       </a>
-
-      {/* Desktop nav */}
-      <nav className="hidden xl:flex h-full items-stretch gap-0.5" aria-label={t("Main navigation")}>
-        <a href="/dashboard" className="px-3 flex items-center text-[15px] text-text-1">Home</a>
-        {links.map(({ to, label, icon: Icon }) => (
-          <NavLink
-            key={to}
-            to={to}
-            end={to === '/'}
-            className={({ isActive }) =>
-              `px-3.5 flex items-center text-[15px] relative transition-colors whitespace-nowrap gap-1.5 after:content-[""] after:absolute after:bottom-0 after:left-2 after:right-2 after:h-0.5 after:rounded-t after:transition-all after:duration-200 ${
-                isActive
-                  ? 'text-text-0 after:bg-green after:opacity-100'
-                  : 'text-text-2 hover:text-text-1 after:bg-transparent after:opacity-0'
-              }`
-            }
-          >
-            <Icon size={14} />
-            {label}
-          </NavLink>
-        ))}
-      </nav>
-
-      {/* Right side */}
-      <div className="ml-auto flex items-center gap-2">
-        <a
-          href="/dashboard"
-          className="hidden xl:flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-border-default text-text-2 text-[15px] hover:text-text-0 hover:border-border-hover hover:bg-bg-2 transition-all"
-          title={t('Back to workspace')}
-        >
-          <Star size={12} />
-          {t('Workspace')}
-        </a>
-
-        {/* Mobile hamburger */}
-        <button
-          className="xl:hidden w-8 h-8 flex items-center justify-center text-text-2 hover:text-text-0"
-          onClick={() => setMobileOpen(!mobileOpen)}
-          aria-label={mobileOpen ? t('Close menu') : t('Open menu')}
-          aria-expanded={mobileOpen}
-        >
-          {mobileOpen ? <X size={18} /> : <Menu size={18} />}
-        </button>
-      </div>
-
-      {/* Mobile dropdown */}
-      {mobileOpen && (
-        <div className="absolute top-20 left-0 right-0 bg-bg-1 border-b border-border-default xl:hidden z-50 max-h-[calc(100vh-80px)] overflow-auto">
-          <a href="/dashboard" className="block px-4 py-3">Home</a>
-          <a href="/dashboard?tab=profile" className="block px-4 py-3">{t('Profilazione')}</a>
-          <a href="/dashboard?tab=site" className="block px-4 py-3">{t('Articoli')}</a>
-          <a href="/dashboard?tab=sources" className="block px-4 py-3">{t('Social channels')}</a>
-          {links.map(({ to, label, icon: Icon }) => (
-            <NavLink
-              key={to}
-              to={to}
-              end={to === '/'}
-              onClick={() => setMobileOpen(false)}
-              className={({ isActive }) =>
-                `flex items-center gap-2 px-4 py-3 text-[15px] transition-colors ${
-                  isActive ? 'text-green bg-green-glow' : 'text-text-1 hover:bg-bg-2'
-                }`
-              }
-            >
-              <Icon size={14} />
-              {label}
-            </NavLink>
-          ))}
+      <div className="flex items-center gap-2">
+        <a href="/dashboard?tab=idea" className="platform-header-action"><Lightbulb size={18} aria-hidden="true" /><span>IDEA</span></a>
+        {slug && <a href={`/${encodeURIComponent(slug)}`} target="_blank" rel="noopener noreferrer" className="platform-header-action"><ExternalLink size={18} aria-hidden="true" /><span className="hidden sm:inline">{t('Open my website')}</span></a>}
+        <div className="relative">
+          <button className="platform-header-action" aria-label={t('Account menu')} aria-expanded={accountOpen} onClick={() => setAccountOpen(!accountOpen)} onKeyDown={e => { if(e.key==='Escape')setAccountOpen(false) }}><UserRound size={20} aria-hidden="true" /></button>
+          {accountOpen && <nav aria-label={t('Account menu')} className="absolute right-0 top-full mt-2 w-60 bg-bg-1 border border-border-default rounded-xl shadow-lg p-2">
+            <a href="/dashboard?tab=account" className="flex gap-2 items-center p-3"><UserRound size={18} aria-hidden="true" />{t('My account')}</a>
+            <a href="/dashboard?tab=security" className="flex gap-2 items-center p-3"><LockKeyhole size={18} aria-hidden="true" />{t('Password and security')}</a>
+          </nav>}
         </div>
-      )}
-    </header>
-  )
+      </div>
+    </div>
+    <nav className="platform-main-nav flex items-center gap-1 overflow-x-auto px-4 md:px-8 border-t border-border-subtle" aria-label={t('Main navigation')}>
+      {sections.map(({tab,label,icon:Icon}) => <a key={tab} href={`/dashboard?tab=${tab}`} aria-current={tab==='publicsite' ? 'page' : undefined} className={`platform-nav-link ${tab==='publicsite' ? 'platform-nav-active' : ''}`}><Icon size={18} aria-hidden="true" />{t(label)}</a>)}
+    </nav>
+    <nav className="platform-site-nav flex items-center gap-1 overflow-x-auto px-4 md:px-8 border-t border-border-subtle" aria-label={t('Website tools')}>
+      {tools.map(({to,label,icon:Icon}) => <NavLink key={to} to={to} className={({isActive})=>`platform-tool-link ${isActive ? 'platform-tool-active' : ''}`}><Icon size={16} aria-hidden="true" />{t(label)}</NavLink>)}
+    </nav>
+  </header>
 }

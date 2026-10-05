@@ -282,3 +282,16 @@ textarea:focus-visible {
 .site-render [data-articles-layout="list"] article > .post-media { width: 220px; max-width: 100%; flex-shrink: 0; }
 .site-render [data-articles-layout="list"] article > .p-5 { flex: 1; min-width: 200px; }
 .site-render a.bg-bg-3 { color: var(--color-text-0); }
+
+/* Keep the platform navigation visible throughout the website workspace. */
+.platform-brandbar { height: 72px; }
+.platform-main-nav { height: 56px; }
+.platform-site-nav { height: 44px; }
+.platform-main { margin-top: 172px; }
+.platform-header-action { display: inline-flex; align-items: center; gap: 8px; padding: 10px 12px; border: 1px solid var(--color-border-default); border-radius: 12px; font-size: 14px; color: var(--color-green); white-space: nowrap; }
+.platform-nav-link { display: inline-flex; align-items: center; gap: 8px; padding: 12px 14px; border-radius: 12px; font-size: 15px; font-weight: 650; white-space: nowrap; color: var(--color-text-1); }
+.platform-nav-active { background: var(--color-green); color: #fff; }
+.platform-tool-link { display: inline-flex; align-items: center; gap: 6px; padding: 8px 12px; font-size: 14px; white-space: nowrap; border-bottom: 2px solid transparent; }
+.platform-tool-active { color: var(--color-green); border-bottom-color: var(--color-green); }
+.platform-header a:focus-visible, .platform-header button:focus-visible { outline: 2px solid var(--color-green); outline-offset: -2px; }
+@media (max-width: 640px) { .platform-brandbar { height: 64px; padding-inline: 12px; } .platform-brandbar strong { font-size: 14px; } .platform-header-action { padding: 8px; } .platform-main { margin-top: 164px; } }
