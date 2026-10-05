@@ -4958,6 +4958,149 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
 
           {tab === 'publicsite' && <section className="card profile-review-panel"><h2>Il tuo sito, le tue scelte</h2><p>LIA prepara proposte. Le modifiche grafiche si applicano dopo la tua autorizzazione; il sito online cambia quando pubblichi. Le versioni salvate permettono di tornare indietro.</p><div className="profile-review-fields">{[{href:'/builder/editor',icon:'✎',title:'Modifica sito',description:'Testi, immagini, sezioni e menu.'},{href:'/builder/themes',icon:'▦',title:'Temi e layout',description:'Guarda le anteprime o fatti aiutare da LIA a scegliere.'},{href:'/builder/create',icon:'✧',title:'Nuova proposta del sito',description:'Descrivi la tua idea e valuta una proposta prima di autorizzarla.'},{href:'/builder/versions',icon:'◷',title:'Versioni salvate',description:'Salva una versione, confrontala e ripristinala.'},{href:'/builder/profile',icon:'◎',title:'Aggiorna dal profilo',description:'Scegli quali dati pubblici trasferire alla bozza.'}].map(item=><a key={item.href} className="card" href={item.href} style={{textDecoration:'none',color:'inherit'}}><h3>{item.icon} {item.title}</h3><p>{item.description}</p></a>)}</div></section>}
 
+          {tab === 'publicsite' && <>              <details className="card"><summary>Compatibilità · strumenti del sito precedente</summary><p>Questi strumenti appartengono al sistema precedente. Per cambiare la grafica del sito nell’editor attuale, usa Temi e layout qui in Sito pubblico.</p>              {/* MODIFICA SITO — azione principale sempre visibile */}
+              <section
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: "1rem",
+                  flexWrap: "wrap",
+                  padding: "clamp(1.25rem, 3vw, 2rem)",
+                  borderRadius: "var(--radius-lg)",
+                  background:
+                    "linear-gradient(135deg, var(--primary) 0%, #6366f1 100%)",
+                  boxShadow: "0 8px 32px rgba(79,140,255,0.28)",
+                }}
+              >
+                <div>
+                  <span
+                    style={{
+                      color: "rgba(255,255,255,0.78)",
+                      fontSize: "12px",
+                      fontWeight: 800,
+                      textTransform: "uppercase",
+                      letterSpacing: "0.09em",
+                    }}
+                  >
+                    Sito pubblico
+                  </span>
+                  <h2
+                    style={{
+                      color: "#fff",
+                      margin: "0.4rem 0 0.5rem",
+                      fontSize: "clamp(20px, 3vw, 28px)",
+                      lineHeight: 1.15,
+                    }}
+                  >
+                    Modifica il tuo sito
+                  </h2>
+                  <p
+                    style={{
+                      color: "rgba(255,255,255,0.82)",
+                      margin: 0,
+                      fontSize: "14px",
+                      lineHeight: 1.6,
+                    }}
+                  >
+                    Apri l&apos;editor per personalizzare layout, colori, testi,
+                    menu e struttura del tuo sito pubblico.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  style={{
+                    background: "#fff",
+                    color: "var(--primary)",
+                    fontWeight: 800,
+                    padding: "14px 28px",
+                    fontSize: "16px",
+                    flexShrink: 0,
+                    border: "none",
+                    borderRadius: "var(--radius)",
+                    cursor: "pointer",
+                    boxShadow: "0 4px 16px rgba(0,0,0,0.15)",
+                  }}
+                  onClick={() =>
+                    openStudioWorkspace(templateStudio, "Workspace corrente")
+                  }
+                >
+                  ✏️ Apri editor sito →
+                </button>
+              </section>
+              <section
+                className="card"
+                style={{
+                  padding: "clamp(1.25rem, 3vw, 2rem)",
+                  background:
+                    "linear-gradient(135deg, var(--surface), var(--primary-light))",
+                  border: "1px solid var(--border)",
+                }}
+              >
+                <span
+                  style={{
+                    display: "inline-flex",
+                    padding: "6px 10px",
+                    borderRadius: "999px",
+                    background: "var(--teal-light)",
+                    color: "var(--teal)",
+                    fontSize: "12px",
+                    fontWeight: 850,
+                  }}
+                >
+                  STUDIO DEL SITO CLASSICO
+                </span>
+                <h2
+                  style={{
+                    margin: "0.8rem 0 0.55rem",
+                    color: "var(--text)",
+                    fontSize: "clamp(24px, 4vw, 36px)",
+                    lineHeight: 1.08,
+                  }}
+                >
+                  Layout del sito classico
+                </h2>
+                <p
+                  style={{
+                    maxWidth: "760px",
+                    margin: 0,
+                    color: "var(--text-muted)",
+                    fontSize: "15px",
+                    lineHeight: 1.7,
+                  }}
+                >
+                  Scegli tra layout realmente diversi per settore, atmosfera e
+                  modo di presentare i contenuti. Ogni tema conserva una base
+                  accessibile e responsive, mentre cambiano gerarchie,
+                  tipografia, palette, navigazione e composizione delle schede.
+                </p>
+                <div
+                  style={{
+                    display: "flex",
+                    flexWrap: "wrap",
+                    gap: "10px",
+                    marginTop: "1.25rem",
+                  }}
+                >
+                  <a
+                    className="btn btn-primary"
+                    href={siteUrl}
+                    target="_blank"
+                    rel="noopener"
+                  >
+                    Apri il sito pubblico ↗
+                  </a>
+                  <button
+                    className="btn btn-outline"
+                    type="button"
+                    onClick={openSiteIdentity}
+                  >
+                    Scegli logo o immagine
+                  </button>
+                </div>
+              </section>
+</details></>}
+
           {/* Profile Sub-Navigation */}
           {tab === "profile" && (
             <div style={{ marginBottom: "2rem" }}>
@@ -7814,152 +7957,7 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
                   </label>
                 </div>
               </section>
-              <details className="card"><summary>Strumenti del sito classico</summary><p>Questi strumenti restano disponibili per i siti creati con il sistema precedente. Per il sito attuale, usa Temi e layout oppure Modifica sito.</p>              {/* MODIFICA SITO — azione principale sempre visibile */}
-              <section
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  gap: "1rem",
-                  flexWrap: "wrap",
-                  padding: "clamp(1.25rem, 3vw, 2rem)",
-                  borderRadius: "var(--radius-lg)",
-                  background:
-                    "linear-gradient(135deg, var(--primary) 0%, #6366f1 100%)",
-                  boxShadow: "0 8px 32px rgba(79,140,255,0.28)",
-                }}
-              >
-                <div>
-                  <span
-                    style={{
-                      color: "rgba(255,255,255,0.78)",
-                      fontSize: "12px",
-                      fontWeight: 800,
-                      textTransform: "uppercase",
-                      letterSpacing: "0.09em",
-                    }}
-                  >
-                    Sito pubblico
-                  </span>
-                  <h2
-                    style={{
-                      color: "#fff",
-                      margin: "0.4rem 0 0.5rem",
-                      fontSize: "clamp(20px, 3vw, 28px)",
-                      lineHeight: 1.15,
-                    }}
-                  >
-                    Modifica il tuo sito
-                  </h2>
-                  <p
-                    style={{
-                      color: "rgba(255,255,255,0.82)",
-                      margin: 0,
-                      fontSize: "14px",
-                      lineHeight: 1.6,
-                    }}
-                  >
-                    Apri l&apos;editor per personalizzare layout, colori, testi,
-                    menu e struttura del tuo sito pubblico.
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  style={{
-                    background: "#fff",
-                    color: "var(--primary)",
-                    fontWeight: 800,
-                    padding: "14px 28px",
-                    fontSize: "16px",
-                    flexShrink: 0,
-                    border: "none",
-                    borderRadius: "var(--radius)",
-                    cursor: "pointer",
-                    boxShadow: "0 4px 16px rgba(0,0,0,0.15)",
-                  }}
-                  onClick={() =>
-                    openStudioWorkspace(templateStudio, "Workspace corrente")
-                  }
-                >
-                  ✏️ Apri editor sito →
-                </button>
-              </section>
-              <section
-                className="card"
-                style={{
-                  padding: "clamp(1.25rem, 3vw, 2rem)",
-                  background:
-                    "linear-gradient(135deg, var(--surface), var(--primary-light))",
-                  border: "1px solid var(--border)",
-                }}
-              >
-                <span
-                  style={{
-                    display: "inline-flex",
-                    padding: "6px 10px",
-                    borderRadius: "999px",
-                    background: "var(--teal-light)",
-                    color: "var(--teal)",
-                    fontSize: "12px",
-                    fontWeight: 850,
-                  }}
-                >
-                  STUDIO DEL SITO CLASSICO
-                </span>
-                <h2
-                  style={{
-                    margin: "0.8rem 0 0.55rem",
-                    color: "var(--text)",
-                    fontSize: "clamp(24px, 4vw, 36px)",
-                    lineHeight: 1.08,
-                  }}
-                >
-                  Layout del sito classico
-                </h2>
-                <p
-                  style={{
-                    maxWidth: "760px",
-                    margin: 0,
-                    color: "var(--text-muted)",
-                    fontSize: "15px",
-                    lineHeight: 1.7,
-                  }}
-                >
-                  Scegli tra layout realmente diversi per settore, atmosfera e
-                  modo di presentare i contenuti. Ogni tema conserva una base
-                  accessibile e responsive, mentre cambiano gerarchie,
-                  tipografia, palette, navigazione e composizione delle schede.
-                </p>
-                <div
-                  style={{
-                    display: "flex",
-                    flexWrap: "wrap",
-                    gap: "10px",
-                    marginTop: "1.25rem",
-                  }}
-                >
-                  <a
-                    className="btn btn-primary"
-                    href={siteUrl}
-                    target="_blank"
-                    rel="noopener"
-                  >
-                    Apri il sito pubblico ↗
-                  </a>
-                  <button
-                    className="btn btn-outline"
-                    type="button"
-                    onClick={() =>
-                      document
-                        .getElementById("visual-identity")
-                        ?.scrollIntoView({ behavior: "smooth", block: "start" })
-                    }
-                  >
-                    Scegli logo o immagine
-                  </button>
-                </div>
-              </section>
-</details>
+
             </div>
           )}
 
@@ -11381,8 +11379,8 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
           {tab === "services" && renderVisibilityServices()}
 
           {/* Tab: Impostazioni */}
-          {tab === "profile" && profileSubTab === "identity" && (
-            <details className="card"><summary>Catalogo e impostazioni del sito classico</summary><div>
+          {tab === "publicsite" && (
+            <details className="card"><summary>Compatibilità · temi del sito precedente</summary><p>Questo catalogo usa il sistema precedente: i suoi temi non sono i layout dell’editor attuale. Per il sito creato con l’editor, apri <a href="/builder/themes">Temi e layout</a>. Le funzioni precedenti restano disponibili qui per compatibilità.</p><div>
               {isAdmin && (
                 <>
                   <div
@@ -11759,7 +11757,7 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
                 >
                   <div>
                     <h3 style={{ marginBottom: "0.5rem", fontSize: "20px" }}>
-                      Catalogo temi professionali
+                      Catalogo del sistema precedente
                     </h3>
                     <p
                       style={{
