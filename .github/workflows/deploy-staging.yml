@@ -51,6 +51,9 @@ jobs:
           php tools/test_article_display.php
           php tools/test_openpage_document.php
           php tools/test_profile_corrections.php
+          php -l api/services/profile_knowledge.php
+          php tools/test_profile_knowledge.php
+          php tools/test_content_ideas.php
           php -l api/services/openpage_versions.php
           php tools/test_openpage_versions.php
           php -l api/index.php > php_lint_output.txt 2>&1 || true

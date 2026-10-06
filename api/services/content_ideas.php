@@ -67,6 +67,10 @@ final class ContentIdeaFormatter {
                 'source'=>self::text($candidate['source']??$candidate['fonte']??'',160)?:($sourceUrl!==''?'Segnale di attualità verificabile':'Profilazione editoriale All Social To Web'),
                 'source_url'=>$sourceUrl,'freshness'=>$freshness,
                 'social_angle'=>self::text($candidate['social_angle']??$candidate['taglio_social']??'',280)?:'Trasforma il punto centrale in una domanda concreta e rimanda all’approfondimento completo.',
+                'objective'=>self::text($candidate['objective']??'',180),
+                'format'=>self::text($candidate['format']??'',100),
+                'hook'=>self::text($candidate['hook']??'',280),
+                'cta'=>self::text($candidate['cta']??'',180),
             ];
             $seen[$key]=true; if(count($ideas)>=3)break;
         }

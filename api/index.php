@@ -2087,6 +2087,12 @@ if ($action === 'dismiss-content-idea' && $method === 'POST') {
 
 // Genera al massimo tre proposte nuove usando profilo, archivio, domanda Google e
 // segnali di attualita. Le proposte restano suggerimenti: nessuna pubblicazione.
+if ($action === 'lia-profile-review' && $method === 'POST') {
+    require_once __DIR__ . '/services/ai.php';
+    $site = DB::fetch('SELECT * FROM sites WHERE user_id=? LIMIT 1', [$userId]) ?: [];
+    json(['ok'=>true, 'review'=>ProfileKnowledge::review($site)]);
+}
+
 if ($action === 'generate-content-ideas' && $method === 'POST') {
     try {
         require_once __DIR__ . '/services/ai.php';
@@ -2096,7 +2102,13 @@ if ($action === 'generate-content-ideas' && $method === 'POST') {
                FROM posts WHERE user_id=? AND published=1 ORDER BY published_at DESC, id DESC LIMIT 20',
             [$userId]
         );
-        $result = AI::contentIdeas($site, $posts, VisibilityAnalytics::demandBriefing($userId));
+        $b = body();
+        $brief = [];
+        foreach (['objective','platform','focus'] as $field) {
+            $value = ProfileKnowledge::text($b['brief'][$field] ?? '');
+            $brief[$field] = function_exists('mb_substr') ? mb_substr($value, 0, 600, 'UTF-8') : $value;
+        }
+        $result = AI::contentIdeas($site, $posts, VisibilityAnalytics::demandBriefing($userId), $brief);
         json(['ok'=>true] + $result);
     } catch (Throwable $e) {
         jsonError('Non riesco a generare le idee AI: ' . $e->getMessage(), 502);
@@ -2177,6 +2189,7 @@ if ($action === 'create-idea-draft' && $method === 'POST') {
         . "Tipo: {$ideaType}\n"
         . "Titolo/obiettivo: {$ideaTitle}\n"
         . ($ideaReason !== '' ? "Motivazione: {$ideaReason}\n" : '')
+        . 'BRIEF OPERATIVO: ' . json_encode(array_intersect_key($b, array_flip(['objective','format','hook','cta','social_angle'])), JSON_UNESCAPED_UNICODE) . "\n"
         . "Prepara un articolo utile e concreto coerente con la comprensione confermata dell'attivita. "
         . "Non inventare prezzi, servizi, luoghi, date o risultati non presenti nel contesto. "
         . "Il risultato deve essere una bozza revisionabile e non va pubblicato automaticamente.";

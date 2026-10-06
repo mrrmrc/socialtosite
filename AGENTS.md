@@ -2,6 +2,10 @@
 
 These rules apply to every coding agent working in this repository.
 
+## Default delivery includes production deployment
+
+The user has authorized automatic production deployment after completing and verifying requested code changes. Do not require the user to repeat `deployvps`: use the same canonical main + GitHub Actions + FTP/FTPS pipeline, include `[deployvps]` in the production commit, and verify the workflow before reporting success. Respect an explicit request to keep work local. The schema migration confirmation requirements below still apply.
+
 ## `deployvps` is a reserved production command
 
 When the user says exactly `deployvps`, treat it as an explicit request to publish the current intended work to production using the canonical Git + GitHub Actions + FTP/FTPS pipeline.

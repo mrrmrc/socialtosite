@@ -14,6 +14,7 @@ import { ProductGuide } from "../components/ProductGuide";
 import { PublicationConnections } from "../components/PublicationConnections";
 import { BrandMark } from "./LandingScreen";
 import { ProfileReviewPanel } from "../components/ProfileReviewPanel";
+import { LiaKnowledge, useLiaKnowledge } from "../components/LiaKnowledge";
 const STUDIO_DEFAULTS = {
   font_heading: "Outfit",
   font_body: "Inter",
@@ -1297,6 +1298,8 @@ export function DashboardScreen({ token, user, onLogout }) {
   const [ideasGeneratedAt, setIdeasGeneratedAt] = useState("");
   const [ideasNewsSignals, setIdeasNewsSignals] = useState(0);
   const [generatingIdeas, setGeneratingIdeas] = useState(false);
+  const [editorialBrief, setEditorialBrief] = useState({ objective: '', platform: '', focus: '' });
+  const knowledge = useLiaKnowledge(data?.site, token);
   const [articleLength, setArticleLength] = useState("compact");
   const [preparingIdea, setPreparingIdea] = useState(-1);
   const [editingIdea, setEditingIdea] = useState(null); // {index, title, reason}
@@ -2690,13 +2693,14 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
         "/api/index.php?action=generate-content-ideas",
         {
           method: "POST",
-          body: JSON.stringify({ count: 3 }),
+          body: JSON.stringify({ count: 3, brief: editorialBrief }),
         },
         token,
       );
       setAiContentIdeas(Array.isArray(result.ideas) ? result.ideas : []);
       setIdeasGeneratedAt(result.generated_at || new Date().toISOString());
       setIdeasNewsSignals(Number(result.news_signals || 0));
+      if (result.profile_review) knowledge.acceptReview(result.profile_review);
       const generationMessage =
         result.generation_source === "profile_fallback"
           ? "3 proposte pronte dal tuo profilo editoriale. Il servizio AI non era disponibile, ma il lavoro non si è bloccato."
@@ -4399,6 +4403,7 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
             <span className="header-site-label">Apri il mio sito</span>
           </a>
 
+          <button className="btn btn-outline lia-knowledge-badge" onClick={() => { setTab('idea'); setVisibilitySection('ideas'); }} title="Conoscenza del profilo: apri la supervisione di LIA" aria-label={knowledge.busy ? 'LIA sta verificando il profilo' : knowledge.review?.reviewed ? `LIA conosce il profilo al ${knowledge.review.score}%. Apri domande e revisione` : 'Profilo da verificare con LIA'}>LIA {knowledge.busy ? '…' : knowledge.review?.reviewed ? `${knowledge.review.score}%` : '· da verificare'}</button>
           <div style={{ position: "relative" }} onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) setAccountMenuOpen(false); }} onKeyDown={(event) => { if (event.key === "Escape") { setAccountMenuOpen(false); event.currentTarget.querySelector("button")?.focus(); } }}>
             <button
               className="btn btn-outline btn-icon"
@@ -5672,9 +5677,6 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
                       <StrategyInterview
                         declaredStrategy={declaredStrategy}
                         onUpdateStrategy={async (updates) => {
-                          Object.entries(updates).forEach(([k, v]) =>
-                            updateDeclaredStrategy(k, v),
-                          );
                           const newStrategy = {
                             ...declaredStrategy,
                             ...updates,
@@ -5693,8 +5695,10 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
                               token,
                             );
                           } catch (e) {
-                            console.error("Errore salvataggio strategia:", e);
+                            throw e;
                           }
+                          Object.entries(updates).forEach(([k, v]) => updateDeclaredStrategy(k, v));
+                          await loadData();
                         }}
                         apiFetch={apiFetch}
                         token={token}
@@ -9825,9 +9829,9 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
                 <div id="ideas" className="glass-modal ideas-panel">
                   <section className="ideas-quick-start">
                     <div>
-                      <span className="section-eyebrow">Parti da qui</span>
+                      <span className="section-eyebrow">Il tuo studio editoriale</span>
                       <h2>
-                        Chiedi 3 idee all'AI, poi scegli articolo o social.
+                        Il prossimo contenuto parte da ciò che ti rende unico.
                       </h2>
                       <p>
                         L'AI incrocia attività, pubblico, contenuti esistenti,
@@ -9866,6 +9870,23 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
                         bozze
                       </button>
                     </div>
+                  </section>
+                  <LiaKnowledge knowledge={knowledge} onProfile={() => { setTab('profile'); setProfileSubTab('who'); }} onSave={async updates => {
+                    await apiFetch('/api/index.php?action=site-update', { method: 'POST', body: JSON.stringify({ site_understanding_corrections: { declared_strategy: updates } }) }, token);
+                    setAiContentIdeas([]);
+                    setIdeasGeneratedAt('');
+                    await loadData();
+                  }} />
+                  <section className="editorial-brief" aria-labelledby="editorial-brief-title">
+                    <h3 id="editorial-brief-title">Cosa prepariamo oggi?</h3>
+                    <p>Il tema parte dalla profilazione. Aggiungi una priorità per questa sessione e LIA la userà per le prossime 3 proposte.</p>
+                    <div className="editorial-brief-fields">
+                      <label>Obiettivo<select value={editorialBrief.objective} onChange={event => setEditorialBrief({ ...editorialBrief, objective: event.target.value })}><option value="">Dal mio profilo</option><option>Far conoscere l’attività</option><option>Aiutare e informare il pubblico</option><option>Stimolare conversazioni</option><option>Generare contatti</option><option>Promuovere un prodotto o servizio</option></select></label>
+                      <label>Canale<select value={editorialBrief.platform} onChange={event => setEditorialBrief({ ...editorialBrief, platform: event.target.value })}><option value="">Social e sito</option><option>Instagram</option><option>Facebook</option><option>LinkedIn</option><option>TikTok</option></select></label>
+                      <label>Focus del momento<input value={editorialBrief.focus} maxLength={600} onChange={event => setEditorialBrief({ ...editorialBrief, focus: event.target.value })} placeholder="Un servizio, una domanda cliente, una novità…" /></label>
+                    </div>
+                    <p className="editorial-profile-context">Profilo di partenza: {declaredStrategy.activity_type || 'attività da chiarire'} · Pubblico: {declaredStrategy.primary_audience || 'da definire'} · Obiettivo: {declaredStrategy.primary_goal || 'da definire'}</p>
+                    <button className="btn btn-primary" disabled={generatingIdeas} onClick={generateAiContentIdeas}>{generatingIdeas ? 'Preparo le proposte…' : 'Proponimi 3 contenuti per questo brief'}</button>
                   </section>
                   <div className="article-length-picker">
                     <div>
@@ -10045,6 +10066,7 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
                                   <span className="idea-tag">{idea.type}</span>
                                 </div>
                                 <p className="idea-reason">{idea.reason}</p>
+                                {(idea.hook || idea.format || idea.objective || idea.cta || idea.social_angle) && <dl className="idea-editorial-plan">{[['Obiettivo', idea.objective], ['Formato', idea.format], ['Apertura', idea.hook], ['Taglio social', idea.social_angle], ['Invito all’azione', idea.cta]].filter(([, value]) => value).map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl>}
                                 <div className="idea-origin">
                                   Da: {idea.source}
                                   {idea.freshness ? ` · ${idea.freshness}` : ""}

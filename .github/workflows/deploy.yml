@@ -103,7 +103,7 @@ jobs:
             api/services/visibility.php api/services/seo_foundation.php api/services/reachability.php \
             api/services/raw_import.php api/services/apify_client.php api/services/website_source.php api/services/profile_analyzer.php api/services/profile_interview.php \
             api/services/admin_console.php api/services/editorial_supervisor.php api/services/provider_config.php \
-            api/services/ai.php api/services/content_ideas.php \
+            api/services/ai.php api/services/content_ideas.php api/services/profile_knowledge.php \
             api/routes/publication.php api/services/plan_policy.php \
             api/services/publication/{security,service,wordpress}.php cron/publish.php cron/sync.php cron/fetch_seo.php cron/check_alerts.php \
             integrations/wordpress/allsocialtoweb/allsocialtoweb.php \
@@ -124,6 +124,8 @@ jobs:
           php tools/test_apify_credentials.php
           php tools/test_video_source.php
           php tools/test_wordpress_connector.php
+          php tools/test_profile_knowledge.php
+          php tools/test_content_ideas.php
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -186,7 +188,7 @@ jobs:
           cp api/middleware/{jwt,response,ratelimit,logger}.php release/api/middleware/
           cp api/routes/{auth,migrate,upload}.php release/api/routes/
           cp api/services/{sync,ingest,editorial_engine,visibility,seo_foundation,reachability}.php release/api/services/
-          cp api/services/{raw_import,apify_client,video_source,website_source,profile_analyzer,profile_interview,admin_console,editorial_supervisor,provider_config,ai,content_ideas}.php release/api/services/
+          cp api/services/{raw_import,apify_client,video_source,website_source,profile_analyzer,profile_interview,profile_knowledge,admin_console,editorial_supervisor,provider_config,ai,content_ideas}.php release/api/services/
           cp api/services/{monitor_status,monitor_settings}.php release/api/services/
           cp api/routes/publication.php release/api/routes/
           cp api/services/plan_policy.php release/api/services/

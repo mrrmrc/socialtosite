@@ -6,6 +6,7 @@ if (file_exists(__DIR__ . '/../../config/keys.php')) require_once __DIR__ . '/..
 if (file_exists(__DIR__ . '/../../config/runtime-secrets.php')) require_once __DIR__ . '/../../config/runtime-secrets.php';
 if (file_exists(__DIR__ . '/../middleware/logger.php')) require_once __DIR__ . '/../middleware/logger.php';
 require_once __DIR__ . '/content_ideas.php';
+require_once __DIR__ . '/profile_knowledge.php';
 require_once __DIR__ . '/provider_config.php';
 require_once __DIR__ . '/video_source.php';
 require_once __DIR__ . '/website_source.php';
@@ -1928,10 +1929,9 @@ Testi da analizzare:
         return $signals;
     }
 
-    public static function contentIdeas(array $site, array $posts, string $searchDemand = ''): array {
-        $understanding = is_array($site['site_understanding'] ?? null)
-            ? $site['site_understanding']
-            : (json_decode((string)($site['site_understanding'] ?? ''), true) ?: []);
+    public static function contentIdeas(array $site, array $posts, string $searchDemand = '', array $brief = []): array {
+        $understanding = ProfileKnowledge::understanding($site);
+        $site['site_understanding'] = $understanding;
         $reachability = json_decode((string)($site['reachability_profile'] ?? ''), true) ?: [];
         $declared = $understanding['declared_strategy'] ?? [];
         $activity = trim((string)($declared['activity_type'] ?? $site['title'] ?? ''));
@@ -1950,16 +1950,20 @@ Testi da analizzare:
             ];
         }
         $today = date('Y-m-d');
+        $profileReview = ProfileKnowledge::review($site);
         $prompt = "Sei un caporedattore italiano. Genera ESATTAMENTE 3 idee editoriali concrete per questa attivita.\n"
             . "Data di oggi: {$today}.\n"
             . "ATTIVITA: " . json_encode(['tipo'=>$activity,'offerta'=>$offer,'territorio'=>$area,'profilo'=>$site['profile_summary'] ?? ''], JSON_UNESCAPED_UNICODE) . "\n"
             . "STRATEGIA CONFERMATA: " . json_encode($declared, JSON_UNESCAPED_UNICODE) . "\n"
+            . "BRIEF DEL SOCIAL MEDIA MANAGER: " . json_encode($brief, JSON_UNESCAPED_UNICODE) . "\n"
+            . "REVISIONE DEL PROFILO DI LIA: " . json_encode($profileReview, JSON_UNESCAPED_UNICODE) . "\n"
+            . "SUPERVISIONE LIA: verifica ogni idea rispetto a pubblico, obiettivo, tono, offerta e punti distintivi. Se il profilo è incompleto, usa solo ciò che sai, non inventare promesse o caratteristiche. Fornisci un obiettivo, un formato concreto (es. carosello 5 slide, reel 30 secondi), un hook iniziale e un invito all'azione coerente.\n"
             . "CONTENUTI GIA PUBBLICATI: " . json_encode($recent, JSON_UNESCAPED_UNICODE) . "\n"
             . "DOMANDE GOOGLE REALI: " . ($searchDemand ?: 'nessun dato disponibile') . "\n"
             . "SEGNALI DI ATTUALITA (titoli da verificare, non fatti acquisiti): " . json_encode($signals, JSON_UNESCAPED_UNICODE) . "\n\n"
             . "Regole: evita doppioni; almeno 2 idee devono essere legate all'attualita SOLO se i segnali sono pertinenti; le altre devono derivare da attivita, pubblico, territorio e domanda reale. "
             . "Non inventare eventi, date, prezzi o notizie. Se usi un segnale recente, conserva source_url e spiega il collegamento. Ogni idea deve poter diventare sia articolo sia post social. "
-            . "Rispondi SOLO con JSON valido: {\"ideas\":[{\"title\":\"titolo\",\"reason\":\"perche e utile ora\",\"type\":\"Attualita|Guida|Domanda cliente|Storia|Offerta\",\"priority\":\"Alta|Media\",\"source\":\"origine comprensibile\",\"source_url\":\"https://... oppure stringa vuota\",\"freshness\":\"Attuale|Evergreen\",\"social_angle\":\"taglio breve per il social\"}]}";
+            . "Rispondi SOLO con JSON valido: {\"ideas\":[{\"title\":\"titolo\",\"reason\":\"perche e utile ora\",\"type\":\"Attualita|Guida|Domanda cliente|Storia|Offerta\",\"priority\":\"Alta|Media\",\"source\":\"origine comprensibile\",\"source_url\":\"https://... oppure stringa vuota\",\"freshness\":\"Attuale|Evergreen\",\"social_angle\":\"taglio breve per il social\",\"objective\":\"risultato atteso\",\"format\":\"formato proposto\",\"hook\":\"apertura\",\"cta\":\"invito all'azione\"}]}";
 
         $fallbacks = ContentIdeaFormatter::fallbacks($site, $declared, $reachability);
         $candidates = [];
@@ -1988,13 +1992,14 @@ Testi da analizzare:
             'news_signals'=>count($signals),
             'query'=>$newsQuery,
             'generation_source'=>$source,
+            'profile_review'=>$profileReview,
         ];
     }
 
     public static function socialContent(array $site, array $idea, string $platform): array {
         $allowed = ['instagram','facebook','tiktok','linkedin'];
         if (!in_array($platform, $allowed, true)) $platform = 'instagram';
-        $understanding = json_decode((string)($site['site_understanding'] ?? ''), true) ?: [];
+        $understanding = ProfileKnowledge::understanding($site);
         $prompt = "Sei un social media editor. Scrivi un contenuto originale in italiano per {$platform}.\n"
             . "PROFILO ATTIVITA: " . json_encode(['title'=>$site['title'] ?? '', 'profile'=>$site['profile_summary'] ?? $site['bio'] ?? '', 'strategy'=>$understanding['declared_strategy'] ?? []], JSON_UNESCAPED_UNICODE) . "\n"
             . "IDEA: " . json_encode($idea, JSON_UNESCAPED_UNICODE) . "\n"

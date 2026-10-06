@@ -1,5 +1,5 @@
 import React, {useState} from 'react';
-const declaredFields = [['activity_type','Attività'],['primary_goal','Obiettivo principale'],['primary_audience','Pubblico principale'],['secondary_audience','Pubblico secondario'],['tone_of_voice','Tono di voce'],['differentiators','Punti distintivi'],['geographic_area','Territori'],['desired_action','Azione desiderata'],['priority_services','Servizi e prodotti prioritari',true]];
+const declaredFields = [['activity_type','Attività'],['offer_summary','Prodotti e servizi offerti'],['primary_goal','Obiettivo principale'],['primary_audience','Pubblico principale'],['secondary_audience','Pubblico secondario'],['tone_of_voice','Tono di voce'],['differentiators','Punti distintivi'],['customer_needs','Bisogni e domande dei clienti'],['geographic_area','Territori'],['desired_action','Azione desiderata'],['priority_services','Servizi e prodotti prioritari',true]];
 const socialFields = [['summary','Sintesi dell’attività'],['activity_type','Tipo di attività'],['tone','Tono osservato'],['audiences','Pubblici individuati',true],['topics','Argomenti ricorrenti',true],['goals','Obiettivi dedotti',true],['locations','Luoghi citati',true],['offers','Servizi e prodotti individuati',true]];
 export function ProfileReviewPanel({social=false,value={},onChange,onSave,busy=false}) {
   const [listDrafts,setListDrafts] = useState({});

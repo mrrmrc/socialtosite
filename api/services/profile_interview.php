@@ -23,14 +23,15 @@ class ProfileInterview {
             ? $site['site_understanding_corrections'] 
             : (json_decode((string)($site['site_understanding_corrections'] ?? ''), true) ?: []);
 
-        $declared = $corrections['declared_strategy'] ?? $understanding['declared_strategy'] ?? [];
+        $understanding = ProfileKnowledge::understanding($site);
+        $declared = $understanding['declared_strategy'] ?? [];
 
         $context = [
             'ai_deductions_from_social' => $understanding,
             'current_user_strategy_draft' => $declared
         ];
 
-        $prompt = "Sei un Consulente Strategico di Marketing ed esperto di posizionamento. Il tuo compito è intervistare l'utente per estrarre e definire la sua 'Strategia Editoriale'.\n\n"
+        $prompt = "Sei LIA, supervisore editoriale ed esperta di posizionamento. Il tuo compito è intervistare l'utente per estrarre e definire la sua 'Strategia Editoriale'.\n\n"
             . "REGOLE PER L'INTERVISTA:\n"
             . "1. Usa un tono professionale, empatico e curioso. Dai del 'tu'.\n"
             . "2. Fai SEMPRE E SOLO UNA DOMANDA alla volta. Non sommergere l'utente con troppe richieste.\n"
@@ -41,6 +42,12 @@ class ProfileInterview {
             . "   - primary_audience (Target di riferimento, es. 'CEO di PMI', 'Giovani genitori')\n"
             . "   - tone_of_voice (Tono di voce desiderato: formale, provocatorio, accogliente, ecc.)\n"
             . "   - differentiators (Cosa lo rende unico rispetto ai competitor)\n"
+            . "   - offer_summary (Prodotti e servizi offerti concretamente)\n"
+            . "   - customer_needs (Bisogni e domande frequenti dei clienti)\n"
+            . "   - desired_action (Azione desiderata dopo un contenuto)\n"
+            . "   - geographic_area (Territorio oppure attività online senza limiti)\n"
+            . "   - priority_services (Array di stringhe: prodotti, servizi o temi prioritari)\n"
+            . "   Non basta compilare un campo: verifica precisione e coerenza. Chiarisci risposte vaghe come 'tutti' o 'qualità'. Parti dalle lacune attuali e non chiedere informazioni già note. Salva solo risposte esplicite dell'utente, mai deduzioni o tue ipotesi.\n"
             . "5. Quando hai raccolto informazioni sufficienti per aggiornare o compilare uno o più campi, devi restituire un blocco JSON ESATTO alla fine della tua risposta, dentro i tag ```json ... ```.\n"
             . "   Esempio: Grazie per il chiarimento! Quindi il tuo obiettivo principale è attrarre nuove startup, giusto? E con che tono vuoi parlarci? ```json\n"
             . "   {\"activity_type\": \"Avvocato per startup\", \"primary_audience\": \"Fondatori di startup tech\"}\n"
@@ -67,7 +74,14 @@ class ProfileInterview {
             $jsonString = trim($matches[1]);
             $parsed = json_decode($jsonString, true);
             if (is_array($parsed)) {
-                $updatedFields = $parsed;
+                foreach (ProfileKnowledge::FIELDS as $key => $_) {
+                    if (!array_key_exists($key, $parsed)) continue;
+                    if ($key === 'priority_services' && is_array($parsed[$key])) {
+                        $updatedFields[$key] = array_values(array_filter(array_map([ProfileKnowledge::class, 'text'], $parsed[$key])));
+                    } elseif (is_string($parsed[$key])) {
+                        $updatedFields[$key] = ProfileKnowledge::text($parsed[$key]);
+                    }
+                }
             }
             // Remove the json block from the user-facing text
             $cleanReply = trim(preg_replace('/```json\s*(.*?)\s*```/s', '', $reply));
