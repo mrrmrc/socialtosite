@@ -6,6 +6,8 @@ These rules apply to every coding agent working in this repository.
 
 The user has authorized automatic production deployment after completing and verifying requested code changes. Do not require the user to repeat `deployvps`: use the same canonical main + GitHub Actions + FTP/FTPS pipeline, include `[deployvps]` in the production commit, and verify the workflow before reporting success. Respect an explicit request to keep work local. The schema migration confirmation requirements below still apply.
 
+The user also reviews the staging dashboard at `http://45.138.202.132:8088/dashboard`. Publishing `main` does not update that URL. When delivering changes being reviewed there, synchronize the intended changes to `staging` through its existing GitHub pipeline and verify that dashboard's build as well. Do not replace the production FTP pipeline with staging infrastructure commands.
+
 ## `deployvps` is a reserved production command
 
 When the user says exactly `deployvps`, treat it as an explicit request to publish the current intended work to production using the canonical Git + GitHub Actions + FTP/FTPS pipeline.
