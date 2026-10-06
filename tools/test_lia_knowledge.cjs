@@ -51,6 +51,27 @@ const fs = require('node:fs');
     await page.getByText('in attesa di verifica', { exact: true }).waitFor();
     assert.equal(await page.getByText('100%', { exact: true }).count(), 0, 'no false AI knowledge percentage when provider fails');
     assert.deepEqual(errors, []);
+    const dashboard = await browser.newPage({ viewport: { width: 1280, height: 900 } });
+    dashboard.on('pageerror', error => errors.push(error.message));
+    await dashboard.route('**/api/**', route => {
+      const action = new URL(route.request().url()).searchParams.get('action');
+      const site = { title: 'Studio educativo', site_understanding: JSON.stringify({ declared_strategy: { activity_type: 'Consulenza educativa', primary_audience: 'Genitori', primary_goal: 'Informare' } }) };
+      const data = action === 'site' ? { site, posts: [], sources: [], visibility: {}, reachability: { profile: {} } } : action === 'lia-profile-review' ? { ok: true, review: { coverage: 30, score: 30, reviewed: true, summary: 'Servono altri dettagli.', fields: [] } } : { ok: true, plans: [], questions: [], sources: [], posts: [] };
+      return route.fulfill({ json: data });
+    });
+    await dashboard.route('**/dashboard-fixture', route => route.fulfill({ contentType: 'text/html', body: `<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"></head><body><div id="root"></div>
+      <script type="module">import RefreshRuntime from '/@react-refresh'; RefreshRuntime.injectIntoGlobalHook(window); window.$RefreshReg$=()=>{}; window.$RefreshSig$=()=>type=>type; window.__vite_plugin_react_preamble_installed__=true;</script>
+      <script type="module">import React from '/node_modules/.vite/deps/react.js?v=${dependencyHash}'; import ReactDOM from '/node_modules/.vite/deps/react-dom_client.js?v=${rendererHash}'; import {DashboardScreen} from '/src/screens/DashboardScreen.jsx'; import '/src/index.css'; ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(DashboardScreen,{token:'fixture',user:{id:1,name:'Studio educativo',slug:'studio',plan:'professional',role:'user'},onLogout:()=>{}}));</script></body></html>` }));
+    await dashboard.goto('http://127.0.0.1:5178/dashboard-fixture');
+    await dashboard.getByRole('button', { name: /LIA conosce il profilo al 30/ }).click();
+    await dashboard.getByRole('heading', { name: 'Cosa prepariamo oggi?' }).waitFor();
+    await dashboard.getByRole('heading', { name: 'LIA, quanto conosci il mio profilo?' }).waitFor();
+    assert.equal(await dashboard.getByLabel('Focus del momento').count(), 1);
+    await dashboard.screenshot({ path: 'artifacts/lia-ideas-dashboard.png', fullPage: true });
+    await dashboard.setViewportSize({ width: 390, height: 844 });
+    await dashboard.screenshot({ path: 'artifacts/lia-ideas-dashboard-mobile.png', fullPage: true });
+    assert.ok(await dashboard.evaluate(() => document.documentElement.scrollWidth <= innerWidth), 'dashboard has no horizontal mobile overflow');
+    assert.deepEqual(errors, []);
     console.log('PASS: questions, save failures, persisted answers, renewed review, mobile layout and unavailable AI.');
   } finally { await browser.close(); }
 })().catch(error => { console.error(error); process.exit(1); });
