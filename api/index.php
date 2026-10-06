@@ -178,6 +178,8 @@ function decodeJsonObject($value): array {
 
 function mergeUnderstanding($generated, $corrections): array {
     $merged = array_replace_recursive(decodeJsonObject($generated), decodeJsonObject($corrections));
+    $approved = decodeJsonObject($corrections);
+    if (is_array($approved['declared_strategy'] ?? null) && array_key_exists('priority_services', $approved['declared_strategy'])) $merged['declared_strategy']['priority_services'] = $approved['declared_strategy']['priority_services'];
     $declared = is_array($merged['declared_strategy'] ?? null) ? $merged['declared_strategy'] : [];
 
     // I dati dichiarati dal cliente prevalgono sulle deduzioni ricavate dai social.
@@ -1568,6 +1570,8 @@ if (array_key_exists('theme', $b)) {
         $encodedUnderstanding = is_array($b['site_understanding']) ? json_encode($b['site_understanding'], JSON_UNESCAPED_UNICODE) : $b['site_understanding'];
         $fields[] = 'site_understanding = ?';
         $params[] = $encodedUnderstanding;
+        $incomingCorrections = decodeJsonObject($b['site_understanding_corrections']);
+        if (is_array($incomingCorrections['declared_strategy'] ?? null) && array_key_exists('priority_services', $incomingCorrections['declared_strategy'])) $mergedCorrections['declared_strategy']['priority_services'] = $incomingCorrections['declared_strategy']['priority_services'];
         $fields[] = 'site_understanding_corrections = ?';
         $params[] = $encodedUnderstanding;
     }
@@ -1991,6 +1995,12 @@ if ($action === 'dismiss-content-idea' && $method === 'POST') {
 
 // Genera al massimo tre proposte nuove usando profilo, archivio, domanda Google e
 // segnali di attualita. Le proposte restano suggerimenti: nessuna pubblicazione.
+if ($action === 'lia-profile-review' && $method === 'POST') {
+    require_once __DIR__ . '/services/ai.php';
+    $site = DB::fetch('SELECT * FROM sites WHERE user_id=? LIMIT 1', [$userId]) ?: [];
+    json(['ok'=>true, 'review'=>ProfileKnowledge::review($site)]);
+}
+
 if ($action === 'generate-content-ideas' && $method === 'POST') {
     try {
         require_once __DIR__ . '/services/ai.php';
@@ -2000,7 +2010,13 @@ if ($action === 'generate-content-ideas' && $method === 'POST') {
                FROM posts WHERE user_id=? AND published=1 ORDER BY published_at DESC, id DESC LIMIT 20',
             [$userId]
         );
-        $result = AI::contentIdeas($site, $posts, VisibilityAnalytics::demandBriefing($userId));
+        $b = body();
+        $brief = [];
+        foreach (['objective','platform','focus'] as $field) {
+            $value = ProfileKnowledge::text($b['brief'][$field] ?? '');
+            $brief[$field] = function_exists('mb_substr') ? mb_substr($value, 0, 600, 'UTF-8') : $value;
+        }
+        $result = AI::contentIdeas($site, $posts, VisibilityAnalytics::demandBriefing($userId), $brief);
         json(['ok'=>true] + $result);
     } catch (Throwable $e) {
         jsonError('Non riesco a generare le idee AI: ' . $e->getMessage(), 502);
@@ -2081,6 +2097,7 @@ if ($action === 'create-idea-draft' && $method === 'POST') {
         . "Tipo: {$ideaType}\n"
         . "Titolo/obiettivo: {$ideaTitle}\n"
         . ($ideaReason !== '' ? "Motivazione: {$ideaReason}\n" : '')
+        . 'BRIEF OPERATIVO: ' . json_encode(array_intersect_key($b, array_flip(['objective','format','hook','cta','social_angle'])), JSON_UNESCAPED_UNICODE) . "\n"
         . "Prepara un articolo utile e concreto coerente con la comprensione confermata dell'attivita. "
         . "Non inventare prezzi, servizi, luoghi, date o risultati non presenti nel contesto. "
         . "Il risultato deve essere una bozza revisionabile e non va pubblicato automaticamente.";

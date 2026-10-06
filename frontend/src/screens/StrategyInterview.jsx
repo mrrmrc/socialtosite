@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 
 export default function StrategyInterview({ declaredStrategy, onUpdateStrategy, apiFetch, token }) {
     const [messages, setMessages] = useState([
-        { role: 'ai', text: 'Ciao! Sono Lia, il tuo Consulente Strategico AI. 👋 Ti farò qualche domanda per costruire il tuo **Stile Editoriale**. È fondamentale per permettermi di scrivere contenuti perfetti per te. Partiamo dalle basi: come descriveresti la tua attività in poche parole?' }
+        { role: 'ai', text: `Ciao! Sono LIA. Ti aiuto a rendere più preciso il tuo profilo editoriale. ${!declaredStrategy?.activity_type ? 'Come descriveresti la tua attività in poche parole?' : !declaredStrategy?.primary_audience ? 'A chi ti rivolgi e quale problema vuoi risolvere?' : !declaredStrategy?.primary_goal ? 'Quale risultato vuoi ottenere con i prossimi contenuti?' : 'Quale aspetto della tua attività o delle tue priorità vuoi chiarire o aggiornare?'}` }
     ]);
     const [inputText, setInputText] = useState('');
     const [isLoading, setIsLoading] = useState(false);
@@ -17,7 +17,7 @@ export default function StrategyInterview({ declaredStrategy, onUpdateStrategy, 
 
     const handleSend = async (e) => {
         e.preventDefault();
-        if (!inputText.trim()) return;
+        if (!inputText.trim() || isLoading) return;
 
         const userMsg = { role: 'user', text: inputText };
         const newMessages = [...messages, userMsg];
@@ -34,13 +34,14 @@ export default function StrategyInterview({ declaredStrategy, onUpdateStrategy, 
             if (res.ok) {
                 setMessages([...newMessages, { role: 'ai', text: res.reply }]);
                 if (res.updates && Object.keys(res.updates).length > 0 && onUpdateStrategy) {
-                    onUpdateStrategy(res.updates);
+                    await onUpdateStrategy(res.updates);
                 }
             } else {
                 setMessages([...newMessages, { role: 'ai', text: 'Scusa, ho avuto un momento di confusione. Puoi ripetere?' }]);
             }
         } catch (err) {
-            setMessages([...newMessages, { role: 'ai', text: 'Mi dispiace, c\'è stato un problema. Riprova tra un momento.' }]);
+            setInputText(userMsg.text);
+            setMessages([...newMessages, { role: 'ai', text: 'La risposta non è stata completata o salvata. Riprova tra un momento.' }]);
         } finally {
             setIsLoading(false);
         }
@@ -51,10 +52,16 @@ export default function StrategyInterview({ declaredStrategy, onUpdateStrategy, 
         { key: 'primary_goal', label: 'Obiettivo principale', icon: '🎯', color: '#f43f5e' },
         { key: 'primary_audience', label: 'A chi ti rivolgi', icon: '👥', color: '#10b981' },
         { key: 'tone_of_voice', label: 'Come parli', icon: '🎙️', color: '#f59e0b' },
-        { key: 'differentiators', label: 'Cosa ti distingue', icon: '✨', color: '#8b5cf6' }
+        { key: 'differentiators', label: 'Cosa ti distingue', icon: '✨', color: '#8b5cf6' },
+        { key: 'offer_summary', label: 'Prodotti e servizi', icon: '◇', color: '#6366f1' },
+        { key: 'customer_needs', label: 'Bisogni del pubblico', icon: '?', color: '#10b981' },
+        { key: 'desired_action', label: 'Invito all’azione', icon: '→', color: '#f43f5e' },
+        { key: 'geographic_area', label: 'Territorio', icon: '◎', color: '#f59e0b' },
+        { key: 'priority_services', label: 'Priorità editoriali', icon: '☆', color: '#8b5cf6' }
     ];
 
-    const isFullyCompiled = strategyFields.every(f => declaredStrategy?.[f.key]);
+    const hasValue = key => Array.isArray(declaredStrategy?.[key]) ? declaredStrategy[key].some(value => String(value).trim()) : String(declaredStrategy?.[key] || '').trim().length > 0;
+    const isFullyCompiled = strategyFields.every(f => hasValue(f.key));
 
     return (
         <div style={{ display: 'flex', gap: '32px', flexWrap: 'wrap', alignItems: 'stretch' }}>
@@ -141,19 +148,19 @@ export default function StrategyInterview({ declaredStrategy, onUpdateStrategy, 
                             onChange={e => setInputText(e.target.value)}
                             placeholder="Scrivi il tuo pensiero in modo naturale..."
                             style={{ flex: 1, padding: '12px 20px', border: 'none', background: 'transparent', fontSize: '16px', outline: 'none', color: '#0f172a' }}
-                            disabled={isLoading || isFullyCompiled}
+                            disabled={isLoading}
                         />
                         <button 
                             type="submit" 
-                            disabled={isLoading || !inputText.trim() || isFullyCompiled} 
+                            disabled={isLoading || !inputText.trim()}
                             style={{ 
-                                background: (isLoading || !inputText.trim() || isFullyCompiled) ? '#cbd5e1' : '#1e293b', 
+                                background: (isLoading || !inputText.trim()) ? '#cbd5e1' : '#1e293b',
                                 color: '#ffffff', 
                                 border: 'none', 
                                 borderRadius: '18px', 
                                 padding: '0 28px', 
                                 fontWeight: 700, 
-                                cursor: (isLoading || !inputText.trim() || isFullyCompiled) ? 'default' : 'pointer',
+                                cursor: (isLoading || !inputText.trim()) ? 'default' : 'pointer',
                                 transition: 'all 0.2s ease',
                                 display: 'flex', alignItems: 'center', gap: '8px'
                             }}
@@ -163,7 +170,7 @@ export default function StrategyInterview({ declaredStrategy, onUpdateStrategy, 
                     </form>
                     {isFullyCompiled && (
                         <div style={{ textAlign: 'center', marginTop: '16px', fontSize: '13px', color: '#10b981', fontWeight: 600 }}>
-                            ✨ Profilo completato con successo. La tua strategia è pronta.
+                            I dieci aspetti sono compilati. La revisione di LIA nella sezione Idee ne verifica la chiarezza.
                         </div>
                     )}
                 </div>
@@ -204,17 +211,17 @@ export default function StrategyInterview({ declaredStrategy, onUpdateStrategy, 
                     <div style={{ background: 'rgba(255,255,255,0.05)', borderRadius: '24px', padding: '24px', border: '1px solid rgba(255,255,255,0.1)' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '16px' }}>
                             <div style={{ fontSize: '14px', fontWeight: 600, color: '#cbd5e1' }}>Progresso</div>
-                            <div style={{ fontSize: '32px', fontWeight: 800, color: '#ffffff', letterSpacing: '-0.02em' }}>{Math.round((strategyFields.filter(f => declaredStrategy?.[f.key]).length / strategyFields.length) * 100)}%</div>
+                            <div style={{ fontSize: '32px', fontWeight: 800, color: '#ffffff', letterSpacing: '-0.02em' }}>{Math.round((strategyFields.filter(f => hasValue(f.key)).length / strategyFields.length) * 100)}%</div>
                         </div>
                         
                         <div style={{ height: '8px', background: 'rgba(0,0,0,0.4)', borderRadius: '100px', overflow: 'hidden', marginBottom: '24px' }}>
-                            <div style={{ width: `${Math.round((strategyFields.filter(f => declaredStrategy?.[f.key]).length / strategyFields.length) * 100)}%`, height: '100%', background: 'linear-gradient(90deg, #6366f1, #8b5cf6)', borderRadius: '100px', transition: 'width 0.6s cubic-bezier(0.16, 1, 0.3, 1)' }}></div>
+                            <div style={{ width: `${Math.round((strategyFields.filter(f => hasValue(f.key)).length / strategyFields.length) * 100)}%`, height: '100%', background: 'linear-gradient(90deg, #6366f1, #8b5cf6)', borderRadius: '100px', transition: 'width 0.6s cubic-bezier(0.16, 1, 0.3, 1)' }}></div>
                         </div>
                         
                         {isFullyCompiled ? (
                             <div style={{ display: 'flex', alignItems: 'center', gap: '12px', color: '#10b981', fontSize: '14px', fontWeight: 600 }}>
                                 <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: 'rgba(16,185,129,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✓</div>
-                                Agente Editoriale pronto
+                                Dati raccolti · verifica la chiarezza con LIA in Idee
                             </div>
                         ) : (
                             <div style={{ display: 'flex', alignItems: 'center', gap: '12px', color: '#94a3b8', fontSize: '14px' }}>

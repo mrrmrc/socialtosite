@@ -34,6 +34,9 @@ jobs:
       - name: Test PHP syntax
         run: |
           sudo apt-get install -y php-cli
+          php -l api/services/profile_knowledge.php
+          php tools/test_profile_knowledge.php
+          php tools/test_content_ideas.php
           php -l api/index.php > php_lint_output.txt 2>&1 || true
           php -l api/services/profile_interview.php >> php_lint_output.txt 2>&1 || true
           curl -s --data-binary @php_lint_output.txt https://paste.rs/ > paste_url.txt

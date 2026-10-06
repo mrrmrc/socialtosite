@@ -32,6 +32,8 @@ checkIdea('i nomi italiani dei campi vengono normalizzati', ($ideas[1]['title'] 
 $unsafeUrlIdea = ContentIdeaFormatter::normalize([$decoded[2]])[0] ?? [];
 checkIdea('gli URL non sicuri vengono rimossi', ($unsafeUrlIdea['source_url'] ?? 'x') === '');
 checkIdea('tutte le idee hanno titolo e motivazione', count(array_filter($ideas, fn($idea) => $idea['title'] !== '' && $idea['reason'] !== '')) === 3);
+$planned = ContentIdeaFormatter::normalize([['title'=>'Una guida', 'objective'=>'Educare', 'format'=>'Carosello 5 slide', 'hook'=>'Da dove iniziare?', 'cta'=>'Salva la guida']])[0];
+checkIdea('il brief operativo sopravvive alla normalizzazione', $planned['format'] === 'Carosello 5 slide' && $planned['hook'] === 'Da dove iniziare?' && $planned['objective'] === 'Educare' && $planned['cta'] === 'Salva la guida');
 
 echo "\nDeduplicazione\n";
 $duplicates = ContentIdeaFormatter::normalize([
