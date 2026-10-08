@@ -6689,7 +6689,7 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
 
                   {/* Form Aggiungi Canale */}
                   <div
-                    className="card"
+                    className="card channels-connect"
                     style={{
                       padding: "24px",
                       border: "2px solid var(--border)",
