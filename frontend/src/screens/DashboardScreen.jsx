@@ -14,7 +14,7 @@ import { ProductGuide } from "../components/ProductGuide";
 import { PublicationConnections } from "../components/PublicationConnections";
 import { BrandMark } from "./LandingScreen";
 import { ProfileReviewPanel } from "../components/ProfileReviewPanel";
-import { LiaKnowledge, useLiaKnowledge } from "../components/LiaKnowledge";
+import { LiaKnowledge, LiaKnowledgeBadge, useLiaKnowledge } from "../components/LiaKnowledge";
 const STUDIO_DEFAULTS = {
   font_heading: "Outfit",
   font_body: "Inter",
@@ -4376,6 +4376,7 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
         <div className="backend-header-brand">
           <BrandMark iconOnly />
           <strong>All Social To Web</strong>
+          <LiaKnowledgeBadge knowledge={knowledge} onClick={() => { setTab('idea'); setVisibilitySection('ideas'); }} />
         </div>
         <div
           className="backend-header-actions"
@@ -4403,7 +4404,6 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
             <span className="header-site-label">Apri il mio sito</span>
           </a>
 
-          <button className="btn btn-outline lia-knowledge-badge" onClick={() => { setTab('idea'); setVisibilitySection('ideas'); }} title="Scopri cosa LIA ha capito, cosa deve verificare e quali informazioni mancano" aria-label={knowledge.busy ? 'LIA sta verificando il brief' : knowledge.review?.reviewed && knowledge.review.score === 100 ? 'Brief chiaro: la conoscenza della persona resta da aggiornare. Apri la revisione' : 'LIA conosce il profilo solo in parte o deve ancora verificarlo. Apri la revisione'}>LIA · {knowledge.busy ? 'verifica in corso' : knowledge.review?.reviewed ? knowledge.review.score === 100 ? 'brief chiaro' : 'profilo parziale' : 'profilo da verificare'}</button>
           <div style={{ position: "relative" }} onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) setAccountMenuOpen(false); }} onKeyDown={(event) => { if (event.key === "Escape") { setAccountMenuOpen(false); event.currentTarget.querySelector("button")?.focus(); } }}>
             <button
               className="btn btn-outline btn-icon"
