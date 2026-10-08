@@ -5,6 +5,9 @@ export function getBrowserLanguage(languages?: readonly string[]): BrowserLangua
   return preferred[0]?.toLowerCase().startsWith('it') ? 'it' : 'en'
 }
 const italian: Record<string, string> = {
+  "Preview size":"Dimensioni anteprima",
+  "Expand preview":"Anteprima a tutta pagina",
+  "Close preview":"Chiudi anteprima",
   "Overview":"Riepilogo",
   "Complete your profile to give LIA more information.":"Completa il profilo per dare a LIA più informazioni.",
   "connected channels":"canali collegati",

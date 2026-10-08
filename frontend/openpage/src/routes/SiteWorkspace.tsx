@@ -61,7 +61,7 @@ export function SiteWorkspace({ generate = false, destination = '/editor' }: { g
     } catch (e) { setError(e instanceof Error ? e.message : 'Generazione non riuscita') }
     finally { setBusy(false) }
   }
-  return <div className="h-full overflow-y-auto"><div className="max-w-4xl mx-auto p-6 md:p-8 space-y-6">
+  return <div className="h-full overflow-y-auto"><div className="w-full min-w-0 p-6 md:p-8 space-y-6">
     <h1 className="text-3xl font-semibold flex items-center gap-3"><Sparkles aria-hidden="true" />{generate ? t('New website proposal') : t('Caricamento del tuo sito')}</h1>
     {error && <p role="alert">{error}</p>}
     {!data && !error && <p>{t("Recupero identità, menu e articoli…")}</p>}

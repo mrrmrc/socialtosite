@@ -236,7 +236,7 @@ export function Settings() {
       </div>
 
       {/* Content */}
-      <div className="flex-1 overflow-y-auto p-4 md:p-8 max-w-2xl relative">
+      <div className="flex-1 overflow-y-auto p-4 md:p-8 min-w-0 relative">
         {settings.showSaved && (
           <div className="absolute top-3 right-6 flex items-center gap-1.5 text-green text-[15px] animate-fade-in">
             <Check size={12} />
