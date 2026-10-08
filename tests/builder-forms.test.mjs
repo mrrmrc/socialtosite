@@ -13,6 +13,19 @@ try {
   assert.equal(previewPage('/marco', draftPages, 'https://example.com', 'https://example.com/marco')?.id, 'home')
   assert.equal(previewPage('https://external.example/lalsa', draftPages, 'https://example.com'), undefined)
   assert.equal(previewPage('http://[', draftPages, 'https://example.com'), undefined)
+  const { useConfigStore } = await server.ssrLoadModule('/src/openpage/store/configStore.ts')
+  const home = { id: 'home', name: 'Home', path: '/', blocks: [{ id: 'home-content', type: 'content', variant: 'prose', props: {} }] }
+  const lalsa = { id: 'lalsa', name: 'LALSA', path: '/lalsa', blocks: [] }
+  useConfigStore.getState().setConfig({ name: 'Deletion check', pages: [home, lalsa], blocks: home.blocks })
+  useConfigStore.getState().setActivePage('lalsa')
+  useConfigStore.getState().removePage('lalsa')
+  assert.deepEqual(useConfigStore.getState().config.pages.map(page => page.id), ['home'])
+  assert.equal(useConfigStore.getState().activePageId, 'home')
+  useConfigStore.getState().undo()
+  assert.deepEqual(useConfigStore.getState().config.pages.map(page => page.id), ['home', 'lalsa'])
+  useConfigStore.getState().removePage('lalsa')
+  useConfigStore.getState().removePage('home')
+  assert.equal(useConfigStore.getState().config.pages.length, 1)
   const config = blocks => ({ theme: 'light', blocks })
   for (const type of ['contact', 'newsletter']) {
     const html = exportSiteToHTML(config([{ id: type, type, variant: type === 'contact' ? 'form' : 'simple', props: { privacyUrl: '/privacy', submitUrl: '/send' } }]))

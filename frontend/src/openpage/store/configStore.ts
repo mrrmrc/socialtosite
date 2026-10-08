@@ -260,12 +260,12 @@ export const useConfigStore = create<ConfigState>()(
       removePage: (id) =>
         set((state) => {
           const pages = ensurePages(state.config)
-          if (pages.length <= 1) return state
+          if (pages.length <= 1 || !pages.some(page => page.id === id)) return state
           const newPages = pages.filter((p) => p.id !== id)
           const newActiveId = state.activePageId === id ? newPages[0].id : state.activePageId
           return {
             ...pushUndo(state, 'Remove page'),
-            config: { ...state.config, pages: newPages, blocks: newPages[0].blocks },
+            config: { ...state.config, pages: newPages, blocks: (newPages.find(page => page.id === newActiveId) || newPages[0]).blocks },
             activePageId: newActiveId,
           }
         }),
