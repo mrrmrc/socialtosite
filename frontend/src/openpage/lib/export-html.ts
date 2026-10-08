@@ -3,6 +3,7 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { ContactBlock } from '../blocks/contact/ContactBlock'
 import { NewsletterBlock } from '../blocks/newsletter/NewsletterBlock'
 import { FooterBlock } from '../blocks/footer/FooterBlock'
+import { FeaturesBlock } from '../blocks/features/FeaturesBlock'
 import formRuntime from './site-form-runtime.js?raw'
 import type { SiteConfig, BlockConfig } from '@/blocks/types'
 import { resolveTheme } from '@/lib/theme-presets'
@@ -386,12 +387,7 @@ ${rows}
 }
 
 function renderFeatures(block: BlockConfig): string {
-  switch (block.variant) {
-    case 'list':
-      return renderFeaturesList(block)
-    default:
-      return renderFeaturesGrid(block)
-  }
+  return renderToStaticMarkup(createElement(FeaturesBlock, { block }))
 }
 
 // ---------------------------------------------------------------------------

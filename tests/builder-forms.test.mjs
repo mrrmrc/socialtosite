@@ -23,6 +23,12 @@ try {
   assert.equal(formDestination({ privacyUrl: 'javascript:alert(1)', recipientEmail: 'test@example.com' }, 'contact').ready, false)
   assert.equal(formDestination({ privacyUrl: '/privacy', recipientEmail: 'test@example.com' }, 'contact').ready, true)
   assert.equal(formDestination({ privacyUrl: '/privacy', recipientEmail: 'test@example.com' }, 'newsletter').ready, false)
+  const featureBlock = { id: 'features', type: 'features', variant: 'alternating', props: { title: 'Progetti', items: [{ title: 'Musica', description: 'Descrizione', icon: 'music' }] } }
+  const compactFeatures = exportSiteToHTML(config([featureBlock]))
+  assert.match(compactFeatures, /lucide-music/)
+  assert.doesNotMatch(compactFeatures, /h-48/)
+  featureBlock.props.items[0].image = 'https://example.com/project.jpg'
+  assert.match(exportSiteToHTML(config([featureBlock])), /<img[^>]+src="https:\/\/example.com\/project.jpg"/)
   for (const variant of ['simple', 'minimal', 'multi-column']) {
     const html=exportSiteToHTML(config([{ id: 'footer', type: 'footer', variant, props: { links: ['Privacy'], linkUrls: ['/privacy'], columns: [{title:'Informazioni',links:['Privacy'],linkUrls:['/privacy']}] } }]))
     assert.match(html, /href="\/privacy"/)
