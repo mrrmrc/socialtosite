@@ -8,7 +8,7 @@ import { ProductGuide } from '../components/ProductGuide';
 import { PublicationConnections } from '../components/PublicationConnections';
 import { ProSiteBuilder } from '../components/ProSiteBuilder';
 import { BrandMark } from './LandingScreen';
-import { LiaKnowledge, useLiaKnowledge } from '../components/LiaKnowledge';
+import { LiaKnowledge, LiaKnowledgeBadge, useLiaKnowledge } from '../components/LiaKnowledge';
 import { ProfileReviewPanel } from '../components/ProfileReviewPanel';
 import { EditorLayout } from '../openpage/editor/EditorLayout';
 const STUDIO_DEFAULTS = {
@@ -2656,6 +2656,7 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
         <div className="backend-header-brand">
           <BrandMark iconOnly />
           <strong>All Social To Web</strong>
+          <LiaKnowledgeBadge knowledge={knowledge} onClick={() => { setTab('idea'); setVisibilitySection('ideas'); }} />
         </div>
         <div className="backend-header-actions" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
           <a href={siteUrl} target="_blank" rel="noopener noreferrer" className="btn btn-outline" aria-label="Apri il mio sito pubblico" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -2663,7 +2664,6 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
             <span className="header-site-label">Apri il mio sito</span>
           </a>
           
-          <button className="btn btn-outline lia-knowledge-badge" onClick={() => { setTab('idea'); setVisibilitySection('ideas'); }} title="Scopri cosa LIA ha capito, cosa deve verificare e quali informazioni mancano" aria-label={knowledge.busy ? 'LIA sta verificando il brief' : knowledge.review?.reviewed && knowledge.review.score === 100 ? 'Brief chiaro: la conoscenza della persona resta da aggiornare. Apri la revisione' : 'LIA conosce il profilo solo in parte o deve ancora verificarlo. Apri la revisione'}>LIA · {knowledge.busy ? 'verifica in corso' : knowledge.review?.reviewed ? knowledge.review.score === 100 ? 'brief chiaro' : 'profilo parziale' : 'profilo da verificare'}</button>
           <div style={{ position: 'relative' }}>
             <button 
               className="btn btn-outline btn-icon" aria-label="Menu account"

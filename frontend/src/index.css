@@ -1653,3 +1653,52 @@ h3 { font-size: 24px; font-weight: 700; }
 .lia-knowledge-map small { display:block; margin-top:4px; color:var(--text-muted); font-size:12px; line-height:1.6; }
 .lia-knowledge-map article > p { margin:12px 0 0; }
 @media(max-width:800px) { .lia-knowledge-map { grid-template-columns:1fr; }.lia-knowledge-awareness { padding:16px; gap:12px; }.lia-knowledge-score { text-align:left; } }
+/* Profile clarification is a conversation, with one question at a time. */
+.lia-dialogue-badge { display:flex; align-items:center; gap:9px; padding:7px 12px; border:1px solid #e5b856; border-radius:12px; background:#fff4d9; color:#74440a; text-align:left; box-shadow:0 0 0 3px rgba(225,168,55,.1); }
+.lia-dialogue-badge-icon { display:grid; place-items:center; width:25px; height:25px; border-radius:50%; background:#edc76f; font-size:17px; font-weight:900; }
+.lia-dialogue-badge strong { display:block; font-size:14px; line-height:1.2; }
+.lia-dialogue-badge small { display:block; font-size:10px; line-height:1.3; margin-top:3px; }
+.lia-dialogue-badge[data-ready="true"] { background:#e5f5ed; border-color:#84baa1; color:#175940; box-shadow:none; }
+.lia-dialogue-badge[data-ready="true"] .lia-dialogue-badge-icon { background:#bbdfcd; }
+.lia-dialogue { padding:0; overflow:hidden; background:var(--surface); }
+.lia-dialogue-heading { display:flex; justify-content:space-between; align-items:center; gap:24px; padding:22px 26px; background:linear-gradient(110deg,#f0ecff,#f7faf9); border-bottom:1px solid var(--border); }
+.lia-dialogue-heading h3 { margin:5px 0; font-size:23px; }
+.lia-dialogue-heading p { margin:0; font-size:14px; }
+.lia-dialogue-progress { flex:0 0 180px; }
+.lia-dialogue-progress > strong { display:block; font-size:30px; line-height:1.2; color:var(--primary-dark); }
+.lia-dialogue-progress > span { font-size:11px; color:var(--text-muted); }
+.lia-dialogue-messages { padding:24px 26px; display:flex; flex-direction:column; gap:18px; max-height:440px; overflow-y:auto; overscroll-behavior:contain; }
+.lia-dialogue-message { display:flex; align-items:flex-start; gap:12px; max-width:min(900px,92%); }
+.lia-dialogue-avatar { flex:0 0 34px; height:34px; display:grid; place-items:center; border-radius:50%; background:var(--primary); color:#fff; font-weight:800; font-size:16px; }
+.lia-dialogue-message > div { padding:16px 20px; border-radius:4px 16px 16px 16px; background:#f4f1fb; min-width:0; }
+.lia-dialogue-message strong { font-size:13px; color:var(--primary-dark); }
+.lia-dialogue-message p { font-size:15px; line-height:1.7; margin:6px 0 0; white-space:pre-wrap; overflow-wrap:anywhere; }
+.lia-dialogue-message.is-user { align-self:flex-end; }
+.lia-dialogue-message.is-user > div { background:#e9f5ef; border-radius:16px 4px 16px 16px; }
+.lia-dialogue-message.is-user strong { color:#175940; }
+.lia-dialogue-message .lia-dialogue-current-question { font-size:18px; font-weight:750; color:var(--text); margin-top:12px; }
+.lia-dialogue-message .lia-dialogue-context { font-size:13px; color:var(--text-muted); }
+.lia-dialogue-thinking { margin-left:8px; font-weight:500; }
+.lia-dialogue-composer { padding:18px 26px; border-top:1px solid var(--border); display:grid; gap:10px; }
+.lia-dialogue-composer label { font-size:13px; font-weight:750; }
+.dashboard-shell .lia-dialogue-composer textarea { padding:14px 16px; min-height:90px; line-height:1.7; font-size:16px; border:1px solid var(--border-strong); border-radius:12px; box-shadow:none; background:#fcfbff; }
+.lia-dialogue-composer > div { display:flex; align-items:center; justify-content:space-between; gap:12px; }
+.lia-dialogue-composer small { font-size:12px; color:var(--text-muted); }
+.lia-dialogue-details { padding:16px 26px; border-top:1px solid var(--border); background:#faf9f6; }
+.lia-dialogue-details summary { font-size:13px; }
+.lia-dialogue-details ul { list-style:none; padding:0; margin:14px 0; display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; }
+.lia-dialogue-details li { padding:12px; background:var(--surface); border:1px solid var(--border); border-radius:10px; font-size:13px; }
+.lia-dialogue-details li > span { display:block; font-size:12px; color:var(--text-muted); margin-top:4px; }
+@media(max-width:700px) {
+  .lia-dialogue-heading { flex-direction:column; align-items:stretch; padding:18px; gap:14px; }
+  .lia-dialogue-progress { flex-basis:auto; }
+  .lia-dialogue-messages,.lia-dialogue-composer,.lia-dialogue-details { padding:18px; }
+  .lia-dialogue-message { max-width:100%; gap:8px; }
+  .lia-dialogue-message > div { padding:12px 14px; }
+  .lia-dialogue-details ul { grid-template-columns:1fr; }
+  .lia-dialogue-composer > div { flex-wrap:wrap; }
+  .lia-dialogue-badge { padding:6px 8px; gap:6px; }
+  .lia-dialogue-badge strong { font-size:12px; }
+  .lia-dialogue-badge small { max-width:105px; font-size:9px; }
+}
+@media(max-width:420px) { .backend-header-actions > button:first-child { padding:8px; }.backend-header-actions > a { padding:8px; }.backend-header-brand { gap:6px; } }
