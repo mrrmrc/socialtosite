@@ -340,3 +340,9 @@ textarea:focus-visible {
 .editor-canvas-scroll { overscroll-behavior:contain; }
 .editor-right-sidebar { min-height:0; }
 @media (min-width:768px) and (max-width:1200px) { .editor-left-sidebar { width:290px; }.editor-right-sidebar { width:260px; }.editor-component-tile { font-size:12px; padding:6px; gap:5px; } }
+
+@media (min-width:768px) and (max-height:900px) {
+  .editor-component-grid { gap:4px; }
+  .editor-component-tile { min-height:28px; padding:4px 6px; font-size:12px; line-height:1.15; gap:5px; }
+  .editor-component-tile > svg:first-child { width:13px; height:13px; }
+}
