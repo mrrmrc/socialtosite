@@ -24,7 +24,7 @@ function ReadingTextarea({ value, ...props }) {
     const textarea = ref.current;
     const resize = () => {
       textarea.style.height = 'auto';
-      textarea.style.height = `${textarea.scrollHeight + 2}px`;
+      textarea.style.height = `${Math.ceil(textarea.scrollHeight) + 4}px`;
     };
     resize();
     let previousWidth = textarea.parentElement.clientWidth;
