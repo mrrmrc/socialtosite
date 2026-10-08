@@ -21,7 +21,7 @@ export function Canvas() {
   const cssVars = useMemo(() => themeToCSS(resolved), [resolved])
   useGoogleFonts([resolved.fontSans, resolved.fontDisplay, resolved.fontMono])
 
-  const maxWidth = viewport === 'desktop' ? '880px' : viewport === 'tablet' ? '768px' : '375px'
+  const maxWidth = viewport === 'desktop' ? '100%' : viewport === 'tablet' ? '768px' : '375px'
 
   if (blocks.length === 0) {
     return <CanvasEmpty />
@@ -51,7 +51,7 @@ export function Canvas() {
   )
 
   return (
-    <div className="flex-1 flex items-start justify-center p-6 overflow-auto relative">
+    <div className="editor-canvas-scroll flex-1 min-h-0 flex items-start justify-center p-4 overflow-auto relative">
       {/* Dot grid background */}
       <div
         className="absolute inset-0 opacity-40 pointer-events-none"

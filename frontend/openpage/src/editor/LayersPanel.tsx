@@ -163,7 +163,7 @@ function AddComponentPopover({ onAdd, onClose }: { onAdd: (type: BlockType) => v
   )
 }
 
-export function LayersPanel() {
+export function LayersPanel({ compact = false }: { compact?: boolean }) {
   const blocks = useConfigStore((s) => {
     const pages = s.config.pages
     if (!pages || pages.length === 0) return s.config.blocks
@@ -204,7 +204,7 @@ export function LayersPanel() {
   }
 
   return (
-    <div className="flex flex-col flex-1 overflow-hidden relative">
+    <div className="flex flex-col flex-1 min-h-0 overflow-hidden relative">
       <div className="px-3 pt-2.5 pb-1.5 flex items-center justify-between">
         <span className="text-[15px] font-semibold uppercase tracking-wider text-text-3">
           {t("Layers")}
@@ -243,7 +243,7 @@ export function LayersPanel() {
       </div>
 
       {/* Add component */}
-      <div className="p-2 border-t border-border-subtle relative">
+      {!compact && <div className="p-2 border-t border-border-subtle relative">
         <button
           onClick={() => setShowPopover(!showPopover)}
           className="w-full py-2 rounded-md border border-dashed border-border-default text-text-2 text-[15px] flex items-center justify-center gap-1.5 transition-all hover:border-green hover:text-green hover:bg-green-glow2"
@@ -254,7 +254,7 @@ export function LayersPanel() {
         {showPopover && (
           <AddComponentPopover onAdd={handleAddBlock} onClose={() => setShowPopover(false)} />
         )}
-      </div>
+      </div>}
     </div>
   )
 }

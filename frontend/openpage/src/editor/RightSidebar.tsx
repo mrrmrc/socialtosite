@@ -27,7 +27,7 @@ export function RightSidebar() {
   const activeTab = tab
 
   return (
-    <div className="hidden md:flex w-[300px] bg-bg-1 border-l border-border-default flex-col shrink-0">
+    <div className="editor-right-sidebar hidden md:flex w-[300px] bg-bg-1 border-l border-border-default flex-col shrink-0">
       {/* Tabs */}
       <div className="flex border-b border-border-default shrink-0">
         <button
@@ -53,7 +53,7 @@ export function RightSidebar() {
       </div>
 
       {/* Content */}
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 min-h-0 overflow-y-auto">
         {activeTab === 'design' ? (
           <DesignPanel />
         ) : selectedBlock ? (

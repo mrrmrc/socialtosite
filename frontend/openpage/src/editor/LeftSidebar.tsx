@@ -26,12 +26,6 @@ function ComponentsPanel() {
     t(b.category).toLowerCase().includes(search.toLowerCase())
   )
 
-  const grouped = filtered.reduce<Record<string, typeof blockMetadata>>((acc, b) => {
-    if (!acc[b.category]) acc[b.category] = []
-    acc[b.category].push(b)
-    return acc
-  }, {})
-
   function handleAdd(type: BlockType) {
     const meta = blockMetadata.find((b) => b.type === type)
     if (!meta) return
@@ -47,12 +41,13 @@ function ComponentsPanel() {
   }
 
   return (
-    <div className="flex flex-col flex-1 overflow-hidden">
+    <div className="editor-components flex flex-col flex-1 min-h-0 overflow-hidden">
       <div className="px-3 pt-2.5 pb-1.5">
         <div className="relative">
           <Search size={12} className="absolute left-2 top-1/2 -translate-y-1/2 text-text-3" />
           <input
             type="text"
+            aria-label={t("Search components...")}
             placeholder={t("Search components...")}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
@@ -62,30 +57,15 @@ function ComponentsPanel() {
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-2 pb-2">
-        {Object.entries(grouped).map(([category, items]) => (
-          <div key={category}>
-            <div className="text-[15px] font-semibold uppercase tracking-wider text-text-3 px-1.5 pt-2.5 pb-1">
-              {t(category)}
-            </div>
-            {items.map((meta) => {
-              const Icon = blockIcons[meta.type] || Layout
-              return (
-                <button
-                  key={meta.type}
-                  onClick={() => handleAdd(meta.type)}
-                  className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-md text-[15px] text-text-1 hover:bg-bg-3 hover:text-text-0 transition-colors text-left group"
-                >
-                  <div className="w-[22px] h-[22px] rounded border border-border-default bg-bg-3 flex items-center justify-center text-[15px] shrink-0">
-                    <Icon size={12} />
-                  </div>
-                  <span className="flex-1">{t(meta.label)}</span>
-                  <Plus size={11} className="text-text-3 opacity-0 group-hover:opacity-100 transition-opacity" />
-                </button>
-              )
-            })}
-          </div>
-        ))}
+      <div className="editor-component-grid flex-1 overflow-y-auto px-2 pb-2">
+        {filtered.map((meta) => {
+          const Icon = blockIcons[meta.type] || Layout
+          return <button key={meta.type} type="button" onClick={() => handleAdd(meta.type)} className="editor-component-tile" title={t(meta.description)}>
+            <Icon size={16} aria-hidden="true" />
+            <span>{t(meta.type === 'articles' ? 'Articles' : meta.type === 'cta' ? 'CTA' : meta.label)}</span>
+            <Plus size={12} aria-hidden="true" />
+          </button>
+        })}
         {filtered.length === 0 && (
           <div className="px-2 py-6 text-center text-[15px] text-text-3">
             {t("No components match \"")}{search}{"\""}
@@ -96,36 +76,12 @@ function ComponentsPanel() {
   )
 }
 
-type Tab = 'layers' | 'components'
-
 export function LeftSidebar() {
-  const [tab, setTab] = useState<Tab>('layers')
-
-  return (
-    <div className="hidden md:flex w-[300px] bg-bg-1 border-r border-border-default flex-col shrink-0">
-      <div className="flex border-b border-border-default shrink-0">
-        <button
-          onClick={() => setTab('layers')}
-          className={`flex-1 py-3 text-[15px] font-medium transition-colors ${
-            tab === 'layers'
-              ? 'text-text-0 border-b border-green'
-              : 'text-text-3 hover:text-text-1'
-          }`}
-        >
-          {t("Layers")}
-        </button>
-        <button
-          onClick={() => setTab('components')}
-          className={`flex-1 py-2 text-[15px] font-medium transition-colors ${
-            tab === 'components'
-              ? 'text-text-0 border-b border-green'
-              : 'text-text-3 hover:text-text-1'
-          }`}
-        >
-          {t("Components")}
-        </button>
-      </div>
-      {tab === 'layers' ? <LayersPanel /> : <ComponentsPanel />}
-    </div>
-  )
+  return <aside className="editor-left-sidebar hidden md:flex bg-bg-1 border-r border-border-default flex-col shrink-0" aria-label="Sezioni e componenti">
+    <section className="editor-sections" aria-label="Sezioni della pagina"><LayersPanel compact /></section>
+    <section className="editor-catalogue flex flex-col flex-1 min-h-0" aria-labelledby="editor-components-title">
+      <h2 id="editor-components-title" className="editor-panel-title">{t('Components')} <span>Aggiungi alla pagina</span></h2>
+      <ComponentsPanel />
+    </section>
+  </aside>
 }

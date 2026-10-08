@@ -316,3 +316,27 @@ textarea:focus-visible {
 .platform-tool-active { color: var(--color-green); border-bottom-color: var(--color-green); }
 .platform-header a:focus-visible, .platform-header button:focus-visible { outline: 2px solid var(--color-green); outline-offset: -2px; }
 @media (max-width: 640px) { .platform-brandbar { height: 64px; padding-inline: 12px; } .platform-brandbar strong { font-size: 14px; } .platform-header-action { padding: 8px; } .platform-main { margin-top: 164px; } }
+
+/* Keep the editor's two left tools visible without switching tabs. */
+.platform-site-nav { background:#e9e9ed; border-color:#d1d1d8; }
+.platform-tool-link { color:#41414d; border-radius:7px 7px 0 0; }
+.platform-tool-link:hover { background:#dedee5; }
+.platform-tool-active { background:#f7f7fa; color:var(--color-green); border-bottom-color:var(--color-green); font-weight:650; }
+.builder-shell { height:100dvh; }
+.editor-left-sidebar { width:340px; min-height:0; }
+.editor-sections { display:flex; flex-direction:column; min-height:100px; max-height:32%; flex:0 1 auto; border-bottom:1px solid var(--color-border-default); }
+.editor-sections > div { flex:0 1 auto; }
+.editor-sections .group { padding-block:5px; }
+.editor-catalogue { background:#f7f7f9; }
+.editor-panel-title { display:flex; align-items:center; justify-content:space-between; gap:8px; padding:12px 12px 0; font-size:15px; font-weight:700; }
+.editor-panel-title span { font-size:11px; font-weight:400; color:var(--color-text-3); }
+.editor-components > div:first-child { flex-shrink:0; }
+.editor-component-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); align-content:start; gap:5px; }
+.editor-component-tile { display:flex; align-items:center; gap:7px; min-height:38px; padding:7px 8px; text-align:left; font-size:13px; line-height:1.25; border:1px solid var(--color-border-default); border-radius:7px; background:var(--color-bg-1); }
+.editor-component-tile > svg { flex-shrink:0; color:var(--color-green); }
+.editor-component-tile > span { flex:1; min-width:0; }
+.editor-component-tile > svg:last-child { width:11px; opacity:.55; }
+.editor-component-tile:hover,.editor-component-tile:focus-visible { border-color:var(--color-green); background:var(--color-green-glow2); outline:none; }
+.editor-canvas-scroll { overscroll-behavior:contain; }
+.editor-right-sidebar { min-height:0; }
+@media (min-width:768px) and (max-width:1200px) { .editor-left-sidebar { width:290px; }.editor-right-sidebar { width:260px; }.editor-component-tile { font-size:12px; padding:6px; gap:5px; } }
