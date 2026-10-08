@@ -1720,8 +1720,7 @@ h3 { font-size: 24px; font-weight: 700; }
   .lia-dialogue-badge strong { font-size:12px; }
   .lia-dialogue-badge small { max-width:105px; font-size:9px; }
 }
-@media(max-width:420px) { .backend-header-actions > button:first-child { padding:8px; }.backend-header-actions > a { padding:8px; }.backend-header-brand { gap:6px; } }
-/* Reduce the space before the connected channels list. */
+@media(max-width:420px) { .backend-header-actions > button:first-child { padding:8px; }.backend-header-actions > a { padding:8px; }.backend-header-brand { gap:6px; } }/* Reduce the space before the connected channels list. */
 .channels-connect > p { margin-bottom:14px !important; }
 @media (min-width:1000px) {
   .channels-connect > form { display:grid !important; grid-template-columns:minmax(0,2fr) minmax(0,1fr) auto; gap:12px !important; align-items:center; }
