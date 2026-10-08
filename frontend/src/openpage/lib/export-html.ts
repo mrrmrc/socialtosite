@@ -1,3 +1,9 @@
+import { createElement } from 'react'
+import { renderToStaticMarkup } from 'react-dom/server'
+import { ContactBlock } from '../blocks/contact/ContactBlock'
+import { NewsletterBlock } from '../blocks/newsletter/NewsletterBlock'
+import { FooterBlock } from '../blocks/footer/FooterBlock'
+import formRuntime from './site-form-runtime.js?raw'
 import type { SiteConfig, BlockConfig } from '@/blocks/types'
 import { resolveTheme } from '@/lib/theme-presets'
 
@@ -761,14 +767,7 @@ function renderFooterMinimal(block: BlockConfig): string {
 }
 
 function renderFooter(block: BlockConfig): string {
-  switch (block.variant) {
-    case 'multi-column':
-      return renderFooterMultiColumn(block)
-    case 'minimal':
-      return renderFooterMinimal(block)
-    default:
-      return renderFooterSimple(block)
-  }
+  return renderToStaticMarkup(createElement(FooterBlock, { block }))
 }
 
 // ---------------------------------------------------------------------------
@@ -1033,41 +1032,7 @@ ${cards}
 // ---------------------------------------------------------------------------
 
 function renderContact(block: BlockConfig): string {
-  const title = escapeHtml(prop(block.props, 'title', 'Get in Touch'))
-  const subtitle = prop<string>(block.props, 'subtitle', '')
-
-  const subtitleHtml = subtitle
-    ? `          <p class="text-text-2 text-sm">${escapeHtml(subtitle)}</p>`
-    : ''
-
-  return `  <section class="px-6 md:px-10 py-16 md:py-20">
-      <div class="max-w-lg mx-auto">
-        <div class="text-center mb-8">
-          <h2 class="text-2xl md:text-3xl font-bold tracking-tight mb-2">${title}</h2>
-${subtitleHtml}
-        </div>
-        <form onsubmit="return false" class="space-y-4">
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label class="block text-[11.5px] text-text-2 mb-1.5 font-medium">Name</label>
-              <input type="text" placeholder="Your name" class="w-full px-3 py-2.5 rounded-lg border border-border-default bg-bg-2 text-text-0 text-[13px] outline-none focus:border-green placeholder:text-text-3 transition-colors" />
-            </div>
-            <div>
-              <label class="block text-[11.5px] text-text-2 mb-1.5 font-medium">Email</label>
-              <input type="email" placeholder="you@example.com" class="w-full px-3 py-2.5 rounded-lg border border-border-default bg-bg-2 text-text-0 text-[13px] outline-none focus:border-green placeholder:text-text-3 transition-colors" />
-            </div>
-          </div>
-          <div>
-            <label class="block text-[11.5px] text-text-2 mb-1.5 font-medium">Message</label>
-            <textarea rows="4" placeholder="How can we help?" class="w-full px-3 py-2.5 rounded-lg border border-border-default bg-bg-2 text-text-0 text-[13px] outline-none focus:border-green placeholder:text-text-3 resize-y transition-colors"></textarea>
-          </div>
-          <button type="submit" class="w-full py-3 rounded-lg bg-green text-black text-sm font-semibold hover:bg-green-dim transition-all flex items-center justify-center gap-2">
-            ${SVG_SEND}
-            Send Message
-          </button>
-        </form>
-      </div>
-  </section>`
+  return renderToStaticMarkup(createElement(ContactBlock, { block }))
 }
 
 // ---------------------------------------------------------------------------
@@ -1075,39 +1040,7 @@ ${subtitleHtml}
 // ---------------------------------------------------------------------------
 
 function renderNewsletter(block: BlockConfig): string {
-  const title = escapeHtml(
-    prop(block.props, 'title', 'Stay in the loop')
-  )
-  const subtitle = escapeHtml(
-    prop(
-      block.props,
-      'subtitle',
-      'Get updates on new features and releases. No spam, ever.'
-    )
-  )
-  const buttonText = escapeHtml(
-    prop(block.props, 'buttonText', 'Subscribe')
-  )
-  const socialProof = prop<string>(block.props, 'socialProof', '')
-
-  const proofText = socialProof
-    ? escapeHtml(socialProof)
-    : 'Join 2,000+ developers and designers'
-
-  return `  <section class="px-6 md:px-10 py-12 md:py-16">
-      <div class="max-w-xl mx-auto text-center">
-        <div class="w-12 h-12 rounded-xl bg-green/10 border border-green/20 flex items-center justify-center text-green mx-auto mb-4">
-          ${SVG_MAIL}
-        </div>
-        <h2 class="text-xl md:text-2xl font-bold tracking-tight mb-2">${title}</h2>
-        <p class="text-text-2 text-sm mb-6">${subtitle}</p>
-        <form onsubmit="return false" class="flex gap-2 max-w-sm mx-auto">
-          <input type="email" placeholder="you@example.com" class="flex-1 px-4 py-2.5 rounded-lg border border-border-default bg-bg-2 text-text-0 text-[13px] outline-none focus:border-green placeholder:text-text-3 transition-colors" />
-          <button type="submit" class="px-5 py-2.5 rounded-lg bg-green text-black text-sm font-semibold hover:bg-green-dim transition-all shrink-0">${buttonText}</button>
-        </form>
-        <p class="text-[11px] text-text-3 mt-3">${proofText}</p>
-      </div>
-  </section>`
+  return renderToStaticMarkup(createElement(NewsletterBlock, { block }))
 }
 
 // ---------------------------------------------------------------------------
@@ -1382,6 +1315,7 @@ ${posthogScript}
 
 ${blocksHtml}
 ${faqScript}
+<script>${formRuntime}</script>
 </body>
 </html>`
 }

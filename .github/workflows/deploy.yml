@@ -139,6 +139,7 @@ jobs:
           cd frontend
           npm install --legacy-peer-deps
           npm run build
+          node ../tests/builder-forms.test.mjs
 
       - name: Prepare production release
         env:

@@ -96,7 +96,7 @@ export const blockMetadata: BlockMeta[] = [
     description: 'Contact form with name, email, and message',
     category: 'Forms',
     variants: ['form'],
-    defaultProps: { title: 'Get in Touch', subtitle: "We'd love to hear from you." },
+    defaultProps: { title: 'Contattami', subtitle: 'Scrivimi per informazioni e collaborazioni.', buttonText: 'Invia messaggio', privacyText: 'Ho letto l’informativa sulla privacy.', privacyUrl: '', recipientEmail: '', submitUrl: '' },
   },
   {
     type: 'newsletter',
@@ -104,7 +104,7 @@ export const blockMetadata: BlockMeta[] = [
     description: 'Email subscription form with social proof',
     category: 'Conversion',
     variants: ['simple'],
-    defaultProps: { title: 'Stay in the loop', subtitle: 'Get updates on new features.', buttonText: 'Subscribe' },
+    defaultProps: { title: 'Resta aggiornato', subtitle: 'Ricevi le prossime novità via email.', buttonText: 'Iscriviti', privacyText: 'Desidero iscrivermi alla newsletter e ho letto l’informativa privacy.', privacyUrl: '', submitUrl: '' },
   },
   {
     type: 'logocloud',
