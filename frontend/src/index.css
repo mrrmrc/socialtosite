@@ -1587,3 +1587,60 @@ h3 { font-size: 24px; font-weight: 700; }
   .glass-header > nav { display: none; }
   .public-hero-bento h1 { font-size: 2.5rem; }
 }
+
+/* Read the profile one topic at a time, with room for complete answers. */
+.profile-reading-workspace { padding: 0; overflow: hidden; }
+.profile-reading-heading { display: flex; justify-content: space-between; align-items: center; gap: 32px; padding: 28px 32px; border-bottom: 1px solid var(--border); background: linear-gradient(120deg, #fff 55%, #f3efff); }
+.profile-reading-eyebrow { display: block; margin-bottom: 8px; color: var(--primary-dark); font-size: 11px; font-weight: 850; letter-spacing: .12em; }
+.profile-reading-heading h2 { font-size: 26px; }
+.profile-reading-heading p { margin: 8px 0 0; max-width: 760px; font-size: 15px; line-height: 1.65; }
+.profile-reading-progress { flex: 0 0 180px; display: grid; gap: 5px; color: var(--text-muted); font-size: 13px; }
+.profile-reading-progress strong { color: var(--primary-dark); font-size: 32px; line-height: 1.2; }
+.profile-reading-progress strong span { font-size: 18px; font-weight: 500; color: var(--text-muted); }
+.profile-reading-progress progress { appearance: none; width: 100%; height: 6px; border: 0; border-radius: 8px; overflow: hidden; background: var(--primary-light); accent-color: var(--primary); }
+.profile-reading-progress progress::-webkit-progress-bar { background: var(--primary-light); }
+.profile-reading-progress progress::-webkit-progress-value { background: var(--primary); border-radius: 8px; }
+.profile-reading-progress progress::-moz-progress-bar { background: var(--primary); }
+.profile-reading-body { display: grid; grid-template-columns: 260px minmax(0, 1fr); }
+.profile-reading-nav { display: flex; flex-direction: column; gap: 8px; padding: 24px 16px; background: #faf9f6; border-right: 1px solid var(--border); }
+.profile-reading-nav button { display: flex; gap: 12px; justify-content: flex-start; align-items: center; padding: 15px 12px; text-align: left; border: 1px solid transparent; border-radius: 12px; background: transparent; color: var(--text-muted); }
+.profile-reading-nav button[aria-pressed="true"] { border-color: #d5ccfa; background: #eee8ff; color: var(--primary-dark); }
+.profile-reading-nav button:hover { background: var(--primary-light); }
+.profile-reading-nav strong { display: block; font-size: 14px; line-height: 1.4; }
+.profile-reading-nav small { display: block; margin-top: 4px; font-size: 12px; font-weight: 500; }
+.profile-reading-icon { flex: 0 0 28px; font-size: 24px; font-weight: 500; }
+.profile-reading-arrow { margin-left: auto; }
+.profile-reading-content { padding: 28px 32px; min-width: 0; }
+.profile-reading-content > header { margin-bottom: 24px; }
+.profile-reading-content h3 { font-size: 23px; }
+.profile-reading-content > header p { margin: 6px 0 0; font-size: 15px; }
+.profile-reading-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 22px; }
+.profile-reading-fields label { display: flex; flex-direction: column; min-width: 0; gap: 10px; }
+.profile-reading-fields .is-wide { grid-column: 1 / -1; }
+.profile-reading-field-title { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 6px 12px; font-size: 15px; font-weight: 750; }
+.profile-reading-field-title small { font-size: 11px; font-weight: 600; color: var(--text-muted); padding: 3px 8px; border-radius: 20px; background: var(--gray-light); }
+.profile-reading-field-help { font-size: 12px; color: var(--text-muted); }
+.dashboard-shell .profile-reading-fields textarea { min-height: 140px; padding: 16px 18px; overflow-y: hidden; resize: none; font-size: 16px; line-height: 1.75; background: #fcfbff; border: 1px solid #d9d5e4; border-radius: 12px; box-shadow: none; }
+.profile-reading-fields textarea:focus { border-color: var(--primary); outline: 3px solid var(--primary-light); }
+.profile-reading-pagination { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 12px; margin-top: 24px; }
+.profile-reading-save { display: flex; justify-content: space-between; align-items: center; gap: 20px; padding: 20px 32px; border-top: 1px solid var(--border); background: #faf9f6; }
+.profile-reading-save p { margin: 0; font-size: 13px; }
+.profile-reading-save button { flex-shrink: 0; }
+.profile-reading-nav button:focus-visible { outline: 3px solid var(--primary); outline-offset: 2px; }
+@media (max-width: 1000px) {
+  .profile-reading-body { grid-template-columns: 1fr; }
+  .profile-reading-nav { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); border-right: 0; border-bottom: 1px solid var(--border); }
+}
+@media (max-width: 640px) {
+  .profile-reading-heading { align-items: flex-start; flex-direction: column; gap: 18px; padding: 20px; }
+  .profile-reading-progress { flex-basis: auto; width: 100%; grid-template-columns: auto 1fr; align-items: center; gap: 8px 12px; }
+  .profile-reading-progress progress { grid-column: 1 / -1; }
+  .profile-reading-content { padding: 22px 20px; }
+  .profile-reading-fields { grid-template-columns: 1fr; }
+  .profile-reading-nav { padding: 12px; gap: 6px; }
+  .profile-reading-nav button { padding: 12px 8px; gap: 8px; }
+  .profile-reading-icon { display: none; }
+  .profile-reading-nav strong { font-size: 13px; }
+  .profile-reading-arrow { display: none; }
+  .profile-reading-save { flex-direction: column; align-items: stretch; padding: 20px; gap: 12px; }
+}
