@@ -4810,7 +4810,7 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
         </div>
       )}
 
-      <ProductGuide />
+      <ProductGuide knowledge={knowledge} />
       <PublicationConnections token={token} />
       
     </div>
