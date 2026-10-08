@@ -1,4 +1,5 @@
 import { t } from '@/lib/i18n'
+import { blockMetadata } from '@/lib/block-metadata'
 import { useState } from 'react'
 import { ChevronDown, ChevronRight, Code } from 'lucide-react'
 import type { BlockConfig, BlockType } from '@/blocks/types'
@@ -133,6 +134,8 @@ const blockFields: Partial<Record<BlockType, { sections: { title: string; fields
           { key: 'logoImage', label: t('Logo Image URL'), type: 'text' },
           { key: 'copyright', label: t('Copyright'), type: 'text' },
           { key: 'links', label: t('Links'), type: 'array-strings' },
+          { key: 'linkUrls', label: 'Destinazioni dei link (stesso ordine)', type: 'array-strings' },
+          { key: 'columns', label: 'Colonne del piè di pagina', type: 'array-items' },
         ],
       },
       {
@@ -202,30 +205,26 @@ const blockFields: Partial<Record<BlockType, { sections: { title: string; fields
       },
     ],
   },
-  contact: {
-    sections: [
-      {
-        title: t('Content'),
-        fields: [
-          { key: 'title', label: t('Title'), type: 'text' },
-          { key: 'subtitle', label: t('Subtitle'), type: 'text' },
-        ],
-      },
-    ],
-  },
-  newsletter: {
-    sections: [
-      {
-        title: t('Content'),
-        fields: [
-          { key: 'title', label: t('Title'), type: 'text' },
-          { key: 'subtitle', label: t('Subtitle'), type: 'text' },
-          { key: 'buttonText', label: t('Button Text'), type: 'text' },
-          { key: 'socialProof', label: t('Social Proof'), type: 'text' },
-        ],
-      },
-    ],
-  },
+  contact: { sections: [{ title: t('Content'), fields: [
+    { key: 'title', label: t('Title'), type: 'text' },
+    { key: 'subtitle', label: t('Subtitle'), type: 'text' },
+    { key: 'buttonText', label: t('Button Text'), type: 'text' },
+  ] }, { title: 'Invio e privacy', fields: [
+    { key: 'recipientEmail', label: 'Email destinatario (apre il programma email)', type: 'text' },
+    { key: 'submitUrl', label: 'Servizio di invio POST (alternativo all’email)', type: 'text' },
+    { key: 'privacyUrl', label: 'Link all’informativa privacy', type: 'text' },
+    { key: 'privacyText', label: 'Testo della presa visione', type: 'textarea' },
+  ] }] },
+  newsletter: { sections: [{ title: t('Content'), fields: [
+    { key: 'title', label: t('Title'), type: 'text' },
+    { key: 'subtitle', label: t('Subtitle'), type: 'text' },
+    { key: 'buttonText', label: t('Button Text'), type: 'text' },
+    { key: 'socialProof', label: t('Social Proof'), type: 'text' },
+  ] }, { title: 'Iscrizione e privacy', fields: [
+    { key: 'submitUrl', label: 'Servizio newsletter (URL per invio POST)', type: 'text' },
+    { key: 'privacyUrl', label: 'Link all’informativa privacy', type: 'text' },
+    { key: 'privacyText', label: 'Testo del consenso alla newsletter', type: 'textarea' },
+  ] }] },
   logocloud: {
     sections: [
       {
@@ -447,17 +446,17 @@ function PropertyField({ field, block }: { field: FieldDef; block: BlockConfig }
     }
 
     case 'array-items': {
-      const items = (Array.isArray(value) ? value : []) as Array<Record<string, string>>
+      const items = (Array.isArray(value) ? value : []) as Array<Record<string, unknown>>
 
       // Infer new item shape from existing items, or use sensible defaults per field key
-      function createEmptyItem(): Record<string, string> {
+      function createEmptyItem(): Record<string, unknown> {
         if (items.length > 0) {
-          const template: Record<string, string> = {}
-          for (const key of Object.keys(items[0])) template[key] = ''
+          const template: Record<string, unknown> = {}
+          for (const key of Object.keys(items[0])) template[key] = Array.isArray(items[0][key]) ? [] : ''
           return template
         }
         // Fallback templates by block type + field key
-        const blockTemplates: Partial<Record<string, Record<string, Record<string, string>>>> = {
+        const blockTemplates: Partial<Record<string, Record<string, Record<string, unknown>>>> = {
           testimonials: { items: { name: '', role: '', quote: '' } },
           stats: { items: { value: '', label: '' } },
           faq: { items: { question: '', answer: '' } },
@@ -465,6 +464,7 @@ function PropertyField({ field, block }: { field: FieldDef; block: BlockConfig }
           features: { items: { title: '', description: '' } },
           image: { images: { src: '', alt: '' } },
           gallery: { images: { src: '', alt: '', caption: '' } },
+          footer: { columns: { title: '', links: [], linkUrls: [] } },
         }
         return blockTemplates[block.type]?.[field.key] || { title: '', description: '' }
       }
@@ -486,7 +486,13 @@ function PropertyField({ field, block }: { field: FieldDef; block: BlockConfig }
               {Object.entries(item).map(([key, val]) => (
                 <div key={key} className="mb-1">
                   <label className="block text-[15px] text-text-3 mb-0.5">{t(key)}</label>
-                  <input
+                  {Array.isArray(val) ? <textarea
+                    value={val.map(String).join('\n')}
+                    rows={3}
+                    aria-label={t(key)}
+                    onChange={e => { const updated = [...items]; updated[i] = { ...updated[i], [key]: e.target.value.split('\n') }; onChange(updated) }}
+                    className="w-full px-1.5 py-1 rounded border border-border-subtle bg-bg-3 text-text-0 text-[15px]"
+                  /> :                   <input
                     type="text"
                     value={String(val)}
                     onChange={(e) => {
@@ -495,7 +501,7 @@ function PropertyField({ field, block }: { field: FieldDef; block: BlockConfig }
                       onChange(updated)
                     }}
                     className="w-full px-1.5 py-1 rounded border border-border-subtle bg-bg-3 text-text-0 text-[15px] outline-none focus:border-green"
-                  />
+                  />}
                 </div>
               ))}
             </div>
@@ -533,7 +539,13 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 
 export function PropertiesPanel({ block }: { block: BlockConfig }) {
   const [showJson, setShowJson] = useState(false)
-  const schema = blockFields[block.type]
+  const baseSchema = blockFields[block.type]
+  const meta = blockMetadata.find(item => item.type === block.type)
+  const sections = baseSchema?.sections.map(section => ({ ...section, fields: section.fields.map(field => field.key === 'variant' && meta ? { ...field, options: meta.variants } : field) })) || []
+  if (meta && !sections.some(section => section.fields.some(field => field.key === 'variant'))) {
+    sections.push({ title: t('Style'), fields: [{ key: 'variant', label: t('Variant'), type: 'select', options: meta.variants }] })
+  }
+  const schema = { sections }
 
   return (
     <>
@@ -548,6 +560,7 @@ export function PropertiesPanel({ block }: { block: BlockConfig }) {
       </div>
 
       {/* Property sections */}
+      {(block.type==='contact' || block.type==='newsletter') && <p className="p-3.5 text-[13px] text-text-2">La privacy è obbligatoria e non preselezionata. Imposta il link all’informativa e un recapito valido per rendere il modulo utilizzabile. Nell’editor gli invii sono solo un’anteprima.</p>}
       {block.type==='articles' && <p className="p-3.5 text-[15px] text-text-2">{t('Rules filter this section only. Articles remain published and accessible. Dates use UTC. Publish to apply these rules online.')}</p>}
       {schema?.sections.map((section) => (
         <Section key={section.title} title={section.title}>
