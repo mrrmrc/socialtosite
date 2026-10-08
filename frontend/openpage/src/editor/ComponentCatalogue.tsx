@@ -66,10 +66,11 @@ export function ComponentCatalogue() {
         addBlock({ id, type: meta.type, variant, props: structuredClone(meta.defaultProps) })
         selectBlock(id)
         toast(`${labelFor(meta.type, meta.label)} · ${variantNames[variant] || variant} aggiunto`)
-      }} className="rounded border border-border-default bg-bg-1 hover:border-green hover:bg-green-glow2 text-left" style={{ padding: '8px', minHeight: 82 }}>
-        <span className="flex items-center justify-between mb-1.5"><span className="rounded bg-green-glow text-green flex items-center justify-center" style={{ width: 30, height: 30 }}><Icon size={21} strokeWidth={1.7} aria-hidden="true" /></span><Plus size={12} className="text-green shrink-0" aria-hidden="true" /></span>
-        <span className="block text-text-0" style={{ fontSize: 12, lineHeight: 1.25 }}>{labelFor(meta.type, meta.label)}</span>
-        <span className="block mt-1 text-green" style={{ fontSize: 11 }}>{view === 'variants' ? variantNames[variant] || variant : `${meta.variants.length} ${meta.variants.length === 1 ? 'variante' : 'varianti'}`}</span>
+      }} className="flex items-center gap-1.5 rounded border border-border-default bg-bg-1 hover:border-green hover:bg-green-glow2 text-left" style={{ padding: '5px 6px', minHeight: 42 }}>
+        <Icon size={16} strokeWidth={1.7} className="text-green shrink-0" aria-hidden="true" />
+        <span className="flex-1 min-w-0"><span className="block text-text-0" style={{ fontSize: 11, lineHeight: 1.2 }}>{labelFor(meta.type, meta.label)}</span>
+        <span className="block text-text-2" style={{ fontSize: 10, lineHeight: 1.2 }}>{view === 'variants' ? variantNames[variant] || variant : `${meta.variants.length} ${meta.variants.length === 1 ? 'variante' : 'varianti'}`}</span></span>
+        <Plus size={10} className="text-green shrink-0" aria-hidden="true" />
       </button>})}
       </div></section>)}
       {groups.length === 0 && <p className="text-text-2 text-xs">Nessun componente o variante corrisponde alla ricerca.</p>}
