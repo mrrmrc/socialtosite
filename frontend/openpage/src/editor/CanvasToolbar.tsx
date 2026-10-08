@@ -12,6 +12,7 @@ import {
   Eye,
   Plus,
   HelpCircle,
+  Trash2,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useEditorStore, type Viewport } from '@/store/editorStore'
@@ -120,7 +121,7 @@ function PageTab({ page, isActive, onClick, onRename, onDelete, canDelete }: {
   }
 
   return (
-    <div className="relative">
+    <div className="relative flex items-center gap-0.5">
       <button
         onClick={onClick}
         onDoubleClick={(e) => { e.stopPropagation(); setEditing(true) }}
@@ -132,6 +133,7 @@ function PageTab({ page, isActive, onClick, onRename, onDelete, canDelete }: {
       >
         {page.name}
       </button>
+      {canDelete && <button type="button" onClick={onDelete} aria-label={`Elimina pagina ${page.name}`} title={`Elimina pagina ${page.name}`} className="flex items-center justify-center rounded text-text-3 hover:text-status-red hover:bg-status-red/10" style={{ width: 22, height: 24 }}><Trash2 size={12} aria-hidden="true" /></button>}
       {showContext && (
         <>
           <div className="fixed inset-0 z-10" onClick={() => setShowContext(false)} />
@@ -201,7 +203,11 @@ export function CanvasToolbar() {
             isActive={activePageId === page.id}
             onClick={() => setActivePage(page.id)}
             onRename={(name) => renamePage(page.id, name)}
-            onDelete={() => removePage(page.id)}
+            onDelete={() => {
+              removePage(page.id)
+              useEditorStore.getState().selectBlock(null)
+              toast(`Pagina ${page.name} eliminata dalla bozza`, { action: { label: 'Annulla', onClick: () => useConfigStore.getState().undo() } })
+            }}
             canDelete={pages.length > 1}
           />
         ))}
