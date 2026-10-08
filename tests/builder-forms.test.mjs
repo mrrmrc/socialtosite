@@ -7,6 +7,12 @@ const server = await createServer({ root, configFile: root + 'vite.config.js', s
 try {
   const { exportSiteToHTML } = await server.ssrLoadModule('/src/openpage/lib/export-html.ts')
   const { formDestination } = await server.ssrLoadModule('/src/openpage/lib/site-forms.ts')
+  const { previewPage } = await server.ssrLoadModule('/src/openpage/lib/preview-navigation.ts')
+  const draftPages = [{ id: 'home', path: '/', blocks: [] }, { id: 'second', path: '/lalsa', blocks: [] }]
+  assert.equal(previewPage('/marco/lalsa', draftPages, 'https://example.com', 'https://example.com/marco')?.id, 'second')
+  assert.equal(previewPage('/marco', draftPages, 'https://example.com', 'https://example.com/marco')?.id, 'home')
+  assert.equal(previewPage('https://external.example/lalsa', draftPages, 'https://example.com'), undefined)
+  assert.equal(previewPage('http://[', draftPages, 'https://example.com'), undefined)
   const config = blocks => ({ theme: 'light', blocks })
   for (const type of ['contact', 'newsletter']) {
     const html = exportSiteToHTML(config([{ id: type, type, variant: type === 'contact' ? 'form' : 'simple', props: { privacyUrl: '/privacy', submitUrl: '/send' } }]))
