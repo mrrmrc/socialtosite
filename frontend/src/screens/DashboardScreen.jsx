@@ -3348,7 +3348,7 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
               </section>
 
               {/* Form Aggiungi Canale */}
-              <div className="card" style={{ padding: '24px', border: '2px solid var(--border)', background: 'var(--surface)', borderRadius: 'var(--radius-lg)' }}>
+              <div className="card channels-connect" style={{ padding: '24px', border: '2px solid var(--border)', background: 'var(--surface)', borderRadius: 'var(--radius-lg)' }}>
                 <h2 style={{ marginBottom: '0.75rem', fontSize: '24px', fontWeight: 800 }}>Collega un nuovo social</h2>
                 <p style={{ fontSize: '16px', color: 'var(--text-muted)', marginBottom: '1.5rem', lineHeight: 1.5 }}>
                   Incolla l'URL pubblico di un sito, profilo, canale o singolo post. I contenuti verranno acquisiti automaticamente.

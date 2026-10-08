@@ -1701,3 +1701,13 @@ h3 { font-size: 24px; font-weight: 700; }
   .lia-dialogue-badge small { max-width:105px; font-size:9px; }
 }
 @media(max-width:420px) { .backend-header-actions > button:first-child { padding:8px; }.backend-header-actions > a { padding:8px; }.backend-header-brand { gap:6px; } }
+/* Reduce the space before the connected channels list. */
+.channels-connect > p { margin-bottom:14px !important; }
+@media (min-width:1000px) {
+  .channels-connect > form { display:grid !important; grid-template-columns:minmax(0,2fr) minmax(0,1fr) auto; gap:12px !important; align-items:center; }
+  .channels-connect > form > div:first-child { grid-column:1; grid-row:1; }
+  .channels-connect > form > input { grid-column:2; grid-row:1; }
+  .channels-connect > form > div:last-child { grid-column:3; grid-row:1; flex-wrap:wrap; }
+  .channels-connect > form > div:not(:first-child):not(:last-child) { grid-column:1 / -1; grid-row:2; }
+  .channels-connect > form > div:last-child > span { max-width:240px; }
+}
