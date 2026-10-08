@@ -12,15 +12,13 @@ import {
   Eye,
   Plus,
   HelpCircle,
-  Download,
-  Loader2,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useEditorStore, type Viewport } from '@/store/editorStore'
 import { useConfigStore } from '@/store/configStore'
 import { useProjectsStore } from '@/store/projectsStore'
 import type { PageConfig } from '@/blocks/types'
-import { exportToHTML, downloadHTML } from '@/lib/export-html'
+
 
 const viewports: { value: Viewport; icon: typeof Monitor; label: string }[] = [
   { value: 'desktop', icon: Monitor, label: t('Desktop') },
@@ -173,26 +171,10 @@ export function CanvasToolbar() {
   const renamePage = useConfigStore((s) => s.renamePage)
   const projects = useProjectsStore((s) => s.projects)
   const configName = useConfigStore((s) => s.config.name)
-  const config = useConfigStore((s) => s.config)
   const [showAddPage, setShowAddPage] = useState(false)
-  const [exporting, setExporting] = useState(false)
 
   const activeProject = activeProjectId ? projects.find((p) => p.id === activeProjectId) : null
   const projectName = activeProject?.name || configName
-
-  async function handleExport() {
-    setExporting(true)
-    try {
-      const html = await exportToHTML(config, { settings: activeProject?.settings })
-      const filename = `${(activeProject?.name || config.name || 'site').toLowerCase().replace(/\s+/g, '-')}.html`
-      downloadHTML(html, filename)
-      toast(t('HTML exported'))
-    } catch {
-      toast.error(t('Export failed'))
-    } finally {
-      setExporting(false)
-    }
-  }
 
   return (
     <div className="min-h-12 py-2 shrink-0 flex-wrap bg-bg-1 border-b border-border-default flex items-center px-3 gap-1">
@@ -213,7 +195,7 @@ export function CanvasToolbar() {
       {/* Page tabs */}
       <div className="flex items-center gap-0.5 relative overflow-x-auto">
         {pages.map((page) => (
-          <PageTab
+          previewMode ? <button key={page.id} type="button" aria-pressed={activePageId === page.id} onClick={() => setActivePage(page.id)} className="rounded px-2 py-1 text-xs hover:bg-bg-3" style={{ color: activePageId === page.id ? 'var(--color-green)' : 'var(--color-text-1)' }}>{page.name}</button> : <PageTab
             key={page.id}
             page={page}
             isActive={activePageId === page.id}
@@ -223,7 +205,7 @@ export function CanvasToolbar() {
             canDelete={pages.length > 1}
           />
         ))}
-        <div className="relative">
+        {!previewMode && <div className="relative">
           <button
             onClick={() => setShowAddPage(!showAddPage)}
             className="w-8 h-8 rounded flex items-center justify-center text-text-3 hover:text-green hover:bg-bg-2 transition-all"
@@ -238,7 +220,7 @@ export function CanvasToolbar() {
               onClose={() => setShowAddPage(false)}
             />
           )}
-        </div>
+        </div>}
       </div>
 
       {/* Right side */}
@@ -304,7 +286,7 @@ export function CanvasToolbar() {
           aria-pressed={previewMode}
         >
           <Eye size={13} />
-          <span>{t("Preview")}</span>
+          <span>{previewMode ? 'Torna alla modifica' : 'Anteprima sito'}</span>
         </button>
 
         {/* JSON drawer toggle */}
@@ -344,29 +326,6 @@ export function CanvasToolbar() {
 
         <div className="w-px h-5 bg-border-default mx-1" />
 
-        <button
-          onClick={() => navigate('/deploy')}
-          className="h-9 px-3 rounded-lg bg-green text-bg-0 text-[15px] font-semibold"
-        >
-          {t("Pubblica")}
-        </button>
-        <button
-          onClick={handleExport}
-          disabled={exporting}
-          className="h-9 px-3 rounded-lg bg-green text-bg-0 text-[15px] font-semibold hover:bg-green/90 transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5"
-        >
-          {exporting ? (
-            <>
-              <Loader2 size={12} className="animate-spin" />
-              <span>{t("Exporting...")}</span>
-            </>
-          ) : (
-            <>
-              <Download size={12} />
-              <span>{t("Scarica HTML")}</span>
-            </>
-          )}
-        </button>
       </div>
     </div>
   )

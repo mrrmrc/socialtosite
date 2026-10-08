@@ -10,7 +10,6 @@ import { Versions } from './routes/Versions'
 import { useEditorStore } from './store/editorStore'
 import { Editor } from './routes/Editor'
 import { Components } from './routes/Components'
-import { Deploy } from './routes/Deploy'
 import { Settings } from './routes/Settings'
 import { NotFound } from './routes/NotFound'
 import { useKeyboardShortcuts } from './lib/useKeyboardShortcuts'
@@ -32,7 +31,7 @@ function AppRoutes() {
         <Route path="new" element={<Navigate to="/" replace />} />
         <Route path="editor" element={activeProjectId ? <Editor /> : <SiteWorkspace />} />
         <Route path="components" element={<Components />} />
-        <Route path="deploy" element={activeProjectId ? <Deploy /> : <SiteWorkspace />} />
+        <Route path="deploy" element={<Navigate to="/editor" replace />} />
         <Route path="settings" element={activeProjectId ? <Settings /> : <SiteWorkspace destination="/settings" />} />
         <Route path="*" element={<NotFound />} />
       </Route>

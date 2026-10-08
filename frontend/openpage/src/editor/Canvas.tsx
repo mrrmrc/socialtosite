@@ -6,6 +6,8 @@ import { BlockWrapper } from '@/blocks/BlockWrapper'
 import { RenderBlock } from '@/blocks/registry'
 import { resolveTheme, themeToCSS } from '@/lib/theme-presets'
 import { useGoogleFonts } from '@/lib/useGoogleFonts'
+import { useProjectsStore } from '@/store/projectsStore'
+import { previewPage } from '@/lib/preview-navigation'
 
 export function Canvas() {
   const blocks = useConfigStore((s) => {
@@ -15,7 +17,10 @@ export function Canvas() {
     return page.blocks
   })
   const theme = useConfigStore((s) => s.config.theme)
-  const { selectedBlockId, selectBlock, viewport } = useEditorStore()
+  const { selectedBlockId, selectBlock, viewport, previewMode, activeProjectId } = useEditorStore()
+  const pages = useConfigStore(s => s.config.pages) || []
+  const setActivePage = useConfigStore(s => s.setActivePage)
+  const liveUrl = useProjectsStore(s => s.projects.find(project => project.id === activeProjectId)?.deployUrl)
 
   const resolved = useMemo(() => resolveTheme(theme), [theme])
   const cssVars = useMemo(() => themeToCSS(resolved), [resolved])
@@ -33,6 +38,22 @@ export function Canvas() {
       style={{ width: '100%', maxWidth, ...cssVars, color: 'var(--color-text-0)', backgroundColor: 'var(--color-bg-1)', borderColor: 'var(--color-border-default)' } as React.CSSProperties}
       onClick={(e) => {
         if (e.target === e.currentTarget) selectBlock(null)
+      }}
+      onClickCapture={e => {
+        if (!previewMode || !(e.target instanceof Element)) return
+        const anchor = e.target.closest('a')
+        if (!anchor) return
+        const href = anchor.getAttribute('href') || ''
+        if (href.startsWith('#')) return
+        const page = previewPage(href, pages, window.location.origin, liveUrl)
+        if (page) {
+          e.preventDefault()
+          setActivePage(page.id)
+          e.currentTarget.closest('.editor-canvas-scroll')?.scrollTo({ top: 0 })
+        } else if (/^(https?:|\/)/.test(href)) {
+          anchor.target = '_blank'
+          anchor.rel = 'noopener noreferrer'
+        }
       }}
       role="region"
       aria-label={`Site preview, ${blocks.length} blocks, ${viewport} viewport`}
