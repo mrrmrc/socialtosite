@@ -2663,7 +2663,7 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
             <span className="header-site-label">Apri il mio sito</span>
           </a>
           
-          <button className="btn btn-outline lia-knowledge-badge" onClick={() => { setTab('idea'); setVisibilitySection('ideas'); }} title="Conoscenza del profilo: apri la supervisione di LIA" aria-label={knowledge.busy ? 'LIA sta verificando il profilo' : knowledge.review?.reviewed ? `LIA conosce il profilo al ${knowledge.review.score}%. Apri domande e revisione` : 'Profilo da verificare con LIA'}>LIA {knowledge.busy ? '…' : knowledge.review?.reviewed ? `${knowledge.review.score}%` : '· da verificare'}</button>
+          <button className="btn btn-outline lia-knowledge-badge" onClick={() => { setTab('idea'); setVisibilitySection('ideas'); }} title="Scopri cosa LIA ha capito, cosa deve verificare e quali informazioni mancano" aria-label={knowledge.busy ? 'LIA sta verificando il brief' : knowledge.review?.reviewed && knowledge.review.score === 100 ? 'Brief chiaro: la conoscenza della persona resta da aggiornare. Apri la revisione' : 'LIA conosce il profilo solo in parte o deve ancora verificarlo. Apri la revisione'}>LIA · {knowledge.busy ? 'verifica in corso' : knowledge.review?.reviewed ? knowledge.review.score === 100 ? 'brief chiaro' : 'profilo parziale' : 'profilo da verificare'}</button>
           <div style={{ position: 'relative' }}>
             <button 
               className="btn btn-outline btn-icon" aria-label="Menu account"
