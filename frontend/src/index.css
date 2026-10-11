@@ -1730,3 +1730,13 @@ h3 { font-size: 24px; font-weight: 700; }
   .channels-connect > form > div:not(:first-child):not(:last-child) { grid-column:1 / -1; grid-row:2; }
   .channels-connect > form > div:last-child > span { max-width:240px; }
 }
+
+.lia-profile-link { display:flex; align-items:center; justify-content:space-between; gap:18px; padding:18px 22px; border:1px solid var(--border); border-radius:14px; background:var(--surface); }
+.lia-profile-link p { margin:5px 0 0; color:var(--text-muted); font-size:14px; }
+.lia-dialogue-progress > strong { font-size:24px; }
+.lia-dialogue-details summary { cursor:pointer; font-weight:750; }
+.lia-dialogue-details li p { margin:8px 0 0; white-space:pre-wrap; overflow-wrap:anywhere; }
+.lia-profile-answers { margin:16px 0; }
+.lia-profile-complete { color:#175940; font-weight:700; }
+#lia-confirmed-answers { scroll-margin-top:170px; }
+@media (max-width:640px) { .lia-profile-link { flex-direction:column; align-items:stretch; } }

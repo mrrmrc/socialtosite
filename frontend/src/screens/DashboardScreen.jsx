@@ -902,7 +902,6 @@ function GuidedStrategy({
   );
 }
 
-import StrategyInterview from "./StrategyInterview";
 export function DashboardScreen({ token, user, onLogout }) {
   const [tab, setTab] = useState((() => { const requested = new URLSearchParams(window.location.search).get("tab"); return ["overview", "profile", "site", "sources", "seo", "idea", "account", "security", "services", "publicsite"].includes(requested) ? requested : "overview"; })());
   const [visibilitySection, setVisibilitySection] = useState("overview");
@@ -1137,7 +1136,6 @@ export function DashboardScreen({ token, user, onLogout }) {
   const [passwordMsg, setPasswordMsg] = useState(null);
   const siteUrl = `${window.location.origin}/${user?.slug}`;
 
-  const [showInterview, setShowInterview] = useState(false);
   const activeUnderstanding = understandingDraft || understandingReport || {};
   const declaredStrategy = activeUnderstanding.declared_strategy || {};
   const isStrategyComplete = [
@@ -4192,7 +4190,7 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
         <div className="backend-header-brand">
           <BrandMark iconOnly />
           <strong>All Social To Web</strong>
-          <LiaKnowledgeBadge knowledge={knowledge} onClick={() => { setTab('idea'); setVisibilitySection('ideas'); }} />
+          <LiaKnowledgeBadge knowledge={knowledge} onClick={() => { setTab('profile'); setProfileSubTab('who'); }} />
         </div>
         <div
           className="backend-header-actions"
@@ -4552,12 +4550,7 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
                       </button>
                     </div>
                   </section>
-                  <LiaKnowledge knowledge={knowledge} onProfile={() => { setTab('profile'); setProfileSubTab('who'); }} onSave={async updates => {
-                    await apiFetch('/api/index.php?action=site-update', { method: 'POST', body: JSON.stringify({ site_understanding_corrections: { declared_strategy: updates } }) }, token);
-                    setAiContentIdeas([]);
-                    setIdeasGeneratedAt('');
-                    await loadData();
-                  }} />
+                  <section className="lia-profile-link"><div><strong>Il profilo guida le proposte</strong><p>Le domande di LIA e le tue risposte sono in Il mio profilo. Qui scegli cosa creare oggi.</p></div><button className="btn btn-outline" onClick={() => { setTab('profile'); setProfileSubTab('who'); }}>Apri il profilo e l’intervista</button></section>
                   <section className="editorial-brief" aria-labelledby="editorial-brief-title">
                     <h3 id="editorial-brief-title">Cosa prepariamo oggi?</h3>
                     <p>Il tema parte dalla profilazione. Aggiungi una priorità per questa sessione e LIA la userà per le prossime 3 proposte.</p>
@@ -5640,62 +5633,17 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
                   </div>
                 ))}
 
-              {tab === "profile" && profileSubTab === "who" && (
-                <div style={{ display: "grid", gap: "24px" }}>
-                  <ProfileReviewPanel value={declaredStrategy} onChange={updateDeclaredStrategy} onSave={()=>saveProfileReview('interview')} busy={profileReviewBusy} />
-                  <button className="btn btn-outline" style={{justifySelf:'start'}} onClick={()=>setShowInterview(value=>!value)}>{showInterview?'Chiudi conversazione':'Parla con LIA per completare le risposte'}</button>
-                  {showInterview && (
-                    <>
-                      {isStrategyComplete && (
-                        <div
-                          style={{
-                            display: "flex",
-                            justifyContent: "flex-end",
-                            marginBottom: "-12px",
-                          }}
-                        >
-                          <button
-                            className="btn btn-outline"
-                            onClick={() => setShowInterview(false)}
-                          >
-                            Chiudi intervista
-                          </button>
-                        </div>
-                      )}
-                      <StrategyInterview
-                        declaredStrategy={declaredStrategy}
-                        onUpdateStrategy={async (updates) => {
-                          const newStrategy = {
-                            ...declaredStrategy,
-                            ...updates,
-                          };
-                          try {
-                            await apiFetch(
-                              "/api/index.php?action=site-update",
-                              {
-                                method: "POST",
-                                body: JSON.stringify({
-                                  site_understanding_corrections: {
-                                    declared_strategy: newStrategy,
-                                  },
-                                }),
-                              },
-                              token,
-                            );
-                          } catch (e) {
-                            throw e;
-                          }
-                          Object.entries(updates).forEach(([k, v]) => updateDeclaredStrategy(k, v));
-                          await loadData();
-                        }}
-                        apiFetch={apiFetch}
-                        token={token}
-                      />
-                    </>
-                  )}
-                  {isStrategyComplete &&
-                    !showInterview &&
-                    <details className="card"><summary>Istruzioni aggiuntive per l’AI</summary>{renderEditorialAgentPanel()}</details>}
+              {tab === 'profile' && profileSubTab === 'who' && (
+                <div className="profile-review-stack">
+                  <LiaKnowledge knowledge={knowledge} onProfile={() => { document.getElementById('lia-confirmed-answers')?.setAttribute('open', ''); document.getElementById('lia-confirmed-answers')?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }} onSave={async updates => {
+                    await apiFetch('/api/index.php?action=site-update', { method: 'POST', body: JSON.stringify({ site_understanding_corrections: { declared_strategy: updates } }) }, token);
+                    Object.entries(updates).forEach(([key, value]) => updateDeclaredStrategy(key, value));
+                    setAiContentIdeas([]);
+                    setIdeasGeneratedAt('');
+                    await loadData();
+                  }} />
+                  <details id="lia-confirmed-answers" className="card"><summary>Rivedi e modifica tutte le risposte</summary><ProfileReviewPanel value={declaredStrategy} onChange={updateDeclaredStrategy} onSave={()=>saveProfileReview('interview')} busy={profileReviewBusy} /></details>
+                  <details className="card"><summary>Istruzioni aggiuntive per l’AI</summary>{renderEditorialAgentPanel()}</details>
                 </div>
               )}
 
@@ -9495,12 +9443,7 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
                       </button>
                     </div>
                   </section>
-                  <LiaKnowledge knowledge={knowledge} onProfile={() => { setTab('profile'); setProfileSubTab('who'); }} onSave={async updates => {
-                    await apiFetch('/api/index.php?action=site-update', { method: 'POST', body: JSON.stringify({ site_understanding_corrections: { declared_strategy: updates } }) }, token);
-                    setAiContentIdeas([]);
-                    setIdeasGeneratedAt('');
-                    await loadData();
-                  }} />
+                  <section className="lia-profile-link"><div><strong>Il profilo guida le proposte</strong><p>Le domande di LIA e le tue risposte sono in Il mio profilo. Qui scegli cosa creare oggi.</p></div><button className="btn btn-outline" onClick={() => { setTab('profile'); setProfileSubTab('who'); }}>Apri il profilo e l’intervista</button></section>
                   <section className="editorial-brief" aria-labelledby="editorial-brief-title">
                     <h3 id="editorial-brief-title">Cosa prepariamo oggi?</h3>
                     <p>Il tema parte dalla profilazione. Aggiungi una priorità per questa sessione e LIA la userà per le prossime 3 proposte.</p>

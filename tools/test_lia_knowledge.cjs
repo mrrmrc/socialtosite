@@ -24,7 +24,7 @@ const fs = require('node:fs');
       return route.fulfill({ json: { ok: true, review: { coverage: answered ? 100 : 90, score: unavailable ? null : answered ? 100 : 90, reviewed: !unavailable,
         summary: unavailable ? 'Revisione AI non disponibile.' : 'Conosco l’attività: serve precisare il pubblico.',
         fields: [{ key: 'activity_type', label: 'Attività', value: 'Consulenza educativa', status: unavailable ? 'present' : 'clear' },
-          { key: 'primary_audience', label: 'Pubblico', value: answered ? 'Genitori con bambini piccoli' : '', status: answered ? 'clear' : 'missing', question: 'Quali genitori vuoi raggiungere?' }] } } });
+          { key: 'primary_audience', label: 'Pubblico', value: answered ? 'Genitori con bambini piccoli' : '', status: answered ? unavailable ? 'present' : 'clear' : 'missing', question: 'Quali genitori vuoi raggiungere?' }] } } });
     });
     await page.route('**/lia-fixture', route => route.fulfill({ contentType: 'text/html', body: `<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"></head><body><div id="root"></div>
       <script type="module">import RefreshRuntime from '/@react-refresh'; RefreshRuntime.injectIntoGlobalHook(window); window.$RefreshReg$=()=>{}; window.$RefreshSig$=()=>type=>type; window.__vite_plugin_react_preamble_installed__=true;</script>
@@ -32,13 +32,13 @@ const fs = require('node:fs');
       function Fixture(){const [site,setSite]=React.useState({site_understanding:'initial'});const knowledge=useLiaKnowledge(site,'fixture');return React.createElement('main',{style:{maxWidth:1000,margin:'24px auto',padding:16}},React.createElement(LiaKnowledge,{knowledge,onProfile:()=>{},onSave:async updates=>{await apiFetch('/api/index.php?action=site-update',{method:'POST',body:JSON.stringify({site_understanding_corrections:{declared_strategy:updates}})},'fixture');setSite({site_understanding:JSON.stringify(updates)});}}));}ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(Fixture));</script></body></html>` }));
     await page.goto('http://127.0.0.1:5178/lia-fixture');
     await page.getByText('90%', { exact: true }).waitFor();
-    await page.getByLabel(/Per proporti contenuti più precisi/).fill('Genitori con bambini piccoli');
+    await page.getByLabel('La tua risposta a LIA').fill('Genitori con bambini piccoli');
     failSave = true;
-    await page.getByRole('button', { name: 'Salva e aggiorna la conoscenza' }).click();
+    await page.getByRole('button', { name: 'Invia a LIA →' }).click();
     await page.getByRole('alert').filter({ hasText: 'Salvataggio non riuscito' }).waitFor();
     assert.equal(await page.locator('textarea').inputValue(), 'Genitori con bambini piccoli');
     failSave = false;
-    await page.getByRole('button', { name: 'Salva e aggiorna la conoscenza' }).click();
+    await page.getByRole('button', { name: 'Invia a LIA →' }).click();
     await page.getByText('100%', { exact: true }).waitFor();
     assert.equal(await page.locator('textarea').count(), 0);
     fs.mkdirSync('artifacts', { recursive: true });
@@ -48,7 +48,11 @@ const fs = require('node:fs');
     assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), 'no horizontal mobile overflow');
     unavailable = true;
     await page.getByRole('button', { name: 'Verifica di nuovo con LIA' }).click();
-    await page.getByText('in attesa di verifica', { exact: true }).waitFor();
+    await page.getByText('Da verificare', { exact: true }).waitFor();
+    assert.equal(await page.locator('textarea').count(), 0, 'no disabled empty composer when there are no questions');
+    assert.equal(await page.getByText(/Punti da chiarire/).count(), 0, 'present data is not a list of missing answers');
+    await page.getByText('Informazioni già raccolte', { exact: true }).click();
+    await page.getByText('Consulenza educativa', { exact: true }).waitFor();
     assert.equal(await page.getByText('100%', { exact: true }).count(), 0, 'no false AI knowledge percentage when provider fails');
     assert.deepEqual(errors, []);
     const dashboard = await browser.newPage({ viewport: { width: 1280, height: 900 } });
@@ -63,10 +67,17 @@ const fs = require('node:fs');
       <script type="module">import RefreshRuntime from '/@react-refresh'; RefreshRuntime.injectIntoGlobalHook(window); window.$RefreshReg$=()=>{}; window.$RefreshSig$=()=>type=>type; window.__vite_plugin_react_preamble_installed__=true;</script>
       <script type="module">import React from '/node_modules/.vite/deps/react.js?v=${dependencyHash}'; import ReactDOM from '/node_modules/.vite/deps/react-dom_client.js?v=${rendererHash}'; import {DashboardScreen} from '/src/screens/DashboardScreen.jsx'; import '/src/index.css'; ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(DashboardScreen,{token:'fixture',user:{id:1,name:'Studio educativo',slug:'studio',plan:'professional',role:'user'},onLogout:()=>{}}));</script></body></html>` }));
     await dashboard.goto('http://127.0.0.1:5178/dashboard-fixture');
-    await dashboard.getByRole('button', { name: /LIA conosce il profilo al 30/ }).click();
+    await dashboard.getByRole('button', { name: /LIA:.*30%/ }).click();
+    await dashboard.getByRole('heading', { name: 'LIA ti conosce, una risposta alla volta.' }).waitFor();
+    assert.equal(await dashboard.getByLabel('Focus del momento').count(), 0, 'editorial controls are separate from the profile');
+    await dashboard.getByRole('button', { name: 'Modifica le risposte del profilo' }).click();
+    assert.equal(await dashboard.locator('#lia-confirmed-answers').getAttribute('open'), '');
+    await dashboard.getByRole('button', { name: /^IDEA/ }).click();
     await dashboard.getByRole('heading', { name: 'Cosa prepariamo oggi?' }).waitFor();
-    await dashboard.getByRole('heading', { name: 'LIA, quanto conosci il mio profilo?' }).waitFor();
+    assert.equal(await dashboard.getByRole('heading', { name: 'LIA ti conosce, una risposta alla volta.' }).count(), 0, 'no interview mixed into editorial studio');
     assert.equal(await dashboard.getByLabel('Focus del momento').count(), 1);
+    await dashboard.getByRole('button', { name: 'Apri il profilo e l’intervista' }).click();
+    await dashboard.getByRole('heading', { name: 'LIA ti conosce, una risposta alla volta.' }).waitFor();
     await dashboard.screenshot({ path: 'artifacts/lia-ideas-dashboard.png', fullPage: true });
     await dashboard.setViewportSize({ width: 390, height: 844 });
     await dashboard.screenshot({ path: 'artifacts/lia-ideas-dashboard-mobile.png', fullPage: true });
