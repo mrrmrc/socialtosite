@@ -5,7 +5,13 @@ export const API_BASE = window.API_BASE || '';
 export async function apiFetch(path, opts = {}, token = null) {
   const headers = { 'Content-Type': 'application/json' };
   if (token) headers['Authorization'] = `Bearer ${token}`;
-  const r = await fetch(`${API_BASE}${path}`, { ...opts, headers: { ...headers, ...opts.headers } });
+  let r;
+  try {
+    r = await fetch(`${API_BASE}${path}`, { ...opts, headers: { ...headers, ...opts.headers } });
+  } catch (error) {
+    if (error.name === 'AbortError') throw error;
+    throw new Error('Connessione al server non disponibile. Controlla la rete e riprova.');
+  }
   const raw = await r.text();
   let data = null;
   if (raw) {
@@ -15,7 +21,12 @@ export async function apiFetch(path, opts = {}, token = null) {
       data = null;
     }
   }
-  if (r.status === 401 && !path.includes('action=login')) { localStorage.removeItem('sts_token'); window.location.reload(); return; }
+  if (r.status === 401 && !path.includes('action=login')) {
+    localStorage.removeItem('sts_token');
+    localStorage.removeItem('sts_user');
+    window.location.reload();
+    throw new Error('La sessione è scaduta. Accedi di nuovo.');
+  }
   if (!r.ok) {
     const htmlTitle = raw.match(/<title>(.*?)<\/title>/i)?.[1]?.trim();
     const fallback = htmlTitle || raw.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 220);

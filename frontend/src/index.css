@@ -1737,6 +1737,9 @@ h3 { font-size: 24px; font-weight: 700; }
 .lia-dialogue-details summary { cursor:pointer; font-weight:750; }
 .lia-dialogue-details li p { margin:8px 0 0; white-space:pre-wrap; overflow-wrap:anywhere; }
 .lia-profile-answers { margin:16px 0; }
+.app-loading { min-height:80vh; display:grid; place-items:center; color:var(--text-muted); padding:24px; }
+.editor-save-error { color:var(--red); background:var(--red-light); padding:12px 16px; border-radius:10px; }
+.dashboard-shell :focus-visible { outline:3px solid var(--primary); outline-offset:3px; }
 .lia-profile-complete { color:#175940; font-weight:700; }
 #lia-confirmed-answers { scroll-margin-top:170px; }
 @media (max-width:640px) { .lia-profile-link { flex-direction:column; align-items:stretch; } }

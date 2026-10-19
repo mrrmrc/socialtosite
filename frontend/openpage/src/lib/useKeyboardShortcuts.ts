@@ -12,8 +12,8 @@ export function useKeyboardShortcuts() {
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
       // Don't fire in inputs
-      const tag = (e.target as HTMLElement).tagName
-      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return
+      const target = e.target as HTMLElement | null
+      if (e.defaultPrevented || e.isComposing || target?.closest('input, textarea, select, [contenteditable]:not([contenteditable="false"]), [role="textbox"]')) return
 
       // Nav shortcuts: 1-5
       if (!e.metaKey && !e.ctrlKey && !e.altKey) {

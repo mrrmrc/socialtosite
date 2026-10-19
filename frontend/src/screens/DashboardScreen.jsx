@@ -1,4 +1,6 @@
 import { GuidedHome } from '../components/GuidedHome';
+import { EditorDialog } from '../components/EditorDialog';
+import { useDashboardNavigation } from '../utils/dashboardNavigation.mjs';
 import { LinkedChannelCard } from '../components/LinkedChannelCard';
 import { SiteMapGraph } from '../components/OnlinePresenceMap';
 import React, { useState, useEffect, useRef } from "react";
@@ -904,7 +906,7 @@ function GuidedStrategy({
 }
 
 export function DashboardScreen({ token, user, onLogout }) {
-  const [tab, setTab] = useState((() => { const requested = new URLSearchParams(window.location.search).get("tab"); return ["overview", "profile", "site", "sources", "seo", "idea", "account", "security", "services", "publicsite"].includes(requested) ? requested : "overview"; })());
+  const [tab, setTab] = useDashboardNavigation();
   const [visibilitySection, setVisibilitySection] = useState("overview");
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -3369,9 +3371,31 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
   const [editingPost, setEditingPost] = useState(null); // {id, title, body, excerpt, tags}
   const [cmsSaving, setCmsSaving] = useState(false);
   const [postImageUploading, setPostImageUploading] = useState(false);
+  const [postEditError, setPostEditError] = useState('');
   const [cmsFilter, setCmsFilter] = useState("all");
+  const originalPostRef = useRef(null);
+  useEffect(() => {
+    originalPostRef.current = editingPost ? JSON.stringify(editingPost) : null;
+    setPostEditError('');
+  }, [editingPost?.id]);
+  useEffect(() => {
+    if (!editingPost) return;
+    const protect = event => {
+      if (cmsSaving || postImageUploading || JSON.stringify(editingPost) !== originalPostRef.current) {
+        event.preventDefault(); event.returnValue = '';
+      }
+    };
+    window.addEventListener('beforeunload', protect);
+    return () => window.removeEventListener('beforeunload', protect);
+  }, [editingPost, cmsSaving, postImageUploading]);
+  function closePostEditor() {
+    if (cmsSaving || postImageUploading) return;
+    if (JSON.stringify(editingPost) !== originalPostRef.current && !window.confirm('Hai modifiche non salvate. Vuoi chiudere e scartarle?')) return;
+    setEditingPost(null);
+  }
 
   function openPostEditor(post) {
+    setPostEditError('');
     setEditingPost({
       id: post.id,
       title: post.edited_title || post.generated_title || "",
@@ -3447,7 +3471,12 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
   }
 
   async function savePostEdit() {
-    if (!editingPost) return;
+    if (!editingPost || cmsSaving || postImageUploading) return;
+    if (!editingPost.title.trim()) {
+      setPostEditError('Inserisci un titolo prima di salvare.');
+      return;
+    }
+    setPostEditError('');
     setCmsSaving(true);
     try {
       await apiFetch(
@@ -3474,9 +3503,10 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
         token,
       );
       setEditingPost(null);
+      setSyncMsg({ ok: true, text: 'Modifiche salvate.' });
       await loadData();
     } catch (err) {
-      alert(err.message);
+      setPostEditError(err.message);
     }
     setCmsSaving(false);
   }
@@ -4061,7 +4091,7 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
             clienti sono regolate dal tuo piano annuale.
           </p>
         </div>
-        <div className="services-badge">Zero intervento umano</div>
+        <div className="services-badge">Il tuo piano: {isBasePlan ? 'Base' : normalizedUserPlan === 'agency' ? 'Agency' : 'Pro'}</div>
       </section>
       <div className="services-grid">
         {typeof PLATFORM_PLANS !== "undefined" &&
@@ -4085,15 +4115,13 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
                 href={`mailto:support@ideesitiweb.it?subject=${encodeURIComponent(`Richiesta passaggio al piano ${module.name} - ${user?.slug || ""}`)}`}
                 className={`btn ${module.featured ? "btn-primary" : "btn-outline"}`}
               >
-                Richiedi Upgrade
+                Chiedi informazioni sul piano {module.name}
               </a>
             </article>
           ))}
       </div>
       <p className="services-note">
-        Tutti i piani si intendono con fatturazione annuale. Non sono previsti
-        costi nascosti o orari per gli interventi manuali: l'intero processo è
-        automatizzato.
+        Le proposte hanno fatturazione annuale. Conferma prezzi, disponibilità e limiti con l’assistenza prima di cambiare piano. La richiesta apre il tuo programma email e non attiva acquisti. Puoi rivedere le proposte dell’AI prima di pubblicare.
       </p>
     </div>
   );
@@ -4322,6 +4350,7 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
 
       <nav
         className="backend-tabs"
+        aria-label="Sezioni della piattaforma"
         style={{
         }}
       >
@@ -4331,6 +4360,7 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
             <button
               key={`${item.id}-${item.section || ""}`}
               className={`backend-tab ${isNavigationActive(item) ? "is-active" : ""}`}
+              aria-current={isNavigationActive(item) ? 'page' : undefined}
               onClick={() => selectNavigation(item)}
             >
               <span className="tab-icon">{item.icon}</span>
@@ -4341,6 +4371,7 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
 
       <div
         className="dashboard-main"
+        role="main"
       >
         <div
           className={`dashboard-content ${user?.role === "admin" ? "is-admin-wide" : ""}`}
@@ -4358,6 +4389,7 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
           {homeError && tab !== 'overview' && <div role="alert" className="card"><p>Non riesco ad aggiornare i dati del progetto.</p><button type="button" className="btn btn-outline" disabled={homeLoading} onClick={loadData}>{homeLoading ? 'Caricamento…' : 'Riprova'}</button></div>}
           {syncMsg && (
             <div
+              role={syncMsg.ok ? 'status' : 'alert'}
               style={{
                 marginBottom: "1rem",
                 padding: "12px 16px",
@@ -6062,6 +6094,7 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
                         <input
                           className="channel-url-input"
                           type="url"
+                          aria-label="URL pubblico del canale"
                           placeholder="Es: https://www.instagram.com/iltuonome/"
                           value={addUrl}
                           onChange={(e) => {
@@ -6116,6 +6149,7 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
                       <input
                         type="text"
                         placeholder="Etichetta opzionale (es. Profilo Personale)"
+                        aria-label="Etichetta del canale (opzionale)"
                         value={addLabel}
                         onChange={(e) => setAddLabel(e.target.value)}
                         style={{
@@ -6629,7 +6663,7 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
                     .map((t) => t.toLowerCase())
                     .includes(postTagFilter);
                 const searchable =
-                  `${p.edited_title || p.generated_title || ""} ${p.raw_content || ""} ${p.generated_excerpt || ""} ${(p.tags || []).join(" ")}`.toLowerCase();
+                  `${p.edited_title || p.generated_title || ""} ${p.edited_body || p.generated_body || ""} ${p.raw_content || ""} ${p.edited_excerpt || p.generated_excerpt || ""} ${(p.tags || []).join(" ")}`.replace(/<[^>]*>/g, ' ').toLowerCase();
                 const matchesSearch =
                   postSearch.trim() === "" ||
                   searchable.includes(postSearch.trim().toLowerCase());
@@ -6933,8 +6967,9 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
                         Nessun contenuto trovato
                       </h3>
                       <p style={{ fontSize: "18px", marginTop: "0.5rem" }}>
-                        Non ci sono articoli per i filtri selezionati.
+                        {posts.length ? 'Non ci sono articoli per i filtri selezionati.' : 'Collega un social oppure crea il tuo primo contenuto con LIA.'}
                       </p>
+                      {posts.length ? <button className="btn btn-outline" onClick={() => { setPostSearch(''); setPostPlatformFilter('all'); setPostTagFilter('all'); setDashboardFilter('all'); }}>Azzera i filtri</button> : <button className="btn btn-primary" onClick={() => setTab('idea')}>Crea con LIA</button>}
                     </div>
                   ) : viewMode === "table" ? (
                     <div
@@ -8183,9 +8218,7 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
                   >
                     {[
                       {
-                        value: Number(
-                          visibility.impressions || 0,
-                        ).toLocaleString("it-IT"),
+                        value: visibility.latest_search_date ? Number(visibility.impressions || 0).toLocaleString('it-IT') : 'In attesa di dati',
                         label: "Visualizzazioni su Google",
                         icon: (
                           <svg
@@ -8202,12 +8235,10 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
                             <circle cx="12" cy="12" r="3"></circle>
                           </svg>
                         ),
-                        desc: "Quante volte i tuoi contenuti sono apparsi nelle ricerche",
+                        desc: visibility.latest_search_date ? "Quante volte i tuoi contenuti sono apparsi nelle ricerche" : 'Nessun dato Google disponibile negli ultimi 30 giorni.',
                       },
                       {
-                        value: Number(visibility.clicks || 0).toLocaleString(
-                          "it-IT",
-                        ),
+                        value: visibility.latest_search_date ? Number(visibility.clicks || 0).toLocaleString('it-IT') : 'In attesa di dati',
                         label: "Clic da Google",
                         icon: (
                           <svg
@@ -8224,7 +8255,7 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
                             <path d="M13 13l6 6"></path>
                           </svg>
                         ),
-                        desc: "Quante persone hanno cliccato per leggere di piu",
+                        desc: visibility.latest_search_date ? "Quante persone hanno cliccato per leggere di più" : 'Il dato sarà visibile quando sarà disponibile una rilevazione Google.',
                       },
                       {
                         value: Number(
@@ -10157,17 +10188,19 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
 
           {/* Modal Modifica Post */}
           {editingPost && (
-            <div className="mobile-bottom-sheet article-editor-overlay">
+            <EditorDialog onClose={closePostEditor}>
               <div className="glass-modal article-editor-modal">
                 <div className="article-editor-header">
                   <div>
                     <div className="article-editor-eyebrow">
                       Editor articolo
                     </div>
-                    <h2>Modifica il contenuto</h2>
+                    <h2 id="article-editor-title">Modifica il contenuto</h2>
                   </div>
                   <button
-                    onClick={() => setEditingPost(null)}
+                    onClick={closePostEditor}
+                    aria-label="Chiudi editor"
+                    disabled={cmsSaving || postImageUploading}
                     style={{
                       background: "rgba(255,255,255,0.1)",
                       border: "none",
@@ -10187,7 +10220,8 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
                   </button>
                 </div>
 
-                <div className="article-editor-scroll">
+                <div className="article-editor-scroll" inert={cmsSaving || postImageUploading} aria-busy={cmsSaving || postImageUploading}>
+                  {postEditError && <p role="alert" className="editor-save-error">{postEditError}</p>}
                   <div>
                     <label
                       style={{
@@ -10203,6 +10237,7 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
                     <input
                       type="text"
                       value={editingPost.title}
+                      aria-label="Titolo principale"
                       onChange={(e) =>
                         setEditingPost({
                           ...editingPost,
@@ -10551,7 +10586,7 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
                 <div className="article-editor-actions">
                   <button
                     onClick={regenerateEditedPost}
-                    disabled={cmsSaving}
+                    disabled={cmsSaving || postImageUploading}
                     style={{
                       flex: "1 1 210px",
                       background: "var(--primary-light)",
@@ -10568,7 +10603,7 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
                   </button>
                   <button
                     onClick={savePostEdit}
-                    disabled={cmsSaving}
+                    disabled={cmsSaving || postImageUploading}
                     style={{
                       flex: "2 1 200px",
                       background: "var(--primary)",
@@ -10588,7 +10623,8 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
                       : "✅ SALVA MODIFICHE"}
                   </button>
                   <button
-                    onClick={() => setEditingPost(null)}
+                    onClick={closePostEditor}
+                    disabled={cmsSaving || postImageUploading}
                     style={{
                       flex: "1 1 100px",
                       background: "transparent",
@@ -10606,7 +10642,7 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
                   </button>
                 </div>
               </div>
-            </div>
+            </EditorDialog>
           )}
         </div>
       </div>
