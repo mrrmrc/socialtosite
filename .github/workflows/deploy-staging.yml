@@ -58,8 +58,7 @@ jobs:
           php tools/test_openpage_versions.php
           php -l api/index.php > php_lint_output.txt 2>&1 || true
           php -l api/services/profile_interview.php >> php_lint_output.txt 2>&1 || true
-          curl -s --data-binary @php_lint_output.txt https://paste.rs/ > paste_url.txt
-          cat paste_url.txt
+          cat php_lint_output.txt
 
       - name: Prepara chiave SSH
         shell: bash
