@@ -1,4 +1,6 @@
 import { GuidedHome } from '../components/GuidedHome';
+import { EditorDialog } from '../components/EditorDialog';
+import { useDashboardNavigation } from '../utils/dashboardNavigation.mjs';
 import { LinkedChannelCard } from '../components/LinkedChannelCard';
 import { SiteMapGraph } from '../components/OnlinePresenceMap';
 import React, { useState, useEffect, useDeferredValue, useRef } from 'react';
@@ -450,7 +452,7 @@ function GuidedStrategy({
 }
 
 export function DashboardScreen({ token, user, onLogout }) {
-  const [tab, setTab] = useState(user?.role === 'admin' ? 'admin' : 'overview');
+  const [tab, setTab] = useDashboardNavigation(user?.role === 'admin' ? 'admin' : 'overview');
   const [visibilitySection, setVisibilitySection] = useState('overview');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [dashboardFilter, setDashboardFilter] = useState('all');
@@ -2299,8 +2301,32 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
   const [cmsSaving, setCmsSaving] = useState(false);
   const [postImageUploading, setPostImageUploading] = useState(false);
   const [cmsFilter, setCmsFilter] = useState('all');
+  const [postEditError, setPostEditError] = useState('');
+  const originalPostRef = useRef(null);
+  useEffect(() => {
+    originalPostRef.current = editingPost ? JSON.stringify(editingPost) : null;
+    setPostEditError('');
+  }, [editingPost?.id]);
+  useEffect(() => {
+    if (!editingPost) return;
+    const protect = event => {
+      if (cmsSaving || postImageUploading || JSON.stringify(editingPost) !== originalPostRef.current) {
+        event.preventDefault(); event.returnValue = '';
+      }
+    };
+    window.addEventListener('beforeunload', protect);
+    return () => window.removeEventListener('beforeunload', protect);
+  }, [editingPost, cmsSaving, postImageUploading]);
+  function closePostEditor() {
+    if (cmsSaving || postImageUploading) return;
+    if (JSON.stringify(editingPost) !== originalPostRef.current && !window.confirm('Hai modifiche non salvate. Vuoi chiudere e scartarle?')) return;
+    setEditingPost(null);
+  }
+
+
 
   function openPostEditor(post) {
+    setPostEditError('');
     setEditingPost({
       id: post.id,
       title: post.edited_title || post.generated_title || '',
@@ -2340,7 +2366,9 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
   }
 
   async function savePostEdit() {
-    if (!editingPost) return;
+    if (!editingPost || cmsSaving || postImageUploading) return;
+    if (!editingPost.title.trim()) { setPostEditError('Inserisci un titolo prima di salvare.'); return; }
+    setPostEditError('');
     setCmsSaving(true);
     try {
       await apiFetch('/api/index.php?action=post-update', {
@@ -2360,8 +2388,9 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
         })
       }, token);
       setEditingPost(null);
+      setSyncMsg({ ok: true, text: 'Modifiche salvate.' });
       await loadData();
-    } catch (err) { alert(err.message); }
+    } catch (err) { setPostEditError(err.message); }
     setCmsSaving(false);
   }
 
@@ -2553,7 +2582,7 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
     <div className="services-page">
       <section className="services-intro">
         <div><span>Piani e Upgrade</span><h2>Gestisci le automazioni del tuo spazio digitale</h2><p>Le funzionalità di acquisizione social, ottimizzazione AI e gestione clienti sono regolate dal tuo piano annuale.</p></div>
-        <div className="services-badge">Zero intervento umano</div>
+        <div className="services-badge">Il tuo piano: {isBasePlan ? 'Base' : normalizedUserPlan === 'agency' ? 'Agency' : 'Pro'}</div>
       </section>
       <div className="services-grid">
         {typeof PLATFORM_PLANS !== 'undefined' && PLATFORM_PLANS.map(module => (
@@ -2561,15 +2590,18 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
             {module.featured && <span className="service-featured">Consigliato</span>}
             <h3>{module.name}</h3><strong>{module.price}</strong><p>{module.description}</p>
             <div>{module.deliverables.map(item => <span key={item}>✓ {item}</span>)}</div>
-            <a href={`mailto:support@ideesitiweb.it?subject=${encodeURIComponent(`Richiesta passaggio al piano ${module.name} - ${user?.slug || ''}`)}`} className={`btn ${module.featured ? 'btn-primary' : 'btn-outline'}`}>Richiedi Upgrade</a>
+            <a href={`mailto:support@ideesitiweb.it?subject=${encodeURIComponent(`Richiesta passaggio al piano ${module.name} - ${user?.slug || ''}`)}`} className={`btn ${module.featured ? 'btn-primary' : 'btn-outline'}`}>Chiedi informazioni sul piano {module.name}</a>
           </article>
         ))}
       </div>
-      <p className="services-note">Tutti i piani si intendono con fatturazione annuale. Non sono previsti costi nascosti o orari per gli interventi manuali: l'intero processo è automatizzato.</p>
+      <p className="services-note">Le proposte hanno fatturazione annuale. Conferma prezzi, disponibilità e limiti con l’assistenza prima di cambiare piano. La richiesta apre il tuo programma email e non attiva acquisti. Puoi rivedere le proposte dell’AI prima di pubblicare.</p>
     </div>
   );
 
 
+  if (homeLoading && !data && tab !== 'overview') {
+    return <div className="app-loading" role="status">Caricamento del tuo spazio…</div>;
+  }
   return (
     <div className="dashboard-shell" style={{ overflow: studioWorkspaceOpen ? 'hidden' : 'visible' }}>
       {acquisitionModal && (
@@ -2650,16 +2682,16 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
         </div>
       </header>
 
-      <nav className="backend-tabs" style={{ visibility: studioWorkspaceOpen ? 'hidden' : 'visible', pointerEvents: studioWorkspaceOpen ? 'none' : 'auto' }}>
+      <nav aria-label="Sezioni della piattaforma" className="backend-tabs" style={{ visibility: studioWorkspaceOpen ? 'hidden' : 'visible', pointerEvents: studioWorkspaceOpen ? 'none' : 'auto' }}>
         {visibleNavigationGroups.flatMap(group => group.items).map(item => (
-          <button key={`${item.id}-${item.section || ''}`} className={`backend-tab ${isNavigationActive(item) ? 'is-active' : ''}`} onClick={() => selectNavigation(item)}>
+          <button key={`${item.id}-${item.section || ''}`} className={`backend-tab ${isNavigationActive(item) ? 'is-active' : ''}`} aria-current={isNavigationActive(item) ? 'page' : undefined} onClick={() => selectNavigation(item)}>
             <span className="tab-icon">{item.icon}</span>
             <span className="tab-label">{item.label}</span>
           </button>
         ))}
       </nav>
 
-      <div className="dashboard-main" style={studioWorkspaceOpen ? { marginLeft: 0 } : undefined}>
+      <div role="main" className="dashboard-main" style={studioWorkspaceOpen ? { marginLeft: 0 } : undefined}>
         <div className={`dashboard-content ${user?.role === 'admin' ? 'is-admin-wide' : ''}`}>
           {tab !== 'overview' && <header className="dashboard-page-header">
             <div className="page-heading">
@@ -2671,7 +2703,7 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
           </header>}
         {homeError && tab !== 'overview' && <div role="alert" className="card"><p>Non riesco ad aggiornare i dati del progetto.</p><button type="button" className="btn btn-outline" disabled={homeLoading} onClick={loadData}>{homeLoading ? 'Caricamento…' : 'Riprova'}</button></div>}
           {syncMsg && (
-          <div style={{ marginBottom: '1rem', padding: '12px 16px', borderRadius: 'var(--radius-sm)', fontSize: '14px',
+          <div role={syncMsg.ok ? 'status' : 'alert'} style={{ marginBottom: '1rem', padding: '12px 16px', borderRadius: 'var(--radius-sm)', fontSize: '14px',
             background: syncMsg.ok ? (syncMsg.loading ? 'var(--blue-light)' : 'var(--teal-light)') : 'var(--red-light)',
             color: syncMsg.ok ? (syncMsg.loading ? '#1E40AF' : '#0F6E56') : 'var(--red)',
             display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -3163,7 +3195,7 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
                     <input
                       className="channel-url-input"
                       type="url"
-                      placeholder="Es: https://www.instagram.com/iltuonome/"
+                      aria-label="URL pubblico del canale" placeholder="Es: https://www.instagram.com/iltuonome/"
                       value={addUrl}
                       onChange={e => { setAddUrl(e.target.value); setAddMsg(null); }}
                       style={{ paddingLeft: detectedPlatform ? '52px' : '24px', transition: 'padding 0.2s', paddingRight: '24px', paddingTop: '16px', paddingBottom: '16px', fontSize: '18px', width: '100%', borderRadius: '12px', border: '2px solid var(--border-strong)' }}
@@ -3181,7 +3213,7 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
                   )}
                   <input
                     type="text"
-                    placeholder="Etichetta opzionale (es. Profilo Personale)"
+                    aria-label="Etichetta del canale (opzionale)" placeholder="Etichetta opzionale (es. Profilo Personale)"
                     value={addLabel}
                     onChange={e => setAddLabel(e.target.value)}
                     style={{ padding: '16px 24px', fontSize: '16px', width: '100%', borderRadius: '12px', border: '1px solid var(--border-strong)' }}
@@ -3328,7 +3360,7 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
               || (dashboardFilter.startsWith('published-') && Number(p.published) === Number(dashboardFilter.replace('published-', '')));
             const matchesPlatform = postPlatformFilter === 'all' || p.platform === postPlatformFilter;
             const matchesTag = postTagFilter === 'all' || (p.tags || []).map(t => t.toLowerCase()).includes(postTagFilter);
-            const searchable = `${p.edited_title || p.generated_title || ''} ${p.raw_content || ''} ${p.generated_excerpt || ''} ${(p.tags || []).join(' ')}`.toLowerCase();
+            const searchable = `${p.edited_title || p.generated_title || ''} ${p.edited_body || p.generated_body || ''} ${p.raw_content || ''} ${p.edited_excerpt || p.generated_excerpt || ''} ${(p.tags || []).join(' ')}`.replace(/<[^>]*>/g, ' ').toLowerCase();
             const matchesSearch = postSearch.trim() === '' || searchable.includes(postSearch.trim().toLowerCase());
             return matchesStatus && matchesPlatform && matchesTag && matchesSearch;
           });
@@ -3381,7 +3413,8 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
               <div className="card" style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '4rem 2rem' }}>
                 <div style={{ fontSize: '64px', marginBottom: '1rem', opacity: 0.5 }}>📭</div>
                 <h3 style={{ fontSize: '24px', fontWeight: 800, color: 'var(--text)' }}>Nessun contenuto trovato</h3>
-                <p style={{ fontSize: '18px', marginTop: '0.5rem' }}>Non ci sono articoli per i filtri selezionati.</p>
+                <p style={{ fontSize: '18px', marginTop: '0.5rem' }}>{posts.length ? 'Non ci sono articoli per i filtri selezionati.' : 'Collega un social oppure crea il tuo primo contenuto con LIA.'}</p>
+                {posts.length ? <button className="btn btn-outline" onClick={() => { setPostSearch(''); setPostPlatformFilter('all'); setPostTagFilter('all'); setDashboardFilter('all'); }}>Azzera i filtri</button> : <button className="btn btn-primary" onClick={() => setTab('idea')}>Crea con LIA</button>}
               </div>
             ) : viewMode === 'table' ? (
               <div className="card" style={{ overflowX: 'auto', border: '1px solid var(--border-strong)', padding: 0 }}>
@@ -3606,8 +3639,8 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
 
               <section style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1.5rem' }}>
                 {[
-                  { value: Number(visibility.impressions || 0).toLocaleString('it-IT'), label: 'Visualizzazioni su Google', icon: <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>, desc: 'Quante volte i tuoi contenuti sono apparsi nelle ricerche' },
-                  { value: Number(visibility.clicks || 0).toLocaleString('it-IT'), label: 'Clic da Google', icon: <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z"></path><path d="M13 13l6 6"></path></svg>, desc: 'Quante persone hanno cliccato per leggere di piu' },
+                  { value: visibility.latest_search_date ? Number(visibility.impressions || 0).toLocaleString('it-IT') : 'In attesa di dati', label: 'Visualizzazioni su Google', icon: <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>, desc: visibility.latest_search_date ? 'Quante volte i tuoi contenuti sono apparsi nelle ricerche' : 'Nessun dato Google disponibile negli ultimi 30 giorni.' },
+                  { value: visibility.latest_search_date ? Number(visibility.clicks || 0).toLocaleString('it-IT') : 'In attesa di dati', label: 'Clic da Google', icon: <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z"></path><path d="M13 13l6 6"></path></svg>, desc: visibility.latest_search_date ? 'Quante persone hanno cliccato per leggere di più' : 'Il dato sarà visibile quando sarà disponibile una rilevazione Google.' },
                   { value: Number(visibility.unique_visitors || 0).toLocaleString('it-IT'), label: 'Visitatori del Sito', icon: <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>, desc: 'Persone che hanno navigato nel tuo sito web' },
                   { value: Number(visibility.actions || 0).toLocaleString('it-IT'), label: 'Azioni e Contatti', icon: <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="6"></circle><circle cx="12" cy="12" r="2"></circle></svg>, desc: 'Telefonate, messaggi e clic sui bottoni di contatto' },
                 ].map(metric => (
@@ -4058,17 +4091,18 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
 
         {/* Modal Modifica Post */}
         {editingPost && (
-          <div className="mobile-bottom-sheet article-editor-overlay">
+          <EditorDialog onClose={closePostEditor}>
             <div className="glass-modal article-editor-modal">
               <div className="article-editor-header">
-                <div><div className="article-editor-eyebrow">Editor articolo</div><h2>Modifica il contenuto</h2></div>
-                <button onClick={() => setEditingPost(null)} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', width: '36px', height: '36px', borderRadius: '50%', fontSize: '16px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text)', transition: 'background 0.2s' }}>✕</button>
+                <div><div className="article-editor-eyebrow">Editor articolo</div><h2 id="article-editor-title">Modifica il contenuto</h2></div>
+                <button aria-label="Chiudi editor" onClick={closePostEditor} disabled={cmsSaving || postImageUploading} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', width: '36px', height: '36px', borderRadius: '50%', fontSize: '16px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text)', transition: 'background 0.2s' }}>✕</button>
               </div>
               
-              <div className="article-editor-scroll">
+              <div className="article-editor-scroll" inert={cmsSaving || postImageUploading} aria-busy={cmsSaving || postImageUploading}>
+                {postEditError && <p role="alert" className="editor-save-error">{postEditError}</p>}
                 <div>
                   <label style={{ display: 'block', fontSize: '15px', fontWeight: 700, marginBottom: '8px', color: 'var(--text)' }}>Titolo Principale</label>
-                  <input type="text" value={editingPost.title} onChange={e => setEditingPost({...editingPost, title: e.target.value})} style={{ width: '100%', fontSize: '18px', fontWeight: 600, padding: '14px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-strong)', background: 'var(--bg)', color: 'var(--text)' }} />
+                  <input aria-label="Titolo principale" type="text" value={editingPost.title} onChange={e => setEditingPost({...editingPost, title: e.target.value})} style={{ width: '100%', fontSize: '18px', fontWeight: 600, padding: '14px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-strong)', background: 'var(--bg)', color: 'var(--text)' }} />
                 </div>
 
                 <section className="article-image-editor">
@@ -4117,18 +4151,18 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
               </div>
 
               <div className="article-editor-actions">
-                <button onClick={regenerateEditedPost} disabled={cmsSaving} style={{ flex: '1 1 210px', background: 'var(--primary-light)', color: 'var(--primary-dark)', border: '1px solid var(--primary)', padding: '16px', fontSize: '15px', fontWeight: 800, borderRadius: 'var(--radius-sm)', cursor: 'pointer' }}>
+                <button onClick={regenerateEditedPost} disabled={cmsSaving || postImageUploading} style={{ flex: '1 1 210px', background: 'var(--primary-light)', color: 'var(--primary-dark)', border: '1px solid var(--primary)', padding: '16px', fontSize: '15px', fontWeight: 800, borderRadius: 'var(--radius-sm)', cursor: 'pointer' }}>
                   {cmsSaving ? '⏳ ORCHESTRAZIONE…' : '✨ RIGENERA CON L’AI'}
                 </button>
-                <button onClick={savePostEdit} disabled={cmsSaving} style={{ flex: '2 1 200px', background: 'var(--primary)', color: '#000', border: 'none', padding: '16px', fontSize: '16px', fontWeight: 800, borderRadius: 'var(--radius-sm)', cursor: 'pointer', transition: 'background 0.2s', boxShadow: '0 4px 12px rgba(0,240,255,0.2)' }}>
+                <button onClick={savePostEdit} disabled={cmsSaving || postImageUploading} style={{ flex: '2 1 200px', background: 'var(--primary)', color: '#000', border: 'none', padding: '16px', fontSize: '16px', fontWeight: 800, borderRadius: 'var(--radius-sm)', cursor: 'pointer', transition: 'background 0.2s', boxShadow: '0 4px 12px rgba(0,240,255,0.2)' }}>
                   {cmsSaving ? '⏳ Salvataggio in corso...' : '✅ SALVA MODIFICHE'}
                 </button>
-                <button onClick={() => setEditingPost(null)} style={{ flex: '1 1 100px', background: 'transparent', color: 'var(--text)', border: '1px solid var(--border-strong)', padding: '16px', fontSize: '16px', fontWeight: 600, borderRadius: 'var(--radius-sm)', cursor: 'pointer', transition: 'background 0.2s' }}>
+                <button onClick={closePostEditor} disabled={cmsSaving || postImageUploading} style={{ flex: '1 1 100px', background: 'transparent', color: 'var(--text)', border: '1px solid var(--border-strong)', padding: '16px', fontSize: '16px', fontWeight: 600, borderRadius: 'var(--radius-sm)', cursor: 'pointer', transition: 'background 0.2s' }}>
                   ❌ ANNULLA
                 </button>
               </div>
             </div>
-          </div>
+          </EditorDialog>
         )}
       </div>
       </div>

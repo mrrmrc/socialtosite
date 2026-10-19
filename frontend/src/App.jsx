@@ -39,12 +39,6 @@ export default function App() {
   const isBasePlan = !!user && !['professional', 'pro', 'agency'].includes(normalizedPlan);
   const [hasSources, setHasSources] = useState(null); // null = non ancora verificato
   const [showFullDashboard, setShowFullDashboard] = useState(false);
-  const [now, setNow] = useState(new Date());
-
-  useEffect(() => {
-    const t = setInterval(() => setNow(new Date()), 1000);
-    return () => clearInterval(t);
-  }, []);
 
   useEffect(() => {
     if (!token || !user || !isBasePlan) { setHasSources(null); return; }
@@ -83,7 +77,7 @@ export default function App() {
       />
     );
   } else if (isBasePlan && hasSources === null) {
-    screen = <div style={{ minHeight: '100vh' }} aria-hidden="true" />;
+    screen = <div className="app-loading" role="status">Caricamento del tuo spazio…</div>;
   } else {
     screen = <DashboardScreen token={token} user={user} onLogout={handleLogout} />;
   }

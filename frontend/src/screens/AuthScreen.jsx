@@ -10,11 +10,12 @@ export function AuthScreen({ onAuth }) {
 
   async function submit(e) {
     e.preventDefault();
+    if (loading) return;
     setLoading(true); setError('');
     try {
       const data = await apiFetch('/api/index.php?action=login', {
         method: 'POST',
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email: email.trim(), password }),
       });
       localStorage.setItem('sts_token', data.token);
       localStorage.setItem('sts_user', JSON.stringify(data.user));
@@ -96,12 +97,15 @@ export function AuthScreen({ onAuth }) {
 
           <form onSubmit={submit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
             {[
-              { label: 'Email', type: 'text', val: email, set: setEmail, ph: 'es. mario@esempio.it' },
+              { label: 'Email', type: 'email', val: email, set: setEmail, ph: 'es. mario@esempio.it' },
               { label: 'Password', type: 'password', val: password, set: setPassword, ph: '••••••••' },
             ].map(f => (
               <div key={f.label}>
-                <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: '#6B7280', marginBottom: 7 }}>{f.label}</label>
+                <label htmlFor={`auth-${f.type}`} style={{ display: 'block', fontSize: 13, fontWeight: 700, color: '#6B7280', marginBottom: 7 }}>{f.label}</label>
                 <input
+                  id={`auth-${f.type}`} name={f.type === 'email' ? 'email' : 'password'}
+                  autoComplete={f.type === 'email' ? 'username' : 'current-password'}
+                  disabled={loading} aria-invalid={!!error} aria-describedby={error ? 'auth-error' : undefined}
                   type={f.type} placeholder={f.ph} value={f.val}
                   onChange={e => f.set(e.target.value)} required
                   style={{ width: '100%', padding: '13px 15px', fontSize: 15, background: '#fff', border: '1.5px solid rgba(15,15,14,.12)', borderRadius: 12, color: '#0F0F0E', outline: 'none', fontFamily: 'inherit', transition: 'border-color .2s, box-shadow .2s', boxSizing: 'border-box' }}
@@ -112,7 +116,7 @@ export function AuthScreen({ onAuth }) {
             ))}
 
             {error && (
-              <div style={{ background: 'rgba(239,68,68,.08)', color: '#DC2626', padding: '11px 14px', borderRadius: 10, fontSize: 14, fontWeight: 500, border: '1px solid rgba(239,68,68,.15)', display: 'flex', alignItems: 'center', gap: 8 }}>
+              <div id="auth-error" role="alert" style={{ background: 'rgba(239,68,68,.08)', color: '#DC2626', padding: '11px 14px', borderRadius: 10, fontSize: 14, fontWeight: 500, border: '1px solid rgba(239,68,68,.15)', display: 'flex', alignItems: 'center', gap: 8 }}>
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><circle cx="12" cy="16" r="0.5" fill="currentColor"/></svg>
                 {error}
               </div>

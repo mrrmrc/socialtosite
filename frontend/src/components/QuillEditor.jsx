@@ -7,6 +7,8 @@ export function QuillEditor({ value, onChange, style, className = '' }) {
   const editorRef = useRef(null);
   const quillRef = useRef(null);
   const isInternalChange = useRef(false);
+  const onChangeRef = useRef(onChange);
+  onChangeRef.current = onChange;
 
   useEffect(() => {
     if (!editorRef.current || quillRef.current) return;
@@ -25,13 +27,24 @@ export function QuillEditor({ value, onChange, style, className = '' }) {
     });
     quillRef.current = quill;
     if (value) quill.root.innerHTML = value;
-    quill.on('text-change', () => {
+    const handleChange = () => {
       isInternalChange.current = true;
       const html = quill.root.innerHTML;
-      if (onChange) onChange(html === '<p><br></p>' ? '' : html);
+      onChangeRef.current?.(html === '<p><br></p>' ? '' : html);
       isInternalChange.current = false;
-    });
-    return () => { quillRef.current = null; };
+    };
+    quill.on('text-change', handleChange);
+    quill.root.setAttribute('role', 'textbox');
+    quill.root.setAttribute('aria-label', 'Testo dell’articolo');
+    quill.root.setAttribute('aria-multiline', 'true');
+    return () => {
+      quill.off('text-change', handleChange);
+      const toolbar = quill.container.previousElementSibling;
+      if (toolbar?.classList.contains('ql-toolbar')) toolbar.remove();
+      quill.container.innerHTML = '';
+      quill.container.classList.remove('ql-container', 'ql-snow');
+      quillRef.current = null;
+    };
   }, []);
 
   useEffect(() => {
