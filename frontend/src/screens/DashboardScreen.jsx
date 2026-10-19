@@ -4126,6 +4126,9 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
     </div>
   );
 
+  if (homeLoading && !data && tab !== 'overview') {
+    return <div className="app-loading" role="status">Caricamento del tuo spazio…</div>;
+  }
   return (
     <div
       className="dashboard-shell"

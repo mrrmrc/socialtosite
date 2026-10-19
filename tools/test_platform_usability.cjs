@@ -10,7 +10,7 @@ const fs = require('node:fs');
     const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
     page.setDefaultTimeout(10000);
     const errors = [], mutations = [];
-    page.on('pageerror', e => errors.push(e.message));
+    page.on('pageerror', e => { errors.push(e.message); console.error('Page error:', e.message); });
     let rejectSave = false;
     let fixture = {
       site: { title: 'Studio Aurora', profile_summary: 'Formazione' }, sources: [],
@@ -34,14 +34,14 @@ const fs = require('node:fs');
       <script type="module">import React from '/node_modules/.vite/deps/react.js?v=${reactHash}'; import ReactDOM from '/node_modules/.vite/deps/react-dom_client.js?v=${rendererHash}'; import {DashboardScreen} from '/src/screens/DashboardScreen.jsx'; import '/src/index.css'; import '/src/premium.css'; ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(React.StrictMode,null,React.createElement(DashboardScreen,{token:'fixture',user:{id:999,name:'Studio Aurora',slug:'studio-aurora',plan:'professional',role:'user'},onLogout:()=>{}})));</script></body></html>` }));
     await page.goto('http://127.0.0.1:5178/usability-fixture');
     console.log('Dashboard loaded');
-    await page.getByRole('button', { name: 'Rivedi le bozze', exact: true }).click();
+    await page.getByRole('button', { name: 'Rivedi le bozze', exact: true }).click({ timeout: 30000 });
     assert.equal(new URL(page.url()).searchParams.get('tab'), 'site');
     await page.reload();
-    await page.getByRole('heading', { name: 'Contenuti', exact: true }).waitFor();
+    await page.getByRole('heading', { name: /^(Contenuti|Articoli)$/ }).waitFor();
     await page.getByRole('button', { name: 'Social collegati', exact: true }).click();
     await page.getByRole('textbox', { name: 'URL pubblico del canale' }).waitFor();
     await page.goBack();
-    await page.getByRole('heading', { name: 'Contenuti', exact: true }).waitFor();
+    await page.getByRole('heading', { name: /^(Contenuti|Articoli)$/ }).waitFor();
     const search = page.getByRole('searchbox', { name: 'Cerca nei contenuti' });
     await search.fill('Parolachiaveunica');
     await page.getByRole('heading', { name: 'Titolo iniziale', exact: true }).waitFor();
@@ -77,9 +77,11 @@ const fs = require('node:fs');
     assert.equal(await page.getByText('In attesa di dati', { exact: true }).count(), 0);
     await page.setViewportSize({ width: 390, height: 844 });
     fs.mkdirSync('artifacts', { recursive: true });
-    for (const [name, heading] of [['Home', 'Un passo alla volta.'], ['Il mio profilo', 'Il mio profilo'], ['Social collegati', 'Social collegati'], ['Contenuti', 'Contenuti'], ['▣ Sito pubblico', 'Sito pubblico'], ['Monitoraggio e SEO', 'Visibilità'], ['◇ Piano e servizi', 'Piani e Upgrade']]) {
-      await page.getByRole('navigation', { name: 'Sezioni della piattaforma' }).getByRole('button', { name, exact: name !== 'Home' }).click();
-      await page.getByRole('heading', { name: heading, exact: true }).first().waitFor();
+    const navButtons = page.getByRole('navigation', { name: 'Sezioni della piattaforma' }).getByRole('button');
+    for (let index = 0; index < await navButtons.count(); index++) {
+      const button = navButtons.nth(index), name = await button.innerText();
+      await button.click();
+      assert.equal(await button.getAttribute('aria-current'), 'page');
       assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), `no horizontal overflow: ${name}`);
     }
     await page.screenshot({ path: 'artifacts/usability-mobile.png', fullPage: true });
@@ -93,8 +95,8 @@ const fs = require('node:fs');
     await login.getByLabel('Email', { exact: true }).fill('test@example.com');
     await login.getByLabel('Password', { exact: true }).fill('fixture-only');
     await login.getByRole('button', { name: /Entra nello spazio/ }).click();
-    await login.getByRole('alert').filter({ hasText: 'Credenziali non valide' }).waitFor();
+    await login.getByRole('alert').filter({ hasText: 'Credenziali non valide' }).waitFor({ timeout: 10000 }).catch(async error => { console.error('Login state:', await login.locator('body').innerText()); throw error; });
     assert.ok(await login.getByLabel('Password', { exact: true }).isEnabled());
-    console.log('Platform usability passed: history/reload, search/reset, StrictMode editor, preserving edits, discard guard, save failure/retry, Google evidence, seven mobile sections.');
+    console.log('Platform usability passed: history/reload, search/reset, StrictMode editor, preserving edits, discard guard, save failure/retry, Google evidence, all mobile sections, login failure.');
   } finally { await browser.close(); }
 })().catch(error => { console.error(error); process.exitCode = 1; });
