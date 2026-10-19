@@ -1,0 +1,28 @@
+.guided-home { max-width:880px; margin:0 auto; display:grid; gap:28px; padding-bottom:32px; }
+.guided-home-heading > span { color:var(--text-muted); font-size:14px; }
+.guided-home-heading h1 { margin:8px 0; font-size:clamp(28px,4vw,38px); letter-spacing:-.035em; line-height:1.2; }
+.guided-home-heading p { margin:0; color:var(--text-muted); line-height:1.6; }
+.guided-home-next { padding:clamp(24px,4vw,40px); border:1px solid var(--border); border-radius:20px; background:var(--surface); display:grid; gap:22px; }
+.guided-home-assistant { display:flex; align-items:center; gap:12px; }
+.guided-home-assistant > div { display:grid; gap:3px; }
+.guided-home-assistant strong { font-size:16px; }
+.guided-home-assistant > div > span,.guided-home-next > small { font-size:13px; color:var(--text-muted); line-height:1.6; }
+.guided-home-next h2 { margin:0 0 10px; font-size:clamp(23px,3vw,30px); letter-spacing:-.025em; line-height:1.3; }
+.guided-home-next p { margin:0; max-width:60ch; color:var(--text-muted); font-size:16px; line-height:1.7; overflow-wrap:anywhere; }
+.guided-home-actions { display:flex; flex-wrap:wrap; align-items:center; gap:10px; }
+.guided-home-actions .btn { min-height:48px; padding:12px 20px; font-size:15px; }
+.guided-home-shortcuts { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; }
+.guided-home-shortcuts > button { display:flex; align-items:center; gap:14px; text-align:left; padding:22px; background:var(--surface); border:1px solid var(--border); border-radius:14px; color:var(--text); cursor:pointer; font:inherit; min-width:0; }
+.guided-home-shortcuts > button:hover { border-color:var(--primary); }
+.guided-home-shortcuts > button > div { flex:1; min-width:0; }
+.guided-home-shortcuts strong { font-size:16px; }
+.guided-home-shortcuts p { margin:6px 0 0; font-size:14px; color:var(--text-muted); line-height:1.5; }
+.guided-home-details { border-top:1px solid var(--border); padding-top:20px; }
+.guided-home-details summary { cursor:pointer; color:var(--text-muted); font-size:14px; padding:8px 0; }
+.guided-home-details dl { display:flex; flex-wrap:wrap; gap:24px; margin:24px 0; }
+.guided-home-details dt { color:var(--text-muted); font-size:13px; }
+.guided-home-details dd { margin:6px 0 0; font-size:22px; font-weight:700; }
+.guided-home-settings { display:flex; flex-wrap:wrap; gap:12px 24px; }
+.guided-home-settings button,.guided-home-settings a { color:var(--text); background:none; border:0; padding:8px 0; font:inherit; font-size:14px; text-decoration:underline; text-underline-offset:4px; cursor:pointer; }
+.guided-home :is(button,a,summary):focus-visible { outline:3px solid var(--primary); outline-offset:4px; }
+@media(max-width:600px) { .guided-home { gap:22px; } .guided-home-shortcuts { grid-template-columns:1fr; gap:12px; } .guided-home-actions { align-items:stretch; flex-direction:column; } .guided-home-shortcuts > button { padding:18px; } }

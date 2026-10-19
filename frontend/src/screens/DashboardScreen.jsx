@@ -1,3 +1,4 @@
+import { GuidedHome } from '../components/GuidedHome';
 import { LinkedChannelCard } from '../components/LinkedChannelCard';
 import { SiteMapGraph } from '../components/OnlinePresenceMap';
 import React, { useState, useEffect, useDeferredValue, useRef } from 'react';
@@ -454,6 +455,8 @@ export function DashboardScreen({ token, user, onLogout }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [dashboardFilter, setDashboardFilter] = useState('all');
   const [data, setData] = useState(null);
+  const [homeLoading, setHomeLoading] = useState(true);
+  const [homeError, setHomeError] = useState('');
   const [adminSeoStats, setAdminSeoStats] = useState([]);
   const isAdmin = user?.role === 'admin';
   const normalizedUserPlan = String(user?.plan || '').trim().toLowerCase();
@@ -712,6 +715,8 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
   }, [syncing, scanning, importing, harmonizingId, token]);
 
   async function loadData() {
+    setHomeLoading(true);
+    setHomeError('');
     try {
       const d = await apiFetch('/api/index.php?action=site', {}, token);
       setData(d);
@@ -816,8 +821,10 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
       }
       return d;
     } catch (err) {
-      alert("ERRORE CARICAMENTO DASHBOARD: " + err.message);
+      setHomeError(err.message);
       return null;
+    } finally {
+      setHomeLoading(false);
     }
   }
 
@@ -2605,7 +2612,7 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
         <div className="backend-header-brand">
           <BrandMark iconOnly />
           <strong>All Social To Web</strong>
-          <LiaKnowledgeBadge knowledge={knowledge} onClick={() => { setTab('profile'); setProfileSubTab('who'); }} />
+          {tab !== 'overview' && <LiaKnowledgeBadge knowledge={knowledge} onClick={() => { setTab('profile'); setProfileSubTab('who'); }} />}
         </div>
         <div className="backend-header-actions" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
           <a href={siteUrl} target="_blank" rel="noopener noreferrer" className="btn btn-outline" aria-label="Apri il mio sito pubblico" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -2654,15 +2661,16 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
 
       <div className="dashboard-main" style={studioWorkspaceOpen ? { marginLeft: 0 } : undefined}>
         <div className={`dashboard-content ${user?.role === 'admin' ? 'is-admin-wide' : ''}`}>
-          <header className="dashboard-page-header">
+          {tab !== 'overview' && <header className="dashboard-page-header">
             <div className="page-heading">
               <div className="page-kicker">{activeNavigation?.group || 'Area di lavoro'}</div>
               <h1>{pageTitle}</h1>
               <p>{pageSubtitle}</p>
             </div>
             <div className="page-actions"></div>
-          </header>
-        {syncMsg && (
+          </header>}
+        {homeError && tab !== 'overview' && <div role="alert" className="card"><p>Non riesco ad aggiornare i dati del progetto.</p><button type="button" className="btn btn-outline" disabled={homeLoading} onClick={loadData}>{homeLoading ? 'Caricamento…' : 'Riprova'}</button></div>}
+          {syncMsg && (
           <div style={{ marginBottom: '1rem', padding: '12px 16px', borderRadius: 'var(--radius-sm)', fontSize: '14px',
             background: syncMsg.ok ? (syncMsg.loading ? 'var(--blue-light)' : 'var(--teal-light)') : 'var(--red-light)',
             color: syncMsg.ok ? (syncMsg.loading ? '#1E40AF' : '#0F6E56') : 'var(--red)',
@@ -2976,130 +2984,7 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
             
             
-{tab === 'overview' && (
-              <section className="project-command-center" aria-labelledby="project-command-title">
-                <div className="project-command-main">
-                  <div className="project-command-status"><i aria-hidden="true" /> Sito attivo</div>
-                  <span className="section-eyebrow">Il tuo progetto digitale</span>
-                  <h2 id="project-command-title">{site?.title || siteTitleDraft || user?.name || 'Il tuo sito'}</h2>
-                  <p>Contenuti, pubblicazione e identità visiva riuniti in un unico spazio di lavoro.</p>
-                  <div className="project-command-actions">
-                    <a className="btn btn-primary" href={siteUrl} target="_blank" rel="noopener">Apri il sito ↗</a>
-                    
-                  </div>
-                </div>
-                <div className="project-command-grid" aria-label="Stato del progetto">
-                  <article>
-                    <span className="project-command-icon is-ai" aria-hidden="true">✦</span>
-                    <div><small>Aspetto del sito</small><strong>{visualAgentConfigured ? 'Personalizzata' : 'Pronta da configurare'}</strong><p>{visualDirection}</p></div>
-                    <b className={visualAgentConfigured ? 'is-ready' : 'is-pending'}>{visualAgentConfigured ? 'Attiva' : 'Setup'}</b>
-                  </article>
-                  <article>
-                    <span className="project-command-icon" aria-hidden="true">◎</span>
-                    <div><small>Canali social</small><strong>{activeChannelCount} collegat{activeChannelCount === 1 ? 'o' : 'i'}</strong><p>{posts.length} contenuti acquisiti</p></div>
-                    <button onClick={() => selectNavigation({ id: 'sources' })} aria-label="Gestisci i canali">→</button>
-                  </article>
-                  <article>
-                    <span className="project-command-icon" aria-hidden="true">✓</span>
-                    <div><small>Articoli</small><strong>{readyPostCount} pronti</strong><p>{publishedPosts.length} già online</p></div>
-                    <button onClick={() => selectNavigation({ id: 'site' })} aria-label="Gestisci gli articoli">→</button>
-                  </article>
-                </div>
-              </section>
-            )}
-            {tab === 'overview' && (isBasePlan ? (
-              <div className="base-home">
-                <section className={`base-start-card is-${baseAcquisition.status}`}>
-                  <div className="base-start-icon" aria-hidden="true">
-                    {syncing ? <span className="acquisition-spinner" /> : posts.length > 0 ? '✓' : activeChannelCount > 0 ? '↻' : '1'}
-                  </div>
-                  <div className="base-start-copy">
-                    <span className="section-eyebrow">Il tuo prossimo passo</span>
-                    <h2>{posts.length > 0 ? `Ho acquisito ${posts.length} contenuti` : activeChannelCount > 0 ? 'Sto leggendo il tuo social' : 'Collega il tuo primo social'}</h2>
-                    <p>
-                      {baseAcquisition.message || (posts.length > 0
-                        ? 'I contenuti trovati sono qui sotto. Puoi controllarli oppure aprire subito il tuo sito.'
-                        : activeChannelCount > 0
-                          ? 'L’acquisizione parte automaticamente. I primi contenuti compariranno qui appena trovati.'
-                          : 'Incolla il link del tuo profilo: al resto pensiamo noi.')}
-                    </p>
-                    <div className="base-start-actions">
-                      {activeChannelCount === 0 ? (
-                        <button className="btn btn-primary" onClick={() => { window.location.href = '/connect'; }}>Collega il social</button>
-                      ) : posts.length > 0 ? (
-                        <button className="btn btn-primary" onClick={() => selectNavigation({ id: 'site' })}>Guarda i contenuti</button>
-                      ) : (
-                        <button className="btn btn-primary" onClick={() => acquireBaseContent(false)} disabled={syncing}>{syncing ? 'Sto acquisendo…' : 'Riprova ora'}</button>
-                      )}
-                      <a className="btn btn-outline" href={siteUrl} target="_blank" rel="noopener">Apri il sito ↗</a>
-                    </div>
-                  </div>
-                </section>
-
-                {renderAiGenerateCard()}
-
-                <section className="base-summary" aria-label="Stato del sito">
-                  <button onClick={() => selectNavigation({ id: 'sources' })}><strong>{activeChannelCount}</strong><span>Social collegato</span></button>
-                  <button onClick={() => selectNavigation({ id: 'site' })}><strong>{posts.length}</strong><span>Contenuti acquisiti</span></button>
-                  <a href={siteUrl} target="_blank" rel="noopener"><strong>{publishedPosts.length}</strong><span>Online sul sito</span></a>
-                </section>
-
-                <section className="base-content-list">
-                  <div className="base-section-heading"><div><span className="section-eyebrow">Dai tuoi social</span><h3>Contenuti trovati</h3></div>{posts.length > 0 && <button onClick={() => selectNavigation({ id: 'site' })}>Vedi tutti →</button>}</div>
-                  {posts.length === 0 ? (
-                    <div className="base-empty-content">
-                      {syncing ? <><span className="base-pulse" /><strong>Acquisizione in corso</strong><p>Non devi fare nulla. Questa schermata si aggiorna da sola.</p></> : <><strong>Non vedo ancora contenuti</strong><p>{activeChannelCount ? 'Premi “Riprova ora” oppure controlla il canale collegato.' : 'Collega un social per iniziare.'}</p></>}
-                    </div>
-                  ) : (
-                    <div className="base-content-grid">
-                      {posts.slice(0, 6).map(post => (
-                        <button key={post.id} className="base-content-card" onClick={() => selectNavigation({ id: 'site' })}>
-                          {post.media_url && <img src={post.media_url} alt="" />}
-                          <div><span>{post.platform || 'social'} · {Number(post.seo_score) < 0 ? 'in preparazione' : Number(post.published) === 1 ? 'online' : 'bozza'}</span><strong>{post.edited_title || post.generated_title || String(post.raw_content || '').slice(0, 90) || 'Contenuto acquisito'}</strong></div>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </section>
-              </div>
-            ) : <div className="overview-workspace">
-            <section className="overview-metrics" aria-label="Riepilogo del progetto">
-              {[
-                { n: sources.length, l: 'Canali collegati', action: () => selectNavigation({ id: 'sources' }) },
-                { n: posts.length, l: 'Contenuti acquisiti', action: () => selectNavigation({ id: 'site' }) },
-                { n: publishedPosts.length, l: 'Articoli online', action: () => selectNavigation({ id: 'site' }) },
-                { n: Number(visibility.actions || 0).toLocaleString('it-IT'), l: 'Azioni degli utenti', action: () => selectNavigation({ id: 'seo' }) },
-              ].map((s, i) => (
-                <button key={i} type="button" onClick={s.action}><strong>{s.n}</strong><span>{s.l}</span><i aria-hidden="true">→</i></button>
-              ))}
-            </section>
-
-            <section className="overview-primary-grid">
-              {renderAiGenerateCard()}
-              <div className="card overview-next-card">
-                <span className="section-eyebrow">Prossima azione</span>
-                <h2>{readyPostCount ? `${readyPostCount} contenuti pronti da controllare` : 'Il progetto è sotto controllo'}</h2>
-                <p>{readyPostCount ? 'Rivedi titoli e testi, poi scegli cosa pubblicare.' : 'Puoi aggiornare i canali oppure verificare come il sito appare in rete.'}</p>
-                <div>
-                  <button className="btn btn-primary" onClick={() => selectNavigation({ id: readyPostCount ? 'site' : 'sources' })}>{readyPostCount ? 'Controlla i contenuti' : 'Gestisci i canali'}</button>
-                  <button className="btn btn-outline" onClick={() => selectNavigation({ id: 'seo' })}>Verifica Google</button>
-                </div>
-                <small style={{ color: 'var(--text-muted)', fontSize: '12px' }}>Ultimo aggiornamento: {site?.last_sync ? new Date(site.last_sync).toLocaleString('it-IT') : 'mai effettuato'}</small>
-              </div>
-            </section>
-
-            <details className="card overview-details">
-              <summary><span><strong>Dettaglio delle interazioni</strong><small>Visite, clic e azioni degli ultimi 30 giorni</small></span><b>{Number(visibility.unique_visitors || 0).toLocaleString('it-IT')} visite</b></summary>
-              <div>
-                {[
-                  ['Percorsi scelti', visibility.event_counts?.path_select || 0], ['Contenuti aperti', visibility.event_counts?.path_content_click || 0],
-                  ['Clic sul numero', visibility.event_counts?.call_click || 0], ['Indicazioni', visibility.event_counts?.directions_click || 0],
-                  ['WhatsApp', visibility.event_counts?.whatsapp_click || 0], ['Prenotazione', visibility.event_counts?.booking_click || 0], ['Social', visibility.event_counts?.social_click || 0],
-                ].map(([label, value]) => <article key={label}><strong>{value}</strong><span>{label}</span></article>)}
-              </div>
-            </details>
-
-            </div>)}
+{tab === 'overview' && <GuidedHome data={data} loading={homeLoading} error={homeError} knowledge={knowledge} strategy={declaredStrategy} syncing={syncing || scanning} siteUrl={siteUrl} onRetry={loadData} onAcquire={() => isBasePlan ? acquireBaseContent(false) : scanSources()} onNavigate={id => { selectNavigation({ id }); if (id === 'profile') setProfileSubTab('who'); }} onEditSite={() => { setStudioWorkspaceOpen(true); }} />}
 
               {tab === 'profile' && profileSubTab === 'who' && (
                 <div className="profile-review-stack">
@@ -4622,7 +4507,7 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
         </div>
       )}
 
-      <ProductGuide knowledge={knowledge} />
+      {tab !== 'overview' && <ProductGuide knowledge={knowledge} />}
       <PublicationConnections token={token} />
       
     </div>

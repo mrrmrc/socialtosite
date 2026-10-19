@@ -1,0 +1,23 @@
+import assert from 'node:assert/strict';
+import { homeCounts, homeSuggestion } from '../frontend/src/utils/guidedHome.mjs';
+
+const data = { site: { profile_summary: 'Studio di consulenza' }, sources: [], posts: [] };
+const suggestion = overrides => homeSuggestion({ data, ...overrides });
+const ready = { published: 0, seo_score: 82, generated_title: 'Una guida pratica' };
+assert.equal(suggestion({ loading: true }).disabled, true);
+assert.equal(suggestion({ error: 'offline' }).target, 'retry');
+assert.equal(suggestion({ data: null }).target, 'retry');
+assert.equal(suggestion({ data: { ...data, posts: [ready] } }).target, 'site');
+assert.equal(suggestion({ data: { ...data, posts: [{ ...ready, published: '1' }] } }).target, 'idea', 'published articles must not be proposed for review');
+assert.equal(suggestion({ syncing: true }).disabled, true);
+assert.equal(suggestion({ data: { ...data, posts: [{ seo_score: -1, processing_status: 'failed' }] } }).target, 'site');
+assert.equal(suggestion({ data: { ...data, posts: [{ seo_score: -1 }] } }).target, 'site');
+assert.equal(suggestion({ data: { ...data, site: {} } }).target, 'profile');
+assert.equal(suggestion({ data: { ...data, site: {} }, skipped: true }).target, 'idea');
+assert.equal(suggestion({ knowledge: { review: { reviewed: true, fields: [{ status: 'unclear', question: 'A chi ti rivolgi?' }] } } }).message, 'A chi ti rivolgi?');
+assert.equal(suggestion({ knowledge: { review: { reviewed: false, fields: [{ status: 'unclear' }] } } }).target, 'sources', 'unverified AI fields must not be treated as confirmed gaps');
+assert.equal(suggestion({}).target, 'sources');
+assert.equal(suggestion({ skipped: true }).target, 'idea');
+assert.equal(suggestion({ data: { ...data, sources: [{ id: 1 }] } }).target, 'acquire');
+assert.equal(homeCounts([ready, { ...ready, published: 1 }, { ...ready, seo_score: null }, { ...ready, seo_score: '' }, { ...ready, generated_title: '' }]).ready, 1);
+console.log('Guided Home: loading, failures, drafts, published articles, profile gaps, skip and acquisition passed.');
