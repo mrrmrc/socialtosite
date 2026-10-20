@@ -552,6 +552,13 @@ class AI {
         $model = ProviderConfig::normalizeModel('gemini', ProviderConfig::model('gemini') ?: (defined('GEMINI_MODEL') ? (string)GEMINI_MODEL : 'gemini-3.6-flash'));
         $url = "https://generativelanguage.googleapis.com/v1beta/models/$model:generateContent";
 
+        // Reserve enough output for the JSON instead of spending it on reasoning.
+        $fastThinking = !empty($config['_fastThinking']);
+        unset($config['_fastThinking']);
+        if ($fastThinking && str_starts_with($model, 'gemini-3')) {
+            $config['thinkingConfig'] = ['thinkingLevel'=>'low'];
+        }
+
         $timeout = max(30, min(300, (int)($config['_timeout'] ?? 90)));
         unset($config['_timeout']);
         $payload = ['contents' => [['parts' => $parts]]];
@@ -1982,11 +1989,13 @@ Testi da analizzare:
         try {
             $text = self::gemini([['text'=>$prompt]], [
                 'responseMimeType'=>'application/json',
-                'maxOutputTokens'=>3072,
+                'maxOutputTokens'=>8192,
                 'temperature'=>0.5,
+                '_fastThinking'=>true,
                 '_timeout'=>45,
             ]);
             $candidates = ContentIdeaFormatter::decode($text);
+            if ($candidates === []) throw new RuntimeException('Nessuna risposta dal modello per le idee editoriali');
         } catch (Throwable $e) {
             $aiError = $e->getMessage();
             $providerFailure = AIHealth::failure($e);

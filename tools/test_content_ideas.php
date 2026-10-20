@@ -43,5 +43,25 @@ $duplicates = ContentIdeaFormatter::normalize([
 checkIdea('i titoli equivalenti non vengono ripetuti', count(array_filter($duplicates, fn($idea) => str_starts_with($idea['title'], 'La stessa idea'))) === 1);
 checkIdea('anche dopo la deduplicazione restano tre proposte', count($duplicates) === 3);
 
+// Exercise the production orchestration with offline responses, not a copy.
+require_once __DIR__ . '/../api/services/ai_health.php';
+class ProfileKnowledge {
+    public static function understanding($site) { return ['declared_strategy'=>[]]; }
+    public static function review($site) { return ['reviewed'=>true]; }
+}
+$aiSource = file_get_contents(__DIR__ . '/../api/services/ai.php');
+$methodStart = strpos($aiSource, '    public static function contentIdeas(');
+$methodEnd = strpos($aiSource, '    public static function socialContent(', $methodStart);
+eval('class IdeasUnderTest { public static string $response = ""; public static function currentNewsSignals(...$args) { return []; } public static function gemini(...$args) { return self::$response; }' . substr($aiSource, $methodStart, $methodEnd - $methodStart) . '}');
+IdeasUnderTest::$response = '{"ideas":[{"title":"Incomplete';
+$result = IdeasUnderTest::contentIdeas(['title'=>'Studio'], []);
+checkIdea('JSON interrotto non viene dichiarato una generazione AI riuscita', $result['generation_source'] === 'profile_fallback' && $result['provider_error']['code'] === 'provider_incomplete_response');
+IdeasUnderTest::$response = json_encode(['ideas'=>[['title'=>'Una proposta vera']]]);
+$result = IdeasUnderTest::contentIdeas(['title'=>'Studio'], []);
+checkIdea('una proposta valida resta distinguibile dalle integrazioni del profilo', $result['generation_source'] === 'ai_completed' && $result['ideas'][0]['title'] === 'Una proposta vera');
+IdeasUnderTest::$response = json_encode(['ideas'=>[['title'=>'Prima proposta vera'],['title'=>'Seconda proposta vera'],['title'=>'Terza proposta vera']]]);
+$result = IdeasUnderTest::contentIdeas(['title'=>'Studio'], []);
+checkIdea('tre proposte AI complete non vengono sostituite dalle tracce locali', $result['generation_source'] === 'ai' && $result['provider_error'] === null && $result['ideas'][2]['title'] === 'Terza proposta vera');
+
 echo "\n" . str_repeat('─', 46) . "\n" . ($fail === 0 ? 'TUTTI I TEST PASSATI' : 'CI SONO FALLIMENTI') . " — {$pass} ok, {$fail} falliti\n";
 exit($fail === 0 ? 0 : 1);
