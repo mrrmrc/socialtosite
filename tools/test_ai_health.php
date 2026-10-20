@@ -11,6 +11,7 @@ $cases = [
     ['Call to undefined function mb_substr()','runtime_unavailable'],
     ['GEMINI_API_KEY mancante secret-value','provider_not_configured'],
     ['Gemini (403): private provider response','provider_access_denied'],
+    ['Gemini (402): Your prepayment credits are depleted. private project details','provider_credit_exhausted'],
     ['Gemini (429): private quota details','provider_rate_limited'],
     ['Gemini (404): private model details','provider_model_unavailable'],
     ['Gemini (400): private request details','provider_invalid_request'],

@@ -3,6 +3,7 @@
 // to the authenticated owner; the browser submits an opportunity id, not facts.
 require_once __DIR__ . '/../services/opportunities.php';
 require_once __DIR__ . '/../services/opportunity_brief.php';
+require_once __DIR__ . '/../services/ai_health.php';
 
 try {
 $opSite = DB::fetch('SELECT * FROM sites WHERE user_id=? LIMIT 1', [$userId]) ?: [];
@@ -41,5 +42,6 @@ foreach ($opPosts as $post) if ((int)$post['id'] === (int)($opSelected['next_act
     json(['ok'=>true, 'brief'=>$brief, 'opportunity'=>$opSelected, 'generation_source'=>'ai']);
 } catch (Throwable $e) {
     Logger::warn('opportunities', 'Preparazione non riuscita', ['user_id'=>$userId, 'error'=>$e->getMessage()]);
-    jsonError('LIA non è riuscita a preparare la proposta. Nessun contenuto è stato creato o pubblicato. Riprova.', 502);
+    $failure = AIHealth::failure($e);
+    json(['error'=>$failure['message'].' Nessun contenuto è stato creato o pubblicato.', 'error_code'=>$failure['code']], 502);
 }

@@ -34,7 +34,7 @@ export function LiaKnowledgeBadge({ knowledge, onClick }) {
   const review = knowledge.review;
   const score = !knowledge.busy && review?.reviewed ? review.score : null;
   const ready = !knowledge.busy && knowledge.review?.reviewed && knowledge.review.score === 100;
-  const label = knowledge.busy ? 'Sto verificando…' : ready ? 'Brief chiaro' : knowledge.review?.reviewed ? 'Qualcosa da chiarire' : 'Dati da verificare';
+  const label = knowledge.busy ? 'Sto verificando…' : knowledge.review?.error ? 'Servizio IA non disponibile' : ready ? 'Brief chiaro' : knowledge.review?.reviewed ? 'Qualcosa da chiarire' : 'Dati da verificare';
   return <button type="button" className="lia-dialogue-badge" data-ready={ready} onClick={onClick} title="Apri l’intervista nel tuo profilo" aria-label={`LIA: ${label}. ${score === null ? 'Comprensione non verificata' : `${score}% chiarezza del profilo`}. Apri l’intervista`}><LiaAvatar size={36} knowledge={knowledge} /><span><strong>LIA{score === null ? '' : ` · ${score}%`}</strong><small>{label}</small></span></button>;
 }
 
