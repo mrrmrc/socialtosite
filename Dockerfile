@@ -20,6 +20,9 @@ RUN apt-get update && apt-get install -y \
     curl \
     && docker-php-ext-install pdo pdo_mysql mysqli zip
 
+# Fail the existing staging build if a future base image lacks AI dependencies.
+RUN php -r 'foreach (["curl_init", "mb_substr", "openssl_encrypt"] as $function) { if (!function_exists($function)) { fwrite(STDERR, "Missing AI runtime function: " . $function . PHP_EOL); exit(1); } }'
+
 # Configura php.ini (per dare più memoria ed esecuzione lunga a Gemini/Apify)
 RUN mv "$PHP_INI_DIR/php.ini-production" "$PHP_INI_DIR/php.ini" && \
     sed -i 's/memory_limit = 128M/memory_limit = 1024M/g' "$PHP_INI_DIR/php.ini" && \

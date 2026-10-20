@@ -10,6 +10,7 @@ require_once __DIR__ . '/profile_knowledge.php';
 require_once __DIR__ . '/provider_config.php';
 require_once __DIR__ . '/video_source.php';
 require_once __DIR__ . '/website_source.php';
+require_once __DIR__ . '/ai_health.php';
 
 class AI {
     private static function configValue(string $name): string {
@@ -543,6 +544,7 @@ class AI {
     // ── Chiamata generica a Gemini (generateContent) ───────────────────────
     // $parts: array di "part" Gemini. $config: opzioni generationConfig.
     public static function gemini(array $parts, array $config = []): string {
+        AIHealth::assertRuntime();
         $apiKey = self::configValue('GEMINI_API_KEY');
         if ($apiKey === '') {
             throw new Exception('GEMINI_API_KEY mancante: configurala nei segreti del deploy o in config/keys.php');

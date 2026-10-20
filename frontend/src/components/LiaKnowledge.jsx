@@ -66,7 +66,7 @@ export function LiaKnowledge({ knowledge, onSave, onProfile }) {
     } catch (err) { setSaveError(err.message); }
     finally { setSaving(false); }
   }
-  const message = busy || saving ? 'Sto rileggendo il profilo. Ti mostrerò la prossima domanda appena la verifica sarà completa.' : complete ? 'Il profilo è chiaro: non ci sono domande da completare. Puoi aggiornare le risposte quando cambia la tua attività.' : !review?.reviewed ? 'La verifica di LIA non è disponibile: le informazioni presenti sono salvate, ma la loro chiarezza non è ancora confermata.' : 'Completiamo il tuo profilo, una domanda alla volta. Le risposte guideranno il sito e i contenuti.';
+  const message = busy || saving ? 'Sto rileggendo il profilo. Ti mostrerò la prossima domanda appena la verifica sarà completa.' : complete ? 'Il profilo è chiaro: non ci sono domande da completare. Puoi aggiornare le risposte quando cambia la tua attività.' : !review?.reviewed ? (review?.error?.message || 'La verifica di LIA non è disponibile: le informazioni presenti sono salvate, ma la loro chiarezza non è ancora confermata.') : 'Completiamo il tuo profilo, una domanda alla volta. Le risposte guideranno il sito e i contenuti.';
   return <section className="lia-knowledge lia-dialogue" aria-labelledby="lia-knowledge-title" aria-busy={busy || saving}>
     <header className="lia-dialogue-heading">
       <div><span className="section-eyebrow">Il mio profilo · Intervista</span><h3 id="lia-knowledge-title">LIA ti conosce, una risposta alla volta.</h3><p>Qui definiamo chi sei, cosa offri e a chi ti rivolgi.</p></div>
@@ -83,6 +83,7 @@ export function LiaKnowledge({ knowledge, onSave, onProfile }) {
       {!busy && review && !review.reviewed && <p>{fields.filter(field => field.value).length} informazioni presenti su {fields.length}. La verifica di LIA è ancora da completare.</p>}
       {fields.some(field => field.value) && <details className="lia-profile-answers"><summary>Informazioni già raccolte</summary><ul>{fields.filter(field => field.value).map(field => <li key={field.key}><strong>{field.label}</strong><span>{field.status === 'clear' ? 'Confermato da LIA' : field.status === 'unclear' ? 'Da precisare' : 'Presente · non ancora verificato'}</span><p>{field.value}</p></li>)}</ul></details>}
       {error && <p role="alert">Verifica non riuscita: {error}</p>}
+      {review?.error && <details><summary>Informazioni per l’assistenza</summary><p>Codice: {review.error.code}</p>{review.runtime?.missing_extensions?.length > 0 && <p>Componenti del server mancanti: {review.runtime.missing_extensions.join(', ')}.</p>}</details>}
       <div className="idea-actions"><button type="button" className="btn btn-outline" disabled={busy || saving} onClick={refresh}>Verifica di nuovo con LIA</button><button type="button" className="btn btn-ghost" onClick={onProfile}>Modifica le risposte del profilo</button></div>
     </div>
   </section>;

@@ -2006,6 +2006,7 @@ if ($action === 'interview-chat' && $method === 'POST') {
 if ($action === 'lia-chat' && $method === 'POST') {
     try {
         require_once __DIR__ . '/services/ai.php';
+        AIHealth::assertRuntime();
         $b = body();
         $incoming = is_array($b['messages'] ?? null) ? $b['messages'] : [];
         $messages = [];
@@ -2059,7 +2060,8 @@ if ($action === 'lia-chat' && $method === 'POST') {
         json(['ok' => true, 'reply' => $reply]);
     } catch (Throwable $e) {
         if (class_exists('Logger')) Logger::warn('lia', 'Risposta LIA non riuscita', ['user_id' => $userId, 'error' => $e->getMessage()]);
-        jsonError('LIA non riesce a rispondere in questo momento. Riprova tra poco.', 502);
+        $failure = AIHealth::failure($e);
+        json(['error'=>$failure['message'], 'error_code'=>$failure['code']], 502);
     }
 }
 
