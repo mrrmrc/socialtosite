@@ -11,6 +11,7 @@ require_once __DIR__ . '/provider_config.php';
 require_once __DIR__ . '/video_source.php';
 require_once __DIR__ . '/website_source.php';
 require_once __DIR__ . '/ai_health.php';
+require_once __DIR__ . '/article_studio.php';
 
 class AI {
     private static function configValue(string $name): string {
@@ -1944,6 +1945,24 @@ Testi da analizzare:
             if (count($signals) >= $limit) break;
         }
         return $signals;
+    }
+
+    public static function articleStudio(array $site, array $posts, array $request): array {
+        $input = ArticleStudio::input($request);
+        $profile = ProfileKnowledge::understanding($site);
+        $signals = [];
+        if ($input['mode'] === 'proposals') {
+            $topics = (array)($profile['keywords'] ?? []);
+            $declared = $profile['declared_strategy'] ?? [];
+            $voice = json_decode((string)($site['brand_voice_profile'] ?? ''), true) ?: [];
+            $topic = trim((string)($input['subject'] ?: ($topics[0] ?? ($voice['topic_clusters'][0] ?? ($declared['activity_type'] ?? '')))));
+            $signals = self::currentNewsSignals(mb_substr($topic,0,180).' when:30d', 8);
+            if (!$signals && !empty($topics[1])) $signals = self::currentNewsSignals(mb_substr((string)$topics[1],0,180).' when:30d',8);
+            if (!$signals) throw new InvalidArgumentException('Non ho trovato fonti recenti pertinenti. Specifica un tema più preciso oppure usa «Descrivi e genera 2 articoli».');
+        }
+        $prompt = ArticleStudio::prompt($site, $profile, $posts, $input, $signals);
+        $raw = self::gemini([['text'=>$prompt]], ['responseMimeType'=>'application/json','temperature'=>0.65,'maxOutputTokens'=>$input['mode'] === 'articles' ? 14000 : 6000,'_fastThinking'=>true,'_timeout'=>120]);
+        return ArticleStudio::result($raw, $input, $signals);
     }
 
     public static function contentIdeas(array $site, array $posts, string $searchDemand = '', array $brief = []): array {

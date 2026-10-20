@@ -1459,20 +1459,27 @@ if ($action === 'post-feature' && $method === 'POST') {
 
 // Ã”Ã¶Ã‡Ã”Ã¶Ã‡ EDIT post (CMS editoriale) Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡Ã”Ã¶Ã‡
 if ($action === 'post-create' && $method === 'POST') {
+    ensurePostMediaSchema();
     $b = body();
     $title = trim((string)($b['edited_title'] ?? ''));
     $body = trim((string)($b['edited_body'] ?? ''));
     
     if ($title === '') jsonError('Titolo mancante');
+    if (mb_strlen($title) > 240) jsonError('Il titolo deve contenere al massimo 240 caratteri.',422);
+    $mediaUrl = trim((string)($b['media_url'] ?? ''));
+    if ($mediaUrl !== '' && !preg_match('~^https?://~i', $mediaUrl) && !str_starts_with($mediaUrl,'/public/media/')) jsonError('Indirizzo immagine non valido',422);
+    $mediaType = strtoupper((string)($b['media_type'] ?? 'IMAGE')) === 'VIDEO' ? 'VIDEO' : 'IMAGE';
+    $alignment = in_array($b['media_alignment'] ?? '', ['left','center','right'],true) ? $b['media_alignment'] : 'center';
+    $tags = json_encode(array_values(array_map(fn($tag)=>trim(strip_tags((string)$tag)), (array)($b['tags'] ?? []))), JSON_UNESCAPED_UNICODE);
     
     $draftSlug = slugify($title . '-' . bin2hex(random_bytes(3)));
     $metaDescription = function_exists('mb_substr') ? mb_substr(strip_tags($body), 0, 155, 'UTF-8') : substr(strip_tags($body), 0, 155);
     $contentHash = hash('sha256', $userId . '|manual|' . bin2hex(random_bytes(10)));
     
     $postId = DB::insert(
-        'INSERT INTO posts (user_id, platform, platform_post_id, raw_content, generated_title, generated_body, generated_excerpt, tags, meta_description, slug, published_at, imported_at, content_hash, seo_score, published, edited_title, edited_body)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW(), ?, 10, 0, ?, ?)',
-        [$userId, 'manual', 'manual_'.bin2hex(random_bytes(5)), '', '', '', '', '[]', $metaDescription, $draftSlug, $contentHash, $title, $body]
+        'INSERT INTO posts (user_id, platform, platform_post_id, raw_content, generated_title, generated_body, generated_excerpt, tags, meta_description, slug, published_at, imported_at, content_hash, seo_score, published, edited_title, edited_body, edited_excerpt, media_url, media_type, media_display_width, media_alignment, noindex)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW(), ?, 10, 0, ?, ?, ?, ?, ?, ?, ?, ?)',
+        [$userId, 'manual', 'manual_'.bin2hex(random_bytes(5)), (string)($b['raw_content'] ?? ''), '', '', '', $tags, $metaDescription, $draftSlug, $contentHash, $title, $body, (string)($b['edited_excerpt'] ?? ''), $mediaUrl, $mediaUrl === '' ? '' : $mediaType, max(30,min(100,(int)($b['media_display_width'] ?? 100))), $alignment, !empty($b['noindex']) ? 1 : 0]
     );
     
     json(['ok' => true, 'id' => $postId]);
@@ -2122,6 +2129,16 @@ if ($action === 'lia-profile-review' && $method === 'POST') {
 if (($action === 'opportunity-plan' && $method === 'GET') || ($action === 'opportunity-prepare' && $method === 'POST')) {
     require __DIR__ . '/routes/opportunities.php';
     exit;
+}
+
+if ($action === 'article-studio' && $method === 'POST') {
+    require_once __DIR__ . '/services/ai.php';
+    try {
+        $site = DB::fetch('SELECT * FROM sites WHERE user_id=? LIMIT 1', [$userId]) ?: [];
+        $posts = DB::fetchAll('SELECT edited_title,generated_title,edited_excerpt,generated_excerpt FROM posts WHERE user_id=? ORDER BY id DESC LIMIT 12', [$userId]);
+        json(['ok'=>true] + AI::articleStudio($site, $posts, body()));
+    } catch (InvalidArgumentException $e) { jsonError($e->getMessage(), 422); }
+    catch (Throwable $e) { $failure = AIHealth::failure($e); json(['error'=>$failure['message'],'error_code'=>$failure['code']],502); }
 }
 
 if ($action === 'generate-content-ideas' && $method === 'POST') {

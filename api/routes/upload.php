@@ -75,7 +75,7 @@ if ($action === 'post-media-upload' && $method === 'POST') {
     $b = body();
     $postId = (int)($b['post_id'] ?? 0);
     $dataUrl = trim((string)($b['data_url'] ?? ''));
-    if (!$postId || !DB::fetch('SELECT id FROM posts WHERE id=? AND user_id=?', [$postId, $userId])) jsonError('Articolo non valido', 404);
+    if ($postId < 0 || ($postId > 0 && !DB::fetch('SELECT id FROM posts WHERE id=? AND user_id=?', [$postId, $userId]))) jsonError('Articolo non valido', 404);
     if (!preg_match('~^data:(image/(?:jpeg|png|webp));base64,([A-Za-z0-9+/=\r\n]+)$~', $dataUrl, $matches)) jsonError('Formato immagine non valido. Usa JPG, PNG o WebP.', 422);
     $binary = base64_decode(preg_replace('/\s+/', '', $matches[2]), true);
     if ($binary === false || strlen($binary) < 32) jsonError('Immagine vuota o danneggiata', 422);
@@ -85,7 +85,7 @@ if ($action === 'post-media-upload' && $method === 'POST') {
     if ($extension === '') jsonError('Il file caricato non è un’immagine supportata', 422);
     $directory = __DIR__ . '/../../public/media';
     if (!is_dir($directory) && !@mkdir($directory, 0775, true)) jsonError('Impossibile preparare la cartella media', 500);
-    $filename = 'article_' . $userId . '_' . $postId . '_' . date('YmdHis') . '.' . $extension;
+    $filename = 'article_' . $userId . '_' . ($postId ?: 'draft') . '_' . bin2hex(random_bytes(8)) . '.' . $extension;
     if (@file_put_contents($directory . '/' . $filename, $binary, LOCK_EX) === false) jsonError('Impossibile salvare l’immagine', 500);
     $mediaUrl = '/public/media/' . $filename;
     json(['ok'=>true, 'media_url'=>$mediaUrl, 'media_type'=>'IMAGE']);
