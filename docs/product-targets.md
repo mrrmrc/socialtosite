@@ -21,7 +21,7 @@ Pubblico: persone e attività con un'offerta, competenze o contenuti da rendere 
 
 Percorso operativo: obiettivo libero → opportunità spiegata → proposta LIA → bozza web oppure post social IDEA → revisione → distribuzione esplicita → misurazione. Le ricerche Google osservate restano distinte dalle ipotesi ricavate dal profilo. Il riuso di un contenuto usa il testo del proprietario, non il solo titolo.
 
-Primo incremento: Home con tre priorità ricavate dai dati, obiettivo persistito nel profilo esistente, preparazione IA su richiesta con domande mancanti, riuso social con collegamento al contenuto pubblicato, apertura dell'articolo con il brief di revisione. Nessuna generazione a pagamento automatica all'apertura della Home e nessuna pubblicazione implicita.
+Primo incremento: Home con tre priorità ricavate dai dati, obiettivo persistito nel profilo esistente, preparazione IA su richiesta con domande mancanti, riuso social con collegamento al contenuto pubblicato, apertura dell'articolo con il brief di revisione. Le opportunità vengono ordinate senza chiamare il provider IA; la preparazione della proposta richiede un clic. Resta separata la revisione IA del profilo già esistente. Nessuna pubblicazione implicita.
 
 Misure: tempo risparmiato, utilizzo delle proposte, visite attribuibili dove osservabili, clic ai contatti e richieste confermate separati. I visitatori interni sono stime giornaliere sommate sul periodo. L'ultimo import Google distingue dati non verificati, recenti e storici; non dimostra la validità attuale delle credenziali né l'indicizzazione completa.
 
