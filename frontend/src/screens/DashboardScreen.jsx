@@ -1,5 +1,6 @@
 import { GuidedHome } from '../components/GuidedHome';
 import { EditorDialog } from '../components/EditorDialog';
+import { ManualContentComposer } from '../components/ManualContentComposer';
 import { useDashboardNavigation } from '../utils/dashboardNavigation.mjs';
 import { LinkedChannelCard } from '../components/LinkedChannelCard';
 import { SiteMapGraph } from '../components/OnlinePresenceMap';
@@ -2623,6 +2624,10 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
   }
 
   async function createIdeaDraft(idea, index, mode = "ai") {
+    if (mode === 'manual') {
+      setManualContent({ title: idea?.title || '' });
+      return;
+    }
     if (!String(idea?.title || "").trim()) {
       setSyncMsg({ ok: false, text: "Serve un titolo per creare la bozza." });
       return;
@@ -3373,6 +3378,7 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
 
   // ── CMS Editoriale ───────────────────────────────────────────────────────
   const [editingPost, setEditingPost] = useState(null); // {id, title, body, excerpt, tags}
+  const [manualContent, setManualContent] = useState(null);
   const [opportunityEditorBrief, setOpportunityEditorBrief] = useState(null);
   const [cmsSaving, setCmsSaving] = useState(false);
   const [postImageUploading, setPostImageUploading] = useState(false);
@@ -4385,6 +4391,7 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
         <div
           className={`dashboard-content ${user?.role === "admin" ? "is-admin-wide" : ""}`}
         >
+          <div className="guided-home-actions" style={{ marginBottom: 24 }}><button className="btn btn-primary" onClick={() => setManualContent({ title: '' })}>+ Aggiungi contenuto</button><span>Scrivi o incolla un testo tuo, anche senza IA.</span></div>
           {tab !== 'overview' && <header className="dashboard-page-header">
             <div className="page-heading">
               <div className="page-kicker">
@@ -4559,12 +4566,12 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
                     <div>
                       <span className="section-eyebrow">Il tuo studio editoriale</span>
                       <h2>
-                        Il prossimo contenuto parte da ciò che ti rende unico.
+                        Scrivi tu, oppure fatti aiutare da IDEA.
                       </h2>
                       <p>
-                        L'AI incrocia attività, pubblico, contenuti esistenti,
-                        ricerche Google e segnali di attualità pertinenti. Nulla
-                        viene pubblicato senza conferma.
+                        Con «Aggiungi contenuto» parti da un tuo testo, senza IA.
+                        Qui puoi anche chiedere idee, creare una bozza web o
+                        adattare un contenuto ai social con l’IA.
                       </p>
                     </div>
                     <div className="ideas-quick-actions">
@@ -4994,7 +5001,7 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
                     In ogni caso finisci nell’editor con una bozza{" "}
                     <strong>non pubblicata</strong>: «Genera con l’AI» te la
                     consegna già scritta da rivedere, «Scrivo io» ti lascia una
-                    traccia vuota da riempire.
+                    pagina in cui scrivere o incollare il tuo testo, senza IA.
                   </p>
                 </div>
 
@@ -5028,7 +5035,7 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
                       <path d="M10 22h4" />
                       <path d="M12 2a7 7 0 0 0-7 7c0 2.38 1.19 4.67 3.03 6.17a1 1 0 0 1 .37.78V17h7v-1.05a1 1 0 0 1 .37-.78C17.81 13.67 19 11.38 19 9a7 7 0 0 0-7-7z" />
                     </svg>
-                    Generazione manuale di 2 articoli
+                    Fai scrivere 2 articoli all’IA
                   </h2>
                   <p
                     style={{ margin: "0.5rem 0 0", color: "var(--text-muted)" }}
@@ -5241,7 +5248,7 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
             <div
               style={{ display: "flex", flexDirection: "column", gap: "2rem" }}
             >
-              {tab === 'overview' && <GuidedHome data={data} token={token} loading={homeLoading} error={homeError} knowledge={knowledge} strategy={declaredStrategy} syncing={syncing || scanning} siteUrl={siteUrl} onRetry={loadData} onCreateWeb={brief => createIdeaDraft(brief, -2)} onCreateSocial={generateSocialContent} onOpenPost={(id, brief) => { const post = data?.posts?.find(item => Number(item.id) === Number(id)); if (post) openPostEditor(post, brief); }} onAcquire={() => isBasePlan ? acquireBaseContent(false) : scanSources()} onNavigate={id => { selectNavigation({ id: id === 'reachability' ? 'profile' : id }); if (id === 'reachability') setProfileSubTab('presence'); if (id === 'profile') setProfileSubTab('who'); }} onEditSite={() => { setTab('publicsite'); }} />}
+              {tab === 'overview' && <GuidedHome onWrite={title => setManualContent({ title: title || '' })} data={data} token={token} loading={homeLoading} error={homeError} knowledge={knowledge} strategy={declaredStrategy} syncing={syncing || scanning} siteUrl={siteUrl} onRetry={loadData} onCreateWeb={brief => createIdeaDraft(brief, -2)} onCreateSocial={generateSocialContent} onOpenPost={(id, brief) => { const post = data?.posts?.find(item => Number(item.id) === Number(id)); if (post) openPostEditor(post, brief); }} onAcquire={() => isBasePlan ? acquireBaseContent(false) : scanSources()} onNavigate={id => { selectNavigation({ id: id === 'reachability' ? 'profile' : id }); if (id === 'reachability') setProfileSubTab('presence'); if (id === 'profile') setProfileSubTab('who'); }} onEditSite={() => { setTab('publicsite'); }} />}
 
               {tab === 'profile' && profileSubTab === 'who' && (
                 <div className="profile-review-stack">
@@ -6977,9 +6984,9 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
                         Nessun contenuto trovato
                       </h3>
                       <p style={{ fontSize: "18px", marginTop: "0.5rem" }}>
-                        {posts.length ? 'Non ci sono articoli per i filtri selezionati.' : 'Collega un social oppure crea il tuo primo contenuto con LIA.'}
+                        {posts.length ? 'Non ci sono articoli per i filtri selezionati.' : 'Scrivi o incolla il tuo primo contenuto, oppure importa dai social.'}
                       </p>
-                      {posts.length ? <button className="btn btn-outline" onClick={() => { setPostSearch(''); setPostPlatformFilter('all'); setPostTagFilter('all'); setDashboardFilter('all'); }}>Azzera i filtri</button> : <button className="btn btn-primary" onClick={() => setTab('idea')}>Crea con LIA</button>}
+                      {posts.length ? <button className="btn btn-outline" onClick={() => { setPostSearch(''); setPostPlatformFilter('all'); setPostTagFilter('all'); setDashboardFilter('all'); }}>Azzera i filtri</button> : <button className="btn btn-primary" onClick={() => setManualContent({ title: '' })}>Scrivi il primo contenuto</button>}
                     </div>
                   ) : viewMode === "table" ? (
                     <div
@@ -9012,12 +9019,12 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
                     <div>
                       <span className="section-eyebrow">Il tuo studio editoriale</span>
                       <h2>
-                        Il prossimo contenuto parte da ciò che ti rende unico.
+                        Scrivi tu, oppure fatti aiutare da IDEA.
                       </h2>
                       <p>
-                        L'AI incrocia attività, pubblico, contenuti esistenti,
-                        ricerche Google e segnali di attualità pertinenti. Nulla
-                        viene pubblicato senza conferma.
+                        Con «Aggiungi contenuto» parti da un tuo testo, senza IA.
+                        Qui puoi anche chiedere idee, creare una bozza web o
+                        adattare un contenuto ai social con l’IA.
                       </p>
                     </div>
                     <div className="ideas-quick-actions">
@@ -9447,7 +9454,7 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
                     In ogni caso finisci nell’editor con una bozza{" "}
                     <strong>non pubblicata</strong>: «Genera con l’AI» te la
                     consegna già scritta da rivedere, «Scrivo io» ti lascia una
-                    traccia vuota da riempire.
+                    pagina in cui scrivere o incollare il tuo testo, senza IA.
                   </p>
                 </div>
               )}
@@ -10197,6 +10204,14 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
           )}
 
           {/* Modal Modifica Post */}
+          {manualContent && <ManualContentComposer token={token} initialTitle={manualContent.title} onClose={() => setManualContent(null)} onSaved={post => {
+            setManualContent(null);
+            setTab('site');
+            setDashboardFilter('all');
+            openPostEditor(post);
+            setSyncMsg({ ok: true, text: 'La tua bozza è salvata. Puoi rifinirla qui e pubblicarla dai tuoi contenuti.' });
+            loadData();
+          }} />}
           {editingPost && (
             <EditorDialog onClose={closePostEditor}>
               <div className="glass-modal article-editor-modal">

@@ -5,7 +5,7 @@ import './OpportunityWorkspace.css';
 const GOALS = ['Ricevere richieste', 'Far conoscere ciò che faccio', 'Aiutare il mio pubblico', 'Presentare lavori e competenze'];
 const decode = value => { if (typeof value !== 'string') return value || {}; try { return JSON.parse(value) || {}; } catch { return {}; } };
 
-export function OpportunityWorkspace({ data, token, onNavigate, onRefresh, onCreateWeb, onCreateSocial, onOpenPost }) {
+export function OpportunityWorkspace({ data, token, onNavigate, onRefresh, onCreateWeb, onCreateSocial, onOpenPost, onWrite }) {
   const cards = data?.opportunities || [];
   const strategy = decode(data?.site?.site_understanding).declared_strategy || {};
   const savedGoal = strategy.primary_goal || '';
@@ -82,6 +82,7 @@ export function OpportunityWorkspace({ data, token, onNavigate, onRefresh, onCre
       <h3>{card.title}</h3><p>{card.reason}</p>
       <details><summary>Perché questa proposta</summary><p>{card.evidence.label}</p>{card.evidence.query && <p>«{card.evidence.query}» · {card.evidence.impressions} impression · {card.evidence.clicks} clic</p>}<p>{card.measurement}</p></details>
       <button type="button" className={`btn ${index === 0 ? 'btn-primary' : 'btn-outline'}`} disabled={Boolean(busy) || saving} onClick={() => prepare(card)}>{busy === card.id ? 'LIA prepara la proposta…' : card.next_action.type === 'navigate' ? 'Completa questo passo' : 'Prepara con LIA'}</button>
+      {onWrite && card.next_action.type !== 'navigate' && <button type="button" className="btn btn-ghost" onClick={() => card.next_action.post_id ? onOpenPost(card.next_action.post_id) : onWrite(card.title)}>{card.next_action.post_id ? 'Apri e modifica tu' : 'Scrivi tu su questo tema'}</button>}
     </article>)}</div>
     {!cards.length && <p className="opportunity-empty">Collega un canale o racconta a LIA che cosa fai. Le proposte partiranno dalle tue informazioni, senza inventare ricerche o risultati.</p>}
     {error && <p className="opportunity-error" role="alert">{error}</p>}

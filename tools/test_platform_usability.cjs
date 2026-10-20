@@ -11,7 +11,7 @@ const fs = require('node:fs');
     page.setDefaultTimeout(10000);
     const errors = [], mutations = [];
     page.on('pageerror', e => { errors.push(e.message); console.error('Page error:', e.message); });
-    let rejectSave = false;
+    let rejectSave = false, rejectCreate = true;
     let fixture = {
       site: { title: 'Studio Aurora', profile_summary: 'Formazione' }, sources: [],
       posts: [{ id: 77, platform: 'manual', generated_title: 'Titolo iniziale', generated_body: '<p>Testo iniziale</p>', edited_excerpt: 'Parolachiaveunica', tags: [], seo_score: 82, published: 0 }],
@@ -25,8 +25,14 @@ const fs = require('node:fs');
       const request = route.request(), action = new URL(request.url()).searchParams.get('action');
       if (request.method() !== 'GET' && action !== 'lia-profile-review') mutations.push({ action, body: request.postDataJSON() });
       if (action === 'site') return route.fulfill({ json: fixture });
+      if (action === 'post-create') {
+        if (rejectCreate) return route.fulfill({ status: 503, json: { error: 'Creazione non disponibile' } });
+        const payload = request.postDataJSON();
+        fixture.posts.push({ id: 78, ...payload, platform: 'manual', published: 0, tags: [] });
+        return route.fulfill({ json: { ok: true, id: 78 } });
+      }
       if (action === 'post-update') return route.fulfill(rejectSave ? { status: 503, json: { error: 'Salvataggio non disponibile' } } : { json: { ok: true } });
-      if (action === 'lia-profile-review') return route.fulfill({ json: { review: { reviewed: false, fields: [] } } });
+      if (action === 'lia-profile-review') return route.fulfill({ json: { review: { reviewed: false, fields: [], error: { code: 'provider_credit_exhausted', message: 'Il credito del servizio IA è esaurito.' } } } });
       return route.fulfill({ json: {} });
     });
     await page.route('**/usability-fixture*', route => route.fulfill({ contentType: 'text/html', body: `<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"></head><body><div id="root"></div>
@@ -34,6 +40,35 @@ const fs = require('node:fs');
       <script type="module">import React from '/node_modules/.vite/deps/react.js?v=${reactHash}'; import ReactDOM from '/node_modules/.vite/deps/react-dom_client.js?v=${rendererHash}'; import {DashboardScreen} from '/src/screens/DashboardScreen.jsx'; import '/src/index.css'; import '/src/premium.css'; ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(React.StrictMode,null,React.createElement(DashboardScreen,{token:'fixture',user:{id:999,name:'Studio Aurora',slug:'studio-aurora',plan:'professional',role:'user'},onLogout:()=>{}})));</script></body></html>` }));
     await page.goto('http://127.0.0.1:5178/usability-fixture');
     console.log('Dashboard loaded');
+    await page.getByText('Puoi comunque aggiungere, modificare e pubblicare i tuoi contenuti.', { exact: true }).waitFor();
+    await page.getByRole('button', { name: '+ Aggiungi contenuto', exact: true }).click();
+    const manual = page.getByRole('dialog', { name: 'Aggiungi un contenuto', exact: true });
+    await manual.getByRole('textbox', { name: 'Titolo', exact: true }).fill('Il mio progetto');
+    await manual.getByRole('textbox', { name: 'Il tuo testo', exact: true }).fill('Testo mio & originale.\n\n<script>non eseguire</script>');
+    await page.setViewportSize({ width: 390, height: 844 });
+    assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), 'manual editor fits mobile');
+    fs.mkdirSync('artifacts', { recursive: true });
+    await page.screenshot({ path: 'artifacts/manual-content-mobile.png', fullPage: true, animations: 'disabled' });
+    const manualBounds = await manual.boundingBox();
+    assert.ok(manualBounds.y >= -1 && manualBounds.y + manualBounds.height <= 845, 'manual dialog stays inside the viewport');
+    page.once('dialog', d => d.dismiss());
+    await manual.getByRole('button', { name: 'Chiudi nuovo contenuto' }).click();
+    assert.ok(await manual.isVisible(), 'discard cancellation preserves new content');
+    await manual.getByRole('button', { name: 'Salva bozza e continua' }).click();
+    await manual.getByRole('alert').filter({ hasText: 'Creazione non disponibile' }).waitFor();
+    assert.match(await manual.getByRole('textbox', { name: 'Il tuo testo' }).inputValue(), /Testo mio/);
+    rejectCreate = false;
+    await manual.getByRole('button', { name: 'Salva bozza e continua' }).click();
+    await manual.waitFor({ state: 'hidden' });
+    const createdEditor = page.getByRole('dialog', { name: 'Modifica il contenuto' });
+    await createdEditor.waitFor();
+    assert.equal(await createdEditor.getByRole('textbox', { name: 'Titolo principale', exact: true }).inputValue(), 'Il mio progetto');
+    await createdEditor.getByRole('button', { name: 'Chiudi editor' }).click();
+    const creation = mutations.filter(m => m.action === 'post-create').at(-1).body;
+    assert.equal(creation.edited_body, '<p>Testo mio &amp; originale.</p><p>&lt;script&gt;non eseguire&lt;/script&gt;</p>');
+    assert.equal(creation.published, undefined, 'creation never requests publishing');
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await page.goto('http://127.0.0.1:5178/usability-fixture');
     await page.getByRole('button', { name: 'Rivedi le bozze', exact: true }).click({ timeout: 30000 });
     assert.equal(new URL(page.url()).searchParams.get('tab'), 'site');
     await page.reload();
@@ -86,7 +121,7 @@ const fs = require('node:fs');
     }
     await page.screenshot({ path: 'artifacts/usability-mobile.png', fullPage: true });
     assert.deepEqual(errors, []);
-    assert.deepEqual(mutations.map(m => m.action), ['post-update', 'post-update'], 'no accidental publishing or generation');
+    assert.deepEqual(mutations.map(m => m.action), ['post-create', 'post-create', 'post-update', 'post-update'], 'manual creation and editing have no accidental publishing or AI generation');
     const login = await browser.newPage();
     await login.route('**/api/**', route => route.fulfill({ status: 401, json: { error: 'Credenziali non valide' } }));
     await login.goto('http://127.0.0.1:5178/accedi');
@@ -97,6 +132,6 @@ const fs = require('node:fs');
     await login.getByRole('button', { name: /Entra nello spazio/ }).click();
     await login.getByRole('alert').filter({ hasText: 'Credenziali non valide' }).waitFor({ timeout: 10000 }).catch(async error => { console.error('Login state:', await login.locator('body').innerText()); throw error; });
     assert.ok(await login.getByLabel('Password', { exact: true }).isEnabled());
-    console.log('Platform usability passed: history/reload, search/reset, StrictMode editor, preserving edits, discard guard, save failure/retry, Google evidence, all mobile sections, login failure.');
+    console.log('Platform usability passed: manual creation despite exhausted AI credit, escaping pasted HTML, retry without text loss, saved draft in editor, history/reload, search/reset, editing, mobile sections and login failure.');
   } finally { await browser.close(); }
 })().catch(error => { console.error(error); process.exitCode = 1; });
