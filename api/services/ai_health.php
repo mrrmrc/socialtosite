@@ -31,6 +31,6 @@ final class AIHealth {
         if (preg_match('/timed?\s*out|timeout/i', $message)) return ['code'=>'provider_timeout','message'=>'Il servizio IA ha impiegato troppo tempo a rispondere. Puoi riprovare: le tue informazioni restano salvate.'];
         if (preg_match('/Gemini.*rete/i', $message)) return ['code'=>'provider_network_error','message'=>'Il server non riesce a raggiungere il servizio IA. Puoi riprovare tra poco.'];
         if (preg_match('/Revisione LIA incompleta|Risposta LIA non valida|Nessuna risposta dal modello|non ha restituito una risposta/i', $message)) return ['code'=>'provider_incomplete_response','message'=>'LIA ha restituito una risposta incompleta. Puoi riprovare senza riscrivere le informazioni già salvate.'];
-        return ['code'=>'provider_unavailable','message'=>'LIA non riesce a completare la richiesta in questo momento. Puoi riprovare: le tue informazioni restano salvate.'];
+        return ['code'=>'provider_unavailable','message'=>'LIA non riesce a completare la richiesta in questo momento. Puoi riprovare: le tue informazioni restano salvate.', 'reference'=>$error::class.' · '.basename($error->getFile()).':'.$error->getLine()];
     }
 }

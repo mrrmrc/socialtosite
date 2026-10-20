@@ -67,7 +67,8 @@ const fs = require('node:fs');
       <script type="module">import RefreshRuntime from '/@react-refresh'; RefreshRuntime.injectIntoGlobalHook(window); window.$RefreshReg$=()=>{}; window.$RefreshSig$=()=>type=>type; window.__vite_plugin_react_preamble_installed__=true;</script>
       <script type="module">import React from '/node_modules/.vite/deps/react.js?v=${dependencyHash}'; import ReactDOM from '/node_modules/.vite/deps/react-dom_client.js?v=${rendererHash}'; import {DashboardScreen} from '/src/screens/DashboardScreen.jsx'; import '/src/index.css'; ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(DashboardScreen,{token:'fixture',user:{id:1,name:'Studio educativo',slug:'studio',plan:'professional',role:'user'},onLogout:()=>{}}));</script></body></html>` }));
     await dashboard.goto('http://127.0.0.1:5178/dashboard-fixture');
-    await dashboard.getByRole('button', { name: /LIA:.*30%/ }).click();
+    await dashboard.getByRole('button', { name: 'Il mio profilo', exact: true }).click();
+    await dashboard.getByRole('button', { name: /LIA:.*30%/ }).waitFor();
     await dashboard.getByRole('heading', { name: 'LIA ti conosce, una risposta alla volta.' }).waitFor();
     assert.equal(await dashboard.getByLabel('Focus del momento').count(), 0, 'editorial controls are separate from the profile');
     await dashboard.getByRole('button', { name: 'Modifica le risposte del profilo' }).click();
