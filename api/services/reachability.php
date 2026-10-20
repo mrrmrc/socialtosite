@@ -108,7 +108,11 @@ class ReachabilityNetwork {
         $mediaCount = count(array_filter($published, static fn($post) => trim((string)($post['media_url'] ?? '')) !== ''));
         $hasSearchEvidence = (int)($visibility['google_visible_pages'] ?? 0) > 0 || (int)($visibility['impressions'] ?? 0) > 0;
         $hasOfficialSite = $profile['official_site_url'] !== '';
-        $hasGoogleData = !empty($visibility['latest_search_date']);
+        $lastGoogleDate = trim((string)($visibility['latest_search_date'] ?? ''));
+        $lastGoogleTimestamp = $lastGoogleDate !== '' ? strtotime($lastGoogleDate) : false;
+        $hasGoogleData = $lastGoogleTimestamp !== false && $lastGoogleTimestamp <= time();
+        $googleDataFresh = $hasGoogleData && $lastGoogleTimestamp >= strtotime('-7 days');
+        $googleStatus = $googleDataFresh ? 'active' : ($hasGoogleData ? 'stale' : 'unverified');
         $hasContacts = $profile['phone'] !== '' || $profile['whatsapp'] !== '' || $profile['email'] !== '';
         $usesSpaceOnly = $profile['presence_mode'] === 'space_only';
         $presenceChosen = $profile['presence_mode'] !== 'undecided';
@@ -117,7 +121,8 @@ class ReachabilityNetwork {
         $searchPresencePercent = $publishedPages > 0
             ? min(100, (int)round(($googleVisiblePages / $publishedPages) * 100))
             : 0;
-        $googleConnectionPercent = 100;
+        // A configured dashboard is not proof of a successful Google import.
+        $googleConnectionPercent = $hasGoogleData ? 100 : 0;
         $googleProgress = (int)round(($googleConnectionPercent * 0.4) + ($searchPresencePercent * 0.6));
 
         $checks = [
@@ -147,15 +152,16 @@ class ReachabilityNetwork {
                 'overall_percent' => $googleProgress,
                 'visible_pages' => $googleVisiblePages,
                 'published_pages' => $publishedPages,
-                'connected' => true,
+                'connected' => $hasGoogleData,
+                'data_fresh' => $googleDataFresh,
                 'has_evidence' => $hasSearchEvidence,
-                'status' => $hasGoogleData ? 'active' : 'collecting',
+                'status' => $googleStatus,
                 'source' => 'Monitoraggio automatico All Social To Web',
                 'last_data_at' => $visibility['latest_search_date'] ?? null,
             ],
             'data_sources' => [
                 ['key'=>'platform', 'label'=>'Contenuti e pagine', 'source'=>'Database All Social To Web', 'connected'=>true, 'updated_at'=>$site['last_sync'] ?? null],
-                ['key'=>'google', 'label'=>'Impression e clic', 'source'=>'Monitoraggio Google automatico', 'connected'=>true, 'updated_at'=>$visibility['latest_search_date'] ?? null],
+                ['key'=>'google', 'label'=>'Impression e clic', 'source'=>'Monitoraggio Google automatico', 'connected'=>$hasGoogleData, 'status'=>$googleStatus, 'updated_at'=>$visibility['latest_search_date'] ?? null],
                 ['key'=>'analytics', 'label'=>'Visite e azioni', 'source'=>'Analytics interno All Social To Web', 'connected'=>true, 'updated_at'=>date('Y-m-d')],
             ],
             'impressions' => (int)($visibility['impressions'] ?? 0),

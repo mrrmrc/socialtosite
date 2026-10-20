@@ -1,8 +1,8 @@
 # Target di prodotto AllSocialToWeb
 
-Concordati il 23 settembre 2026. Riferimento per implementazione e revisione.
+Aggiornati il 20 ottobre 2026 su richiesta del titolare. Riferimento per implementazione e revisione.
 
-Promessa: pubblico sui miei canali e il mio sito cresce con contenuti che mi rappresentano.
+Promessa da validare: LIA comprende il valore dell'attività, propone interventi per renderlo più riconoscibile e reperibile, e IDEA prepara contenuti per web e social. Si parte dall'obiettivo e dai materiali disponibili, senza categorie obbligatorie e senza garantire traffico, citazioni IA o richieste.
 
 | Target | Evidenza da raccogliere |
 |---|---|
@@ -17,7 +17,15 @@ Promessa: pubblico sui miei canali e il mio sito cresce con contenuti che mi rap
 | Controllo commerciale | Quota e rinnovo comprensibili, disdetta e conservazione esplicite |
 | Qualità della selezione | Unire contenuti affini, proporre aggiornamenti, chiedere dettagli invece di inventarli |
 
-Pubblico iniziale: professionisti e piccole attività che già pubblicano contenuti utili e hanno un sito poco aggiornato. Validare con un gruppo pilota.
+Pubblico: persone e attività con un'offerta, competenze o contenuti da rendere utili e reperibili. Il sistema deduce il contesto e chiede conferma dei fatti; non impone settori. Chi ha già un sito può valorizzarlo, chi non lo ha può usare la presenza ospitata. Un nuovo dominio non è un requisito.
+
+Percorso operativo: obiettivo libero → opportunità spiegata → proposta LIA → bozza web oppure post social IDEA → revisione → distribuzione esplicita → misurazione. Le ricerche Google osservate restano distinte dalle ipotesi ricavate dal profilo. Il riuso di un contenuto usa il testo del proprietario, non il solo titolo.
+
+Primo incremento: Home con tre priorità ricavate dai dati, obiettivo persistito nel profilo esistente, preparazione IA su richiesta con domande mancanti, riuso social con collegamento al contenuto pubblicato, apertura dell'articolo con il brief di revisione. Nessuna generazione a pagamento automatica all'apertura della Home e nessuna pubblicazione implicita.
+
+Misure: tempo risparmiato, utilizzo delle proposte, visite attribuibili dove osservabili, clic ai contatti e richieste confermate separati. I visitatori interni sono stime giornaliere sommate sul periodo. L'ultimo import Google distingue dati non verificati, recenti e storici; non dimostra la validità attuale delle credenziali né l'indicizzazione completa.
+
+Limiti: il primo incremento non ricerca autonomamente il mercato, non pubblica direttamente sui social e non costituisce una prova di crescita. Le opportunità senza dati di ricerca sono ipotesi da verificare. Il connettore WordPress rimane pilota. L'editor visuale è disponibile solo negli ambienti che dispongono già del relativo schema; questo rilascio non aggiunge colonne di produzione.
 
 Base: un sito. Pro: fino a tre siti con budget condiviso. Agency futura: clienti separati, ognuno con Pro.
 

@@ -95,10 +95,13 @@ function fetchGscData(string $accessToken, string $siteUrl, string $startDate, s
 
     if ($httpCode !== 200) {
         Logger::error('seo', "GSC API Error per $siteUrl", ['response' => $response]);
-        return [];
+        throw new RuntimeException('Search Console non disponibile (HTTP ' . $httpCode . ').');
     }
 
     $data = json_decode($response, true);
+    if (!is_array($data) || (isset($data['rows']) && !is_array($data['rows']))) {
+        throw new RuntimeException('Risposta Search Console non valida.');
+    }
     return $data['rows'] ?? [];
 }
 

@@ -2564,8 +2564,10 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
         ok: true,
         text: "Post social generato. Controllalo e poi scegli Condividi.",
       });
+      return true;
     } catch (error) {
       setSyncMsg({ ok: false, text: error.message });
+      return false;
     } finally {
       setGeneratingSocial(false);
     }
@@ -2706,6 +2708,7 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
                   : "Articolo scritto dall’AI e aperto nell’editor. Rivedilo prima di pubblicare.",
             },
       );
+      return result?.ai_status !== 'failed';
     } catch (error) {
       const isMonthlyLimit = /articoli.*piano Base/i.test(error.message || "");
       setSyncMsg({
@@ -2715,6 +2718,7 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
             ? "La richiesta ha impiegato troppo tempo. Riprova: il pulsante è stato sbloccato."
             : error.message,
       });
+      return false;
     } finally {
       window.clearTimeout(timeoutId);
       setPreparingIdea(-1);
@@ -3369,6 +3373,7 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
 
   // ── CMS Editoriale ───────────────────────────────────────────────────────
   const [editingPost, setEditingPost] = useState(null); // {id, title, body, excerpt, tags}
+  const [opportunityEditorBrief, setOpportunityEditorBrief] = useState(null);
   const [cmsSaving, setCmsSaving] = useState(false);
   const [postImageUploading, setPostImageUploading] = useState(false);
   const [postEditError, setPostEditError] = useState('');
@@ -3394,7 +3399,8 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
     setEditingPost(null);
   }
 
-  function openPostEditor(post) {
+  function openPostEditor(post, brief = null) {
+    setOpportunityEditorBrief(brief);
     setPostEditError('');
     setEditingPost({
       id: post.id,
@@ -4437,8 +4443,9 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
             </div>
           )}
 
-          {tab === 'publicsite' && <section className="card profile-review-panel"><h2>Il tuo sito, le tue scelte</h2><p>LIA prepara proposte. Le modifiche grafiche si applicano dopo la tua autorizzazione; il sito online cambia quando pubblichi. Le versioni salvate permettono di tornare indietro.</p><div className="profile-review-fields">{[{href:'/builder/editor',icon:'✎',title:'Modifica sito',description:'Testi, immagini, sezioni e menu.'},{href:'/builder/themes',icon:'▦',title:'Temi e layout',description:'Guarda le anteprime o fatti aiutare da LIA a scegliere.'},{href:'/builder/create',icon:'✧',title:'Nuova proposta del sito',description:'Descrivi la tua idea e valuta una proposta prima di autorizzarla.'},{href:'/builder/versions',icon:'◷',title:'Versioni salvate',description:'Salva una versione, confrontala e ripristinala.'},{href:'/builder/profile',icon:'◎',title:'Aggiorna dal profilo',description:'Scegli quali dati pubblici trasferire alla bozza.'}].map(item=><a key={item.href} className="card" href={item.href} style={{textDecoration:'none',color:'inherit'}}><h3>{item.icon} {item.title}</h3><p>{item.description}</p></a>)}</div></section>}
+          {tab === 'publicsite' && Object.prototype.hasOwnProperty.call(data?.site || {}, 'openpage_config') && <section className="card profile-review-panel"><h2>Il tuo sito, le tue scelte</h2><p>LIA prepara proposte. Le modifiche grafiche si applicano dopo la tua autorizzazione; il sito online cambia quando pubblichi. Le versioni salvate permettono di tornare indietro.</p><div className="profile-review-fields">{[{href:'/builder/editor',icon:'✎',title:'Modifica sito',description:'Testi, immagini, sezioni e menu.'},{href:'/builder/themes',icon:'▦',title:'Temi e layout',description:'Guarda le anteprime o fatti aiutare da LIA a scegliere.'},{href:'/builder/create',icon:'✧',title:'Nuova proposta del sito',description:'Descrivi la tua idea e valuta una proposta prima di autorizzarla.'},{href:'/builder/versions',icon:'◷',title:'Versioni salvate',description:'Salva una versione, confrontala e ripristinala.'},{href:'/builder/profile',icon:'◎',title:'Aggiorna dal profilo',description:'Scegli quali dati pubblici trasferire alla bozza.'}].map(item=><a key={item.href} className="card" href={item.href} style={{textDecoration:'none',color:'inherit'}}><h3>{item.icon} {item.title}</h3><p>{item.description}</p></a>)}</div></section>}
 
+          {tab === 'publicsite' && !Object.prototype.hasOwnProperty.call(data?.site || {}, 'openpage_config') && <section className="card"><h2>La tua presenza sul web</h2><p>I tuoi contenuti hanno uno spazio pubblico già ospitato. Puoi usarlo per approfondire ciò che condividi sui social, oppure valorizzare il sito che possiedi già.</p><div className="guided-home-actions"><a className="btn btn-primary" href={siteUrl} target="_blank" rel="noopener noreferrer">Apri la tua presenza pubblica</a><button type="button" className="btn btn-outline" onClick={() => { setTab('profile'); setProfileSubTab('identity'); }}>Aggiorna la presentazione</button><button type="button" className="btn btn-outline" onClick={() => { setTab('profile'); setProfileSubTab('presence'); }}>Sito esistente e contatti</button></div><p>LIA e IDEA preparano contenuti per le destinazioni che scegli. Nessun dominio aggiuntivo necessario.</p></section>}
           {/* Profile Sub-Navigation */}
           {tab === "profile" && (
             <div style={{ marginBottom: "2rem" }}>
@@ -5234,7 +5241,7 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
             <div
               style={{ display: "flex", flexDirection: "column", gap: "2rem" }}
             >
-              {tab === 'overview' && <GuidedHome data={data} loading={homeLoading} error={homeError} knowledge={knowledge} strategy={declaredStrategy} syncing={syncing || scanning} siteUrl={siteUrl} onRetry={loadData} onAcquire={() => isBasePlan ? acquireBaseContent(false) : scanSources()} onNavigate={id => { selectNavigation({ id }); if (id === 'profile') setProfileSubTab('who'); }} onEditSite={() => { setTab('publicsite'); }} />}
+              {tab === 'overview' && <GuidedHome data={data} token={token} loading={homeLoading} error={homeError} knowledge={knowledge} strategy={declaredStrategy} syncing={syncing || scanning} siteUrl={siteUrl} onRetry={loadData} onCreateWeb={brief => createIdeaDraft(brief, -2)} onCreateSocial={generateSocialContent} onOpenPost={(id, brief) => { const post = data?.posts?.find(item => Number(item.id) === Number(id)); if (post) openPostEditor(post, brief); }} onAcquire={() => isBasePlan ? acquireBaseContent(false) : scanSources()} onNavigate={id => { selectNavigation({ id: id === 'reachability' ? 'profile' : id }); if (id === 'reachability') setProfileSubTab('presence'); if (id === 'profile') setProfileSubTab('who'); }} onEditSite={() => { setTab('publicsite'); }} />}
 
               {tab === 'profile' && profileSubTab === 'who' && (
                 <div className="profile-review-stack">
@@ -10193,6 +10200,7 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
           {editingPost && (
             <EditorDialog onClose={closePostEditor}>
               <div className="glass-modal article-editor-modal">
+                {opportunityEditorBrief && <aside className="card" aria-label="Indicazioni di LIA per la revisione"><strong>La proposta di LIA</strong><p>{opportunityEditorBrief.reason}</p><p>{opportunityEditorBrief.objective}</p>{opportunityEditorBrief.questions?.length > 0 && <details><summary>Domande da verificare prima di pubblicare</summary>{opportunityEditorBrief.questions.map(question => <p key={question}>{question}</p>)}</details>}<small>Il testo originale resta conservato finché scegli di salvare le modifiche.</small></aside>}
                 <div className="article-editor-header">
                   <div>
                     <div className="article-editor-eyebrow">

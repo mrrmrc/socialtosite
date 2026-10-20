@@ -67,7 +67,7 @@ const fs = require('node:fs');
     if (await page.locator('.pro-site-builder').count()) {
       await page.locator('.pro-site-builder').waitFor();
     } else {
-      await page.getByRole('heading', { name: 'Il tuo sito, le tue scelte', exact: true }).waitFor();
+    await page.getByRole('heading', { name: 'La tua presenza sul web', exact: true }).waitFor();
     }
     assert.deepEqual(errors, []);
     assert.deepEqual(mutations, [], 'home navigation never publishes or generates content');

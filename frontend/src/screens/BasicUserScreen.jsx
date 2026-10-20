@@ -47,7 +47,7 @@ export function BasicUserScreen({ user, token, onLogout, onEnterDashboard }) {
       setData(d);
     } catch (e) {
       console.error(e);
-      if (!silent) setError('Non riesco a caricare il tuo sito. Controlla la connessione e riprova.');
+      if (!silent) setError('Non riesco a caricare il tuo spazio. Controlla la connessione e riprova.');
     } finally {
       setLoading(false);
     }
@@ -242,7 +242,7 @@ export function BasicUserScreen({ user, token, onLogout, onEnterDashboard }) {
             <p className="lia-text">Puoi iniziare a orientarti mentre All Social To Web controlla i tuoi contenuti.</p>
             <div className="lia-progress" aria-hidden="true"><span /></div>
             <p className="lia-status" role="status">{LOADING_MESSAGES[loadingMessageIndex]}</p>
-            <button className="lia-button" onClick={onEnterDashboard}>Entra subito nel pannello</button>
+            <button className="lia-button" onClick={onEnterDashboard}>Entra nel tuo spazio</button>
           </>
         )}
 
@@ -261,14 +261,15 @@ export function BasicUserScreen({ user, token, onLogout, onEnterDashboard }) {
           <>
             <h1 className="lia-title">Benvenuto {user?.name || ''}! Sono LIA.</h1>
             <p className="lia-text">
-              Sono la tua tutor personale. Costruirò il tuo sito web partendo dai tuoi social e me ne prenderò cura ogni giorno. Per iniziare, devi solo darmi accesso al tuo primo canale.
+              Ti aiuto a raccontare quello che fai, qualunque sia la tua attività. Possiamo partire dai tuoi social oppure da poche risposte e da un’idea. Con IDEA prepareremo contenuti per il web e per i social, da rivedere insieme.
             </p>
+            <p style={{ fontSize: 16, lineHeight: 1.65, color: '#46536a', margin: '0 0 24px' }}>Non serve avere già un sito. Se ti sarà utile, potrai scegliere uno spazio ospitato qui. Il primo passo è capire cosa offri e chi vuoi raggiungere.</p>
             <div className="lia-actions">
               <button className="lia-button" onClick={() => window.location.href = '/connect'}>
-                Collega il tuo canale 🔗
+                Parti da un tuo social
               </button>
               <button className="lia-button lia-button-secondary" onClick={onEnterDashboard}>
-                Entra nel pannello
+                Parti da un’idea o dalla tua attività
               </button>
               <button className="lia-exit" onClick={onLogout}>Esci</button>
             </div>
@@ -279,12 +280,12 @@ export function BasicUserScreen({ user, token, onLogout, onEnterDashboard }) {
           <>
             <h1 className="lia-title">Sto analizzando i tuoi contenuti</h1>
             <p className="lia-text">
-              Ho visto i tuoi canali. L’analisi continua in automatico, ma il pannello è già disponibile: puoi entrare senza aspettare.
+              Il collegamento è salvato. Controlliamo quali contenuti sono disponibili: appena raccolti, potrai rivederli. Intanto puoi raccontarmi la tua attività e preparare una proposta con IDEA.
             </p>
             <div className="lia-progress" aria-hidden="true"><span /></div>
             <p className="lia-status" role="status">{LOADING_MESSAGES[loadingMessageIndex]}</p>
             <div className="lia-actions">
-              <button className="lia-button" onClick={onEnterDashboard}>Entra nel pannello</button>
+              <button className="lia-button" onClick={onEnterDashboard}>Continua nel tuo spazio</button>
               <button className="lia-exit" onClick={onLogout}>Esci e torna più tardi</button>
             </div>
           </>
@@ -292,17 +293,15 @@ export function BasicUserScreen({ user, token, onLogout, onEnterDashboard }) {
 
         {!loading && !error && step === 3 && (
           <>
-            <h1 className="lia-title">Il tuo sito è pronto!</h1>
+            <h1 className="lia-title">Abbiamo i primi contenuti da cui partire.</h1>
             <p className="lia-text">
-              Ho creato e ottimizzato il tuo sito web in base ai tuoi contenuti social. Da questo momento in poi, ogni volta che pubblicherai sui social, io aggiornerò automaticamente il sito.
+              I contenuti raccolti sono nel tuo spazio. Ora possiamo capire quali sono utili, preparare approfondimenti per il web o nuovi testi per i social con IDEA. Rivedi le proposte prima di scegliere dove pubblicarle.
             </p>
             <div className="lia-actions">
               <button className="lia-button" onClick={onEnterDashboard}>
-                Entra nel pannello
+                Rivedi i contenuti con LIA
               </button>
-              <button className="lia-button lia-button-secondary" onClick={() => window.open(`/${user?.slug}`, '_blank')}>
-                Apri il mio sito
-              </button>
+              <p style={{ fontSize: 16, lineHeight: 1.65, color: '#46536a' }}>Il prossimo passo è rivedere le proposte. Se vorrai un sito ospitato qui, potrai controllarne l’anteprima e scegliere quando pubblicarlo.</p>
               <button className="lia-exit" onClick={onLogout}>Esci</button>
             </div>
           </>
