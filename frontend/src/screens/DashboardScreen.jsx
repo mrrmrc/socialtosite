@@ -2530,7 +2530,7 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
           : result.generation_source === "ai_completed"
             ? "3 proposte pronte. La risposta AI era parziale ed è stata completata automaticamente dal tuo profilo."
             : "3 nuove proposte create dall'AI. Scegline una per l'articolo o per un social.";
-      setSyncMsg({ ok: true, text: generationMessage });
+      setSyncMsg({ ok: !result.provider_error, text: result.provider_error ? `${result.provider_error.message} Le proposte disponibili sono tracce dal tuo profilo, non nuove generazioni IA.` : generationMessage });
     } catch (error) {
       setSyncMsg({ ok: false, text: error.message });
     } finally {

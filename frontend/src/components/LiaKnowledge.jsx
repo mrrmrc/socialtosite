@@ -34,7 +34,7 @@ export function LiaKnowledgeBadge({ knowledge, onClick }) {
   const review = knowledge.review;
   const score = !knowledge.busy && review?.reviewed ? review.score : null;
   const ready = !knowledge.busy && knowledge.review?.reviewed && knowledge.review.score === 100;
-  const label = knowledge.busy ? 'Sto verificando…' : ready ? 'Brief chiaro' : knowledge.review?.reviewed ? 'Qualcosa da chiarire' : 'Dati da verificare';
+  const label = knowledge.busy ? 'Sto verificando…' : knowledge.review?.error ? 'Servizio IA non disponibile' : ready ? 'Brief chiaro' : knowledge.review?.reviewed ? 'Qualcosa da chiarire' : 'Dati da verificare';
   return <button type="button" className="lia-dialogue-badge" data-ready={ready} onClick={onClick} title="Apri l’intervista nel tuo profilo" aria-label={`LIA: ${label}. ${score === null ? 'Comprensione non verificata' : `${score}% chiarezza del profilo`}. Apri l’intervista`}><LiaAvatar size={36} knowledge={knowledge} /><span><strong>LIA{score === null ? '' : ` · ${score}%`}</strong><small>{label}</small></span></button>;
 }
 
@@ -83,7 +83,7 @@ export function LiaKnowledge({ knowledge, onSave, onProfile }) {
       {!busy && review && !review.reviewed && <p>{fields.filter(field => field.value).length} informazioni presenti su {fields.length}. La verifica di LIA è ancora da completare.</p>}
       {fields.some(field => field.value) && <details className="lia-profile-answers"><summary>Informazioni già raccolte</summary><ul>{fields.filter(field => field.value).map(field => <li key={field.key}><strong>{field.label}</strong><span>{field.status === 'clear' ? 'Confermato da LIA' : field.status === 'unclear' ? 'Da precisare' : 'Presente · non ancora verificato'}</span><p>{field.value}</p></li>)}</ul></details>}
       {error && <p role="alert">Verifica non riuscita: {error}</p>}
-      {review?.error && <details><summary>Informazioni per l’assistenza</summary><p>Codice: {review.error.code}</p>{review.runtime?.missing_extensions?.length > 0 && <p>Componenti del server mancanti: {review.runtime.missing_extensions.join(', ')}.</p>}</details>}
+      {review?.error && <details><summary>Informazioni per l’assistenza</summary><p>Codice: {review.error.code}</p>{review.error.reference && <p>Riferimento: {review.error.reference}</p>}{review.runtime?.missing_extensions?.length > 0 && <p>Componenti del server mancanti: {review.runtime.missing_extensions.join(', ')}.</p>}</details>}
       <div className="idea-actions"><button type="button" className="btn btn-outline" disabled={busy || saving} onClick={refresh}>Verifica di nuovo con LIA</button><button type="button" className="btn btn-ghost" onClick={onProfile}>Modifica le risposte del profilo</button></div>
     </div>
   </section>;

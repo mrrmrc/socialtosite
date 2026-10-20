@@ -1978,6 +1978,7 @@ Testi da analizzare:
         $fallbacks = ContentIdeaFormatter::fallbacks($site, $declared, $reachability);
         $candidates = [];
         $aiError = '';
+        $providerFailure = null;
         try {
             $text = self::gemini([['text'=>$prompt]], [
                 'responseMimeType'=>'application/json',
@@ -1988,6 +1989,7 @@ Testi da analizzare:
             $candidates = ContentIdeaFormatter::decode($text);
         } catch (Throwable $e) {
             $aiError = $e->getMessage();
+            $providerFailure = AIHealth::failure($e);
             if (class_exists('Logger')) Logger::warn('ai', 'Idee editoriali: uso fallback locale', ['error'=>$aiError]);
         }
 
@@ -2003,6 +2005,7 @@ Testi da analizzare:
             'query'=>$newsQuery,
             'generation_source'=>$source,
             'profile_review'=>$profileReview,
+            'provider_error'=>$providerFailure,
         ];
     }
 

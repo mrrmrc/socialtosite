@@ -24,6 +24,7 @@ final class AIHealth {
         }
         if (str_contains($message, 'GEMINI_API_KEY')) return ['code'=>'provider_not_configured','message'=>'Il collegamento al servizio IA non è configurato o è disattivato. Le tue informazioni restano salvate.'];
         if (preg_match('/Gemini\s*\((401|403)\)/', $message)) return ['code'=>'provider_access_denied','message'=>'Il servizio IA non ha autorizzato la richiesta. Occorre verificare il collegamento del servizio.'];
+        if (preg_match('/Gemini\s*\(402\)/', $message)) return ['code'=>'provider_credit_exhausted','message'=>'Il credito del servizio IA è esaurito. LIA e IDEA torneranno disponibili quando l’amministratore ripristinerà il credito. Le tue informazioni restano salvate.'];
         if (preg_match('/Gemini\s*\(429\)/', $message)) return ['code'=>'provider_rate_limited','message'=>'Il servizio IA ha raggiunto un limite di utilizzo o di quota. Attendi e riprova; se persiste, occorre verificare la quota del servizio.'];
         if (preg_match('/Gemini\s*\(404\)/', $message)) return ['code'=>'provider_model_unavailable','message'=>'Il modello IA configurato non è disponibile. Occorre verificare la configurazione del servizio.'];
         if (preg_match('/Gemini\s*\(400\)/', $message)) return ['code'=>'provider_invalid_request','message'=>'Il servizio IA non accetta la configurazione della richiesta. Occorre correggere il collegamento del servizio.'];
@@ -31,6 +32,6 @@ final class AIHealth {
         if (preg_match('/timed?\s*out|timeout/i', $message)) return ['code'=>'provider_timeout','message'=>'Il servizio IA ha impiegato troppo tempo a rispondere. Puoi riprovare: le tue informazioni restano salvate.'];
         if (preg_match('/Gemini.*rete/i', $message)) return ['code'=>'provider_network_error','message'=>'Il server non riesce a raggiungere il servizio IA. Puoi riprovare tra poco.'];
         if (preg_match('/Revisione LIA incompleta|Risposta LIA non valida|Nessuna risposta dal modello|non ha restituito una risposta/i', $message)) return ['code'=>'provider_incomplete_response','message'=>'LIA ha restituito una risposta incompleta. Puoi riprovare senza riscrivere le informazioni già salvate.'];
-        return ['code'=>'provider_unavailable','message'=>'LIA non riesce a completare la richiesta in questo momento. Puoi riprovare: le tue informazioni restano salvate.'];
+        return ['code'=>'provider_unavailable','message'=>'LIA non riesce a completare la richiesta in questo momento. Puoi riprovare: le tue informazioni restano salvate.', 'reference'=>$error::class.' · '.basename($error->getFile()).':'.$error->getLine()];
     }
 }

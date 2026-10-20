@@ -2180,7 +2180,8 @@ if ($action === 'generate-social-content' && $method === 'POST') {
             'publish_note'=>'Controlla il testo e conferma la pubblicazione nell\'app social scelta.',
         ]);
     } catch (Throwable $e) {
-        jsonError('Non riesco a generare il contenuto social: ' . $e->getMessage(), 502);
+        $failure = AIHealth::failure($e);
+        json(['error'=>$failure['message'], 'error_code'=>$failure['code']], 502);
     }
 }
 
