@@ -121,6 +121,11 @@ const fs = require('node:fs');
     await page.getByRole('dialog',{name:'Scrivi il tuo articolo',exact:true}).waitFor();
     assert.equal(mutations.length,mutationsBeforeManual,'free writing opens the full editor without AI or an empty database row');
     await page.getByRole('button',{name:'Chiudi editor',exact:true}).click();
+    await page.getByRole('button',{name:'Contenuti',exact:true}).click();
+    await page.getByRole('button',{name:'IDEA: crea un articolo',exact:true}).click();
+    await page.getByRole('heading',{name:'Il tuo articolo è pronto',exact:true}).waitFor();
+    const retainedInstructions = await page.getByLabel('Indicazioni da rispettare', {exact:true}).inputValue({timeout:5000}).catch(async error => { console.error('Navigation state:',await page.locator('body').innerText()); console.error('Fields:',await page.locator('textarea').evaluateAll(nodes=>nodes.map(node=>node.outerHTML)));throw error; });
+    assert.equal(retainedInstructions,'Niente offerte. Usa esempi di grafici.','returning to IDEA preserves the brief and generated article');
     assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), 'AI and manual actions fit on mobile');
     console.log('Guided Home browser: primary action, skip, drafts, profile, collapsed details, load failure/retry and mobile layout passed.');
   } finally { await browser.close(); }

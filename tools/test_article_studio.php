@@ -24,6 +24,9 @@ $proposals=['proposals'=>[$proposal,array_replace($proposal,['title'=>'Il suono 
 $proposalBrief=ArticleStudio::input(['mode'=>'proposals','objective'=>'Educare']);
 $result=ArticleStudio::result(json_encode($proposals),$proposalBrief,$signals);
 studioCheck(count($result['proposals'])===2&&$result['proposals'][0]['source_title']===$signals[0]['title']&&$result['proposals'][0]['published_at']===$signals[0]['published_at'],'Proposal source names and dates come from retrieved evidence, never model inventions');
+$indexed=$proposals;foreach($indexed['proposals'] as &$entry){unset($entry['source_url']);$entry['source_id']='1';}unset($entry);
+$indexedResult=ArticleStudio::result(json_encode($indexed),$proposalBrief,$signals);
+studioCheck($indexedResult['proposals'][0]['source_url']===$signals[0]['url'],'A source identifier resolves to the exact retrieved URL without asking the model to copy long URLs');
 $proposals['proposals'][0]['source_url']='https://invented.example/news';
 studioReject(fn()=>ArticleStudio::result(json_encode($proposals),$proposalBrief,$signals),'A proposal with an invented source is rejected');
 $single=ArticleStudio::input(['mode'=>'articles','subject'=>'Sviluppa questa proposta','proposal'=>$proposal]);

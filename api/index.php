@@ -2138,6 +2138,7 @@ if ($action === 'article-studio' && $method === 'POST') {
         $posts = DB::fetchAll('SELECT edited_title,generated_title,edited_excerpt,generated_excerpt FROM posts WHERE user_id=? ORDER BY id DESC LIMIT 12', [$userId]);
         json(['ok'=>true] + AI::articleStudio($site, $posts, body()));
     } catch (InvalidArgumentException $e) { jsonError($e->getMessage(), 422); }
+    catch (ArticleStudioFailure $e) { jsonError($e->getMessage(),502); }
     catch (Throwable $e) { $failure = AIHealth::failure($e); json(['error'=>$failure['message'],'error_code'=>$failure['code']],502); }
 }
 

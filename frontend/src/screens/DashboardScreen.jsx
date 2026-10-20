@@ -3240,6 +3240,7 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
 
   // ── CMS Editoriale ───────────────────────────────────────────────────────
   const [editingPost, setEditingPost] = useState(null); // {id, title, body, excerpt, tags}
+  const [articleStudioState, setArticleStudioState] = useState(null);
   const [opportunityEditorBrief, setOpportunityEditorBrief] = useState(null);
   const [cmsSaving, setCmsSaving] = useState(false);
   const [postImageUploading, setPostImageUploading] = useState(false);
@@ -3384,7 +3385,7 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
         token,
       );
       setEditingPost(null);
-      if (editingPost.id === 'new') { setTab('site'); setPostSearch(''); setPostPlatformFilter('all'); setPostTagFilter('all'); setDashboardFilter('all'); }
+      if (editingPost.id === 'new') { if (tab !== 'idea') setTab('site'); setPostSearch(''); setPostPlatformFilter('all'); setPostTagFilter('all'); setDashboardFilter('all'); }
       setSyncMsg({ ok: true, text: 'Modifiche salvate.' });
       await loadData();
     } catch (err) {
@@ -4417,7 +4418,7 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
           {tab === 'profile' && profileReviewMessage && <p role={profileReviewMessage.ok?'status':'alert'}>{profileReviewMessage.text}</p>}
           {tab === 'profile' && profileSubTab === 'social' && <div className="profile-review-stack"><ProfileReviewPanel social value={{...(profileUnderstanding || {}),...socialProfileDraft}} onChange={(key,value)=>setSocialProfileDraft(prev=>({...prev,[key]:value}))} onSave={()=>saveProfileReview('social')} busy={profileReviewBusy} /><section className="card"><h3>Origine delle informazioni</h3><p>{sources.length} canali collegati · {posts.length} contenuti acquisiti. {profileUnderstanding?.generated_at ? `Ultima analisi: ${profileUnderstanding.generated_at}` : 'Nessuna analisi disponibile: collega i social e avvia l’analisi.'}</p><button className="btn btn-outline" onClick={analyzeProfile} disabled={profileAnalyzing}>{profileAnalyzing?'Analisi in corso…':'Aggiorna l’analisi dai contenuti'}</button> <button className="btn btn-outline" onClick={()=>setTab('sources')}>Gestisci i social collegati</button></section>{profileQuestions.length>0 && <details className="card"><summary>Domande e chiarimenti dell’AI</summary>{profileQuestions.map(question=><div key={question.id}><label><strong>{question.question}</strong><textarea rows={3} value={answerDrafts[question.id] ?? question.answer ?? ''} onChange={event=>setAnswerDrafts(prev=>({...prev,[question.id]:event.target.value}))} /></label><button className="btn btn-outline" disabled={answeringId===question.id} onClick={()=>submitProfileAnswer(question.id)}>Salva risposta</button></div>)}</details>}</div>}
 
-          {tab === "idea" && <ArticleStudio token={token} onOpenEditor={openNewArticle} onWrite={() => openNewArticle()} />}
+          {tab === "idea" && <ArticleStudio state={articleStudioState} onStateChange={setArticleStudioState} token={token} onOpenEditor={openNewArticle} onWrite={() => openNewArticle()} />}
 
           {(tab === "overview" ||
             (tab === "profile" && profileSubTab === "who")) && (
@@ -8187,7 +8188,7 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
                 </>
               )}
 
-              {visibilitySection === "ideas" && <ArticleStudio token={token} onOpenEditor={openNewArticle} onWrite={() => openNewArticle()} />}
+              {visibilitySection === "ideas" && <ArticleStudio state={articleStudioState} onStateChange={setArticleStudioState} token={token} onOpenEditor={openNewArticle} onWrite={() => openNewArticle()} />}
 
               {false && visibilitySection === "solutions" && (
                 <div
@@ -9005,7 +9006,35 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
                     />
                   </div>
 
-                  <section className="article-image-editor">
+                  <div>
+                    <label
+                      style={{
+                        display: "block",
+                        fontSize: "15px",
+                        fontWeight: 700,
+                        marginBottom: "8px",
+                        color: "var(--text)",
+                      }}
+                    >
+                      Testo dell'Articolo
+                    </label>
+                    <QuillEditor
+                      value={editingPost.body}
+                      onChange={(val) =>
+                        setEditingPost({ ...editingPost, body: val })
+                      }
+                      className="article-rich-editor"
+                      style={{
+                        background: "#fff",
+                        color: "#000",
+                        border: "2px solid var(--border-strong)",
+                        borderRadius: "var(--radius-sm)",
+                        marginBottom: "8px",
+                      }}
+                    />
+                  </div>
+
+                  <details className="article-image-editor"><summary>Immagine di copertina e impostazioni</summary>
                     <div className="article-image-editor__head">
                       <div>
                         <strong>Foto principale</strong>
@@ -9158,9 +9187,9 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
                         )}
                       </div>
                     </div>
-                  </section>
+                  </details>
 
-                  <div style={{ marginBottom: "1.5rem" }}>
+                  {editingPost.id !== 'new' && <details><summary>Testo originale importato</summary>
                     <label
                       style={{
                         display: "block",
@@ -9203,35 +9232,9 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
                       Modifica questo testo prima di rigenerare con l'AI se
                       l'importazione era incompleta.
                     </p>
-                  </div>
+                  </details>}
 
-                  <div>
-                    <label
-                      style={{
-                        display: "block",
-                        fontSize: "15px",
-                        fontWeight: 700,
-                        marginBottom: "8px",
-                        color: "var(--text)",
-                      }}
-                    >
-                      Testo dell'Articolo
-                    </label>
-                    <QuillEditor
-                      value={editingPost.body}
-                      onChange={(val) =>
-                        setEditingPost({ ...editingPost, body: val })
-                      }
-                      className="article-rich-editor"
-                      style={{
-                        background: "#fff",
-                        color: "#000",
-                        border: "2px solid var(--border-strong)",
-                        borderRadius: "var(--radius-sm)",
-                        marginBottom: "8px",
-                      }}
-                    />
-                  </div>
+
 
                   <div
                     style={{ display: "flex", flexWrap: "wrap", gap: "1rem" }}
@@ -9332,7 +9335,7 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
                 </div>
 
                 <div className="article-editor-actions">
-                  <button
+                  {editingPost.id !== 'new' && <button
                     onClick={regenerateEditedPost}
                     hidden={editingPost.id === 'new'}
                     disabled={cmsSaving || postImageUploading}
@@ -9349,7 +9352,7 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
                     }}
                   >
                     {cmsSaving ? "⏳ ORCHESTRAZIONE…" : "✨ RIGENERA CON L’AI"}
-                  </button>
+                  </button>}
                   <button
                     onClick={savePostEdit}
                     disabled={cmsSaving || postImageUploading}
