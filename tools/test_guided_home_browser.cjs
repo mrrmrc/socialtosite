@@ -23,6 +23,10 @@ const fs = require('node:fs');
         return route.fulfill(failLoad ? { status: 503, json: { error: 'Servizio non disponibile' } } : { json: fixture });
       }
       if (action === 'lia-profile-review') return route.fulfill({ json: { review: { reviewed: false, fields: [] } } });
+      if (action === 'generate-content-ideas') {
+        assert.equal(route.request().postDataJSON().count, 3);
+        return route.fulfill({ json: { ideas: [1, 2, 3].map(index => ({ title: `Proposta di prova ${index}`, reason: 'Tema pertinente al profilo', type: 'Guida', source: 'Profilo' })), generation_source: 'ai' } });
+      }
       return route.fulfill({ json: {} });
     });
     await page.route('**/guided-home-fixture', route => route.fulfill({ contentType: 'text/html', body: `<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"></head><body><div id="root"></div>
@@ -71,6 +75,15 @@ const fs = require('node:fs');
     }
     assert.deepEqual(errors, []);
     assert.deepEqual(mutations, [], 'home navigation never publishes or generates content');
+    await open();
+    await page.getByRole('button', { name: '+ Aggiungi contenuto', exact: true }).waitFor();
+    await page.getByRole('navigation', { name: 'Sezioni della piattaforma' }).getByRole('button', { name: /IDEA/ }).waitFor();
+    await page.getByRole('button', { name: 'Trova 3 contenuti con l’IA', exact: true }).click();
+    await page.getByRole('heading', { name: 'Idee e nuovi contenuti', exact: true }).waitFor();
+    for (const index of [1, 2, 3]) await page.getByText(`Proposta di prova ${index}`, { exact: true }).waitFor();
+    assert.equal(await page.locator('.ideas-list > li').count(), 3, 'all three AI proposals are visible');
+    assert.deepEqual(mutations, ['generate-content-ideas'], 'one explicit AI request and no publication');
+    assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), 'AI and manual actions fit on mobile');
     console.log('Guided Home browser: primary action, skip, drafts, profile, collapsed details, load failure/retry and mobile layout passed.');
   } finally { await browser.close(); }
 })().catch(error => { console.error(error); process.exitCode = 1; });

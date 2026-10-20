@@ -14,7 +14,7 @@ export function GuidedHome({ data, error, loading, knowledge, syncing, strategy,
     onNavigate(suggestion.target);
   }
   return <div className="guided-home">
-    <header className="guided-home-heading"><span>{data?.site?.title || 'Il tuo spazio'}</span><h1>I tuoi contenuti, per il web e i social.</h1><p>Con «Aggiungi contenuto» scrivi o incolli un testo tuo. IDEA ti aiuta a scrivere e adattare i contenuti con l’IA; LIA usa il tuo profilo per orientare le proposte. Salvi una bozza, la rivedi e scegli dove usarla.</p></header>
+    <header className="guided-home-heading"><span>{data?.site?.title || 'Il tuo spazio'}</span><h1>I tuoi contenuti, per il web e i social.</h1><p>Con «Trova 3 contenuti con l’IA» IDEA propone tre temi da sviluppare, usando il tuo profilo e i dati disponibili. Da ogni proposta puoi creare una bozza web o un post social. Con «Aggiungi contenuto» puoi anche scrivere o incollare un testo tuo.</p></header>
     {knowledge?.review?.error?.message && <aside className="card" role="status"><strong>Il servizio IA richiede un intervento</strong><p>{knowledge.review.error.message}</p><p>Puoi comunque aggiungere, modificare e pubblicare i tuoi contenuti.</p></aside>}
     {data && !error && Array.isArray(data.opportunities) && <OpportunityWorkspace data={data} token={token} onNavigate={onNavigate} onRefresh={onRetry} onCreateWeb={onCreateWeb} onCreateSocial={onCreateSocial} onOpenPost={onOpenPost} onWrite={onWrite} />}
     <section className="guided-home-next" aria-labelledby="guided-home-next-title" aria-busy={loading || syncing}>

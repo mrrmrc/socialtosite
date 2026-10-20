@@ -3872,7 +3872,7 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
   const navItem = id => existingNavigation.find(item => item.id === id);
   const visibleNavigationGroups = [
     { label: "Inizio", items: [{ id: "overview", icon: <span>⌂</span>, label: "Home", hint: "Stato del progetto e prossime azioni" }] },
-    { label: "Profilo e contenuti", items: [navItem("profile") || { id: "profile", icon: <span>◎</span>, label: "Il mio profilo", hint: "Identità, stile editoriale e contatti" }, navItem("sources"), { ...navItem("site"), label: "Contenuti" }].filter(Boolean) },
+    { label: "Profilo e contenuti", items: [navItem("profile") || { id: "profile", icon: <span>◎</span>, label: "Il mio profilo", hint: "Identità, stile editoriale e contatti" }, { id: "idea", icon: <span>✧</span>, label: "IDEA · idee con IA", hint: "Trova tre proposte e crea contenuti per web e social" }, navItem("sources"), { ...navItem("site"), label: "Contenuti" }].filter(Boolean) },
     { label: "Sito pubblico", items: [{ id: "publicsite", icon: <span>▣</span>, label: "Sito pubblico", hint: "Editor, temi, assistenza LIA e versioni" },navItem("seo")].filter(Boolean) },
     { label: "Account", items: [
       { id: "services", icon: <span>◇</span>, label: "Piano e servizi", hint: "Funzionalità e abbonamento" },
@@ -4391,7 +4391,7 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
         <div
           className={`dashboard-content ${user?.role === "admin" ? "is-admin-wide" : ""}`}
         >
-          <div className="guided-home-actions" style={{ marginBottom: 24 }}><button className="btn btn-primary" onClick={() => setManualContent({ title: '' })}>+ Aggiungi contenuto</button><span>Scrivi o incolla un testo tuo, anche senza IA.</span></div>
+          <div className="guided-home-actions" style={{ marginBottom: 24 }}><button className="btn btn-primary" disabled={generatingIdeas} onClick={() => { setTab('idea'); generateAiContentIdeas(); }}>{generatingIdeas ? 'Cerco le 3 proposte…' : 'Trova 3 contenuti con l’IA'}</button><button className="btn btn-outline" onClick={() => setManualContent({ title: '' })}>+ Aggiungi contenuto</button><span>Fatti aiutare dall’IA oppure scrivi e incolla un testo tuo.</span></div>
           {tab !== 'overview' && <header className="dashboard-page-header">
             <div className="page-heading">
               <div className="page-kicker">
