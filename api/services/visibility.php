@@ -50,18 +50,8 @@ class VisibilityAnalytics {
             FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
 
-        DB::execute("CREATE TABLE IF NOT EXISTS analytics_schema_migrations (
-            migration_key VARCHAR(100) PRIMARY KEY,
-            applied_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
-        $scopeMigration = DB::fetch("SELECT migration_key FROM analytics_schema_migrations WHERE migration_key='gsc_path_scope_v1'");
-        if (!$scopeMigration) {
-            // I dati storici precedenti erano totali di dominio replicati su ogni utente.
-            // Ripartiamo da zero per non mostrare numeri attribuiti al profilo sbagliato.
-            DB::execute('DELETE FROM seo_search_details');
-            DB::execute('DELETE FROM seo_analytics');
-            DB::execute("INSERT INTO analytics_schema_migrations (migration_key) VALUES ('gsc_path_scope_v1')");
-        }
+        // Historical corrections require an explicit, reviewed data operation.
+        // Merely opening analytics must never erase the stored search history.
     }
 
     public static function recordEvent(array $payload): bool {

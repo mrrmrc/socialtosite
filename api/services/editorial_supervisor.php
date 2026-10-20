@@ -27,7 +27,8 @@ final class EditorialSupervisor
         $source = trim((string)$content['title'] . "\n\n" . $body);
         if ($mediaContext !== '') $source .= "\n\n[Trascrizione / Analisi visiva del media allegato]\n" . $mediaContext;
         $result = AI::harmonize($source, (string)$content['platform'], $body, $context, 'content_editor', 'business', '', 'compact', $userId);
-        $reviewNotes = 'Prima stesura approvata dal revisore automatico.';
+        $reviewNotes = 'Prima stesura disponibile; seconda revisione da completare.';
+        $editorialStatus = 'needs_review';
         try {
             $reviewer = DB::fetch("SELECT instructions FROM agent_prompts WHERE agent_name='seo_reviewer'");
             $reviewPrompt = trim((string)($reviewer['instructions'] ?? '')) . "\n\n"
@@ -39,17 +40,26 @@ final class EditorialSupervisor
                 . 'Rispondi SOLO JSON: {"approved":true,"review_notes":"controlli svolti","title":"titolo","body":"HTML semplice","excerpt":"max 155 caratteri","tags":["tag"],"meta_description":"max 155 caratteri","seo_score":85}';
             $reviewText = AI::gemini([['text'=>$reviewPrompt]], ['responseMimeType'=>'application/json','temperature'=>0.25,'maxOutputTokens'=>4096]);
             $review = json_decode(preg_replace('/```json|```/', '', trim($reviewText)), true);
-            if (is_array($review) && !empty($review['title']) && !empty($review['body'])) {
+            if (is_array($review) && ($review['approved'] ?? null) === true
+                && is_string($review['title'] ?? null) && is_string($review['body'] ?? null)
+                && trim(strip_tags((string)($review['title'] ?? ''))) !== ''
+                && trim(strip_tags((string)($review['body'] ?? ''))) !== '') {
                 foreach (['title','body','excerpt','tags','meta_description','seo_score'] as $field) {
                     if (array_key_exists($field,$review)) $result[$field] = $review[$field];
                 }
                 $reviewNotes = trim((string)($review['review_notes'] ?? $reviewNotes));
+                $editorialStatus = 'ready';
+            } elseif (is_array($review) && ($review['approved'] ?? null) === false) {
+                $reviewNotes = 'Seconda revisione non approvata: ' . trim((string)($review['review_notes'] ?? 'verificare la bozza prima di pubblicare.'));
+            } else {
+                $reviewNotes = 'Seconda revisione incompleta: bozza da verificare prima di pubblicare.';
             }
         } catch (Throwable $reviewError) {
-            $reviewNotes = 'Seconda revisione non disponibile; conservata la stesura validata dal supervisore principale.';
+            $reviewNotes = 'Seconda revisione non disponibile; bozza conservata e da verificare prima di pubblicare.';
         }
-        DB::execute("UPDATE raw_contents SET draft_title=?,draft_body=?,draft_image_url=COALESCE(draft_image_url,media_url),draft_updated_at=NOW(),editorial_status='ready',editorial_notes=?,seo_score=?,meta_description=?,generated_at=NOW() WHERE id=? AND user_id=?", [
+        DB::execute("UPDATE raw_contents SET draft_title=?,draft_body=?,draft_image_url=COALESCE(draft_image_url,media_url),draft_updated_at=NOW(),editorial_status=?,editorial_notes=?,seo_score=?,meta_description=?,generated_at=NOW() WHERE id=? AND user_id=?", [
             trim((string)($result['title'] ?? '')),trim((string)($result['body'] ?? '')),
+            $editorialStatus,
             'Supervisore editoriale + revisore SEO: ' . $reviewNotes,
             (int)($result['seo_score'] ?? 0),trim((string)($result['meta_description'] ?? '')),$contentId,$userId
         ]);

@@ -149,6 +149,19 @@ h3 { font-size: 24px; font-weight: 700; }
    Sidebar rimossa. Navigazione semplificata per accessibilità.
    ═══════════════════════════════════════════════════════════════ */
 .dashboard-shell { min-height: 100vh; display: flex; flex-direction: column; background: var(--bg); }
+.dashboard-shell { font-size: 16px; }
+.profile-review-stack { display: grid; gap: 18px; }
+.profile-review-panel h2 { font-size: 23px; margin-bottom: 8px; }
+.profile-review-panel p { color: var(--text-muted); margin-bottom: 18px; }
+.profile-review-fields { display: grid; grid-template-columns: repeat(auto-fit,minmax(260px,1fr)); gap: 16px; margin-bottom: 18px; }
+.profile-review-fields label { display: grid; gap: 6px; align-content: start; }
+.profile-review-fields label > span { font-size: 14px; font-weight: 700; }
+.profile-flow { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 0; margin-bottom: 18px; }
+.profile-flow p { font-size: 14px; color: var(--text-muted); }
+.dashboard-shell details > summary { cursor: pointer; font-size: 16px; font-weight: 700; }
+.dashboard-shell :is(input,button,select,textarea) { font-size: 16px; }
+.dashboard-shell .btn { min-height: 42px; padding: 9px 16px; border-width: 1px; border-radius: 9px; font-size: 15px; gap: 8px; line-height: 1.4; text-decoration: none; }
+.dashboard-shell :is(input[type=text],input[type=url],input[type=email],input[type=password],input[type=number],textarea,select) { padding: 10px 12px; border-width: 1px; }
 .dashboard-main { flex: 1; min-width: 0; margin-left: 0; padding: 0; position: relative; z-index: 1; }
 .dashboard-content { width: 100%; min-width: 0; margin: 0; padding: 36px clamp(16px, 3vw, 56px) 64px; }
 .dashboard-content.is-admin-wide {
@@ -163,7 +176,7 @@ h3 { font-size: 24px; font-weight: 700; }
 /* ── Backend Header (identico alla landing) ── */
 .backend-header {
   position: sticky; top: 0; z-index: 100;
-  min-height: 82px;
+  height: 72px; min-height: 72px; flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -174,6 +187,13 @@ h3 { font-size: 24px; font-weight: 700; }
   backdrop-filter: blur(18px);
 }
 .backend-header .astw-brand { display: inline-flex; align-items: center; gap: .72rem; line-height: .9; text-decoration: none; }
+.backend-header-brand { display: flex; align-items: center; gap: 10px; }
+.backend-header-brand > strong { font-size: 16px; line-height: 1.2; }
+@media (max-width: 520px) {
+  .backend-header-brand > strong, .header-site-label { display: none; }
+  .backend-header { gap: 8px; }
+  .backend-header-actions { gap: 6px !important; }
+}
 .backend-header .astw-brand > span:last-child { display: grid; font-size: .86rem; letter-spacing: -.025em; }
 .backend-header .astw-brand strong { color: #171917; font-weight: 900; }
 .backend-header .astw-brand b { color: #ee6346; font-weight: 900; }
@@ -219,9 +239,10 @@ h3 { font-size: 24px; font-weight: 700; }
 
 /* ── Backend Tab Navigation (grande, chiara, accessibile) ── */
 .backend-tabs {
+  position: sticky; top: 72px; z-index: 99; flex-shrink: 0;
   display: flex;
   gap: 6px;
-  padding: 12px clamp(1.2rem, 4vw, 4.5rem);
+  padding: 6px clamp(1.2rem, 4vw, 4.5rem);
   background: #fff;
   border-bottom: 2px solid rgba(23,25,23,.08);
   overflow-x: auto;
@@ -229,16 +250,16 @@ h3 { font-size: 24px; font-weight: 700; }
 }
 .backend-tabs::-webkit-scrollbar { display: none; }
 .backend-tab {
-  min-height: 54px;
+  min-height: 40px;
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 12px 22px;
+  gap: 7px;
+  padding: 8px 12px;
   border: 2px solid transparent;
-  border-radius: 14px;
+  border-radius: 9px;
   color: var(--text-muted);
   background: transparent;
-  font-size: 18px;
+  font-size: 15px;
   font-weight: 800;
   white-space: nowrap;
   cursor: pointer;
@@ -260,7 +281,7 @@ h3 { font-size: 24px; font-weight: 700; }
   justify-content: center;
   font-size: 22px;
 }
-.backend-tab .tab-icon svg { width: 24px; height: 24px; }
+.backend-tab .tab-icon svg { width: 18px; height: 18px; }
 .backend-tab.is-active svg { stroke: #fff; }
 
 /* ── Legacy sidebar elements (ora nel header o rimossi) ── */
@@ -439,7 +460,7 @@ h3 { font-size: 24px; font-weight: 700; }
   .page-actions .btn { min-height: 48px; padding: 12px 14px; font-size: 15px; white-space: nowrap; }
   
   /* Tabs are stickied right under the sticky header */
-  .backend-tabs { top: 82px; position: sticky; z-index: 99; padding: 10px 1.2rem; }
+  .backend-tabs { top: 72px; position: sticky; z-index: 99; padding: 6px 1.2rem; }
   
   .visibility-subnav { top: 154px; }
   .card { padding: 1.25rem; }
@@ -842,9 +863,8 @@ h3 { font-size: 24px; font-weight: 700; }
 .lia-knowledge-question { display:grid; gap:.75rem; padding:1rem; border-radius:14px; background:var(--surface); margin:1rem 0; }.lia-knowledge-question label { display:grid; gap:.5rem; color:var(--text); }.lia-knowledge-question .btn { justify-self:start; }.lia-knowledge-question textarea,.editorial-brief input,.editorial-brief select { width:100%; box-sizing:border-box; padding:.75rem; border:1px solid var(--border); border-radius:10px; background:var(--surface); color:var(--text); font:inherit; }
 .editorial-brief-fields { display:grid; grid-template-columns:1fr 1fr 2fr; gap:.8rem; }.editorial-brief-fields label { display:grid; gap:.5rem; color:var(--text); font-size:12px; font-weight:700; }
 .idea-editorial-plan { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:.6rem 1rem; padding:.9rem; border:1px solid var(--border); border-radius:12px; margin:.8rem 0; }.idea-editorial-plan dt { font-size:10px; font-weight:800; color:var(--primary); }.idea-editorial-plan dd { margin:.25rem 0 0; color:var(--text-muted); font-size:12px; line-height:1.5; }
-.backend-header-actions .lia-knowledge-badge { font-size:12px; white-space:nowrap; }
+.lia-knowledge-badge { font-size:12px; white-space:nowrap; }
 @media(max-width:700px) { .editorial-brief-fields,.idea-editorial-plan { grid-template-columns:1fr; }.lia-knowledge-heading { flex-direction:column; }.lia-knowledge-score { text-align:left; }.lia-knowledge-badge { padding:.45rem; font-size:10px; } }
-@media(max-width:560px) { .backend-header-brand > strong,.header-site-label { display:none; }.backend-header { gap:8px; }.backend-header-actions { gap:6px !important; }.backend-header-actions .lia-knowledge-badge { padding:8px; font-size:11px; }.backend-header-actions a { padding:10px; } }
 .idea-origin a { color:var(--primary); font-weight:750; }
 .article-length-picker { display:flex; justify-content:space-between; align-items:center; gap:1rem; margin:0 0 1.25rem; padding:.85rem 1rem; border:1px solid var(--border); border-radius:13px; background:var(--bg); }.article-length-picker > div:first-child { display:grid; gap:3px; }.article-length-picker > div:first-child strong { color:var(--text); font-size:12px; }.article-length-picker > div:first-child span { color:var(--text-muted); font-size:10px; }.article-length-picker > div:last-child { display:flex; gap:.4rem; }.article-length-picker button { display:grid; gap:2px; min-width:112px; padding:7px 10px; text-align:left; border:1px solid var(--border); border-radius:9px; color:var(--text); background:var(--surface); cursor:pointer; }.article-length-picker button strong { font-size:11px; }.article-length-picker button small { color:var(--text-muted); font-size:9px; }.article-length-picker button.is-active { color:var(--primary); border:2px solid var(--primary); background:var(--primary-light); }
 .visual-identity-panel { display:grid; gap:1.25rem; padding:clamp(1.25rem,3vw,2rem); border:1px solid var(--border); }
@@ -1700,8 +1720,7 @@ h3 { font-size: 24px; font-weight: 700; }
   .lia-dialogue-badge strong { font-size:12px; }
   .lia-dialogue-badge small { max-width:105px; font-size:9px; }
 }
-@media(max-width:420px) { .backend-header-actions > button:first-child { padding:8px; }.backend-header-actions > a { padding:8px; }.backend-header-brand { gap:6px; } }
-/* Reduce the space before the connected channels list. */
+@media(max-width:420px) { .backend-header-actions > button:first-child { padding:8px; }.backend-header-actions > a { padding:8px; }.backend-header-brand { gap:6px; } }/* Reduce the space before the connected channels list. */
 .channels-connect > p { margin-bottom:14px !important; }
 @media (min-width:1000px) {
   .channels-connect > form { display:grid !important; grid-template-columns:minmax(0,2fr) minmax(0,1fr) auto; gap:12px !important; align-items:center; }

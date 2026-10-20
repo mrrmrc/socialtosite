@@ -129,7 +129,7 @@ export function LandingScreen({ onGetStarted, isLoggedIn = false }) {
             <button style={btnDark} onClick={go}
               onMouseOver={e => e.currentTarget.style.transform = 'translateY(-1px)'}
               onMouseOut={e => e.currentTarget.style.transform = 'none'}>
-              {isLoggedIn ? 'Dashboard' : 'Inizia ora'} <Arrow />
+              {isLoggedIn ? 'Il tuo spazio' : 'Inizia ora'} <Arrow />
             </button>
           </div>
         </div>
@@ -144,14 +144,14 @@ export function LandingScreen({ onGetStarted, isLoggedIn = false }) {
             <div>
               <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, marginBottom: '1.5rem' }}>
                 <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#EE6346', display: 'block', boxShadow: '0 0 0 4px rgba(238,99,70,.15)' }} />
-                <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: '.12em', textTransform: 'uppercase', color: '#9CA3AF' }}>Dai social a uno spazio che resta</span>
+                <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: '.12em', textTransform: 'uppercase', color: '#9CA3AF' }}>LIA · La tua attività, le tue possibilità</span>
               </div>
               <h1 style={{ fontSize: 'clamp(2.8rem, 5.5vw, 5.2rem)', fontWeight: 900, lineHeight: .95, letterSpacing: '-.055em', color: '#0F0F0E', margin: '0 0 1.2rem' }}>
-                I tuoi<br />contenuti,<br />
-                <em style={{ fontStyle: 'italic', color: '#EE6346', fontFamily: 'Georgia, serif', fontWeight: 400 }}>oltre le 24 ore.</em>
+                Quello<br />che fai,<br />
+                <em style={{ fontStyle: 'italic', color: '#EE6346', fontFamily: 'Georgia, serif', fontWeight: 400 }}>raccontato meglio.</em>
               </h1>
               <p style={{ fontSize: 'clamp(.95rem,1.5vw,1.1rem)', color: '#6B7280', lineHeight: 1.65, maxWidth: 460, margin: 0 }}>
-                All Social To Web trasforma post, video e storie in un sito proprietario, organizzato dall'AI e sempre aggiornato.
+                LIA parte da ciò che fai e dai contenuti che hai. Ti aiuta a chiarire la tua offerta, trovare argomenti utili e creare con IDEA testi per il web e per i social. Tu rivedi le proposte e scegli dove usarle.
               </p>
             </div>
             <div style={{ marginTop: '2.5rem' }}>
@@ -159,12 +159,13 @@ export function LandingScreen({ onGetStarted, isLoggedIn = false }) {
                 <button style={btnCoral} onClick={go}
                   onMouseOver={e => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 10px 28px rgba(238,99,70,.35)'; }}
                   onMouseOut={e => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = '0 6px 20px rgba(238,99,70,.3)'; }}>
-                  {isLoggedIn ? 'Apri il tuo spazio' : 'Crea il tuo sito'} <Arrow />
+                  {isLoggedIn ? 'Apri il tuo spazio' : 'Inizia con LIA'} <Arrow />
                 </button>
                 <a href="#funziona" style={{ fontSize: 14, fontWeight: 600, color: '#6B7280', display: 'flex', alignItems: 'center', gap: 6, textDecoration: 'none' }}>
                   Come funziona <span style={{ color: '#EE6346' }}>↓</span>
                 </a>
               </div>
+              <p style={{ fontSize: 13, lineHeight: 1.6, color: '#6B7280', margin: '0 0 1rem' }}>Puoi partire anche da un’idea. Il sito ospitato è una possibilità: decidi tu se farne la destinazione dei tuoi contenuti.</p>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                 <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.08em', color: '#D1D5DB' }}>Collega</span>
                 {[
@@ -187,20 +188,20 @@ export function LandingScreen({ onGetStarted, isLoggedIn = false }) {
               {/* Browser bar */}
               <div style={{ padding: '11px 16px', display: 'flex', alignItems: 'center', gap: 6, borderBottom: '1px solid rgba(15,15,14,.06)', background: '#FAFAF8' }}>
                 {['#FF5F56','#FFBD2E','#27C93F'].map(c => <span key={c} style={{ width: 10, height: 10, borderRadius: '50%', background: c, flexShrink: 0 }} />)}
-                <span style={{ marginLeft: 10, flex: 1, textAlign: 'center', fontSize: 11, color: '#9CA3AF', background: '#F3F4F6', borderRadius: 6, padding: '3px 10px' }}>iltuospazio.it</span>
+                <span style={{ marginLeft: 10, flex: 1, textAlign: 'center', fontSize: 11, color: '#6B7280', background: '#F3F4F6', borderRadius: 6, padding: '3px 10px' }}>LIA + IDEA · Dalle idee ai contenuti</span>
               </div>
               {/* Site preview content */}
               <div style={{ padding: 'clamp(1.5rem,3vw,2.5rem)' }}>
                 {/* Hero band */}
                 <div style={{ borderRadius: 14, padding: 'clamp(1.2rem,3vw,2rem)', background: 'linear-gradient(135deg, #7C3AED15, #06B6D415)', border: '1px solid rgba(124,58,237,.1)', marginBottom: 16 }}>
-                  <div style={{ fontSize: 9, fontWeight: 800, letterSpacing: '.12em', textTransform: 'uppercase', color: '#7C3AED', marginBottom: 8 }}>IL TUO SPAZIO UFFICIALE</div>
-                  <div style={{ fontSize: 'clamp(1rem,2vw,1.35rem)', fontWeight: 800, lineHeight: 1.2, color: '#0F0F0E', marginBottom: 12 }}>Quello che fai,<br/>finalmente organizzato.</div>
-                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 14px', borderRadius: 999, background: '#7C3AED', color: '#fff', fontSize: 11, fontWeight: 700 }}>Esplora i contenuti <Arrow /></div>
+                  <div style={{ fontSize: 9, fontWeight: 800, letterSpacing: '.12em', textTransform: 'uppercase', color: '#7C3AED', marginBottom: 8 }}>UN ESEMPIO DI LAVORO CON LIA</div>
+                  <div style={{ fontSize: 'clamp(1rem,2vw,1.35rem)', fontWeight: 800, lineHeight: 1.2, color: '#0F0F0E', marginBottom: 12 }}>Un tuo post.<br/>Una risposta utile per chi ti cerca.</div>
+                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 14px', borderRadius: 999, background: '#7C3AED', color: '#fff', fontSize: 11, fontWeight: 700 }}>Proposta da rivedere <Arrow /></div>
                 </div>
                 {/* Grid */}
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 8 }}>
-                  {['#7C3AED22','#06B6D422','#EE634622'].map((bg,i) => (
-                    <div key={i} style={{ height: 50, borderRadius: 10, background: bg, border: '1px solid rgba(15,15,14,.05)' }} />
+                  {['Per il web', 'Per i social', 'Dal tuo profilo'].map((label,i) => (
+                    <div key={label} style={{ minHeight: 50, padding: 8, display: 'grid', placeItems: 'center', textAlign: 'center', fontSize: 11, fontWeight: 700, borderRadius: 10, background: ['#7C3AED22','#06B6D422','#EE634622'][i], border: '1px solid rgba(15,15,14,.05)' }}>{label}</div>
                   ))}
                 </div>
               </div>
@@ -218,7 +219,7 @@ export function LandingScreen({ onGetStarted, isLoggedIn = false }) {
             <div style={{ background: '#0F0F0E', borderRadius: 16, padding: '1.1rem 1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#22C55E', animation: 'pubPulse 2s ease-in-out infinite', flexShrink: 0 }} />
-                <span style={{ color: '#fff', fontSize: 13, fontWeight: 700 }}>Pubblicato e organizzato</span>
+                <span style={{ color: '#fff', fontSize: 13, fontWeight: 700 }}>Social → web · Idee e web → social</span>
               </div>
               <div style={{ display: 'flex', gap: 8 }}>
                 {['IG','TT','YT'].map(s => (
@@ -233,9 +234,9 @@ export function LandingScreen({ onGetStarted, isLoggedIn = false }) {
         <div style={{ ...wrap, marginTop: 'clamp(1.2rem,3vw,2rem)' }}>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 'clamp(.8rem,2vw,1.2rem)' }} className="process-grid" id="funziona">
             {[
-              { n: '01', title: 'Collega i canali', desc: 'Indichi i profili social che raccontano la tua attività.', icon: '⬡', color: '#7C3AED', bg: '#F5F3FF' },
-              { n: '02', title: "L'AI dà struttura", desc: 'Comprende argomenti e trasforma i contenuti in pagine utili.', icon: '⬡', color: '#0891B2', bg: '#ECFEFF' },
-              { n: '03', title: 'Il sito prende vita', desc: 'Uno spazio aggiornato automaticamente, senza nessuno sforzo.', icon: '⬡', color: '#EE6346', bg: '#FFF7ED' },
+              { n: '01', title: 'LIA conosce la tua attività', desc: 'Racconta cosa fai, a chi ti rivolgi e cosa vuoi ottenere. I tuoi social aiutano a capire il contesto; le tue risposte guidano le proposte.', icon: '⬡', color: '#7C3AED', bg: '#F5F3FF' },
+              { n: '02', title: 'IDEA prepara i contenuti', desc: 'Da un post può nascere un approfondimento per il web. Da un’idea o da un contenuto web, un testo adatto ai social. Rivedi e modifica ogni proposta.', icon: '⬡', color: '#0891B2', bg: '#ECFEFF' },
+              { n: '03', title: 'Scegli come farti trovare', desc: 'Valuta temi, collegamenti e informazioni utili a chi ti cerca. Puoi usare i social, il tuo sito o uno spazio ospitato qui: la pubblicazione resta una tua scelta.', icon: '⬡', color: '#EE6346', bg: '#FFF7ED' },
             ].map(step => (
               <div key={step.n} style={{ background: step.bg, borderRadius: 20, padding: 'clamp(1.2rem,3vw,2rem)', border: `1px solid ${step.color}18`, transition: 'transform .2s', cursor: 'default' }}
                 onMouseOver={e => e.currentTarget.style.transform = 'translateY(-3px)'}
@@ -259,11 +260,12 @@ export function LandingScreen({ onGetStarted, isLoggedIn = false }) {
             <div>
               <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, marginBottom: '0.6rem' }}>
                 <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#7C3AED', display: 'block' }} />
-                <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: '.12em', textTransform: 'uppercase', color: '#9CA3AF' }}>Un formato. Infinite identità.</span>
+                <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: '.12em', textTransform: 'uppercase', color: '#9CA3AF' }}>Esempi di una possibile destinazione</span>
               </div>
               <h2 style={{ margin: 0, fontSize: 'clamp(1.8rem,4vw,3rem)', fontWeight: 900, lineHeight: 1, letterSpacing: '-.045em', color: '#0F0F0E' }}>
-                La stessa regia.<br /><span style={{ color: '#7C3AED' }}>Mai lo stesso carattere.</span>
+                Un sito, se ti serve.<br /><span style={{ color: '#7C3AED' }}>Con la tua identità.</span>
               </h2>
+              <p style={{ color: '#6B7280', fontSize: 14, lineHeight: 1.65, maxWidth: 570 }}>Questi sono esempi illustrativi, non categorie tra cui devi scegliere. LIA parte dalla tua attività, anche se non somiglia a nessuna di queste.</p>
             </div>
             {/* Tabs */}
             <div style={{ display: 'flex', gap: 6, padding: 6, background: '#F7F5F0', borderRadius: 999, border: '1px solid rgba(15,15,14,.06)' }}>
@@ -346,9 +348,9 @@ export function LandingScreen({ onGetStarted, isLoggedIn = false }) {
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 'clamp(1rem,2.5vw,1.5rem)', alignItems: 'start' }} className="pricing-grid">
             {[
-              { name: 'Base', sub: 'Per iniziare senza sforzo', items: ['Creazione sito automatica','Aggiornamento 1×/giorno','Template standard'], cta: 'Inizia ora', featured: false },
-              { name: 'Professional', sub: 'Per creator e professionisti', items: ['Aggiornamento ogni 2 ore','Control Room editoriale','Tuning AI e tone of voice'], cta: 'Scegli Professional', featured: true },
-              { name: 'Agency', sub: 'Per chi gestisce più brand', items: ['Spazi e brand illimitati','Cron e priorità dedicate','Supporto premium'], cta: 'Inizia ora', featured: false },
+              { name: 'Base', sub: 'Per iniziare con LIA', items: ['Profilo guidato della tua attività','Proposte di contenuti da rivedere','Sito ospitato come possibile destinazione'], cta: 'Inizia ora', featured: false },
+              { name: 'Professional', sub: 'Per lavorare sui tuoi contenuti', items: ['Strumenti editoriali','Indicazioni su stile e tono di voce','Proposte per web e social con IDEA'], cta: 'Scopri Professional', featured: true },
+              { name: 'Agency', sub: 'Per chi segue più attività', items: ['Esigenze di gestione da concordare','Configurazione dei servizi','Assistenza dedicata da verificare'], cta: 'Scopri Agency', featured: false },
             ].map(plan => (
               <div key={plan.name} style={{
                 position: 'relative', background: plan.featured ? '#0F0F0E' : '#fff',
@@ -359,7 +361,7 @@ export function LandingScreen({ onGetStarted, isLoggedIn = false }) {
                 display: 'flex', flexDirection: 'column', gap: '1.5rem',
               }}>
                 {plan.featured && (
-                  <div style={{ position: 'absolute', top: -13, left: '50%', transform: 'translateX(-50%)', background: '#EE6346', color: '#fff', padding: '4px 14px', borderRadius: 999, fontSize: 10, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.08em', whiteSpace: 'nowrap' }}>Più scelto</div>
+                  <div style={{ position: 'absolute', top: -13, left: '50%', transform: 'translateX(-50%)', background: '#EE6346', color: '#fff', padding: '4px 14px', borderRadius: 999, fontSize: 10, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.08em', whiteSpace: 'nowrap' }}>Per approfondire</div>
                 )}
                 <div>
                   <h3 style={{ margin: '0 0 .4rem', fontSize: 20, fontWeight: 800, color: plan.featured ? '#fff' : '#0F0F0E' }}>{plan.name}</h3>
@@ -381,6 +383,7 @@ export function LandingScreen({ onGetStarted, isLoggedIn = false }) {
               </div>
             ))}
           </div>
+          <p style={{ textAlign: 'center', fontSize: 13, color: '#6B7280', lineHeight: 1.6, marginTop: 24 }}>Consulta disponibilità, limiti e condizioni nel tuo spazio prima di richiedere un cambio di piano. Le opportunità di reperibilità non sono una garanzia di visite o contatti.</p>
         </div>
       </section>
 
@@ -391,16 +394,16 @@ export function LandingScreen({ onGetStarted, isLoggedIn = false }) {
             <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(ellipse at 30% 50%, rgba(124,58,237,.25), transparent 55%), radial-gradient(ellipse at 70% 50%, rgba(6,182,212,.15), transparent 55%)', pointerEvents: 'none' }} />
             <div style={{ position: 'relative', zIndex: 1 }}>
               <h2 style={{ margin: '0 0 1rem', fontSize: 'clamp(1.8rem,4vw,3.2rem)', fontWeight: 900, letterSpacing: '-.045em', color: '#fff', lineHeight: 1.05 }}>
-                Il tuo spazio web,<br />completamente automatico.
+                Un’idea da cui partire.<br />LIA per darle forma.
               </h2>
               <p style={{ margin: '0 auto 2.5rem', fontSize: 15, color: 'rgba(255,255,255,.6)', maxWidth: 480, lineHeight: 1.65 }}>
-                Porta i tuoi contenuti su un sito che lavora per te ogni giorno, senza toccare codice o CMS.
+                Racconta la tua attività, recupera ciò che hai già pubblicato e prepara nuovi contenuti con IDEA. Scegli tu se portarli sui social, sul web o in uno spazio ospitato qui.
               </p>
               <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', flexWrap: 'wrap' }}>
                 <button style={btnCoral} onClick={go}
                   onMouseOver={e => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 12px 30px rgba(238,99,70,.4)'; }}
                   onMouseOut={e => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = '0 6px 20px rgba(238,99,70,.3)'; }}>
-                  {isLoggedIn ? 'Vai alla dashboard' : 'Crea il tuo spazio'} <Arrow />
+                  {isLoggedIn ? 'Apri il tuo spazio' : 'Conosci LIA'} <Arrow />
                 </button>
                 <a href="/scopri" style={{ ...btnBase, background: 'rgba(255,255,255,.08)', color: 'rgba(255,255,255,.8)', textDecoration: 'none', border: '1px solid rgba(255,255,255,.1)' }}>
                   Esplora gli spazi online

@@ -19,7 +19,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '24'
           cache: npm
           cache-dependency-path: frontend/package-lock.json
 
@@ -30,17 +30,38 @@ jobs:
           cd frontend
           npm install --legacy-peer-deps
           npm run build
+          cd openpage
+          npm install --legacy-peer-deps
+          npm run build
 
       - name: Test PHP syntax
         run: |
           sudo apt-get install -y php-cli
+          php -l api/services/apify_client.php
+          php tools/test_apify_credentials.php
+          php -l api/services/video_source.php
+          php -l api/services/ai.php
+          php -l api/services/ingest.php
+          php tools/test_video_source.php
+          php -l public/site.php
+          php -l api/services/openpage.php
+          php -l api/services/design_references.php
+          php tools/test_design_references.php
+          php -l api/services/article_display.php
+          php tools/test_article_display.php
+          php tools/test_openpage_document.php
+          php tools/test_profile_corrections.php
           php -l api/services/profile_knowledge.php
           php tools/test_profile_knowledge.php
           php tools/test_content_ideas.php
+          php tools/test_opportunities.php
+          php tools/test_opportunity_brief.php
+          php tools/test_ai_reliability.php
+          php -l api/services/openpage_versions.php
+          php tools/test_openpage_versions.php
           php -l api/index.php > php_lint_output.txt 2>&1 || true
           php -l api/services/profile_interview.php >> php_lint_output.txt 2>&1 || true
-          curl -s --data-binary @php_lint_output.txt https://paste.rs/ > paste_url.txt
-          cat paste_url.txt
+          cat php_lint_output.txt
 
       - name: Prepara chiave SSH
         shell: bash

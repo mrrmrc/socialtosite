@@ -2,8 +2,9 @@ import React, { useState } from 'react';
 import { LiaAvatar } from './LiaAvatar';
 import { homeSuggestion, homeCounts } from '../utils/guidedHome.mjs';
 import './GuidedHome.css';
+import { OpportunityWorkspace } from './OpportunityWorkspace';
 
-export function GuidedHome({ data, error, loading, knowledge, syncing, strategy, onNavigate, onRetry, onAcquire, siteUrl, onEditSite }) {
+export function GuidedHome({ data, error, loading, knowledge, syncing, strategy, onNavigate, onRetry, onAcquire, siteUrl, onEditSite, token, onCreateWeb, onCreateSocial, onOpenPost }) {
   const [skipped, setSkipped] = useState(false);
   const suggestion = homeSuggestion({ data, error, loading, knowledge, syncing, strategy, skipped });
   const counts = homeCounts(data?.posts || []);
@@ -13,7 +14,8 @@ export function GuidedHome({ data, error, loading, knowledge, syncing, strategy,
     onNavigate(suggestion.target);
   }
   return <div className="guided-home">
-    <header className="guided-home-heading"><span>{data?.site?.title || 'Il tuo spazio'}</span><h1>Un passo alla volta.</h1><p>Ti aiutiamo a trasformare le tue idee in contenuti e sito.</p></header>
+    <header className="guided-home-heading"><span>{data?.site?.title || 'Il tuo spazio'}</span><h1>Il valore di ciò che fai, più facile da trovare.</h1><p>LIA comprende la tua attività. IDEA prepara i contenuti per il web e i social.</p></header>
+    {data && !error && Array.isArray(data.opportunities) && <OpportunityWorkspace data={data} token={token} onNavigate={onNavigate} onRefresh={onRetry} onCreateWeb={onCreateWeb} onCreateSocial={onCreateSocial} onOpenPost={onOpenPost} />}
     <section className="guided-home-next" aria-labelledby="guided-home-next-title" aria-busy={loading || syncing}>
       <div className="guided-home-assistant"><LiaAvatar size={56} knowledge={knowledge} thinking={loading || syncing} /><div><strong>LIA</strong><span>Il tuo prossimo passo</span></div></div>
       <div aria-live="polite"><h2 id="guided-home-next-title">{suggestion.title}</h2><p>{suggestion.message}</p></div>

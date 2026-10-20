@@ -1,13 +1,12 @@
 import type { BlockConfig } from '../types'
 import {
   Blocks, Code, Bot, Zap, Shield, Globe,
-  Layers, Palette, Rocket, Star, Lock, Settings, Music, Theater,
+  Layers, Palette, Rocket, Star, Lock, Settings,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 
 interface FeatureItem {
   icon?: string
-  image?: string
   title: string
   description: string
 }
@@ -22,7 +21,6 @@ interface FeaturesProps {
 const iconMap: Record<string, LucideIcon> = {
   Blocks, Code, Bot, Zap, Shield, Globe,
   Layers, Palette, Rocket, Star, Lock, Settings,
-  Music, Theater, music: Music, stage: Theater,
 }
 
 function getIcon(name?: string): LucideIcon {
@@ -124,22 +122,29 @@ function FeaturesAlternating({ props }: { props: FeaturesProps }) {
       <div className="space-y-8">
         {props.items.map((item, i) => {
           const Icon = getIcon(item.icon)
-          const imageUrl = item.image?.trim()
+          const imageUrl = (item as unknown as Record<string, unknown>).image as string | undefined
           const isReversed = i % 2 === 1
 
           return (
             <div
               key={i}
-              className={`reveal-fade-up reveal-d${Math.min(i + 2, 8)} flex ${imageUrl ? `flex-col @lg:flex-row items-center gap-6 @lg:gap-10 ${isReversed ? '@lg:flex-row-reverse' : ''}` : 'items-start gap-3 border-b border-border-subtle pb-5'}`}
+              className={`reveal-fade-up reveal-d${Math.min(i + 2, 8)} flex flex-col @lg:flex-row items-center gap-6 @lg:gap-10 ${isReversed ? '@lg:flex-row-reverse' : ''}`}
             >
-              {imageUrl ? <div className="flex-1 w-full">
+              {/* Image / placeholder */}
+              <div className="flex-1 w-full">
+                {imageUrl ? (
                   <img src={imageUrl} alt={item.title} className="w-full h-48 @lg:h-56 object-cover rounded-xl" />
-              </div> : <Icon size={22} className="text-green shrink-0 mt-1" aria-hidden="true" />}
+                ) : (
+                  <div className="w-full h-48 @lg:h-56 rounded-xl bg-bg-2 border border-border-default flex items-center justify-center">
+                    <Icon size={32} className="text-green/30" />
+                  </div>
+                )}
+              </div>
               {/* Text */}
               <div className="flex-1">
-                {imageUrl && <div className="w-10 h-10 rounded-lg bg-green/10 border border-green/20 flex items-center justify-center text-green mb-3">
+                <div className="w-10 h-10 rounded-lg bg-green/10 border border-green/20 flex items-center justify-center text-green mb-3">
                   <Icon size={18} />
-                </div>}
+                </div>
                 <h3 className="text-lg font-semibold mb-2">{item.title}</h3>
                 <p className="text-text-2 text-[13px] leading-relaxed">{item.description}</p>
               </div>

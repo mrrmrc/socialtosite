@@ -1,18 +1,11 @@
 import type { BlockConfig } from '../types'
-import { safeSiteUrl } from '../../lib/site-forms'
 
 interface FooterProps {
   logo: string
   logoImage?: string
   copyright: string
   links: string[]
-  linkUrls?: string[]
-  columns?: { title: string; links: string[]; linkUrls?: string[] }[]
-}
-
-function FooterLink({ label, url, className }: { label: string; url?: string; className?: string }) {
-  const href = safeSiteUrl(url)
-  return href ? <a href={href} className={className}>{label}</a> : <span className={className}>{label}</span>
+  columns?: { title: string; links: string[] }[]
 }
 
 function FooterSimple({ props }: { props: FooterProps }) {
@@ -32,7 +25,12 @@ function FooterSimple({ props }: { props: FooterProps }) {
 
         <div className="flex items-center gap-4">
           {props.links.map((link, i) => (
-            <FooterLink key={i} label={link} url={props.linkUrls?.[i]} className="text-[12px] text-text-3 hover:text-text-1 transition-colors" />
+            <span
+              key={i}
+              className="text-[12px] text-text-3 hover:text-text-1 transition-colors cursor-pointer"
+            >
+              {link}
+            </span>
           ))}
         </div>
 
@@ -79,7 +77,9 @@ function FooterMultiColumn({ props }: { props: FooterProps }) {
             <ul className="space-y-2">
               {col.links.map((link, j) => (
                 <li key={j}>
-                  <FooterLink label={link} url={col.linkUrls?.[j]} className="text-[12.5px] text-text-3 hover:text-text-1 transition-colors" />
+                  <span className="text-[12.5px] text-text-3 hover:text-text-1 transition-colors cursor-pointer">
+                    {link}
+                  </span>
                 </li>
               ))}
             </ul>
@@ -92,7 +92,12 @@ function FooterMultiColumn({ props }: { props: FooterProps }) {
         <span className="text-[11px] text-text-3">{props.copyright}</span>
         <div className="flex gap-4">
           {props.links.map((link, i) => (
-            <FooterLink key={i} label={link} url={props.linkUrls?.[i]} className="text-[11px] text-text-3 hover:text-text-1 transition-colors" />
+            <span
+              key={i}
+              className="text-[11px] text-text-3 hover:text-text-1 transition-colors cursor-pointer"
+            >
+              {link}
+            </span>
           ))}
         </div>
       </div>
@@ -108,7 +113,7 @@ function FooterMinimal({ props }: { props: FooterProps }) {
         {props.links.length > 0 && <span className="mx-1">|</span>}
         {props.links.map((link, i) => (
           <span key={i}>
-            <FooterLink label={link} url={props.linkUrls?.[i]} className="hover:text-text-1 transition-colors" />
+            <span className="hover:text-text-1 transition-colors cursor-pointer">{link}</span>
             {i < props.links.length - 1 && <span className="mx-1">|</span>}
           </span>
         ))}

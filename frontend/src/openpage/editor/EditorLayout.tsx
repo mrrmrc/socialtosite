@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
 import { FolderOpen, Layers, Briefcase, UtensilsCrossed, Building2, BookOpen } from 'lucide-react'
 import { CanvasToolbar } from './CanvasToolbar'
-import { EditorPublishing } from './EditorPublishing'
 import { LeftSidebar } from './LeftSidebar'
 import { Canvas } from './Canvas'
 import { RightSidebar } from './RightSidebar'
@@ -179,16 +178,15 @@ export function EditorLayout() {
         {!previewMode && <LeftSidebar />}
         <div className="flex-1 flex flex-col min-w-0 relative">
           <CanvasToolbar />
-          <EditorPublishing />
           <div className="flex-1 flex flex-col overflow-hidden relative">
             <Canvas />
-            {!previewMode && <JsonDrawer />}
+            <JsonDrawer />
             <GenerationOverlay />
           </div>
         </div>
         {!previewMode && <RightSidebar />}
       </div>
-      {!previewMode && <VersionHistory />}
+      <VersionHistory />
     </div>
   )
 }

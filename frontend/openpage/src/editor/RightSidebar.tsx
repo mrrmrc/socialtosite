@@ -1,0 +1,80 @@
+import { t } from '@/lib/i18n'
+import { useState, useEffect } from 'react'
+import { MousePointer2 } from 'lucide-react'
+import { useEditorStore } from '@/store/editorStore'
+import { useConfigStore } from '@/store/configStore'
+import { PropertiesPanel } from './PropertiesPanel'
+import { DesignPanel } from './DesignPanel'
+
+type Tab = 'properties' | 'design'
+
+export function RightSidebar() {
+  const selectedBlockId = useEditorStore((s) => s.selectedBlockId)
+  const blocks = useConfigStore((s) => {
+    const pages = s.config.pages
+    if (!pages || pages.length === 0) return s.config.blocks
+    const page = pages.find((p) => p.id === s.activePageId) ?? pages[0]
+    return page.blocks
+  })
+  const selectedBlock = blocks.find((b) => b.id === selectedBlockId)
+  const [tab, setTab] = useState<Tab>('properties')
+
+  // Auto-switch to Properties when a block is selected
+  useEffect(() => {
+    if (selectedBlock) setTab('properties')
+  }, [selectedBlock?.id]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const activeTab = tab
+
+  return (
+    <div className="editor-right-sidebar hidden md:flex w-[300px] bg-bg-1 border-l border-border-default flex-col shrink-0">
+      {/* Tabs */}
+      <div className="flex border-b border-border-default shrink-0">
+        <button
+          onClick={() => setTab('properties')}
+          className={`flex-1 py-3 text-[15px] font-medium transition-colors ${
+            activeTab === 'properties'
+              ? 'text-text-0 border-b border-green'
+              : 'text-text-3 hover:text-text-1'
+          }`}
+        >
+          {t("Properties")}
+        </button>
+        <button
+          onClick={() => setTab('design')}
+          className={`flex-1 py-2 text-[15px] font-medium transition-colors ${
+            activeTab === 'design'
+              ? 'text-text-0 border-b border-green'
+              : 'text-text-3 hover:text-text-1'
+          }`}
+        >
+          {t("Design")}
+        </button>
+      </div>
+
+      {/* Content */}
+      <div className="flex-1 min-h-0 overflow-y-auto">
+        {activeTab === 'design' ? (
+          <DesignPanel />
+        ) : selectedBlock ? (
+          <>
+            <PropertiesPanel block={selectedBlock} />
+            <div className="mt-auto px-3.5 py-2.5 font-mono text-[15px] text-text-3 break-all border-t border-border-subtle">
+              {t("config.blocks[")}{blocks.indexOf(selectedBlock)}{t("]")}
+            </div>
+          </>
+        ) : (
+          <div className="flex flex-col items-center justify-center text-center px-6 py-16 gap-3">
+            <div className="w-10 h-10 rounded-lg bg-bg-3 border border-border-default flex items-center justify-center">
+              <MousePointer2 size={16} className="text-text-3" />
+            </div>
+            <div>
+              <p className="text-text-1 text-[15px] font-medium">{t("Click a block to edit")}</p>
+              <p className="text-text-3 text-[15px] mt-1">{t("Select any block on the canvas to see its properties here")}</p>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}

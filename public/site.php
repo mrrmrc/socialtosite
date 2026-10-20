@@ -1731,11 +1731,15 @@ $dynamicBaseCss = "
   {$modelBlendCss}
 ";
 
-// Selezione CSS tema + inject accent color
-// Se stiamo usando un tema legacy, usa il CSS legacy, altrimenti usa la base dinamica
-$activeCss = isset($themeCSS[$archetype]) ? $themeCSS[$archetype] : $dynamicBaseCss;
-if (!isset($themeCSS[$archetype]) || !empty($site['site_ai_data'])) {
-    // Forza CSS dinamico se l'AI ha generato il sito (o se l'archetipo non e' nei fallback)
+// ── Selezione CSS: il CSS dinamico AI ha SEMPRE la precedenza ────────────────
+// Se site_ai_data esiste, i temi legacy vengono ignorati completamente.
+// I temi legacy restano solo per siti che non hanno mai generato con LIA.
+$hasAiData = !empty($site['site_ai_data']) && strlen(trim($site['site_ai_data'])) > 10;
+if ($hasAiData) {
+    $activeCss = $dynamicBaseCss;
+} elseif (isset($themeCSS[$archetype])) {
+    $activeCss = $themeCSS[$archetype];
+} else {
     $activeCss = $dynamicBaseCss;
 }
 
@@ -1824,6 +1828,9 @@ if ($single) {
 // HTTP Link headers per sitemap e feed
 header('Link: <' . $siteUrl . '/sitemap.xml>; rel="sitemap"');
 header('Link: <' . $siteUrl . '/feed.xml>; rel="alternate"; type="application/atom+xml"');
+
+// OpenPage must emit one document, without the fallback layout's unlayered CSS.
+if (!empty($site['openpage_html'])) ob_start();
 
 ?>
 <!DOCTYPE html>
@@ -3440,6 +3447,106 @@ ob_start();
 <?php
 $mainContentHtml = ob_get_clean();
 
+
+// -- OPENPAGE INTEGRATION --
+if (!empty($site['openpage_html'])) {
+    $legacyPrefix = ob_get_clean();
+    $out = $site['openpage_html'];
+    
+    // Retain public SEO data, but never carry fallback CSS or body classes across.
+    preg_match_all('~<script\b[^>]*type="application/ld\+json"[^>]*>.*?</script>|<link\b[^>]*rel="(?:canonical|sitemap|alternate)"[^>]*>|<meta\b[^>]*property="(?:og:type|og:site_name|article:[^"]+)"[^>]*>~is', $legacyPrefix, $seoTags);
+    $out = str_replace('</head>', implode("\n", $seoTags[0]) . "\n</head>", $out);
+    $out = str_replace('</head>', '<meta name="sts-home" content="' . h($siteUrl) . '"></head>', $out);
+
+    // Only our self-hosted runtime executes under CSP. Stored inline scripts
+    // are not granted a nonce, including the old exporter interaction script.
+    $out = preg_replace('~<script\b[^>]*data-openpage-runtime[^>]*>.*?</script>~is', '', $out);
+    $out = preg_replace("~<script\b[^>]*>\s*document\.querySelectorAll\('\[data-site-menu\]'\).*?</script>~is", '', $out);
+    $runtimeVersion = substr(hash_file('sha256', __DIR__ . '/openpage-runtime.js'), 0, 12);
+    $typographyVersion = substr(hash_file('sha256', __DIR__ . '/openpage-typography.css'), 0, 12);
+    $out = str_replace('</head>', '<link rel="stylesheet" href="/public/openpage-typography.css?v=' . $typographyVersion . '"></head>', $out);
+    $out = str_replace('</body>', '<script defer src="/public/openpage-runtime.js?v=' . $runtimeVersion . '"></script></body>', $out);
+
+    // 1) Inject dynamic articles grid. Filter display only; permalinks, feeds and SEO keep all posts.
+    require_once __DIR__ . '/../api/services/article_display.php';
+    $displayPosts = ArticleDisplay::filter($posts, ArticleDisplay::rules($site['openpage_config'] ?? null));
+    ob_start();
+    if ($single || $foundationPage) {
+        echo $mainContentHtml;
+    } else {
+        ?>
+        <div class="grid @md:grid-cols-2 @2xl:grid-cols-3 gap-6">
+        <?php foreach ($displayPosts as $article): ?>
+          <article class="bg-bg-2 border border-border-default rounded-xl overflow-hidden">
+            <?= mediaHtml($article) ?>
+            <div class="p-5">
+              <h3 class="text-xl font-semibold"><a href="<?= h($siteUrl . '/' . $article['slug']) ?>"><?= h(postTitle($article)) ?></a></h3>
+              <p class="mt-3 text-text-2"><?= h(postExcerpt($article)) ?></p>
+              <a class="inline-block mt-4 text-green" href="<?= h($siteUrl . '/' . $article['slug']) ?>">Leggi l’articolo →</a>
+            </div>
+          </article>
+        <?php endforeach; ?>
+        </div>
+        <?php if (!$displayPosts): ?><p>Non ci sono articoli nel periodo selezionato.</p><?php endif; ?>
+        <?php
+    }
+    $openpageContent = ob_get_clean();
+    if (strpos($out, '<div id="sts-dynamic-articles"></div>') !== false) {
+        $out = str_replace('<div id="sts-dynamic-articles"></div>', '<div id="sts-dynamic-articles">' . $openpageContent . '</div>', $out);
+    } elseif ($single || $foundationPage) {
+        $out = str_replace('</body>', $openpageContent . '</body>', $out);
+    }
+    $out = str_replace('</head>', '<style>.site-render{max-width:880px;margin-inline:auto}.site-render a.bg-bg-3{color:var(--color-text-0)}.single-post,.answer-cta,.answer-author,.answer-related{max-width:900px;margin:2rem auto;padding:1.5rem}.single-post h1{font-size:2rem;font-weight:700;margin:1em 0}.body-content{line-height:1.8}.body-content p{margin:1em 0}.body-content h2{font-size:1.5em;font-weight:700;margin:1em 0}.body-content img,.body-content video{max-width:100%;height:auto}#sts-dynamic-articles .post-media img,#sts-dynamic-articles .post-media video{width:100%;height:12rem;object-fit:cover}.answer-cta-actions,.tags{display:flex;flex-wrap:wrap;gap:1rem;margin:1rem 0}</style></head>', $out);
+    if (!$searchVisible) {
+        $out = str_replace('</head>', '<meta name="robots" content="noindex,nofollow"></head>', $out);
+    }
+    
+    // 2) Edit button for logged in users
+    $editBtnHtml = '<script nonce="' . h($cspNonce) . '">
+      const stsToken = localStorage.getItem("sts_token") || localStorage.getItem("token");
+      if (stsToken && window.parent === window) {
+        const payloadBase64 = stsToken.split(".")[1];
+        if (payloadBase64) {
+          const payloadStr = atob(payloadBase64.replace(/-/g, "+").replace(/_/g, "/"));
+          const payload = JSON.parse(payloadStr);
+          if (payload && payload.slug === "' . h($slug) . '") {
+            const editBtn = document.createElement("a");
+            editBtn.href = "/builder/";
+            editBtn.innerHTML = "<span style=\"margin-right:8px;font-size:16px;\">✏️</span> <span style=\"font-weight:800;letter-spacing:0.02em;\">Modifica sito</span>";
+            editBtn.style.cssText = "position:fixed; bottom:24px; right:24px; background:#1a1a24; color:#fff; padding:12px 24px; border-radius:99px; text-decoration:none; font-family:sans-serif; font-size:14px; box-shadow:0 8px 30px rgba(0,0,0,0.3); z-index:999999; border:1px solid rgba(255,255,255,0.1); display:flex; align-items:center;";
+            document.body.appendChild(editBtn);
+          }
+        }
+      }
+    </script>';
+    $out = str_replace('</body>', $editBtnHtml . '</body>', $out);
+    
+    // 3) Single post SEO overwrite
+    if (!empty($single)) {
+        $singleTitle = h(postTitle($single)) . ' - ' . h($title);
+        $singleDesc = h(postExcerpt($single));
+        $out = preg_replace('/<title>.*?<\/title>/is', "<title>{$singleTitle}</title>", $out);
+        $out = preg_replace('/<meta name="description" content=".*?"\s*\/?>/is', "<meta name=\"description\" content=\"{$singleDesc}\">", $out);
+        $out = preg_replace('/<meta property="og:title" content=".*?"\s*\/?>/is', "<meta property=\"og:title\" content=\"{$singleTitle}\">", $out);
+        $out = preg_replace('/<meta property="og:description" content=".*?"\s*\/?>/is', "<meta property=\"og:description\" content=\"{$singleDesc}\">", $out);
+        if (!empty($single['media_url'])) {
+            $ogImage = h(normalizeMediaUrl($single['media_url']));
+            if (strpos($out, '<meta property="og:image"') !== false) {
+                $out = preg_replace('/<meta property="og:image" content=".*?"\s*\/?>/is', "<meta property=\"og:image\" content=\"{$ogImage}\">", $out);
+            } else {
+                $out = str_replace('</head>', "<meta property=\"og:image\" content=\"{$ogImage}\">\n</head>", $out);
+            }
+        }
+    }
+    
+    // 4) Timestamp under footer
+    $timestampHtml = '<div style="text-align:center; padding:10px; font-size:10px; color:#999; background:rgba(0,0,0,0.02);">Ultimo aggiornamento al: ' . date('d/m/Y H:i:s') . '</div>';
+    $out = str_replace('</body>', $timestampHtml . '</body>', $out);
+    
+    echo $out;
+    exit;
+}
+
 ob_start();
 ?>
 <?php if ($useHospitalityLanding && !$single && !$foundationPage && $view === '' && !$activeTag): ?>
@@ -3805,8 +3912,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const payload = JSON.parse(payloadStr);
         if (payload && payload.slug === <?= json_encode($slug) ?>) {
           const editBtn = document.createElement('a');
-          editBtn.href = '/dashboard?tab=profile';
-          editBtn.innerHTML = '<span style="margin-right:8px;font-size:16px;">✏️</span> <span style="font-weight:800;letter-spacing:0.02em;">Modifica Sito</span>';
+          editBtn.href = '/builder/';
+          editBtn.innerHTML = '<span style="margin-right:8px;font-size:16px;">✏️</span> <span style="font-weight:800;letter-spacing:0.02em;">Apri Builder</span>';
           editBtn.style.cssText = 'position:fixed; bottom:24px; right:24px; background:#1a1a24; color:#fff; padding:12px 24px; border-radius:99px; text-decoration:none; font-family:var(--font-heading, sans-serif); font-size:14px; box-shadow:0 8px 30px rgba(0,0,0,0.3); z-index:999999; border:1px solid rgba(255,255,255,0.1); transition:all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); display:flex; align-items:center;';
           editBtn.onmouseenter = () => { editBtn.style.transform = 'translateY(-4px) scale(1.02)'; editBtn.style.boxShadow = '0 12px 40px rgba(0,0,0,0.4)'; editBtn.style.background = '#000'; };
           editBtn.onmouseleave = () => { editBtn.style.transform = 'none'; editBtn.style.boxShadow = '0 8px 30px rgba(0,0,0,0.3)'; editBtn.style.background = '#1a1a24'; };
@@ -3815,4 +3922,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     }
   } catch(e) {}
-</script>\n</body>\n</html>\n
+</script>
+<div style="text-align:center; padding:10px; font-size:10px; color:#999; background:rgba(0,0,0,0.02);">Ultimo aggiornamento al: <?= date('d/m/Y H:i:s') ?></div>
+</body>
+</html>

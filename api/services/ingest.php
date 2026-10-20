@@ -374,12 +374,16 @@ class Ingest {
         // In precedenza solo process-pending trascriveva video e immagini:
         // richiamando direttamente harmonize si riscriveva quindi la sola
         // didascalia, spesso breve o priva delle informazioni dell'evento.
-        if (trim((string)($post['transcript'] ?? '')) === '' && !empty($post['media_url'])) {
+        $isVideo = VideoSource::isVideo($post);
+        $needsTranscript = $isVideo
+            ? VideoSource::speech((string)($post['transcript'] ?? '')) === ''
+            : trim((string)($post['transcript'] ?? '')) === '';
+        if ($needsTranscript && (!empty($post['media_url']) || ($isVideo && ($post['platform'] ?? '') === 'youtube'))) {
             try {
                 $mediaContext = AI::analyzePostMedia(
                     (string)($post['platform'] ?? ''),
                     (string)$post['media_url'],
-                    (string)($post['media_type'] ?? ''),
+                    $isVideo ? 'video' : (string)($post['media_type'] ?? ''),
                     (string)($post['source_url'] ?? '')
                 );
                 if ($mediaContext !== '') {
@@ -387,6 +391,7 @@ class Ingest {
                     $post['transcript'] = $mediaContext;
                 }
             } catch (Throwable $mediaError) {
+                if ($isVideo) throw new RuntimeException('Trascrizione del video non riuscita: nessun articolo inventato dalla didascalia. ' . $mediaError->getMessage(), 0, $mediaError);
                 if (trim((string)($post['raw_content'] ?? '')) === '') throw $mediaError;
                 Logger::warn('media', 'Rigenerazione senza contesto media', [
                     'post_id' => $postId,
@@ -396,7 +401,9 @@ class Ingest {
             }
         }
 
-        $transcriptText = trim((string)($post['transcript'] ?? ''));
+        $storedTranscript = trim((string)($post['transcript'] ?? ''));
+        $transcriptText = $isVideo ? VideoSource::speech($storedTranscript) : $storedTranscript;
+        if ($isVideo && $transcriptText === '') throw new RuntimeException('Parlato originale del video mancante: impossibile generare o pubblicare un articolo dalla sola didascalia.');
         $captionText = trim((string)($post['raw_content'] ?? ''));
         $raw = $transcriptText !== '' ? $transcriptText : $captionText;
         if (!$raw) throw new Exception('Nessun testo da armonizzare');
@@ -454,7 +461,9 @@ class Ingest {
             $agentNotes = 'Approvato dal revisore editoriale: ' . ($decision['reason'] ?? 'Idoneo');
         }
 
-        $seo = AI::harmonize($raw, $post['platform'], $transcriptText !== '' ? $captionText : '', $sourceContext, $agentName, $accountType, $searchDemand, $length, $userId);
+        $seo = $isVideo
+            ? VideoSource::article($storedTranscript, (string)($post['source_url'] ?? ''))
+            : AI::harmonize($raw, $post['platform'], $transcriptText !== '' ? $captionText : '', $sourceContext, $agentName, $accountType, $searchDemand, $length, $userId);
 
         DB::execute('
             UPDATE posts SET

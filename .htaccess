@@ -32,6 +32,13 @@ RewriteRule ^public/media/(.*)$ https://allsocialtoweb.com/public/media/$1 [R=30
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteRule ^assets/ - [R=404,L]
 
+# OpenPage has its own SPA: direct links and reloads must stay inside the builder.
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteRule ^builder/assets/ - [R=404,L]
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^builder(?:/.*)?$ builder/index.html [L]
+
 # Routing pubblico: queste regole devono precedere il fallback della SPA.
 # La home e le pagine dell'app restano React; gli slug degli utenti vengono
 # renderizzati sul server, quindi funzionano anche per visitatori non autenticati.
