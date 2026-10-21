@@ -13,6 +13,9 @@ define('JWT_SECRET', 'cambia_con_stringa_segreta_lunga');
 
 // URL base del sito (senza slash finale)
 define('BASE_URL', 'https://allsocialtoweb.com');
+// Recupero password: usa SMTP del monitor, se configurato, altrimenti mail() PHP.
+// Imposta PASSWORD_RESET_BASE_URL nell'ambiente se il link di recupero deve
+// usare un URL diverso da SOCIALTOSITE_RUNTIME_BASE_URL / BASE_URL.
 // Opzionale: property esatta di Google Search Console (es. sc-domain:tuodominio.it).
 // Se omessa, il cron prova a rilevarla automaticamente tra le property accessibili.
 // define('GSC_PROPERTY', 'sc-domain:tuodominio.it');

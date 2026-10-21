@@ -10,6 +10,7 @@ import './index.css';
 
 export default function App() {
   const pathname = window.location.pathname.replace(/\/+$/, '') || '/';
+  const [recoveryLink, setRecoveryLink] = useState(() => pathname === '/accedi' && new URLSearchParams(window.location.hash.slice(1)).has('reset-password'));
   const [token, setToken] = useState(() => localStorage.getItem('sts_token'));
   const [user, setUser] = useState(() => {
     try {
@@ -20,6 +21,7 @@ export default function App() {
   });
 
   function handleAuth(newToken, newUser) {
+    setRecoveryLink(false);
     setToken(newToken);
     setUser(newUser);
   }
@@ -41,7 +43,15 @@ export default function App() {
   const [showFullDashboard, setShowFullDashboard] = useState(false);
 
   useEffect(() => {
-    if (!token || !user || !isBasePlan) { setHasSources(null); return; }
+    function showRecovery() {
+      if (pathname === '/accedi' && new URLSearchParams(window.location.hash.slice(1)).has('reset-password')) setRecoveryLink(true);
+    }
+    window.addEventListener('hashchange', showRecovery);
+    return () => window.removeEventListener('hashchange', showRecovery);
+  }, [pathname]);
+
+  useEffect(() => {
+    if (recoveryLink || !token || !user || !isBasePlan) { setHasSources(null); return; }
     let cancelled = false;
     apiFetch('/api/index.php?action=site', {}, token)
       .then(data => { if (!cancelled) setHasSources((data?.sources || []).length > 0); })
@@ -49,7 +59,7 @@ export default function App() {
       // forse rotto: meglio farlo entrare nel pannello che conosce già.
       .catch(() => { if (!cancelled) setHasSources(true); });
     return () => { cancelled = true; };
-  }, [token, user, isBasePlan]);
+  }, [token, user, isBasePlan, recoveryLink]);
 
   let screen;
   if (pathname === '/') {
@@ -63,7 +73,7 @@ export default function App() {
     screen = <LegalScreen type="privacy" />;
   } else if (pathname === '/terms' || pathname === '/termini') {
     screen = <LegalScreen type="terms" />;
-  } else if (!token || !user) {
+  } else if (recoveryLink || !token || !user) {
     screen = <AuthScreen onAuth={handleAuth} />;
   } else if (pathname === '/connect') {
     screen = <ConnectScreen token={token} onDone={() => { window.location.href = '/dashboard'; }} />;

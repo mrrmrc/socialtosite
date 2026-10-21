@@ -98,7 +98,7 @@ jobs:
           done < <(printf '%s\0' \
             api/index.php \
             api/middleware/jwt.php api/middleware/response.php api/middleware/ratelimit.php api/middleware/logger.php \
-            api/routes/auth.php \
+            api/routes/auth.php api/services/password_recovery.php \
             api/services/sync.php api/services/ingest.php api/services/editorial_engine.php \
             api/services/visibility.php api/services/seo_foundation.php api/services/reachability.php \
             api/services/raw_import.php api/services/apify_client.php api/services/website_source.php api/services/profile_analyzer.php api/services/profile_interview.php \
@@ -129,6 +129,7 @@ jobs:
           php tools/test_profile_knowledge.php
           php tools/test_ai_health.php
           php tools/test_admin_operations.php
+          php tools/test_password_recovery.php
           php tools/test_content_ideas.php
           php tools/test_article_studio.php
           php tools/test_opportunities.php
@@ -200,6 +201,7 @@ jobs:
           cp api/services/{opportunities,opportunity_brief,openpage,openpage_versions,design_references,article_display}.php release/api/services/
           cp api/services/ai_health.php release/api/services/
           cp api/services/admin_validation.php release/api/services/
+          cp api/services/password_recovery.php release/api/services/
           cp api/services/article_studio.php release/api/services/
           cp api/routes/opportunities.php release/api/routes/
           cp api/services/{monitor_status,monitor_settings}.php release/api/services/

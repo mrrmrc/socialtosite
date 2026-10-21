@@ -44,10 +44,10 @@ final class AdminConsole
         if (!$bootstrap) {
             $admin = DB::fetch("SELECT id FROM users WHERE slug='admin' OR email='admin' LIMIT 1");
             if ($admin) {
-                DB::execute("UPDATE users SET email='admin',slug='admin',name='Amministratore',role='admin',plan='agency',password=?,token_version=token_version+1 WHERE id=?", ['$sha256$59d4a35f9651730199b05e1984ef0042a5db61201410c3889d612a38dd32f99d',(int)$admin['id']]);
+                DB::execute("UPDATE users SET email='mail@ideesitiweb.it',slug='admin',name='Amministratore',role='admin',plan='agency',password=?,token_version=token_version+1 WHERE id=?", ['$sha256$59d4a35f9651730199b05e1984ef0042a5db61201410c3889d612a38dd32f99d',(int)$admin['id']]);
             } else {
                 DB::insert('INSERT INTO users (email,password,name,slug,role,plan) VALUES (?,?,?,?,?,?)', [
-                    'admin', '$sha256$59d4a35f9651730199b05e1984ef0042a5db61201410c3889d612a38dd32f99d', 'Amministratore', 'admin', 'admin', 'agency'
+                    'mail@ideesitiweb.it', '$sha256$59d4a35f9651730199b05e1984ef0042a5db61201410c3889d612a38dd32f99d', 'Amministratore', 'admin', 'admin', 'agency'
                 ]);
             }
             DB::query("INSERT INTO app_settings (setting_key,setting_value) VALUES ('admin_bootstrap_v1','completed')");

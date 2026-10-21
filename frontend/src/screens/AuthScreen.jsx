@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { apiFetch } from '../utils/api';
 import { BrandMark } from './LandingScreen';
 
@@ -7,12 +7,44 @@ export function AuthScreen({ onAuth }) {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
+  const [resetToken, setResetToken] = useState(() => new URLSearchParams(window.location.hash.slice(1)).get('reset-password') || '');
+  const [mode, setMode] = useState(() => resetToken ? 'reset' : 'login');
+  const [confirmation, setConfirmation] = useState('');
+
+  useEffect(() => {
+    function consumeRecoveryLink() {
+      const token = new URLSearchParams(window.location.hash.slice(1)).get('reset-password');
+      if (!token) return;
+      setResetToken(token); setMode('reset'); setError(''); setNotice(''); setPassword(''); setConfirmation('');
+      window.history.replaceState(null, '', window.location.pathname + window.location.search);
+    }
+    consumeRecoveryLink();
+    window.addEventListener('hashchange', consumeRecoveryLink);
+    return () => window.removeEventListener('hashchange', consumeRecoveryLink);
+  }, []);
+
+  function changeMode(next) {
+    setMode(next); setError(''); setNotice(''); setPassword(''); setConfirmation('');
+  }
 
   async function submit(e) {
     e.preventDefault();
     if (loading) return;
-    setLoading(true); setError('');
+    setLoading(true); setError(''); setNotice('');
     try {
+      if (mode === 'forgot') {
+        const data = await apiFetch('/api/index.php?action=forgot-password', { method: 'POST', body: JSON.stringify({ email: email.trim() }) });
+        setNotice(data.message);
+        return;
+      }
+      if (mode === 'reset') {
+        if (password !== confirmation) { setError('Le password non coincidono.'); return; }
+        const data = await apiFetch('/api/index.php?action=reset-password', { method: 'POST', body: JSON.stringify({ token: resetToken, password, password_confirmation: confirmation }) });
+        localStorage.removeItem('sts_token'); localStorage.removeItem('sts_user');
+        setResetToken(''); setPassword(''); setConfirmation(''); setMode('login'); setNotice(data.message);
+        return;
+      }
       const data = await apiFetch('/api/index.php?action=login', {
         method: 'POST',
         body: JSON.stringify({ email: email.trim(), password }),
@@ -21,8 +53,16 @@ export function AuthScreen({ onAuth }) {
       localStorage.setItem('sts_user', JSON.stringify(data.user));
       onAuth(data.token, data.user);
     } catch (e) { setError(e.message); }
-    setLoading(false);
+    finally { setLoading(false); }
   }
+
+  const fields = mode === 'reset' ? [
+    { name: 'password', label: 'Nuova password', type: 'password', val: password, set: setPassword, ph: 'Da 10 a 72 caratteri' },
+    { name: 'password-confirmation', label: 'Conferma nuova password', type: 'password', val: confirmation, set: setConfirmation, ph: 'Ripeti la nuova password' },
+  ] : [
+    { name: 'email', label: 'Email', type: 'email', val: email, set: setEmail, ph: 'es. mario@esempio.it' },
+    ...(mode === 'login' ? [{ name: 'password', label: 'Password', type: 'password', val: password, set: setPassword, ph: '••••••••' }] : []),
+  ];
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', background: '#F7F5F0', fontFamily: '"Inter", system-ui, sans-serif', overflowX: 'hidden' }}>
@@ -92,19 +132,17 @@ export function AuthScreen({ onAuth }) {
             <BrandMark />
           </div>
 
-          <h2 style={{ margin: '0 0 .4rem', fontSize: 26, fontWeight: 900, color: '#0F0F0E', letterSpacing: '-.035em' }}>Bentornato</h2>
-          <p style={{ margin: '0 0 2rem', fontSize: 15, color: '#9CA3AF' }}>Inserisci email e password per accedere al pannello.</p>
+          <h2 style={{ margin: '0 0 .4rem', fontSize: 26, fontWeight: 900, color: '#0F0F0E', letterSpacing: '-.035em' }}>{mode === 'forgot' ? 'Recupera password' : mode === 'reset' ? 'Scegli una nuova password' : 'Bentornato'}</h2>
+          <p style={{ margin: '0 0 2rem', fontSize: 15, color: '#9CA3AF' }}>{mode === 'forgot' ? 'Inserisci l’email del tuo account per richiedere il link di recupero.' : mode === 'reset' ? 'Imposta una password da 10 a 72 caratteri. Il link scade dopo 30 minuti.' : 'Inserisci email e password per accedere al pannello.'}</p>
 
           <form onSubmit={submit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-            {[
-              { label: 'Email', type: 'email', val: email, set: setEmail, ph: 'es. mario@esempio.it' },
-              { label: 'Password', type: 'password', val: password, set: setPassword, ph: '••••••••' },
-            ].map(f => (
+            {fields.map(f => (
               <div key={f.label}>
-                <label htmlFor={`auth-${f.type}`} style={{ display: 'block', fontSize: 13, fontWeight: 700, color: '#6B7280', marginBottom: 7 }}>{f.label}</label>
+                <label htmlFor={`auth-${f.name}`} style={{ display: 'block', fontSize: 13, fontWeight: 700, color: '#6B7280', marginBottom: 7 }}>{f.label}</label>
                 <input
-                  id={`auth-${f.type}`} name={f.type === 'email' ? 'email' : 'password'}
-                  autoComplete={f.type === 'email' ? 'username' : 'current-password'}
+                  id={`auth-${f.name}`} name={f.name}
+                  autoComplete={f.type === 'email' ? 'username' : mode === 'reset' ? 'new-password' : 'current-password'}
+                  minLength={mode === 'reset' ? 10 : undefined} maxLength={mode === 'reset' ? 72 : f.type === 'email' ? 254 : undefined}
                   disabled={loading} aria-invalid={!!error} aria-describedby={error ? 'auth-error' : undefined}
                   type={f.type} placeholder={f.ph} value={f.val}
                   onChange={e => f.set(e.target.value)} required
@@ -115,6 +153,7 @@ export function AuthScreen({ onAuth }) {
               </div>
             ))}
 
+            {notice && <div role="status" style={{ background: '#E8F5EE', color: '#165D3B', padding: '12px', borderRadius: 10, fontSize: 14 }}>{notice}</div>}
             {error && (
               <div id="auth-error" role="alert" style={{ background: 'rgba(239,68,68,.08)', color: '#DC2626', padding: '11px 14px', borderRadius: 10, fontSize: 14, fontWeight: 500, border: '1px solid rgba(239,68,68,.15)', display: 'flex', alignItems: 'center', gap: 8 }}>
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><circle cx="12" cy="16" r="0.5" fill="currentColor"/></svg>
@@ -131,8 +170,9 @@ export function AuthScreen({ onAuth }) {
             }}
             onMouseOver={e => { if (!loading) { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 10px 26px rgba(238,99,70,.4)'; }}}
             onMouseOut={e => { if (!loading) { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = '0 6px 20px rgba(238,99,70,.3)'; }}}>
-              {loading ? 'Accesso in corso…' : 'Entra nello spazio →'}
+              {loading ? 'Attendi…' : mode === 'forgot' ? 'Invia link di recupero' : mode === 'reset' ? 'Salva nuova password' : 'Entra nello spazio →'}
             </button>
+            {mode === 'login' ? <button type="button" disabled={loading} onClick={() => changeMode('forgot')} style={{ background: 'none', border: 0, color: '#7C3AED', cursor: 'pointer', padding: '8px', fontSize: 14 }}>Password dimenticata? Recupera password</button> : <button type="button" disabled={loading} onClick={() => changeMode(mode === 'reset' ? 'forgot' : 'login')} style={{ background: 'none', border: 0, color: '#7C3AED', cursor: 'pointer', padding: '8px', fontSize: 14 }}>{mode === 'reset' ? 'Richiedi un nuovo link' : 'Torna al login'}</button>}
           </form>
 
           <div style={{ marginTop: '1.5rem', textAlign: 'center', fontSize: 14, color: '#9CA3AF' }}>

@@ -15,6 +15,46 @@ if ($path === 'register') {
     jsonError('Le registrazioni sono temporaneamente disabilitate', 403);
 }
 
+if ($method === 'POST' && in_array($path, ['forgot-password', 'reset-password'], true)) {
+    require_once __DIR__ . '/../services/password_recovery.php';
+    $b = body();
+    $ip = LoginGuard::clientIp();
+    $email = is_string($b['email'] ?? null) ? strtolower(trim($b['email'])) : '';
+    if ($path === 'forgot-password' && (strlen($email) > 254 || !filter_var($email, FILTER_VALIDATE_EMAIL))) jsonError('Inserisci un indirizzo email valido.', 422);
+    try {
+        LoginGuard::ensureSchema();
+        $retryAfter = PasswordRecovery::throttle($path === 'forgot-password' ? 'request:' . $email : 'submit:' . $ip, $ip);
+    } catch (Throwable $e) {
+        error_log('[password-recovery] Rate limit storage unavailable');
+        jsonError('Recupero password temporaneamente non disponibile. Riprova più tardi.', 503);
+    }
+    if ($retryAfter > 0) {
+        header('Retry-After: ' . $retryAfter);
+        jsonError('Troppe richieste. Riprova tra 15 minuti.', 429);
+    }
+    if ($path === 'forgot-password') {
+        try {
+            $base = trim((string)(getenv('PASSWORD_RESET_BASE_URL') ?: getenv('SOCIALTOSITE_RUNTIME_BASE_URL') ?: app_base_url()));
+            PasswordRecovery::request($email, $base, (string)JWT_SECRET, [PasswordRecoveryMailer::class, 'send']);
+        } catch (Throwable $e) {
+            // Never reveal account existence, provider errors, reset links or keys.
+            error_log('[password-recovery] Recovery request could not be delivered');
+        }
+        json(['ok' => true, 'message' => PasswordRecovery::REQUEST_MESSAGE], 202);
+    }
+    $token = is_string($b['token'] ?? null) ? $b['token'] : '';
+    $password = is_string($b['password'] ?? null) ? $b['password'] : '';
+    if (!is_string($b['password_confirmation'] ?? null) || $b['password_confirmation'] !== $password) jsonError('Le password non coincidono.', 422);
+    try { $changed = PasswordRecovery::reset($token, $password, (string)JWT_SECRET); }
+    catch (InvalidArgumentException $e) { jsonError($e->getMessage(), 422); }
+    catch (Throwable $e) {
+        error_log('[password-recovery] Password update unavailable');
+        jsonError('Impossibile aggiornare la password. Riprova più tardi.', 503);
+    }
+    if (!$changed) jsonError('Link non valido, scaduto o già utilizzato. Richiedi un nuovo link.', 422);
+    json(['ok' => true, 'message' => 'Password aggiornata. Accedi con la nuova password.']);
+}
+
 // POST /api/auth.php?action=login
 if ($method === 'POST' && $path === 'login') {
     $b = body();

@@ -246,7 +246,7 @@ if ($action === 'track' && $method === 'POST') {
     json(['ok' => true]);
 }
 
-if (in_array($action, ['login', 'register'], true)) {
+if (in_array($action, ['login', 'register', 'forgot-password', 'reset-password'], true)) {
     require __DIR__ . '/routes/auth.php';
     exit;
 }
