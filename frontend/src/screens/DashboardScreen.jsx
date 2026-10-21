@@ -3241,6 +3241,7 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
   // ── CMS Editoriale ───────────────────────────────────────────────────────
   const [editingPost, setEditingPost] = useState(null); // {id, title, body, excerpt, tags}
   const [articleStudioState, setArticleStudioState] = useState(null);
+  const studioArticleSavedRef = useRef(null);
   const [opportunityEditorBrief, setOpportunityEditorBrief] = useState(null);
   const [cmsSaving, setCmsSaving] = useState(false);
   const [postImageUploading, setPostImageUploading] = useState(false);
@@ -3267,11 +3268,13 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
     setEditingPost(null);
   }
 
-  function openNewArticle(article = {}) {
-    openPostEditor({ id: 'new', edited_title: article.title || '', edited_body: article.content || '', edited_excerpt: article.excerpt || '', tags: article.tags || [] });
+  function openNewArticle(article = {}, onSaved = null) {
+    openPostEditor({ ...article, id: article.id || 'new', edited_title: article.title || '', edited_body: article.content || '', edited_excerpt: article.excerpt || '', tags: article.tags || [] });
+    studioArticleSavedRef.current = onSaved;
   }
 
   function openPostEditor(post, brief = null) {
+    studioArticleSavedRef.current = null;
     setOpportunityEditorBrief(brief);
     setPostEditError('');
     setEditingPost({
@@ -3361,7 +3364,7 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
     setPostEditError('');
     setCmsSaving(true);
     try {
-      await apiFetch(
+      const saved = await apiFetch(
         `/api/index.php?action=${editingPost.id === 'new' ? 'post-create' : 'post-update'}`,
         {
           method: "POST",
@@ -3384,6 +3387,8 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
         },
         token,
       );
+      studioArticleSavedRef.current?.({ id: editingPost.id === 'new' ? saved.id : editingPost.id, title: editingPost.title, content: editingPost.body, excerpt: editingPost.excerpt, tags: editingPost.tags.split(',').map(tag=>tag.trim()).filter(Boolean), media_url: editingPost.mediaUrl, media_type: editingPost.mediaType, media_display_width: editingPost.mediaWidth, media_alignment: editingPost.mediaAlignment, noindex: editingPost.noindex, raw_content: editingPost.rawContent, word_count: editingPost.body.replace(/<[^>]*>/g, ' ').trim().split(/\s+/).filter(Boolean).length });
+      studioArticleSavedRef.current = null;
       setEditingPost(null);
       if (editingPost.id === 'new') { if (tab !== 'idea') setTab('site'); setPostSearch(''); setPostPlatformFilter('all'); setPostTagFilter('all'); setDashboardFilter('all'); }
       setSyncMsg({ ok: true, text: 'Modifiche salvate.' });

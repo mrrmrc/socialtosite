@@ -23,6 +23,8 @@ const fs = require('node:fs');
         return route.fulfill(failLoad ? { status: 503, json: { error: 'Servizio non disponibile' } } : { json: fixture });
       }
       if (action === 'lia-profile-review') return route.fulfill({ json: { review: { reviewed: false, fields: [] } } });
+      if (action === 'post-create') return route.fulfill({ json: { ok:true,id:99 } });
+      if (action === 'post-update') { assert.equal(route.request().postDataJSON().id,99); return route.fulfill({ json:{ok:true} }); }
       if (action === 'article-studio') {
         const brief = route.request().postDataJSON();
         assert.equal(brief.objective, 'Spiegare ai docenti');
@@ -101,7 +103,16 @@ const fs = require('node:fs');
     const editor = page.getByRole('dialog', { name: 'Scrivi il tuo articolo', exact: true });
     await editor.waitFor();
     assert.ok((await editor.locator('.ql-editor').innerText()).split(/\s+/).length > 400, 'the generated article reaches the full editor, not a placeholder');
-    await editor.getByRole('button', { name: 'Chiudi editor' }).click();
+    await editor.getByRole('button', { name: 'SALVA BOZZA', exact:true }).click();
+    await editor.waitFor({state:'hidden'});
+    await page.getByText('Articolo 1 · 420 parole · bozza salvata',{exact:true}).waitFor();
+    await page.getByRole('button',{name:'Apri nell’editor completo',exact:true}).first().click();
+    const savedEditor=page.getByRole('dialog',{name:'Modifica il contenuto',exact:true});
+    await savedEditor.getByRole('textbox',{name:'Titolo principale',exact:true}).fill('Articolo completo 1 riveduto');
+    await savedEditor.getByRole('button',{name:/SALVA MODIFICHE/}).click();
+    await savedEditor.waitFor({state:'hidden'});
+    assert.equal(mutations.filter(action=>action==='post-create').length,1,'reopening a saved result cannot create a duplicate');
+    assert.equal(mutations.filter(action=>action==='post-update').length,1,'later edits update the same saved draft');
     await page.getByRole('button', { name: /1\. Trova 2 proposte per me/ }).click();
     failStudio = true;
     await page.getByRole('button', { name: 'Genera 2 proposte specifiche', exact: true }).click();
@@ -113,6 +124,11 @@ const fs = require('node:fs');
     await page.getByRole('heading',{name:'Proposta specifica 1',exact:true}).waitFor();
     assert.equal(await page.locator('.article-studio-result-grid > article').count(),2,'exactly two proposals');
     assert.equal(await page.getByRole('link',{name:'Fonte recente: Ricerca recente sui dati sonori'}).count(),2,'each proposal has its source');
+    failStudio = true;
+    await page.getByRole('button',{name:'Scrivi questo articolo completo',exact:true}).first().click();
+    await page.getByRole('alert').filter({hasText:'Generazione temporaneamente non disponibile'}).waitFor();
+    assert.equal(await page.locator('.article-studio-result-grid > article').count(),2,'a failed article generation preserves both proposals for retry');
+    failStudio = false;
     await page.getByRole('button',{name:'Scrivi questo articolo completo',exact:true}).first().click();
     await page.getByRole('heading',{name:'Il tuo articolo è pronto',exact:true}).waitFor();
     assert.equal(await page.locator('.article-studio-result-grid > article').count(),1,'a selected proposal becomes one complete article');
