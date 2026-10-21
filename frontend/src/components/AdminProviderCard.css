@@ -1,0 +1,14 @@
+.admin-provider-connections { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr)); gap: 16px; }
+.admin-provider-card { display: grid; align-content: start; gap: 12px; padding: 16px; min-width: 0; border: 1px solid var(--border); border-radius: var(--radius-sm); }
+.admin-provider-card label { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 13px; }
+.admin-provider-card input:not([type=checkbox]) { flex-basis: 100%; min-width: 0; width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); color: var(--text); }
+.admin-provider-card p { overflow-wrap: anywhere; color: var(--text-muted); font-size: 13px; }
+.admin-history { margin-top: 12px; display: grid; gap: 10px; }
+.admin-history article { min-width: 0; padding: 10px; border: 1px solid var(--border); }
+.admin-history pre { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 200px; overflow: auto; font-size: 12px; }
+@media (max-width: 900px) {
+  .admin-workspace:not(.admin-workspace-control) { grid-template-columns: minmax(0, 1fr); }
+  .admin-workspace .admin-main > .card > div:first-child { flex-wrap: wrap; gap: 12px; }
+  .admin-workspace .admin-main > .card { min-width: 0; overflow-wrap: anywhere; }
+  .admin-workspace .admin-user-row { grid-template-columns: minmax(0, 1fr) !important; }
+}

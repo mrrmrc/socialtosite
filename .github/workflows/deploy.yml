@@ -128,6 +128,7 @@ jobs:
           php tools/test_wordpress_connector.php
           php tools/test_profile_knowledge.php
           php tools/test_ai_health.php
+          php tools/test_admin_operations.php
           php tools/test_content_ideas.php
           php tools/test_article_studio.php
           php tools/test_opportunities.php

@@ -135,6 +135,9 @@ final class AdminConsole
     {
         $provider = strtolower(trim((string)($payload['provider'] ?? '')));
         if (!in_array($provider, ['gemini','apify'], true)) throw new InvalidArgumentException('Provider non supportato.');
+        if (isset($payload['model']) && (!is_string($payload['model']) || strlen($payload['model']) > 120)) throw new InvalidArgumentException('Modello non valido (massimo 120 caratteri).');
+        if (isset($payload['credential']) && (!is_string($payload['credential']) || strlen($payload['credential']) > 4096)) throw new InvalidArgumentException('Credenziale non valida.');
+        if (!empty($payload['clear_credential']) && !empty($payload['credential'])) throw new InvalidArgumentException('Scegli se sostituire o rimuovere la credenziale.');
         $current = DB::fetch('SELECT * FROM ai_provider_connections WHERE provider=?', [$provider]);
         $ciphertext = $current['secret_ciphertext'] ?? null;
         if (array_key_exists('credential', $payload) && trim((string)$payload['credential']) !== '') $ciphertext = ProviderConfig::encrypt(trim((string)$payload['credential']));

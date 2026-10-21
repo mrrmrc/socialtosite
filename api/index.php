@@ -367,13 +367,14 @@ if ($action === 'admin-monitoring' && $method === 'GET') {
     // Il pannello di controllo deve restare disponibile anche durante una
     // migrazione parziale del database. Ogni blocco statistico e' opzionale:
     // un campo legacy mancante non deve trasformare l'intera pagina in un 500.
-    $safeAll = static function (string $sql, array $params = []): array {
+    $monitoringWarnings = [];
+    $safeAll = static function (string $sql, array $params = []) use (&$monitoringWarnings): array {
         try { return DB::fetchAll($sql, $params); }
-        catch (Throwable $e) { error_log('[admin-monitoring] query: ' . $e->getMessage()); return []; }
+        catch (Throwable $e) { error_log('[admin-monitoring] query: ' . $e->getMessage()); $monitoringWarnings[] = 'Una sezione del monitoraggio non è disponibile'; return []; }
     };
-    $safeOne = static function (string $sql, array $params = []): array {
+    $safeOne = static function (string $sql, array $params = []) use (&$monitoringWarnings): array {
         try { return DB::fetch($sql, $params) ?: []; }
-        catch (Throwable $e) { error_log('[admin-monitoring] query: ' . $e->getMessage()); return []; }
+        catch (Throwable $e) { error_log('[admin-monitoring] query: ' . $e->getMessage()); $monitoringWarnings[] = 'Una sezione del monitoraggio non è disponibile'; return []; }
     };
 
     // Aggregato token totali per utente
@@ -381,7 +382,7 @@ if ($action === 'admin-monitoring' && $method === 'GET') {
         COALESCE(a.total_requests,0) AS total_requests,COALESCE(a.total_tokens,0) AS total_tokens,COALESCE(a.estimated_cost,0) AS estimated_cost,
         (SELECT COUNT(*) FROM posts p WHERE p.user_id=u.id AND p.published=1) AS published_posts,
         COALESCE(e.monthly_revenue,0) AS monthly_revenue,COALESCE(e.hosting_cost,0) AS hosting_cost,COALESCE(e.other_cost,0) AS other_cost,e.notes
-        FROM users u LEFT JOIN (SELECT user_id,COUNT(*) total_requests,SUM(tokens_used) total_tokens,SUM(estimated_cost) estimated_cost FROM api_usage_logs GROUP BY user_id) a ON a.user_id=u.id
+        FROM users u LEFT JOIN (SELECT user_id,COUNT(*) total_requests,SUM(tokens_used) total_tokens,SUM(estimated_cost) estimated_cost FROM api_usage_logs WHERE created_at >= DATE_FORMAT(NOW(), '%Y-%m-01') GROUP BY user_id) a ON a.user_id=u.id
         LEFT JOIN user_economics e ON e.user_id=u.id ORDER BY total_tokens DESC,u.name");
 
     if (!$usagePerUser) {
@@ -391,7 +392,28 @@ if ($action === 'admin-monitoring' && $method === 'GET') {
     $usageByProvider = $safeAll('SELECT provider, COUNT(*) AS requests, SUM(tokens_used) AS total_tokens, SUM(estimated_cost) AS estimated_cost FROM api_usage_logs GROUP BY provider ORDER BY requests DESC');
     $usageByAction = $safeAll('SELECT action, provider, COUNT(*) AS requests, SUM(tokens_used) AS total_tokens, SUM(estimated_cost) AS estimated_cost FROM api_usage_logs GROUP BY action, provider ORDER BY requests DESC LIMIT 30');
     $usageThisMonth = $safeOne("SELECT COUNT(*) AS requests, SUM(tokens_used) AS total_tokens, SUM(estimated_cost) AS estimated_cost FROM api_usage_logs WHERE created_at >= DATE_FORMAT(NOW(), '%Y-%m-01')");
-    $providerSettings = $safeAll('SELECT provider,label,model,monthly_credit,unit_cost,enabled FROM ai_provider_connections ORDER BY provider');
+    $providerSettings = $safeAll("SELECT provider,label,model,monthly_credit,unit_cost,enabled,
+        CASE WHEN secret_ciphertext IS NULL OR secret_ciphertext='' THEN 0 ELSE 1 END credential_configured
+        FROM ai_provider_connections ORDER BY provider");
+    foreach ($providerSettings as &$providerSetting) {
+        $envName = $providerSetting['provider'] === 'gemini' ? 'GEMINI_API_KEY' : 'APIFY_API_TOKEN';
+        $runtimeName = 'SOCIALTOSITE_RUNTIME_' . $envName;
+        $externalSecret = trim((string)(getenv($envName) ?: '')) !== '' || trim((string)(getenv($runtimeName) ?: '')) !== '' || (defined($runtimeName) && trim((string)constant($runtimeName)) !== '') || (defined($envName) && trim((string)constant($envName)) !== '');
+        $providerSetting['credential_source'] = $externalSecret ? 'server' : (!empty($providerSetting['credential_configured']) ? 'database' : 'missing');
+        $providerSetting['credential_configured'] = $externalSecret || !empty($providerSetting['credential_configured']);
+    }
+    unset($providerSetting);
+    $diagnostics = [];
+    $platformTotals = [];
+    foreach ([
+        'users' => 'SELECT COUNT(*) AS value FROM users',
+        'published_posts' => 'SELECT COUNT(*) AS value FROM posts WHERE published=1',
+        'queued_posts' => 'SELECT COUNT(*) AS value FROM posts WHERE seo_score=-1',
+    ] as $key => $sql) {
+        $row = $safeOne($sql);
+        $platformTotals[$key] = isset($row['value']) ? (int)$row['value'] : null;
+        if (!$row) $diagnostics[] = 'Conteggio non disponibile: ' . $key;
+    }
 
     $knownAgents = [
         ['agent_name'=>'profile_analyzer','label'=>'Profile Analyzer','purpose'=>'Comprensione di attivitÃ , pubblico e posizionamento','trigger'=>'Dopo acquisizione o aggiornamento profilo'],
@@ -425,6 +447,9 @@ if ($action === 'admin-monitoring' && $method === 'GET') {
 
     json([
         'ok' => true,
+        'totals' => $platformTotals,
+        'diagnostics' => array_values(array_unique(array_merge($diagnostics, $monitoringWarnings))),
+        'generated_at' => date(DATE_ATOM),
         'api_usage_per_user' => $usagePerUser,
         'global_usage' => $globalUsage['total'] ?? 0,
         'global_requests' => $globalUsage['requests'] ?? 0,
@@ -439,14 +464,34 @@ if ($action === 'admin-monitoring' && $method === 'GET') {
     ]);
 }
 
+if ($action === 'admin-provider-save' && $method === 'POST') {
+    requireAdmin($isAdmin);
+    require_once __DIR__ . '/services/admin_validation.php';
+    require_once __DIR__ . '/services/admin_console.php';
+    $b = body();
+    try {
+        if (isset($b['monthly_credit'])) AdminValidation::amount($b['monthly_credit'], true);
+        ProviderConfig::ensureSchema();
+        AdminConsole::updateProvider($b);
+        json(['ok' => true]);
+    } catch (InvalidArgumentException $e) { jsonError($e->getMessage(), 422); }
+    catch (Throwable $e) {
+        error_log('[admin-provider-save] ' . $e->getMessage());
+        jsonError('Impossibile salvare il collegamento al provider. Controlla la configurazione del server.', 503);
+    }
+}
+
 if ($action === 'admin-provider-rates' && $method === 'POST') {
     requireAdmin($isAdmin);
     ProviderConfig::ensureSchema();
     $b = body();
     $provider = strtolower(trim((string)($b['provider'] ?? '')));
     if (!in_array($provider, ['gemini','apify'], true)) jsonError('Provider non valido', 422);
-    $unitCost = max(0, (float)($b['unit_cost'] ?? 0));
-    $monthlyCredit = ($b['monthly_credit'] ?? '') === '' ? null : max(0, (float)$b['monthly_credit']);
+    require_once __DIR__ . '/services/admin_validation.php';
+    try {
+        $unitCost = AdminValidation::amount($b['unit_cost'] ?? 0);
+        $monthlyCredit = AdminValidation::amount($b['monthly_credit'] ?? '', true);
+    } catch (InvalidArgumentException $e) { jsonError($e->getMessage(), 422); }
     DB::execute('UPDATE ai_provider_connections SET unit_cost=?,monthly_credit=? WHERE provider=?', [$unitCost,$monthlyCredit,$provider]);
     json(['ok'=>true,'provider'=>$provider,'unit_cost'=>$unitCost,'monthly_credit'=>$monthlyCredit]);
 }
@@ -493,6 +538,11 @@ if ($action === 'admin-trigger-cron' && $method === 'POST') {
 if ($action === 'admin-user-economics' && $method === 'POST') {
     requireAdmin($isAdmin); ensureAdminSchema(); $b=body(); $targetId=(int)($b['user_id']??0);
     if($targetId<=0) jsonError('Cliente non valido',422);
+    if (!DB::fetch('SELECT id FROM users WHERE id=?', [$targetId])) jsonError('Cliente non trovato', 404);
+    require_once __DIR__ . '/services/admin_validation.php';
+    try {
+        foreach (['monthly_revenue', 'hosting_cost', 'other_cost'] as $field) $b[$field] = AdminValidation::amount($b[$field] ?? 0);
+    } catch (InvalidArgumentException $e) { jsonError($e->getMessage(), 422); }
     DB::execute('INSERT INTO user_economics(user_id,monthly_revenue,hosting_cost,other_cost,notes) VALUES(?,?,?,?,?) ON DUPLICATE KEY UPDATE monthly_revenue=VALUES(monthly_revenue),hosting_cost=VALUES(hosting_cost),other_cost=VALUES(other_cost),notes=VALUES(notes)',[$targetId,max(0,(float)($b['monthly_revenue']??0)),max(0,(float)($b['hosting_cost']??0)),max(0,(float)($b['other_cost']??0)),trim((string)($b['notes']??''))]);
     json(['ok'=>true]);
 }
@@ -513,7 +563,10 @@ if ($action === 'admin-settings' && $method === 'POST') {
     ensureAdminSchema();
     $b = body();
     if (!isset($b['settings']) || !is_array($b['settings'])) jsonError('Impostazioni non valide', 422);
-    foreach ($b['settings'] as $k => $v) {
+    require_once __DIR__ . '/services/admin_validation.php';
+    try { $validatedSettings = AdminValidation::settings($b['settings']); }
+    catch (InvalidArgumentException $e) { jsonError($e->getMessage(), 422); }
+    foreach ($validatedSettings as $k => $v) {
         $key = trim(substr((string)$k, 0, 50));
         if ($key === '') continue;
         DB::execute('INSERT INTO system_settings (key_name, key_value) VALUES (?, ?) ON DUPLICATE KEY UPDATE key_value=VALUES(key_value)', [$key, (string)$v]);
@@ -890,15 +943,18 @@ if ($action === 'admin-impersonate' && $method === 'POST') {
     $targetId = (int)($b['id'] ?? 0);
     if (!$targetId) jsonError('Utente non valido');
 
-    $user = DB::fetch('SELECT id, email, slug, role FROM users WHERE id=?', [$targetId]);
+    $user = DB::fetch('SELECT id, email, name, slug, role, plan, token_version FROM users WHERE id=?', [$targetId]);
     if (!$user) jsonError('Utente non trovato', 404);
 
     $token = JWT::encode([
         'id' => $user['id'],
         'email' => $user['email'],
         'slug' => $user['slug'],
-        'role' => $user['role']
-    ]);
+        'role' => $user['role'],
+        'tv' => (int)$user['token_version'],
+        'impersonated_by' => (int)$userId,
+    ], 1);
+    unset($user['token_version']);
 
     json(['ok' => true, 'token' => $token, 'user' => $user]);
 }
@@ -914,6 +970,9 @@ if ($action === 'admin-create-user' && $method === 'POST') {
     if (!$email || !$password) jsonError('Email e password richiesti');
     if (!filter_var($email, FILTER_VALIDATE_EMAIL)) jsonError('Email non valida');
     if (strlen($password) < 8) jsonError('Password minimo 8 caratteri');
+    require_once __DIR__ . '/services/admin_validation.php';
+    try { AdminValidation::account($b, 0, (int)$userId); }
+    catch (InvalidArgumentException $e) { jsonError($e->getMessage(), 422); }
     if (DB::fetch('SELECT id FROM users WHERE email=?', [$email])) jsonError('Email gia registrata', 409);
 
     $slug = uniqueUserSlug($name ?: explode('@', $email)[0]);
@@ -935,6 +994,10 @@ if ($action === 'admin-update-user' && $method === 'POST') {
     $target = DB::fetch('SELECT * FROM users WHERE id=?', [$targetId]);
     if (!$target) jsonError('Utente non trovato', 404);
 
+    require_once __DIR__ . '/services/admin_validation.php';
+    try { AdminValidation::account($b, $targetId, (int)$userId); }
+    catch (InvalidArgumentException $e) { jsonError($e->getMessage(), 422); }
+
     $name = array_key_exists('name', $b) ? trim($b['name']) : $target['name'];
     $plan = array_key_exists('plan', $b) ? trim($b['plan']) : $target['plan'];
     $role = array_key_exists('role', $b) ? $b['role'] : ($target['role'] ?? 'user');
@@ -946,6 +1009,7 @@ if ($action === 'admin-update-user' && $method === 'POST') {
         if (strlen((string)$b['password']) > 72) jsonError('La nuova password non puo superare 72 caratteri', 422);
         DB::execute('UPDATE users SET password=? WHERE id=?', [password_hash((string)$b['password'], PASSWORD_BCRYPT), $targetId]);
     }
+    if ($role !== ($target['role'] ?? 'user') || !empty($b['password'])) revokeSessions($targetId);
 
     if (array_key_exists('role_mission', $b) || array_key_exists('content_strategy', $b)) {
         DB::execute('UPDATE sites SET role_mission=COALESCE(?,role_mission), content_strategy=COALESCE(?,content_strategy) WHERE user_id=?',
@@ -1146,7 +1210,7 @@ if ($action === 'admin-prompt-restore' && $method === 'POST') {
     $current=DB::fetch('SELECT instructions FROM agent_prompts WHERE agent_name=?',[$version['agent_name']]);
     if($current) DB::execute('INSERT INTO agent_prompt_versions(agent_name,instructions,changed_by) VALUES(?,?,?)',[$version['agent_name'],$current['instructions'],$userId]);
     DB::execute('UPDATE agent_prompts SET instructions=? WHERE agent_name=?',[$version['instructions'],$version['agent_name']]);
-    json(['ok'=>true]);
+    json(['ok'=>true, 'agent_name'=>$version['agent_name'], 'instructions'=>$version['instructions']]);
 }
 
 if ($action === 'social-sources' && $method === 'GET') {

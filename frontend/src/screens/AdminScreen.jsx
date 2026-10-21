@@ -1,6 +1,9 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { apiFetch } from '../utils/api';
 import { AdminControlRoom } from '../components/AdminControlRoom';
+import { AdminProviderCard } from '../components/AdminProviderCard';
+
+const PANEL_STYLE = { padding: '14px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)' };
 
 function ProviderRateCard({ provider, busy, onSave }) {
   const [unitCost, setUnitCost] = useState(provider.unit_cost || '');
@@ -38,6 +41,7 @@ export function AdminScreen({ token, currentUser, adminPrompts, updatePrompt }) 
   const [adminActionBusy, setAdminActionBusy] = useState('');
   const [promptHistory, setPromptHistory] = useState({});
   const [agentDrafts, setAgentDrafts] = useState({});
+  const [restoredPrompts, setRestoredPrompts] = useState({});
   const [settings, setSettings] = useState({ cron_interval_sync: '6', cron_interval_seo: '24' });
   const [logFilterLevel, setLogFilterLevel] = useState('');
   const [logFilterCtx, setLogFilterCtx] = useState('');
@@ -49,7 +53,7 @@ export function AdminScreen({ token, currentUser, adminPrompts, updatePrompt }) 
     if (adminTab === 'logs') loadLogs();
     if (adminTab === 'processes') loadProcesses();
     if (adminTab === 'content-mix') loadContentMix();
-    if (['overview', 'agents', 'economics', 'monitoring'].includes(adminTab)) {
+    if (['overview', 'agents', 'economics', 'monitoring', 'monitor-live'].includes(adminTab)) {
       loadMonitoring();
       loadSettings();
     }
@@ -88,17 +92,18 @@ export function AdminScreen({ token, currentUser, adminPrompts, updatePrompt }) 
   async function loadSettings() {
     try {
       const data = await apiFetch('/api/index.php?action=admin-settings', {}, token);
-      if (data.settings) setSettings(data.settings);
-    } catch (e) {}
+      if (data.settings) setSettings({ cron_interval_sync: data.settings.cron_interval_sync ?? '6', cron_interval_seo: data.settings.cron_interval_seo ?? '24' });
+    } catch (e) { setError(e.message); }
   }
 
   async function saveSettings() {
+    setAdminActionBusy('settings'); setError(''); setNotice('');
     try {
       await apiFetch('/api/index.php?action=admin-settings', { method: 'POST', body: JSON.stringify({ settings }) }, token);
       setNotice('Impostazioni salvate con successo.');
     } catch (e) {
       setError(e.message);
-    }
+    } finally { setAdminActionBusy(''); }
   }
 
   async function deleteLog(ts, msg) {
@@ -202,7 +207,9 @@ export function AdminScreen({ token, currentUser, adminPrompts, updatePrompt }) 
     setNotice('');
     try {
       await updatePrompt(agent.agent_name, instructions);
+      setRestoredPrompts(current => ({ ...current, [agent.agent_name]: instructions }));
       setNotice(`Istruzioni di ${agent.label} salvate.`);
+      if (promptHistory[agent.agent_name]) await loadPromptHistory(agent.agent_name);
       await loadMonitoring();
     } catch (e) {
       setError(e.message);
@@ -239,9 +246,26 @@ export function AdminScreen({ token, currentUser, adminPrompts, updatePrompt }) 
   async function loadPromptHistory(agentName) {
     try { const data=await apiFetch(`/api/index.php?action=admin-prompt-history&agent_name=${encodeURIComponent(agentName)}`,{},token); setPromptHistory(current=>({...current,[agentName]:data.versions||[]})); } catch(e){setError(e.message);}
   }
+  async function saveProviderConnection(payload) {
+    setAdminActionBusy(`connection-${payload.provider}`); setError(''); setNotice('');
+    try {
+      await apiFetch('/api/index.php?action=admin-provider-save', { method: 'POST', body: JSON.stringify(payload) }, token);
+      setNotice('Collegamento al provider aggiornato.');
+      await loadMonitoring();
+      return true;
+    } catch (e) { setError(e.message); return false; }
+    finally { setAdminActionBusy(''); }
+  }
   async function restorePromptVersion(agentName, versionId) {
     if(!confirm('Ripristinare questa versione del prompt? La versione corrente resterà nello storico.')) return;
-    try { await apiFetch('/api/index.php?action=admin-prompt-restore',{method:'POST',body:JSON.stringify({version_id:versionId})},token); setNotice('Versione ripristinata. Ricarica la pagina per vedere il testo aggiornato.'); await loadPromptHistory(agentName); } catch(e){setError(e.message);}
+    setAdminActionBusy(`prompt-${agentName}`); setError(''); setNotice('');
+    try {
+      const data = await apiFetch('/api/index.php?action=admin-prompt-restore',{method:'POST',body:JSON.stringify({version_id:versionId})},token);
+      setAgentDrafts(current => ({ ...current, [agentName]: data.instructions }));
+      setRestoredPrompts(current => ({ ...current, [agentName]: data.instructions }));
+      setNotice('Versione ripristinata. Il testo attivo è aggiornato.');
+      await loadPromptHistory(agentName); await loadMonitoring();
+    } catch(e){setError(e.message);} finally { setAdminActionBusy(''); }
   }
 
   async function triggerCron(job) {
@@ -352,7 +376,8 @@ export function AdminScreen({ token, currentUser, adminPrompts, updatePrompt }) 
         body: JSON.stringify({ id, new_password: newPassword }),
       }, token);
       setPasswordDrafts(current => ({ ...current, [id]: '' }));
-      setNotice('Password aggiornata. Comunica la nuova credenziale all\'utente in modo sicuro.');
+      if (Number(id) === Number(currentUser.id)) { localStorage.removeItem('sts_token'); localStorage.removeItem('sts_user'); window.location.reload(); return; }
+      setNotice('Password aggiornata. Le sessioni precedenti sono state revocate.');
     } catch (e) {
       setError(e.message);
     }
@@ -393,7 +418,7 @@ export function AdminScreen({ token, currentUser, adminPrompts, updatePrompt }) 
     }
   }
 
-  const totalPosts = users.reduce((sum, user) => sum + Number(user.posts_count || 0), 0);
+  const activePrompts = adminPrompts.map(prompt => restoredPrompts[prompt.agent_name] === undefined ? prompt : { ...prompt, instructions: restoredPrompts[prompt.agent_name] });
   const adminNavigation = [
     { group: 'Controllo', items: [['overview','Panoramica','▦'],['control-room','Control Room','⌘'],['monitor-live','Monitor Live','⚡'],['agents','Agenti AI','✦']] },
     { group: 'Operatività', items: [['users','Clienti','◎'],['content-mix','Contenuti','▤'],['processes','Code','↻']] },
@@ -411,13 +436,14 @@ export function AdminScreen({ token, currentUser, adminPrompts, updatePrompt }) 
       </aside>
       <main className="admin-main">
 
-      {error && <div style={{ background: 'var(--red-light)', color: 'var(--red)', padding: '10px 14px', borderRadius: 'var(--radius-sm)', marginBottom: '1rem', fontSize: '13px' }}>{error}</div>}
-      {notice && <div style={{ background: 'var(--teal-light)', color: '#0F6E56', padding: '10px 14px', borderRadius: 'var(--radius-sm)', marginBottom: '1rem', fontSize: '13px', fontWeight: 700 }}>{notice}</div>}
+      {error && <div role="alert" style={{ background: 'var(--red-light)', color: 'var(--red)', padding: '10px 14px', borderRadius: 'var(--radius-sm)', marginBottom: '1rem', fontSize: '13px' }}>{error}</div>}
+      {notice && <div role="status" style={{ background: 'var(--teal-light)', color: '#0F6E56', padding: '10px 14px', borderRadius: 'var(--radius-sm)', marginBottom: '1rem', fontSize: '13px', fontWeight: 700 }}>{notice}</div>}
 
       {adminTab === 'overview' && <div className="admin-overview">
-        <section className="admin-hero"><div><span>Stato della piattaforma</span><h2>Le informazioni importanti, prima dei dettagli tecnici</h2><p>Clienti, produzione editoriale, agenti e consumi riuniti in una vista operativa.</p></div><button className="btn btn-primary" onClick={() => setAdminTab('control-room')}>Apri Control Room</button></section>
+        <section className="admin-hero"><div><span>Stato della piattaforma</span><h2>Le informazioni importanti, prima dei dettagli tecnici</h2><p>Clienti, produzione editoriale, agenti e consumi riuniti in una vista operativa.</p></div><div><button className="btn btn-outline" onClick={loadMonitoring}>Aggiorna panoramica</button><button className="btn btn-primary" onClick={() => setAdminTab('control-room')}>Apri Control Room</button></div></section>
+        {monitoringData?.diagnostics?.length > 0 && <p role="alert" className="admin-warning">Alcuni dati non sono disponibili: {monitoringData.diagnostics.join('; ')}.</p>}
         <section className="admin-kpi-grid">
-          {[[users.length,'Clienti registrati'],[totalPosts,'Articoli pubblicati'],[processes.length,'Elementi in coda'],[monitoringData?.agents?.filter(a=>a.prompt_configured).length || 0,'Agenti configurati']].map(([value,label])=><article key={label}><strong>{value}</strong><span>{label}</span></article>)}
+          {[[monitoringData?.totals?.users ?? '—','Clienti registrati'],[monitoringData?.totals?.published_posts ?? '—','Articoli pubblicati'],[monitoringData?.totals?.queued_posts ?? '—','Elementi in coda'],[monitoringData?.agents?.filter(a=>a.prompt_configured).length || 0,'Agenti configurati']].map(([value,label])=><article key={label}><strong>{value}</strong><span>{label}</span></article>)}
         </section>
 
         
@@ -469,10 +495,10 @@ export function AdminScreen({ token, currentUser, adminPrompts, updatePrompt }) 
         </>
       )}
 
-      {adminTab === 'agents' && <div className="card"><div className="admin-section-heading"><div><span>Registro unico modificabile</span><h3>Agenti AI editoriali e grafici</h3><p>Seleziona un agente, modifica le istruzioni e salvale esplicitamente.</p></div></div><div className="admin-agent-grid">{(monitoringData?.agents || []).map(agent=>{const prompt=adminPrompts.find(item=>item.agent_name===agent.agent_name);const draft=agentDrafts[agent.agent_name] ?? prompt?.instructions ?? '';return <article key={agent.agent_name} className={agent.agent_name==='site_ai'?'is-visual-agent':''}><header><span>{agent.agent_name==='site_ai'?'◈':'✦'}</span><b className={agent.prompt_configured?'is-ready':''}>{agent.prompt_configured?'Configurato':'Da personalizzare'}</b></header><h4>{agent.label}</h4><p>{agent.purpose}</p><dl><div><dt>Quando interviene</dt><dd>{agent.trigger}</dd></div><div><dt>Identificativo</dt><dd><code>{agent.agent_name}</code></dd></div></dl><details className="admin-agent-editor"><summary>Apri editor istruzioni</summary><textarea value={draft} placeholder="Inserisci il prompt di sistema per questo agente…" onChange={e=>setAgentDrafts(current=>({...current,[agent.agent_name]:e.target.value}))}/><div className="admin-agent-editor-actions"><button className="btn btn-primary" disabled={adminActionBusy===`prompt-${agent.agent_name}`} onClick={()=>saveAgentPrompt(agent)}>{adminActionBusy===`prompt-${agent.agent_name}`?'Salvataggio…':'Salva istruzioni'}</button>{prompt&&<button className="btn btn-outline" onClick={()=>loadPromptHistory(agent.agent_name)}>Cronologia ({Number(prompt.version_count||0)})</button>}</div></details></article>})}</div></div>}
+      {adminTab === 'agents' && <div className="card"><div className="admin-section-heading"><div><span>Registro unico modificabile</span><h3>Agenti AI editoriali e grafici</h3><p>Seleziona un agente, modifica le istruzioni e salvale esplicitamente.</p></div></div><div className="admin-agent-grid">{(monitoringData?.agents || []).map(agent=>{const prompt=adminPrompts.find(item=>item.agent_name===agent.agent_name);const draft=agentDrafts[agent.agent_name] ?? prompt?.instructions ?? '';return <article key={agent.agent_name} className={agent.agent_name==='site_ai'?'is-visual-agent':''}><header><span>{agent.agent_name==='site_ai'?'◈':'✦'}</span><b className={agent.prompt_configured?'is-ready':''}>{agent.prompt_configured?'Configurato':'Da personalizzare'}</b></header><h4>{agent.label}</h4><p>{agent.purpose}</p><dl><div><dt>Quando interviene</dt><dd>{agent.trigger}</dd></div><div><dt>Identificativo</dt><dd><code>{agent.agent_name}</code></dd></div></dl><details className="admin-agent-editor"><summary>Apri editor istruzioni</summary><textarea value={draft} placeholder="Inserisci il prompt di sistema per questo agente…" onChange={e=>setAgentDrafts(current=>({...current,[agent.agent_name]:e.target.value}))}/><div className="admin-agent-editor-actions"><button className="btn btn-primary" disabled={adminActionBusy===`prompt-${agent.agent_name}`} onClick={()=>saveAgentPrompt(agent)}>{adminActionBusy===`prompt-${agent.agent_name}`?'Salvataggio…':'Salva istruzioni'}</button><button className="btn btn-outline" disabled={Boolean(adminActionBusy)} onClick={()=>loadPromptHistory(agent.agent_name)}>Cronologia</button></div>{promptHistory[agent.agent_name] && <div className="admin-history" aria-label={`Cronologia ${agent.label}`}>{promptHistory[agent.agent_name].length === 0 ? <p>Nessuna versione archiviata.</p> : promptHistory[agent.agent_name].map(version => <article key={version.id}><strong>{version.created_at}</strong><pre>{version.instructions}</pre><button className="btn btn-outline" disabled={Boolean(adminActionBusy)} onClick={() => restorePromptVersion(agent.agent_name, version.id)}>Ripristina versione</button></article>)}</div>}</details></article>})}</div></div>}
 
       {adminTab === 'economics' && <div className="card">
-        <div className="admin-section-heading"><div><span>Economia della piattaforma</span><h3>Costi, ricavi e margine per cliente</h3><p>Configura i tariffari provider e i costi generali mensili.</p></div><button className="btn btn-outline" onClick={loadMonitoring}>Aggiorna</button></div>
+        <div className="admin-section-heading"><div><span>Economia della piattaforma</span><h3>Costi, ricavi e margine per cliente</h3><p>Consumi AI del mese corrente, ricavi e costi mensili per cliente. I costi AI sono stime basate sui tariffari configurati.</p></div><button className="btn btn-outline" onClick={loadMonitoring}>Aggiorna</button></div>
         <div className="admin-kpi-grid"><article><strong>{Number(monthUsage.total_tokens||0).toLocaleString('it-IT')}</strong><span>Token questo mese</span></article><article><strong>{monthUsage.requests||0}</strong><span>Richieste questo mese</span></article><article><strong>{formatCost(monthUsage.estimated_cost)}</strong><span>Costo AI registrato</span></article><article><strong>{monitoringData?.usage_by_provider?.length||0}</strong><span>Provider utilizzati</span></article></div>
         <div className="admin-provider-rates">{(monitoringData?.provider_settings||[]).map(provider=><ProviderRateCard key={provider.provider} provider={provider} busy={adminActionBusy===`provider-${provider.provider}`} onSave={saveProviderRate}/>)}</div>
         <div className="admin-table-wrap"><table className="admin-data-table admin-economics-table"><thead><tr><th>Cliente</th><th>Consumi</th><th>Articoli</th><th>Costo AI</th><th>Ricavo/mese</th><th>Hosting</th><th>Altri costi</th><th>Margine</th><th></th></tr></thead><tbody>{(monitoringData?.api_usage_per_user||[]).map(u=><UserEconomicsRow key={u.user_id} user={u} busy={adminActionBusy===`economics-${u.user_id}`} onSave={saveUserEconomics} formatCost={formatCost}/>)}</tbody></table></div>
@@ -491,7 +517,10 @@ export function AdminScreen({ token, currentUser, adminPrompts, updatePrompt }) 
           ) : (
             <div style={{ display: 'grid', gap: '2rem' }}>
               <div>
-                <h4 style={{ marginBottom: '1rem' }}>Utilizzo Token AI (Totale: {monitoringData.global_usage || 0})</h4>
+                <h4 style={{ marginBottom: '1rem' }}>Collegamenti ai provider</h4>
+                <div className="admin-provider-connections">{(monitoringData.provider_settings || []).map(provider => <AdminProviderCard key={provider.provider} provider={provider} busy={Boolean(adminActionBusy)} onSave={saveProviderConnection} />)}</div>
+              </div><div>
+                <h4 style={{ marginBottom: '1rem' }}>Utilizzo Token AI nel mese corrente</h4>
                 <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', overflow: 'hidden' }}>
                   <table style={{ width: '100%', textAlign: 'left', borderCollapse: 'collapse', fontSize: '13px' }}>
                     <thead style={{ background: 'rgba(255,255,255,0.03)' }}>
@@ -543,13 +572,13 @@ export function AdminScreen({ token, currentUser, adminPrompts, updatePrompt }) 
                 <div style={{ ...PANEL_STYLE, display: 'flex', gap: '1rem', alignItems: 'flex-end', flexWrap: 'wrap' }}>
                   <div style={{ flex: 1, minWidth: '200px' }}>
                     <label className="label">Intervallo Sync (ore)</label>
-                    <input type="number" value={settings.cron_interval_sync || ''} onChange={e => setSettings({...settings, cron_interval_sync: e.target.value})} style={{ width: '100%', padding: '8px', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', background: 'var(--surface)' }} />
+                    <input type="number" min="1" max="168" step="1" value={settings.cron_interval_sync || ''} onChange={e => setSettings({...settings, cron_interval_sync: e.target.value})} style={{ width: '100%', padding: '8px', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', background: 'var(--surface)' }} />
                   </div>
                   <div style={{ flex: 1, minWidth: '200px' }}>
                     <label className="label">Intervallo SEO (ore)</label>
-                    <input type="number" value={settings.cron_interval_seo || ''} onChange={e => setSettings({...settings, cron_interval_seo: e.target.value})} style={{ width: '100%', padding: '8px', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', background: 'var(--surface)' }} />
+                    <input type="number" min="1" max="168" step="1" value={settings.cron_interval_seo || ''} onChange={e => setSettings({...settings, cron_interval_seo: e.target.value})} style={{ width: '100%', padding: '8px', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', background: 'var(--surface)' }} />
                   </div>
-                  <button className="btn btn-primary" onClick={saveSettings}>Salva Impostazioni</button>
+                  <button className="btn btn-primary" disabled={Boolean(adminActionBusy)} onClick={saveSettings}>Salva Impostazioni</button>
                 </div>
               </div>
 
@@ -626,7 +655,7 @@ export function AdminScreen({ token, currentUser, adminPrompts, updatePrompt }) 
               </div>
               <div className="form-group" style={{ marginBottom: 0 }}>
                 <label className="label">Password temporanea</label>
-                <input type="password" value={form.password} onChange={e => setForm({ ...form, password: e.target.value })} required />
+                <input type="password" minLength={8} maxLength={72} autoComplete="new-password" value={form.password} onChange={e => setForm({ ...form, password: e.target.value })} required />
               </div>
               <div className="form-group" style={{ marginBottom: 0 }}>
                 <label className="label">Profilo</label>
@@ -646,10 +675,10 @@ export function AdminScreen({ token, currentUser, adminPrompts, updatePrompt }) 
           <div className="card">
             <h3 style={{ marginBottom: '1rem' }}>Lista Utenti</h3>
             {users.map(u => {
-              const siteUrl = `${(window.API_BASE || '').replace('3001', '3000')}/s/${u.slug}`;
+              const siteUrl = `${(window.API_BASE || '').replace(/\/$/, '')}/${encodeURIComponent(u.slug)}`;
               return (
                 <div key={u.id} style={{ padding: '12px 0', borderBottom: '1px solid var(--border)' }}>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'minmax(220px, 1.4fr) minmax(140px, .8fr) minmax(140px, .7fr) auto', gap: '12px', alignItems: 'center' }}>
+                  <div className="admin-user-row" style={{ display: 'grid', gridTemplateColumns: 'minmax(220px, 1.4fr) minmax(140px, .8fr) minmax(140px, .7fr) auto', gap: '12px', alignItems: 'center' }}>
                     <div>
                       <div style={{ fontWeight: 600 }}>{u.name || u.email}</div>
                       <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{u.email}</div>
@@ -660,10 +689,10 @@ export function AdminScreen({ token, currentUser, adminPrompts, updatePrompt }) 
                       <div>{u.sources_count} fonti attive</div>
                     </div>
                     <div style={{ display: 'grid', gap: '6px' }}>
-                      <select value={u.role === 'admin' ? 'admin' : (u.plan || 'base')} onChange={e => updateProfile(u.id, e.target.value)} style={{ padding: '7px', border: '1px solid var(--border-strong)', borderRadius: 'var(--radius-sm)', background: 'var(--surface)' }}>
-                        <option value="base">Base</option>
-                        <option value="professional">Professional</option>
-                        <option value="agency">Agency</option>
+                      <select aria-label={`Profilo di ${u.name || u.email}`} value={u.role === 'admin' ? 'admin' : (u.plan || 'base')} onChange={e => updateProfile(u.id, e.target.value)} style={{ padding: '7px', border: '1px solid var(--border-strong)', borderRadius: 'var(--radius-sm)', background: 'var(--surface)' }}>
+                        <option disabled={Number(u.id) === Number(currentUser.id)} value="base">Base</option>
+                        <option disabled={Number(u.id) === Number(currentUser.id)} value="professional">Professional</option>
+                        <option disabled={Number(u.id) === Number(currentUser.id)} value="agency">Agency</option>
                         <option value="admin">Amministratore</option>
                       </select>
                     </div>
@@ -725,7 +754,7 @@ export function AdminScreen({ token, currentUser, adminPrompts, updatePrompt }) 
 
       {adminTab === 'control-room' && <AdminControlRoom
         users={users} selectedId={selectedControlUserId} onSelect={setSelectedControlUserId}
-        room={editorialRoom} loading={roomLoading} loadError={roomError} prompts={adminPrompts}
+        room={editorialRoom} loading={roomLoading} loadError={roomError} prompts={activePrompts}
         currentUserId={currentUser.id} busy={adminActionBusy}
         onRefresh={() => loadEditorialRoom(selectedControlUserId)} onRun={runEditorialForSelectedUser}
         onImpersonate={impersonateUser} onNoindex={togglePostNoindex}

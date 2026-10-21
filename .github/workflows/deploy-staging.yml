@@ -54,6 +54,7 @@ jobs:
           php -l api/services/profile_knowledge.php
           php tools/test_profile_knowledge.php
           php tools/test_ai_health.php
+          php tools/test_admin_operations.php
           php tools/test_content_ideas.php
           php tools/test_opportunities.php
           php tools/test_opportunity_brief.php
