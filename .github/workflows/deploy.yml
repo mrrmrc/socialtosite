@@ -102,7 +102,7 @@ jobs:
             api/services/sync.php api/services/ingest.php api/services/editorial_engine.php \
             api/services/visibility.php api/services/seo_foundation.php api/services/reachability.php \
             api/services/raw_import.php api/services/apify_client.php api/services/website_source.php api/services/profile_analyzer.php api/services/profile_interview.php \
-            api/services/admin_console.php api/services/editorial_supervisor.php api/services/provider_config.php \
+            api/services/admin_console.php api/services/admin_validation.php api/services/editorial_supervisor.php api/services/provider_config.php \
             api/services/ai.php api/services/content_ideas.php api/services/profile_knowledge.php \
             api/services/ai_health.php api/services/article_studio.php \
             api/services/opportunities.php api/services/opportunity_brief.php api/routes/opportunities.php \
@@ -199,6 +199,7 @@ jobs:
           cp api/services/{raw_import,apify_client,video_source,website_source,profile_analyzer,profile_interview,profile_knowledge,admin_console,editorial_supervisor,provider_config,ai,content_ideas}.php release/api/services/
           cp api/services/{opportunities,opportunity_brief,openpage,openpage_versions,design_references,article_display}.php release/api/services/
           cp api/services/ai_health.php release/api/services/
+          cp api/services/admin_validation.php release/api/services/
           cp api/services/article_studio.php release/api/services/
           cp api/routes/opportunities.php release/api/routes/
           cp api/services/{monitor_status,monitor_settings}.php release/api/services/
