@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { AuthScreen } from './screens/AuthScreen';
 import { DashboardScreen } from './screens/DashboardScreen';
+import { AdminWorkspaceScreen } from './screens/AdminWorkspaceScreen';
 import { LandingScreen } from './screens/LandingScreen';
 import { LegalScreen } from './screens/LegalScreen';
 import { ConnectScreen } from './screens/ConnectScreen';
@@ -19,9 +20,14 @@ export default function App() {
       return null;
     }
   });
+  const [identityState, setIdentityState] = useState(() => localStorage.getItem('sts_token') ? 'loading' : 'ready');
+  const [identityError, setIdentityError] = useState('');
+  const [identityRevision, setIdentityRevision] = useState(0);
 
   function handleAuth(newToken, newUser) {
     setRecoveryLink(false);
+    setIdentityState('loading');
+    setIdentityError('');
     setToken(newToken);
     setUser(newUser);
   }
@@ -31,14 +37,44 @@ export default function App() {
     localStorage.removeItem('sts_user');
     setToken(null);
     setUser(null);
+    setIdentityState('ready');
+    setIdentityError('');
   }
+
+  useEffect(() => {
+    if (!token || recoveryLink) return;
+    const controller = new AbortController();
+    setIdentityState('loading');
+    setIdentityError('');
+    apiFetch('/api/index.php?action=me', { signal: controller.signal }, token)
+      .then(data => {
+        if (controller.signal.aborted) return;
+        const verifiedUser = data.user;
+        if (!verifiedUser?.id || !['admin', 'user'].includes(verifiedUser.role)) throw new Error('Il server non ha restituito un account valido.');
+        const verifiedUrl = new URL(window.location.href);
+        if (verifiedUser.role !== 'admin' && ['admin', 'general'].includes(verifiedUrl.searchParams.get('tab'))) {
+          verifiedUrl.searchParams.delete('tab');
+          window.history.replaceState(null, '', verifiedUrl);
+        }
+        localStorage.setItem('sts_user', JSON.stringify(verifiedUser));
+        setUser(verifiedUser);
+        setIdentityState('ready');
+      })
+      .catch(error => {
+        if (controller.signal.aborted || error.name === 'AbortError') return;
+        setIdentityError(error.message);
+        setIdentityState('error');
+      });
+    return () => controller.abort();
+  }, [token, identityRevision, recoveryLink]);
 
   // Piano Base = nessun plan tra professional/pro/agency (stessa regola di
   // DashboardScreen.jsx). Per questi account, al primo accesso (nessuna
   // fonte ancora collegata) mostriamo BasicUserScreen invece del pannello
   // completo: era già scritto e pronto, semplicemente mai collegato.
   const normalizedPlan = String(user?.plan || '').trim().toLowerCase();
-  const isBasePlan = !!user && !['professional', 'pro', 'agency'].includes(normalizedPlan);
+  const isAdmin = user?.role === 'admin';
+  const isBasePlan = !!user && !isAdmin && !['professional', 'pro', 'agency'].includes(normalizedPlan);
   const [hasSources, setHasSources] = useState(null); // null = non ancora verificato
   const [showFullDashboard, setShowFullDashboard] = useState(false);
 
@@ -51,7 +87,7 @@ export default function App() {
   }, [pathname]);
 
   useEffect(() => {
-    if (recoveryLink || !token || !user || !isBasePlan) { setHasSources(null); return; }
+    if (recoveryLink || identityState !== 'ready' || !token || !user || !isBasePlan) { setHasSources(null); return; }
     let cancelled = false;
     apiFetch('/api/index.php?action=site', {}, token)
       .then(data => { if (!cancelled) setHasSources((data?.sources || []).length > 0); })
@@ -59,7 +95,7 @@ export default function App() {
       // forse rotto: meglio farlo entrare nel pannello che conosce già.
       .catch(() => { if (!cancelled) setHasSources(true); });
     return () => { cancelled = true; };
-  }, [token, user, isBasePlan, recoveryLink]);
+  }, [token, user, isBasePlan, recoveryLink, identityState]);
 
   let screen;
   if (pathname === '/') {
@@ -73,8 +109,16 @@ export default function App() {
     screen = <LegalScreen type="privacy" />;
   } else if (pathname === '/terms' || pathname === '/termini') {
     screen = <LegalScreen type="terms" />;
-  } else if (recoveryLink || !token || !user) {
+  } else if (recoveryLink || !token) {
     screen = <AuthScreen onAuth={handleAuth} />;
+  } else if (identityState !== 'ready') {
+    screen = identityState === 'error'
+      ? <div className="app-loading" role="alert"><p>Impossibile verificare la sessione: {identityError}</p><button className="btn btn-primary" onClick={() => setIdentityRevision(value => value + 1)}>Riprova verifica sessione</button><button className="btn btn-outline" onClick={handleLogout}>Esci</button></div>
+      : <div className="app-loading" role="status">Verifica della sessione…</div>;
+  } else if (!user) {
+    screen = <AuthScreen onAuth={handleAuth} />;
+  } else if (isAdmin) {
+    screen = <AdminWorkspaceScreen token={token} user={user} onLogout={handleLogout} />;
   } else if (pathname === '/connect') {
     screen = <ConnectScreen token={token} onDone={() => { window.location.href = '/dashboard'; }} />;
   } else if (isBasePlan && hasSources === false && !showFullDashboard) {

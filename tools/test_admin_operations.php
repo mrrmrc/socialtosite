@@ -28,6 +28,7 @@ class ProviderConfig { public static function ensureSchema(): void {} }
 class DB {
     public static array $writes = [], $revocations = [];
     public static bool $failTotals = false;
+    public static bool $failUserDetails = false, $failSources = false;
     public static function fetch(string $sql, array $params = []): ?array {
         if (str_contains($sql, 'COUNT(*) AS value')) {
             if (self::$failTotals) throw new RuntimeException('Private database error');
@@ -39,6 +40,15 @@ class DB {
         return ['id' => $params[0] ?? 2, 'email' => 'test@example.test', 'name' => 'Test', 'slug' => 'test', 'plan' => 'base', 'role' => 'admin', 'token_version' => 9];
     }
     public static function fetchAll(string $sql, array $params = []): array {
+        if (str_contains($sql, 'COUNT(DISTINCT p.id)')) {
+            if (self::$failUserDetails) throw new RuntimeException('Private user query error');
+            return [['id' => 2, 'name' => 'Cliente', 'posts_count' => 3, 'sources_count' => 1]];
+        }
+        if (str_contains($sql, 'NULL AS sources_count')) return [['id' => 2, 'name' => 'Cliente', 'posts_count' => null, 'sources_count' => null]];
+        if (str_contains($sql, 'FROM social_sources')) {
+            if (self::$failSources) throw new RuntimeException('Private source query error');
+            return [['user_id' => 2, 'platform' => 'website', 'url' => 'https://example.test', 'label' => 'Sito']];
+        }
         if (str_contains($sql, 'FROM ai_provider_connections')) return [['provider' => 'gemini', 'credential_configured' => 0]];
         return [];
     }
@@ -84,6 +94,18 @@ checkAdmin(adminRoute('admin-revoke-sessions', ['id' => 2])->status === 200 && s
 checkAdmin(adminRoute('admin-revoke-sessions', ['id' => 404])->status === 404 && DB::$writes === [], 'Revocation checks target exists');
 checkAdmin(adminRoute('admin-editorial-engine-save', ['user_id' => 2, 'min_posts' => 61])->status === 422 && DB::$writes === [], 'Reject impossible analysis threshold');
 checkAdmin(adminRoute('admin-editorial-engine-save', ['user_id' => 404, 'min_posts' => 8])->status === 404 && DB::$writes === [], 'Editorial settings require an existing site');
+function ensureSiteSchemaUpgrades(): void {}
+checkAdmin(adminRoute('admin-users', [], false, 'GET')->status === 403, 'Account inventory is admin only');
+$response = adminRoute('admin-users', [], true, 'GET');
+checkAdmin($response->data['counts_available'] === true && $response->data['users'][0]['posts_count'] === 3, 'Account inventory retains valid counts');
+DB::$failUserDetails = true;
+$response = adminRoute('admin-users', [], true, 'GET');
+checkAdmin($response->data['counts_available'] === false && $response->data['users'][0]['posts_count'] === null && $response->data['users'][0]['sources_count'] === 1, 'Unavailable post counts remain unknown while available sources are counted');
+checkAdmin(count($response->data['diagnostics']) > 0 && !str_contains(json_encode($response->data), 'Private user query error'), 'Inventory diagnostics are explicit and safe');
+DB::$failSources = true;
+$response = adminRoute('admin-users', [], true, 'GET');
+checkAdmin($response->data['users'][0]['sources_count'] === null && count($response->data['diagnostics']) === 2, 'Failed sources are not reported as zero');
+DB::$failUserDetails = false; DB::$failSources = false;
 $previousRuntimeKey = getenv('SOCIALTOSITE_RUNTIME_GEMINI_API_KEY');
 try {
     putenv('SOCIALTOSITE_RUNTIME_GEMINI_API_KEY=fixture-private-key');

@@ -16,7 +16,7 @@ server.on('error', error => { serverOutput += error.message; });
     await new Promise(resolve => setTimeout(resolve, 150));
   }
   if (!ready) throw new Error('Vite not ready: ' + serverOutput);
-  for (const test of ['test_admin_browser.cjs', 'test_control_room.cjs']) {
+  for (const test of ['test_admin_browser.cjs', 'test_control_room.cjs', 'test_admin_shell.cjs']) {
     const result = spawnSync(process.execPath, [path.join(__dirname, test)], { cwd: root, windowsHide: true, stdio: 'inherit', env: process.env, timeout: 120000 });
     if (result.error) throw result.error;
     if (result.status !== 0) throw new Error(test + ' failed: ' + result.status);

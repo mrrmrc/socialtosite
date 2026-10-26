@@ -277,11 +277,11 @@ if ($action === 'openclaw-webhook' && $method === 'POST') {
 $me = JWT::require();
 $userId = (int)($me['id'] ?? 0);
 try {
-    $dbMe = DB::fetch('SELECT id, email, name, slug, role, token_version FROM users WHERE id=?', [$userId]);
+    $dbMe = DB::fetch('SELECT id, email, name, slug, role, plan, token_version FROM users WHERE id=?', [$userId]);
 } catch (Throwable $e) {
     // Colonna non ancora presente: la migrazione auth_hardening non â”œÂ¿ stata
     // applicata. Si prosegue senza revoca, come prima.
-    $dbMe = DB::fetch('SELECT id, email, name, slug, role FROM users WHERE id=?', [$userId]);
+    $dbMe = DB::fetch('SELECT id, email, name, slug, role, plan FROM users WHERE id=?', [$userId]);
 }
 if (!$dbMe) {
     // Utente cancellato ma token ancora in circolazione.
@@ -299,6 +299,7 @@ $me = array_merge($me, [
     'name' => $dbMe['name'],
     'slug' => $dbMe['slug'],
     'role' => $dbMe['role'] ?? ($me['role'] ?? 'user'),
+    'plan' => $dbMe['plan'] ?? 'base',
 ]);
 $isAdmin = ($me['role'] ?? 'user') === 'admin';
 
@@ -850,6 +851,8 @@ if ($action === 'admin-content-mix' && $method === 'GET') {
 if ($action === 'admin-users' && $method === 'GET') {
     requireAdmin($isAdmin);
     ensureSiteSchemaUpgrades();
+    $userDiagnostics = [];
+    $countsAvailable = true;
     try { $users = DB::fetchAll(
         'SELECT u.id, u.email, u.name, u.slug, u.role, u.plan, u.created_at,
                 s.title AS site_title, s.last_sync, s.role_mission, s.content_strategy,
@@ -863,18 +866,26 @@ if ($action === 'admin-users' && $method === 'GET') {
          ORDER BY u.created_at DESC'
     ); } catch (Throwable $e) {
         error_log('[admin-users] full query: ' . $e->getMessage());
-        $users = DB::fetchAll('SELECT id,email,name,slug,role,plan,created_at,0 AS sources_count,0 AS posts_count FROM users ORDER BY created_at DESC');
+        $countsAvailable = false;
+        $userDiagnostics[] = 'Conteggi e dettagli dei siti non disponibili; anagrafica account disponibile.';
+        $users = DB::fetchAll('SELECT id,email,name,slug,role,plan,created_at,NULL AS sources_count,NULL AS posts_count FROM users ORDER BY created_at DESC');
     }
+    $sourcesAvailable = true;
     try { $sources = DB::fetchAll('SELECT user_id, platform, url, label FROM social_sources WHERE active = 1'); }
-    catch (Throwable $e) { error_log('[admin-users] sources: ' . $e->getMessage()); $sources = []; }
+    catch (Throwable $e) {
+        error_log('[admin-users] sources: ' . $e->getMessage());
+        $sources = []; $sourcesAvailable = false; $countsAvailable = false;
+        $userDiagnostics[] = 'Dettagli delle fonti non disponibili.';
+    }
     $userSources = [];
     foreach($sources as $src) {
         $userSources[$src['user_id']][] = $src;
     }
     foreach($users as &$u) {
         $u['sources'] = $userSources[$u['id']] ?? [];
+        $u['sources_count'] = $sourcesAvailable ? count($u['sources']) : null;
     }
-    json(['users' => $users]);
+    json(['users' => $users, 'diagnostics' => $userDiagnostics, 'counts_available' => $countsAvailable]);
 }
 
 if ($action === 'admin-editorial-room' && $method === 'GET') {

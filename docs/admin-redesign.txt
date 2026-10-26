@@ -1,5 +1,22 @@
 Analisi e riprogettazione amministrativa — 26 ottobre 2026
 
+Correzione del confine amministrativo
+La prima revisione interveniva dentro AdminScreen ma lasciava l'amministratore
+in DashboardScreen, la cui navigazione visibile includeva sempre il menu cliente.
+Il collaudo del solo pannello non rilevava il problema dell'app completa.
+La revisione successiva introduce AdminWorkspaceScreen direttamente da App:
+gli amministratori non montano DashboardScreen, PlanExperience, onboarding,
+menu personale, generatori IDEA o automazioni del progetto cliente.
+Il ruolo viene verificato da /me prima di montare qualunque area privata;
+il server legge ruolo e piano correnti dal database anziché dal vecchio token.
+La console conserva sicurezza dell'account, accessi, configurazioni globali,
+controllo clienti e interventi su contenuti/coda filtrabili per cliente.
+La panoramica segnala i dati mancanti senza trasformarli in conteggi zero.
+I nuovi test montano l'intera App e controllano cache ruolo obsoleta in entrambe
+le direzioni, piani admin diversi, bookmark cliente, mobile e logout.
+Il test di rilascio carica i bundle realmente pubblicati con API simulate.
+I workflow bloccano il deploy se i test browser amministrativi falliscono.
+
 Perimetro esaminato
 AdminScreen, Control Room, configurazione provider, router API, servizi
 amministrativi e validazione, autenticazione e revoca token, motore editoriale,

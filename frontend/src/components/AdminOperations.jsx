@@ -4,7 +4,7 @@ import './AdminOperations.css';
 
 const labels = { all: 'Tutti gli stati', queue: 'Tutta la coda', published: 'Pubblicati', draft: 'Bozze pronte', pending: 'In attesa', processing: 'In elaborazione', failed: 'Falliti' };
 
-export function AdminOperations({ token, queue = false, onClient }) {
+export function AdminOperations({ token, queue = false, onClient, users = [], selectedUserId = '', onUserSelect }) {
   const [search, setSearch] = useState('');
   const [query, setQuery] = useState('');
   const [status, setStatus] = useState(queue ? 'queue' : 'all');
@@ -16,17 +16,18 @@ export function AdminOperations({ token, queue = false, onClient }) {
   const [busy, setBusy] = useState(false);
   const [revision, setRevision] = useState(0);
   const request = useRef(0);
+  useEffect(() => { setPage(1); setNotice(''); }, [selectedUserId]);
   useEffect(() => { const timer = setTimeout(() => { setQuery(search); setPage(1); }, 300); return () => clearTimeout(timer); }, [search]);
   useEffect(() => {
     const id = ++request.current;
     const controller = new AbortController();
     setLoading(true); setError('');
-    apiFetch(`/api/index.php?action=admin-content-list&status=${status}&page=${page}&q=${encodeURIComponent(query)}`, { signal: controller.signal }, token)
+    apiFetch(`/api/index.php?action=admin-content-list&status=${status}&page=${page}&q=${encodeURIComponent(query)}${selectedUserId ? `&user_id=${encodeURIComponent(selectedUserId)}` : ''}`, { signal: controller.signal }, token)
       .then(result => { if (id === request.current) setData(result); })
       .catch(e => { if (id === request.current && e.name !== 'AbortError') setError(e.message); })
       .finally(() => { if (id === request.current) setLoading(false); });
     return () => controller.abort();
-  }, [token, status, page, query, revision]);
+  }, [token, status, page, query, revision, selectedUserId]);
 
   async function change(item, operation) {
     const messages = { publish: 'Pubblicare questo articolo sul sito del cliente?', unpublish: 'Ritirare questo articolo dal sito pubblico?', retry: 'Rimettere in coda questo contenuto? La prossima elaborazione può consumare credito AI.', noindex: 'Escludere questo articolo dai motori di ricerca?', index: 'Consentire l’indicizzazione di questo articolo?' };
@@ -42,6 +43,7 @@ export function AdminOperations({ token, queue = false, onClient }) {
 
   return <section className="card admin-operations" aria-label={queue ? 'Gestione coda' : 'Gestione contenuti'}>
     <div className="admin-section-heading"><div><span>{queue ? 'Recupero elaborazioni' : 'Archivio completo'}</span><h3>{queue ? 'Coda e recupero errori' : 'Gestione contenuti'}</h3><p>{queue ? 'Controlla tentativi e stato. Puoi recuperare errori e lavorazioni ferme da oltre 10 minuti.' : 'Cerca in tutti i contenuti, gestisci pubblicazione e indicizzazione, apri il cliente.'}</p></div><button className="btn btn-outline" disabled={loading || busy} onClick={() => setRevision(value => value + 1)}>Aggiorna elenco</button></div>
+    {onUserSelect && <div className="ao-scope"><label>Ambito del controllo<select aria-label="Filtra contenuti per cliente" value={selectedUserId} disabled={busy} onChange={e => { setPage(1); setNotice(''); onUserSelect(e.target.value); }}><option value="">Tutti i clienti e account</option>{users.map(user => <option key={user.id} value={user.id}>{user.name || user.email} · {user.email}</option>)}</select></label><small>{selectedUserId ? 'Operazioni limitate al cliente selezionato.' : 'Stai consultando i contenuti di tutta la piattaforma.'}</small></div>}
     <div className="ao-filters"><label>Cerca contenuti o clienti<input type="search" value={search} placeholder="Titolo, nome, email o ID" onChange={e => setSearch(e.target.value)} /></label><label>Stato<select value={status} onChange={e => { setStatus(e.target.value); setPage(1); }}>{Object.entries(labels).filter(([key]) => queue ? ['queue','pending','processing','failed'].includes(key) : key !== 'queue').map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select></label></div>
     {error && <p role="alert" className="admin-warning">{error} <button className="btn btn-outline" onClick={() => setRevision(value => value + 1)}>Riprova</button></p>}
     {notice && <p role="status">{notice}</p>}

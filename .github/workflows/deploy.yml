@@ -130,6 +130,7 @@ jobs:
           php tools/test_ai_health.php
           php tools/test_admin_operations.php
           php tools/test_admin_content.php
+          php tools/test_session_identity.php
           php tools/test_password_recovery.php
           php tools/test_content_ideas.php
           php tools/test_article_studio.php
@@ -154,6 +155,15 @@ jobs:
           cd openpage
           npm install --legacy-peer-deps
           npm run build
+
+      - name: Test administrative role separation in browser
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm install --prefix "$RUNNER_TEMP/admin-browser" --no-save --package-lock=false playwright@1.64.1
+          export NODE_PATH="$RUNNER_TEMP/admin-browser/node_modules"
+          node "$NODE_PATH/playwright/cli.js" install --with-deps chromium
+          node tools/run_admin_browser_tests.cjs
 
       - name: Prepare production release
         env:

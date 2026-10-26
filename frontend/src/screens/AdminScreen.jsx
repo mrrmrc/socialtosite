@@ -3,6 +3,7 @@ import { apiFetch } from '../utils/api';
 import { AdminControlRoom } from '../components/AdminControlRoom';
 import { AdminProviderCard } from '../components/AdminProviderCard';
 import { AdminOperations } from '../components/AdminOperations';
+import { AdminPlatformOverview } from '../components/AdminPlatformOverview';
 
 const PANEL_STYLE = { padding: '14px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)' };
 
@@ -22,6 +23,13 @@ function UserEconomicsRow({ user, busy, onSave, formatCost }) {
 export function AdminScreen({ token, currentUser, adminPrompts, updatePrompt }) {
   const [adminTab, setAdminTab] = useState('overview');
   const [users, setUsers] = useState([]);
+  const [usersLoaded, setUsersLoaded] = useState(false);
+  const [usersLoading, setUsersLoading] = useState(false);
+  const [usersError, setUsersError] = useState('');
+  const [usersDiagnostics, setUsersDiagnostics] = useState([]);
+  const [usersCountsAvailable, setUsersCountsAvailable] = useState(true);
+  const [contentScopeId, setContentScopeId] = useState('');
+  const usersRequest = useRef(0);
   const [logs, setLogs] = useState([]);
   const [selectedControlUserId, setSelectedControlUserId] = useState('');
   const [editorialRoom, setEditorialRoom] = useState(null);
@@ -51,11 +59,12 @@ export function AdminScreen({ token, currentUser, adminPrompts, updatePrompt }) 
   const [monitoringLoading, setMonitoringLoading] = useState(false);
   const [monitoringUpdated, setMonitoringUpdated] = useState(null);
   const monitoringRequest = useRef(0);
+  const controlUsers = users.filter(user => user.role !== 'admin');
 
   useEffect(() => {
     setError('');
     setNotice('');
-    if (adminTab === 'users' || adminTab === 'control-room') loadUsers();
+    if (['overview', 'users', 'control-room', 'content-manager', 'processes'].includes(adminTab)) loadUsers();
     if (adminTab === 'logs') loadLogs();
     if (adminTab === 'content-mix') loadContentMix();
     if (['overview', 'agents', 'economics', 'monitoring', 'monitor-live'].includes(adminTab)) {
@@ -82,9 +91,14 @@ export function AdminScreen({ token, currentUser, adminPrompts, updatePrompt }) 
 
   useEffect(() => {
     if (adminTab !== 'control-room') return;
-    if (!users.length) return;
-    if (!selectedControlUserId) {
-      setSelectedControlUserId(String(users[0].id));
+    if (!controlUsers.length) {
+      setSelectedControlUserId('');
+      setEditorialRoom(null);
+      return;
+    }
+    if (!controlUsers.some(user => String(user.id) === String(selectedControlUserId))) {
+      setSelectedControlUserId(String(controlUsers[0].id));
+      setEditorialRoom(null);
       return;
     }
     loadEditorialRoom(selectedControlUserId);
@@ -147,12 +161,21 @@ export function AdminScreen({ token, currentUser, adminPrompts, updatePrompt }) 
   }
 
   async function loadUsers() {
+    const requestId = ++usersRequest.current;
+    setUsersLoading(true);
+    setUsersError('');
     try {
       const data = await apiFetch('/api/index.php?action=admin-users', {}, token);
+      if (requestId !== usersRequest.current) return;
       setUsers(data.users || []);
+      setUsersDiagnostics(data.diagnostics || []);
+      setUsersCountsAvailable(data.counts_available !== false);
+      setUsersLoaded(true);
       setError('');
     } catch (e) {
-      setError(e.message);
+      if (requestId === usersRequest.current) { setUsersError(e.message); setError(e.message); }
+    } finally {
+      if (requestId === usersRequest.current) setUsersLoading(false);
     }
   }
 
@@ -386,6 +409,7 @@ export function AdminScreen({ token, currentUser, adminPrompts, updatePrompt }) 
         setSelectedControlUserId('');
         setEditorialRoom(null);
       }
+      if (String(contentScopeId) === String(id)) setContentScopeId('');
     } catch (e) {
       setError(e.message);
     }
@@ -409,8 +433,25 @@ export function AdminScreen({ token, currentUser, adminPrompts, updatePrompt }) 
   }
 
   function openClient(id) {
+    const target = users.find(user => String(user.id) === String(id));
+    if (target?.role === 'admin') {
+      setUserProfile('');
+      setUserSearch(target.email || target.name || '');
+      setAdminTab('users');
+      return;
+    }
     setSelectedControlUserId(id);
     setAdminTab('control-room');
+  }
+
+  function openClientContents(id, queue = false) {
+    setContentScopeId(String(id));
+    setAdminTab(queue ? 'processes' : 'content-manager');
+  }
+
+  function navigateAdminTab(id) {
+    if (['content-manager', 'processes'].includes(id)) setContentScopeId('');
+    setAdminTab(id);
   }
 
   async function revokeUserSessions(id) {
@@ -438,48 +479,31 @@ export function AdminScreen({ token, currentUser, adminPrompts, updatePrompt }) 
 
   const activePrompts = adminPrompts.map(prompt => restoredPrompts[prompt.agent_name] === undefined ? prompt : { ...prompt, instructions: restoredPrompts[prompt.agent_name] });
   const adminNavigation = [
-    { group: 'Controllo', items: [['overview','Panoramica','▦'],['control-room','Control Room','⌘'],['monitor-live','Monitor Live','⚡'],['agents','Agenti AI','✦']] },
-    { group: 'Operatività', items: [['users','Clienti','◎'],['content-manager','Gestione contenuti','▤'],['content-mix','Analisi contenuti','◷'],['processes','Code e recupero','↻']] },
-    { group: 'Economia', items: [['economics','Costi e consumi','€']] },
-    { group: 'Sistema', items: [['monitoring','Cron e provider','◉'],['logs','Log','≡']] },
+    { group: 'Piattaforma', items: [['overview','Panoramica','▦'],['users','Clienti','◎'],['control-room','Control Room','⌘']] },
+    { group: 'Produzione di tutti i clienti', items: [['content-manager','Gestione contenuti','▤'],['processes','Code e recupero','↻'],['content-mix','Analisi contenuti','◷']] },
+    { group: 'Configurazione globale', items: [['agents','Agenti AI','✦'],['economics','Costi e consumi','€']] },
+    { group: 'Sistema', items: [['monitoring','Cron e provider','◉'],['monitor-live','Monitor Live','⚡'],['logs','Log','≡']] },
   ];
+  const activeSection = adminNavigation.flatMap(group => group.items).find(([id]) => id === adminTab);
+  const selectedAccount = controlUsers.find(user => String(user.id) === String(selectedControlUserId));
   const monthUsage = monitoringData?.usage_this_month || {};
   const formatCost = value => Number(value || 0).toLocaleString('it-IT', { style: 'currency', currency: 'EUR', minimumFractionDigits: 4 });
 
   return (
     <div className={`admin-workspace${adminTab === 'control-room' ? ' admin-workspace-control' : ''}`}>
       <aside className="admin-navigation" aria-label="Navigazione amministrazione">
-        <header><span>Amministrazione</span><strong>Centro di controllo</strong></header>
-        {adminNavigation.map(section => <section key={section.group}><small>{section.group}</small>{section.items.map(([id,label,icon]) => <button key={id} className={adminTab === id ? 'is-active' : ''} aria-current={adminTab === id ? 'page' : undefined} onClick={() => setAdminTab(id)}><i aria-hidden="true">{icon}</i><span>{label}</span></button>)}</section>)}
+        <header><span>Amministrazione</span><strong>Controllo piattaforma</strong></header><p className="admin-nav-description">Clienti, produzione, accessi e configurazioni globali.</p>
+        {adminNavigation.map(section => <section key={section.group}><small>{section.group}</small>{section.items.map(([id,label,icon]) => <button key={id} className={adminTab === id ? 'is-active' : ''} aria-current={adminTab === id ? 'page' : undefined} onClick={() => navigateAdminTab(id)}><i aria-hidden="true">{icon}</i><span>{label}</span></button>)}</section>)}
       </aside>
       <main className="admin-main">
-      <header className="admin-commandbar"><div><small>Amministrazione / {adminNavigation.flatMap(group => group.items).find(([id]) => id === adminTab)?.[1]}</small><h2>{adminNavigation.flatMap(group => group.items).find(([id]) => id === adminTab)?.[1] || 'Amministrazione'}</h2></div><div><small>{monitoringLoading ? 'Aggiornamento in corso…' : monitoringUpdated ? 'Panoramica aggiornata alle ' + monitoringUpdated.toLocaleTimeString('it-IT') : 'Panoramica non ancora aggiornata'}</small></div></header>
-      {adminTab === 'content-manager' && <AdminOperations token={token} onClient={openClient} />}
-      {adminTab === 'processes' && <AdminOperations key="queue" token={token} queue onClient={openClient} />}
+      <header className="admin-commandbar"><div><div className="admin-scope"><span className="admin-scope-badge">AMMINISTRATORE</span><small>{adminTab === 'control-room' && selectedAccount ? 'Cliente: ' + (selectedAccount.name || selectedAccount.email) : 'Ambito piattaforma'}</small></div><h2>{activeSection?.[1] || 'Amministrazione'}</h2><small>{monitoringLoading ? 'Aggiornamento in corso…' : monitoringUpdated ? 'Dati piattaforma aggiornati alle ' + monitoringUpdated.toLocaleTimeString('it-IT') : 'Dati piattaforma non ancora aggiornati'}</small></div><select className="admin-global-search" aria-label="Vai al controllo cliente" value="" onChange={e => { if(e.target.value) openClient(e.target.value); }}><option value="">Vai al controllo cliente…</option>{controlUsers.map(user => <option key={user.id} value={user.id}>{user.name || user.email}</option>)}</select></header>
+      {adminTab === 'content-manager' && <AdminOperations token={token} onClient={openClient} users={users} selectedUserId={contentScopeId} onUserSelect={setContentScopeId} />}
+      {adminTab === 'processes' && <AdminOperations key="queue" token={token} queue onClient={openClient} users={users} selectedUserId={contentScopeId} onUserSelect={setContentScopeId} />}
 
       {error && <div role="alert" style={{ background: 'var(--red-light)', color: 'var(--red)', padding: '10px 14px', borderRadius: 'var(--radius-sm)', marginBottom: '1rem', fontSize: '13px' }}>{error}</div>}
       {notice && <div role="status" style={{ background: 'var(--teal-light)', color: '#0F6E56', padding: '10px 14px', borderRadius: 'var(--radius-sm)', marginBottom: '1rem', fontSize: '13px', fontWeight: 700 }}>{notice}</div>}
 
-      {adminTab === 'overview' && <div className="admin-overview">
-        <section className="admin-hero"><div><span>Stato della piattaforma</span><h2>Le informazioni importanti, prima dei dettagli tecnici</h2><p>Clienti, produzione editoriale, agenti e consumi riuniti in una vista operativa.</p></div><div><button className="btn btn-outline" disabled={monitoringLoading} onClick={loadMonitoring}>Aggiorna panoramica</button><button className="btn btn-primary" onClick={() => setAdminTab('control-room')}>Apri Control Room</button></div></section>
-        {monitoringData?.diagnostics?.length > 0 && <p role="alert" className="admin-warning">Alcuni dati non sono disponibili: {monitoringData.diagnostics.join('; ')}.</p>}
-        <section className="admin-kpi-grid">
-          {[[monitoringData?.totals?.users ?? '—','Clienti registrati'],[monitoringData?.totals?.published_posts ?? '—','Articoli pubblicati'],[monitoringData?.totals?.queued_posts ?? '—','Elementi in coda'],[monitoringData?.agents?.filter(a=>a.prompt_configured).length || 0,'Agenti configurati']].map(([value,label])=><article key={label}><strong>{value}</strong><span>{label}</span></article>)}
-        </section>
-
-        
-
-        <section aria-label="Priorità operative" className="admin-priorities">
-          {(monitoringData?.provider_settings || []).filter(provider => !Number(provider.enabled) || !provider.credential_configured).map(provider => <button className="admin-priority" key={provider.provider} onClick={() => setAdminTab('monitoring')}><strong>{provider.label}: da verificare</strong><small>{!Number(provider.enabled) ? 'Provider disattivato' : 'Credenziale mancante'}. Apri i collegamenti per intervenire.</small></button>)}
-          {Object.values((monitoringData?.cron_logs || []).reduce((latest, job) => { if (!latest[job.job_name]) latest[job.job_name] = job; return latest; }, {})).filter(job => ['error','failed'].includes(job.status)).map(job => <button className="admin-priority" key={job.job_name} onClick={() => setAdminTab('monitoring')}><strong>Cron {job.job_name}: errore</strong><small>Ultima esecuzione: {job.run_at}. Controlla i dettagli prima di rilanciare.</small></button>)}
-          <button className="admin-priority" onClick={() => setAdminTab('processes')}><strong>Controlla la coda</strong><small>{monitoringData?.totals?.queued_posts ?? '—'} contenuti in attesa. Isola gli errori e recupera le lavorazioni bloccate.</small></button>
-          <button className="admin-priority" onClick={() => setAdminTab('content-manager')}><strong>Gestisci le pubblicazioni</strong><small>Cerca nell’archivio completo e controlla cosa appare sui siti dei clienti.</small></button>
-        </section>
-        <section className="admin-dashboard-grid">
-          <div className="card"><div className="admin-section-heading"><div><span>Produzione AI</span><h3>Agenti editoriali e grafici</h3></div><button onClick={()=>setAdminTab('agents')}>Vedi tutti →</button></div><div className="admin-agent-compact">{(monitoringData?.agents || []).slice(0,5).map(agent=><article key={agent.agent_name}><i className={agent.prompt_configured?'is-ready':''}/><div><strong>{agent.label}</strong><span>{agent.purpose}</span></div><b>{agent.prompt_configured?'Configurato':'Prompt predefinito'}</b></article>)}</div></div>
-          <div className="card"><div className="admin-section-heading"><div><span>Mese corrente</span><h3>Consumi registrati</h3></div><button onClick={()=>setAdminTab('economics')}>Analizza →</button></div><div className="admin-cost-summary"><strong>{Number(monthUsage.total_tokens||0).toLocaleString('it-IT')}</strong><span>token · {monthUsage.requests||0} richieste</span><b>{monitoringData?.cost_tracking_ready ? formatCost(monthUsage.estimated_cost) : 'Costo non ancora valorizzato'}</b></div></div>
-        </section>
-      </div>}
+      {adminTab === 'overview' && <AdminPlatformOverview monitoring={monitoringData} loading={monitoringLoading} users={users} usersLoaded={usersLoaded} usersLoading={usersLoading} usersError={usersError} usersDiagnostics={usersDiagnostics} usersCountsAvailable={usersCountsAvailable} onRefresh={() => { loadMonitoring(); loadUsers(); }} onNavigate={navigateAdminTab} onClient={openClient} onClientContent={openClientContents} />}
 
       {adminTab === 'monitor-live' && (
         <>
@@ -670,7 +694,7 @@ export function AdminScreen({ token, currentUser, adminPrompts, updatePrompt }) 
       {adminTab === 'users' && (
         <div>
           <div className="card" style={{ marginBottom: '1rem' }}>
-            <h3 style={{ marginBottom: '1rem' }}>Crea nuovo utente</h3>
+            <h3 style={{ marginBottom: '1rem' }}>Crea account cliente o amministratore</h3>
             <form onSubmit={createUser} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '12px' }}>
               <div className="form-group" style={{ marginBottom: 0 }}>
                 <label className="label">Nome</label>
@@ -700,9 +724,10 @@ export function AdminScreen({ token, currentUser, adminPrompts, updatePrompt }) 
           </div>
 
           <div className="card">
-            <h3 style={{ marginBottom: '1rem' }}>Lista Utenti</h3>
+            <h3 style={{ marginBottom: '1rem' }}>Account, piani e accessi</h3><p className="admin-nav-description">Gli account cliente producono contenuti; gli amministratori gestiscono tutta la piattaforma.</p>
             <div className="admin-client-filters"><input aria-label="Cerca clienti" type="search" value={userSearch} onChange={e => setUserSearch(e.target.value)} placeholder="Nome, email o indirizzo del sito"/><select aria-label="Filtra profilo clienti" value={userProfile} onChange={e => setUserProfile(e.target.value)}><option value="">Tutti i profili</option><option value="base">Base</option><option value="professional">Professional</option><option value="agency">Agency</option><option value="admin">Amministratori</option></select></div>
-            {!users.length && <p>Nessun cliente disponibile.</p>}
+            {usersLoading && <p role="status">Aggiornamento account…</p>}
+            {!usersLoading && !users.length && <p>Nessun account disponibile.</p>}
             {users.filter(u => (!userProfile || (userProfile === 'admin' ? u.role === 'admin' : u.role !== 'admin' && u.plan === userProfile)) && [u.name,u.email,u.slug].some(value => String(value || '').toLowerCase().includes(userSearch.trim().toLowerCase()))).map(u => {
               const siteUrl = `${(window.API_BASE || '').replace(/\/$/, '')}/${encodeURIComponent(u.slug)}`;
               return (
@@ -711,11 +736,10 @@ export function AdminScreen({ token, currentUser, adminPrompts, updatePrompt }) 
                     <div>
                       <div style={{ fontWeight: 600 }}>{u.name || u.email}</div>
                       <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{u.email}</div>
-                      <a href={siteUrl} target="_blank" rel="noopener" style={{ fontSize: '12px', color: 'var(--purple)', textDecoration: 'none' }}>{siteUrl}</a>
+                      {u.role !== 'admin' && <a href={siteUrl} target="_blank" rel="noopener" style={{ fontSize: '12px', color: 'var(--purple)', textDecoration: 'none' }}>{siteUrl}</a>}
                     </div>
                     <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-                      <div>{u.posts_count} contenuti</div>
-                      <div>{u.sources_count} fonti attive</div>
+                      {u.role === 'admin' ? <strong>Accesso globale alla piattaforma</strong> : <><div>{u.posts_count ?? '—'} contenuti</div><div>{u.sources_count ?? '—'} fonti attive</div></>}
                     </div>
                     <div style={{ display: 'grid', gap: '6px' }}>
                       <select aria-label={`Profilo di ${u.name || u.email}`} value={u.role === 'admin' ? 'admin' : (u.plan || 'base')} onChange={e => updateProfile(u.id, e.target.value)} style={{ padding: '7px', border: '1px solid var(--border-strong)', borderRadius: 'var(--radius-sm)', background: 'var(--surface)' }}>
@@ -726,7 +750,7 @@ export function AdminScreen({ token, currentUser, adminPrompts, updatePrompt }) 
                       </select>
                     </div>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-<button className="btn btn-outline" onClick={() => openClient(String(u.id))}>Apri controllo cliente</button>
+                      {u.role !== 'admin' && <button className="btn btn-outline" onClick={() => openClient(String(u.id))}>Apri controllo cliente</button>}
                       <button className="btn btn-outline" disabled={Boolean(adminActionBusy)} onClick={() => revokeUserSessions(u.id)}>Revoca sessioni</button>
                       <button className="btn btn-outline" onClick={() => impersonateUser(u.id)} disabled={u.id === currentUser.id} style={{ color: 'var(--purple)', borderColor: 'var(--purple-light)', padding: '6px', fontSize: '12px' }}>
                         Accedi come
@@ -784,12 +808,12 @@ export function AdminScreen({ token, currentUser, adminPrompts, updatePrompt }) 
       )}
 
       {adminTab === 'control-room' && <AdminControlRoom
-        users={users} selectedId={selectedControlUserId} onSelect={setSelectedControlUserId}
+        users={controlUsers} selectedId={selectedControlUserId} onSelect={setSelectedControlUserId}
         room={editorialRoom} loading={roomLoading} loadError={roomError} prompts={activePrompts}
         currentUserId={currentUser.id} busy={adminActionBusy}
         onRefresh={() => loadEditorialRoom(selectedControlUserId)} onRun={runEditorialForSelectedUser}
         onImpersonate={impersonateUser} onNoindex={togglePostNoindex}
-        onOpenAgents={() => setAdminTab('agents')} onOpenQueue={() => setAdminTab('processes')}
+        onOpenAgents={() => setAdminTab('agents')} onOpenQueue={() => openClientContents(selectedControlUserId, true)} onOpenContents={() => openClientContents(selectedControlUserId)}
         onProfileSave={(id, patch) => saveClientConfiguration(id, patch)} onEngineSave={(id, patch) => saveClientConfiguration(id, patch, true)}
       />}
       {adminTab === 'prompts' && (
