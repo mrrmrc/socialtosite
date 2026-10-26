@@ -5,6 +5,17 @@
   max-width: 100%;
   grid-template-columns: minmax(0, 1fr);
 }
+.admin-kpi-grid .ap-kpi {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  justify-items: start;
+  align-content: start;
+  gap: 6px;
+}
+.admin-kpi-grid .ap-kpi small {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
 .admin-platform-overview > *,
 .admin-platform-overview .admin-kpi-grid > *,
 .admin-platform-overview .admin-priorities > *,
