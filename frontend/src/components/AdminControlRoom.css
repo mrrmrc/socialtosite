@@ -1,4 +1,5 @@
 .control-room { --cr-line: var(--border, #dce2e9); color: var(--text); }
+.admin-client-settings{display:grid;gap:12px;margin:18px 0;padding-top:16px;border-top:1px solid var(--border)}.admin-client-settings label{display:grid;gap:6px;font-size:13px;overflow-wrap:anywhere}.admin-client-settings textarea,.admin-client-settings input[type=number]{width:100%;min-width:0;padding:10px;border:1px solid var(--border);border-radius:8px;background:var(--bg);color:var(--text);font:inherit}.admin-client-settings textarea{resize:vertical}.admin-client-settings label:has(input[type=checkbox]){display:flex;align-items:center}.admin-client-settings .btn{justify-self:start}
 .cr-heading { margin: 0 0 24px; }.cr-heading h2 { margin: 0 0 6px; font-size: 27px; letter-spacing: -.6px; }.cr-heading p { margin: 0; color: var(--text-muted); font-size: 14px; }
 .cr-workspace { display: grid; grid-template-columns: 245px minmax(0, 1fr); gap: 20px; align-items: start; }
 .cr-clients,.cr-detail { background: var(--surface); border: 1px solid var(--cr-line); border-radius: 16px; min-width: 0; overflow: hidden; }

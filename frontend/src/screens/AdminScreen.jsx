@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { apiFetch } from '../utils/api';
 import { AdminControlRoom } from '../components/AdminControlRoom';
 import { AdminProviderCard } from '../components/AdminProviderCard';
+import { AdminOperations } from '../components/AdminOperations';
 
 const PANEL_STYLE = { padding: '14px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)' };
 
@@ -22,7 +23,6 @@ export function AdminScreen({ token, currentUser, adminPrompts, updatePrompt }) 
   const [adminTab, setAdminTab] = useState('overview');
   const [users, setUsers] = useState([]);
   const [logs, setLogs] = useState([]);
-  const [processes, setProcesses] = useState([]);
   const [selectedControlUserId, setSelectedControlUserId] = useState('');
   const [editorialRoom, setEditorialRoom] = useState(null);
   const [roomLoading, setRoomLoading] = useState(false);
@@ -46,12 +46,17 @@ export function AdminScreen({ token, currentUser, adminPrompts, updatePrompt }) 
   const [logFilterLevel, setLogFilterLevel] = useState('');
   const [logFilterCtx, setLogFilterCtx] = useState('');
   const [logSearch, setLogSearch] = useState('');
+  const [userSearch, setUserSearch] = useState('');
+  const [userProfile, setUserProfile] = useState('');
+  const [monitoringLoading, setMonitoringLoading] = useState(false);
+  const [monitoringUpdated, setMonitoringUpdated] = useState(null);
+  const monitoringRequest = useRef(0);
 
   useEffect(() => {
     setError('');
+    setNotice('');
     if (adminTab === 'users' || adminTab === 'control-room') loadUsers();
     if (adminTab === 'logs') loadLogs();
-    if (adminTab === 'processes') loadProcesses();
     if (adminTab === 'content-mix') loadContentMix();
     if (['overview', 'agents', 'economics', 'monitoring', 'monitor-live'].includes(adminTab)) {
       loadMonitoring();
@@ -60,12 +65,18 @@ export function AdminScreen({ token, currentUser, adminPrompts, updatePrompt }) 
   }, [adminTab]);
 
   async function loadMonitoring() {
+    const requestId = ++monitoringRequest.current;
+    setMonitoringLoading(true);
     try {
       const data = await apiFetch('/api/index.php?action=admin-monitoring', {}, token);
+      if (requestId !== monitoringRequest.current) return;
       setMonitoringData(data);
+      setMonitoringUpdated(new Date());
       setError('');
     } catch (e) {
-      setError(e.message);
+      if (requestId === monitoringRequest.current) setError(e.message);
+    } finally {
+      if (requestId === monitoringRequest.current) setMonitoringLoading(false);
     }
   }
 
@@ -121,29 +132,6 @@ export function AdminScreen({ token, currentUser, adminPrompts, updatePrompt }) 
     try {
       await apiFetch('/api/index.php?action=logs-clear', { method: 'POST' }, token);
       await loadLogs();
-    } catch (e) {
-      setError(e.message);
-    }
-  }
-
-  async function loadProcesses() {
-    try {
-      const data = await apiFetch('/api/index.php?action=admin-processes', {}, token);
-      setProcesses(data.processes || []);
-      setError('');
-    } catch (e) {
-      setError(e.message);
-    }
-  }
-
-  async function killProcess(id) {
-    if (!confirm('Eliminare questo processo in coda?')) return;
-    try {
-      await apiFetch('/api/index.php?action=admin-kill-process', {
-        method: 'POST',
-        body: JSON.stringify({ id }),
-      }, token);
-      await loadProcesses();
     } catch (e) {
       setError(e.message);
     }
@@ -353,6 +341,7 @@ export function AdminScreen({ token, currentUser, adminPrompts, updatePrompt }) 
   };
 
   const updateProfile = (id, profile) => {
+    if (profile === 'admin' && !confirm('Assegnare il ruolo amministratore? Questo account avrà accesso a tutti i clienti e alle configurazioni.')) return;
     const data = {
       role: profile === 'admin' ? 'admin' : 'user',
       plan: profile === 'admin' ? 'agency' : profile
@@ -384,7 +373,8 @@ export function AdminScreen({ token, currentUser, adminPrompts, updatePrompt }) 
   }
 
   async function deleteUser(id) {
-    if (!confirm('Eliminare questo utente e tutti i suoi contenuti?')) return;
+    const target = users.find(user => Number(user.id) === Number(id));
+    if (!target || window.prompt(`Eliminazione definitiva di ${target.email} e di tutti i suoi contenuti. Scrivi l’email del cliente per confermare.`) !== target.email) return;
     setError('');
     try {
       await apiFetch('/api/index.php?action=admin-delete-user', {
@@ -418,10 +408,38 @@ export function AdminScreen({ token, currentUser, adminPrompts, updatePrompt }) 
     }
   }
 
+  function openClient(id) {
+    setSelectedControlUserId(id);
+    setAdminTab('control-room');
+  }
+
+  async function revokeUserSessions(id) {
+    if (!confirm('Revocare tutte le sessioni di questo account? Sarà necessario accedere nuovamente.')) return;
+    setAdminActionBusy(`sessions-${id}`); setError(''); setNotice('');
+    try {
+      await apiFetch('/api/index.php?action=admin-revoke-sessions', { method: 'POST', body: JSON.stringify({ id }) }, token);
+      setNotice('Sessioni revocate. L’utente dovrà accedere nuovamente.');
+      if (Number(id) === Number(currentUser.id)) {
+        localStorage.removeItem('sts_token'); localStorage.removeItem('sts_user'); window.location.reload();
+      }
+    } catch (e) { setError(e.message); }
+    finally { setAdminActionBusy(''); }
+  }
+
+  async function saveClientConfiguration(id, patch, engine = false) {
+    setAdminActionBusy(`client-settings-${id}`); setError(''); setNotice('');
+    try {
+      await apiFetch(`/api/index.php?action=${engine ? 'admin-editorial-engine-save' : 'admin-update-user'}`, { method: 'POST', body: JSON.stringify(engine ? { user_id: id, ...patch } : { id, ...patch }) }, token);
+      setNotice('Configurazione del cliente salvata.');
+      if (String(id) === String(selectedRoomId.current)) await loadEditorialRoom(String(id));
+    } catch (e) { setError(e.message); }
+    finally { setAdminActionBusy(''); }
+  }
+
   const activePrompts = adminPrompts.map(prompt => restoredPrompts[prompt.agent_name] === undefined ? prompt : { ...prompt, instructions: restoredPrompts[prompt.agent_name] });
   const adminNavigation = [
     { group: 'Controllo', items: [['overview','Panoramica','▦'],['control-room','Control Room','⌘'],['monitor-live','Monitor Live','⚡'],['agents','Agenti AI','✦']] },
-    { group: 'Operatività', items: [['users','Clienti','◎'],['content-mix','Contenuti','▤'],['processes','Code','↻']] },
+    { group: 'Operatività', items: [['users','Clienti','◎'],['content-manager','Gestione contenuti','▤'],['content-mix','Analisi contenuti','◷'],['processes','Code e recupero','↻']] },
     { group: 'Economia', items: [['economics','Costi e consumi','€']] },
     { group: 'Sistema', items: [['monitoring','Cron e provider','◉'],['logs','Log','≡']] },
   ];
@@ -432,15 +450,18 @@ export function AdminScreen({ token, currentUser, adminPrompts, updatePrompt }) 
     <div className={`admin-workspace${adminTab === 'control-room' ? ' admin-workspace-control' : ''}`}>
       <aside className="admin-navigation" aria-label="Navigazione amministrazione">
         <header><span>Amministrazione</span><strong>Centro di controllo</strong></header>
-        {adminNavigation.map(section => <section key={section.group}><small>{section.group}</small>{section.items.map(([id,label,icon]) => <button key={id} className={adminTab === id ? 'is-active' : ''} onClick={() => setAdminTab(id)}><i>{icon}</i><span>{label}</span></button>)}</section>)}
+        {adminNavigation.map(section => <section key={section.group}><small>{section.group}</small>{section.items.map(([id,label,icon]) => <button key={id} className={adminTab === id ? 'is-active' : ''} aria-current={adminTab === id ? 'page' : undefined} onClick={() => setAdminTab(id)}><i aria-hidden="true">{icon}</i><span>{label}</span></button>)}</section>)}
       </aside>
       <main className="admin-main">
+      <header className="admin-commandbar"><div><small>Amministrazione / {adminNavigation.flatMap(group => group.items).find(([id]) => id === adminTab)?.[1]}</small><h2>{adminNavigation.flatMap(group => group.items).find(([id]) => id === adminTab)?.[1] || 'Amministrazione'}</h2></div><div><small>{monitoringLoading ? 'Aggiornamento in corso…' : monitoringUpdated ? 'Panoramica aggiornata alle ' + monitoringUpdated.toLocaleTimeString('it-IT') : 'Panoramica non ancora aggiornata'}</small></div></header>
+      {adminTab === 'content-manager' && <AdminOperations token={token} onClient={openClient} />}
+      {adminTab === 'processes' && <AdminOperations key="queue" token={token} queue onClient={openClient} />}
 
       {error && <div role="alert" style={{ background: 'var(--red-light)', color: 'var(--red)', padding: '10px 14px', borderRadius: 'var(--radius-sm)', marginBottom: '1rem', fontSize: '13px' }}>{error}</div>}
       {notice && <div role="status" style={{ background: 'var(--teal-light)', color: '#0F6E56', padding: '10px 14px', borderRadius: 'var(--radius-sm)', marginBottom: '1rem', fontSize: '13px', fontWeight: 700 }}>{notice}</div>}
 
       {adminTab === 'overview' && <div className="admin-overview">
-        <section className="admin-hero"><div><span>Stato della piattaforma</span><h2>Le informazioni importanti, prima dei dettagli tecnici</h2><p>Clienti, produzione editoriale, agenti e consumi riuniti in una vista operativa.</p></div><div><button className="btn btn-outline" onClick={loadMonitoring}>Aggiorna panoramica</button><button className="btn btn-primary" onClick={() => setAdminTab('control-room')}>Apri Control Room</button></div></section>
+        <section className="admin-hero"><div><span>Stato della piattaforma</span><h2>Le informazioni importanti, prima dei dettagli tecnici</h2><p>Clienti, produzione editoriale, agenti e consumi riuniti in una vista operativa.</p></div><div><button className="btn btn-outline" disabled={monitoringLoading} onClick={loadMonitoring}>Aggiorna panoramica</button><button className="btn btn-primary" onClick={() => setAdminTab('control-room')}>Apri Control Room</button></div></section>
         {monitoringData?.diagnostics?.length > 0 && <p role="alert" className="admin-warning">Alcuni dati non sono disponibili: {monitoringData.diagnostics.join('; ')}.</p>}
         <section className="admin-kpi-grid">
           {[[monitoringData?.totals?.users ?? '—','Clienti registrati'],[monitoringData?.totals?.published_posts ?? '—','Articoli pubblicati'],[monitoringData?.totals?.queued_posts ?? '—','Elementi in coda'],[monitoringData?.agents?.filter(a=>a.prompt_configured).length || 0,'Agenti configurati']].map(([value,label])=><article key={label}><strong>{value}</strong><span>{label}</span></article>)}
@@ -448,6 +469,12 @@ export function AdminScreen({ token, currentUser, adminPrompts, updatePrompt }) 
 
         
 
+        <section aria-label="Priorità operative" className="admin-priorities">
+          {(monitoringData?.provider_settings || []).filter(provider => !Number(provider.enabled) || !provider.credential_configured).map(provider => <button className="admin-priority" key={provider.provider} onClick={() => setAdminTab('monitoring')}><strong>{provider.label}: da verificare</strong><small>{!Number(provider.enabled) ? 'Provider disattivato' : 'Credenziale mancante'}. Apri i collegamenti per intervenire.</small></button>)}
+          {Object.values((monitoringData?.cron_logs || []).reduce((latest, job) => { if (!latest[job.job_name]) latest[job.job_name] = job; return latest; }, {})).filter(job => ['error','failed'].includes(job.status)).map(job => <button className="admin-priority" key={job.job_name} onClick={() => setAdminTab('monitoring')}><strong>Cron {job.job_name}: errore</strong><small>Ultima esecuzione: {job.run_at}. Controlla i dettagli prima di rilanciare.</small></button>)}
+          <button className="admin-priority" onClick={() => setAdminTab('processes')}><strong>Controlla la coda</strong><small>{monitoringData?.totals?.queued_posts ?? '—'} contenuti in attesa. Isola gli errori e recupera le lavorazioni bloccate.</small></button>
+          <button className="admin-priority" onClick={() => setAdminTab('content-manager')}><strong>Gestisci le pubblicazioni</strong><small>Cerca nell’archivio completo e controlla cosa appare sui siti dei clienti.</small></button>
+        </section>
         <section className="admin-dashboard-grid">
           <div className="card"><div className="admin-section-heading"><div><span>Produzione AI</span><h3>Agenti editoriali e grafici</h3></div><button onClick={()=>setAdminTab('agents')}>Vedi tutti →</button></div><div className="admin-agent-compact">{(monitoringData?.agents || []).slice(0,5).map(agent=><article key={agent.agent_name}><i className={agent.prompt_configured?'is-ready':''}/><div><strong>{agent.label}</strong><span>{agent.purpose}</span></div><b>{agent.prompt_configured?'Configurato':'Prompt predefinito'}</b></article>)}</div></div>
           <div className="card"><div className="admin-section-heading"><div><span>Mese corrente</span><h3>Consumi registrati</h3></div><button onClick={()=>setAdminTab('economics')}>Analizza →</button></div><div className="admin-cost-summary"><strong>{Number(monthUsage.total_tokens||0).toLocaleString('it-IT')}</strong><span>token · {monthUsage.requests||0} richieste</span><b>{monitoringData?.cost_tracking_ready ? formatCost(monthUsage.estimated_cost) : 'Costo non ancora valorizzato'}</b></div></div>
@@ -674,7 +701,9 @@ export function AdminScreen({ token, currentUser, adminPrompts, updatePrompt }) 
 
           <div className="card">
             <h3 style={{ marginBottom: '1rem' }}>Lista Utenti</h3>
-            {users.map(u => {
+            <div className="admin-client-filters"><input aria-label="Cerca clienti" type="search" value={userSearch} onChange={e => setUserSearch(e.target.value)} placeholder="Nome, email o indirizzo del sito"/><select aria-label="Filtra profilo clienti" value={userProfile} onChange={e => setUserProfile(e.target.value)}><option value="">Tutti i profili</option><option value="base">Base</option><option value="professional">Professional</option><option value="agency">Agency</option><option value="admin">Amministratori</option></select></div>
+            {!users.length && <p>Nessun cliente disponibile.</p>}
+            {users.filter(u => (!userProfile || (userProfile === 'admin' ? u.role === 'admin' : u.role !== 'admin' && u.plan === userProfile)) && [u.name,u.email,u.slug].some(value => String(value || '').toLowerCase().includes(userSearch.trim().toLowerCase()))).map(u => {
               const siteUrl = `${(window.API_BASE || '').replace(/\/$/, '')}/${encodeURIComponent(u.slug)}`;
               return (
                 <div key={u.id} style={{ padding: '12px 0', borderBottom: '1px solid var(--border)' }}>
@@ -697,6 +726,8 @@ export function AdminScreen({ token, currentUser, adminPrompts, updatePrompt }) 
                       </select>
                     </div>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+<button className="btn btn-outline" onClick={() => openClient(String(u.id))}>Apri controllo cliente</button>
+                      <button className="btn btn-outline" disabled={Boolean(adminActionBusy)} onClick={() => revokeUserSessions(u.id)}>Revoca sessioni</button>
                       <button className="btn btn-outline" onClick={() => impersonateUser(u.id)} disabled={u.id === currentUser.id} style={{ color: 'var(--purple)', borderColor: 'var(--purple-light)', padding: '6px', fontSize: '12px' }}>
                         Accedi come
                       </button>
@@ -759,6 +790,7 @@ export function AdminScreen({ token, currentUser, adminPrompts, updatePrompt }) 
         onRefresh={() => loadEditorialRoom(selectedControlUserId)} onRun={runEditorialForSelectedUser}
         onImpersonate={impersonateUser} onNoindex={togglePostNoindex}
         onOpenAgents={() => setAdminTab('agents')} onOpenQueue={() => setAdminTab('processes')}
+        onProfileSave={(id, patch) => saveClientConfiguration(id, patch)} onEngineSave={(id, patch) => saveClientConfiguration(id, patch, true)}
       />}
       {adminTab === 'prompts' && (
         <div className="card">
@@ -787,40 +819,6 @@ export function AdminScreen({ token, currentUser, adminPrompts, updatePrompt }) 
           ))}
           {adminPrompts.length === 0 && (
             <p style={{ color: 'var(--text-muted)', fontSize: '13px' }}>Nessun agente trovato. Visita <code>/api/index.php?action=migrate</code> per inizializzare.</p>
-          )}
-        </div>
-      )}
-
-      {adminTab === 'processes' && (
-        <div className="card">
-          <h3 style={{ marginBottom: '1rem' }}>Processi in Coda (AI Pendente)</h3>
-          {processes.length === 0 ? (
-            <p style={{ color: 'var(--text-muted)', fontSize: '13px' }}>Nessun post in attesa di elaborazione AI.</p>
-          ) : (
-            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
-              <thead>
-                <tr style={{ borderBottom: '1px solid var(--border)', background: 'var(--gray-light)' }}>
-                  <th style={{ padding: '8px' }}>ID</th>
-                  <th style={{ padding: '8px' }}>Utente</th>
-                  <th style={{ padding: '8px' }}>Platform</th>
-                  <th style={{ padding: '8px' }}>Link</th>
-                  <th style={{ padding: '8px' }}>Azione</th>
-                </tr>
-              </thead>
-              <tbody>
-                {processes.map(p => (
-                  <tr key={p.id} style={{ borderBottom: '1px solid var(--border)' }}>
-                    <td style={{ padding: '8px' }}>#{p.id}</td>
-                    <td style={{ padding: '8px' }}>{p.name || p.email}</td>
-                    <td style={{ padding: '8px' }}>{p.platform}</td>
-                    <td style={{ padding: '8px' }}><a href={p.source_url} target="_blank" rel="noopener">Link</a></td>
-                    <td style={{ padding: '8px' }}>
-                      <button className="btn btn-outline" onClick={() => killProcess(p.id)} style={{ color: 'var(--red)', borderColor: 'var(--red-light)', padding: '4px 8px', fontSize: '12px' }}>Stoppa / Elimina</button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
           )}
         </div>
       )}

@@ -57,11 +57,14 @@ function adminRoute(string $action, array $payload, bool $isAdmin = true, string
     try { eval($route); } catch (AdminResponse $response) { return $response; }
     throw new RuntimeException('No response');
 }
-foreach (['admin-update-user', 'admin-impersonate', 'admin-provider-save', 'admin-settings', 'admin-provider-rates', 'admin-password-reset', 'admin-prompt-restore', 'admin-user-economics'] as $route) {
+foreach (['admin-kill-process', 'admin-editorial-engine-save', 'admin-content-action', 'admin-revoke-sessions', 'admin-update-user', 'admin-impersonate', 'admin-provider-save', 'admin-settings', 'admin-provider-rates', 'admin-password-reset', 'admin-prompt-restore', 'admin-user-economics'] as $route) {
     checkAdmin(adminRoute($route, [], false)->status === 403 && DB::$writes === [], 'Admin guard: ' . $route);
 }
 foreach ([['id' => 1, 'role' => 'user'], ['id' => 2, 'plan' => 'invented'], ['id' => 2, 'password' => 'short'], ['id' => 2, 'password' => str_repeat('x', 73)]] as $payload) {
     checkAdmin(adminRoute('admin-update-user', $payload)->status === 422 && DB::$writes === [], 'Invalid account change must not partially save');
+}
+foreach ([['id' => 2, 'role_mission' => []], ['id' => 2, 'content_strategy' => str_repeat('x', 10001)], ['id' => 2, 'name' => str_repeat('x', 101)]] as $payload) {
+    checkAdmin(adminRoute('admin-update-user', $payload)->status === 422 && DB::$writes === [], 'Invalid editorial text cannot partially update the account');
 }
 checkAdmin(adminRoute('admin-update-user', ['id' => 2, 'role' => 'user'])->status === 200 && DB::$revocations === [2], 'Role change revokes sessions');
 checkAdmin(adminRoute('admin-update-user', ['id' => 2, 'password' => 'new-valid-password'])->status === 200 && DB::$revocations === [2], 'Password change revokes sessions');
@@ -76,6 +79,11 @@ function ensureAdminSchema(): void {}
 $response = adminRoute('admin-prompt-restore', ['version_id' => 3]);
 checkAdmin($response->data['instructions'] === 'Previous instructions' && count(DB::$writes) === 2, 'Restore archives current text and returns active instructions');
 checkAdmin(adminRoute('admin-monitoring', [], false, 'GET')->status === 403, 'Monitoring is admin only');
+checkAdmin(adminRoute('admin-content-list', [], false, 'GET')->status === 403, 'Content archive is admin only');
+checkAdmin(adminRoute('admin-revoke-sessions', ['id' => 2])->status === 200 && str_contains(DB::$writes[0][0], 'token_version=token_version+1'), 'Admin revokes sessions without changing passwords');
+checkAdmin(adminRoute('admin-revoke-sessions', ['id' => 404])->status === 404 && DB::$writes === [], 'Revocation checks target exists');
+checkAdmin(adminRoute('admin-editorial-engine-save', ['user_id' => 2, 'min_posts' => 61])->status === 422 && DB::$writes === [], 'Reject impossible analysis threshold');
+checkAdmin(adminRoute('admin-editorial-engine-save', ['user_id' => 404, 'min_posts' => 8])->status === 404 && DB::$writes === [], 'Editorial settings require an existing site');
 $previousRuntimeKey = getenv('SOCIALTOSITE_RUNTIME_GEMINI_API_KEY');
 try {
     putenv('SOCIALTOSITE_RUNTIME_GEMINI_API_KEY=fixture-private-key');

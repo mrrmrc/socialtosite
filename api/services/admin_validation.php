@@ -29,6 +29,9 @@ final class AdminValidation
 
     public static function account(array $payload, int $targetId, int $adminId): void
     {
+        foreach (['name' => 100, 'role_mission' => 10000, 'content_strategy' => 10000] as $field => $limit) {
+            if (array_key_exists($field, $payload) && (!is_string($payload[$field]) || strlen($payload[$field]) > $limit)) throw new InvalidArgumentException('Testo non valido o troppo lungo: ' . $field);
+        }
         if (isset($payload['role']) && !in_array($payload['role'], ['admin', 'user'], true)) throw new InvalidArgumentException('Ruolo non valido.');
         if (isset($payload['plan']) && !in_array($payload['plan'], ['base', 'professional', 'agency'], true)) throw new InvalidArgumentException('Piano non valido.');
         if ($targetId === $adminId && isset($payload['role']) && $payload['role'] !== 'admin') throw new InvalidArgumentException('Non puoi rimuovere il tuo ruolo amministratore.');

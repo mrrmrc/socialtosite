@@ -1,0 +1,79 @@
+Analisi e riprogettazione amministrativa — 26 ottobre 2026
+
+Perimetro esaminato
+AdminScreen, Control Room, configurazione provider, router API, servizi
+amministrativi e validazione, autenticazione e revoca token, motore editoriale,
+ingestione e coda cron, monitor separato, connettori di pubblicazione,
+schema esistente, test e pipeline production/staging.
+
+Situazione iniziale
+- Navigazione già divisa fra controllo, operatività, economia e sistema.
+- Gestione account: creazione, piano/ruolo, password e accesso assistito.
+- Control Room: diagnosi cliente, fonti, contenuti recenti e dati editoriali.
+- Prompt globali: editor, storico e ripristino; provider: credenziali cifrate,
+  modello, attivazione, tariffario e budget mensile.
+- Costi: consumi AI, ricavi e costi cliente, margine stimato.
+- Sistema: impostazioni cron, lancio manuale, log e monitor infrastrutturale.
+
+Problemi principali e interventi
+1. L'archivio recente mostrava soltanto 100 elementi e non aveva operazioni.
+   Aggiunta Gestione contenuti: ricerca server, filtri di stato, paginazione
+   da 25 elementi su tutto l'archivio, pubblicazione, ritiro, indicizzazione
+   e collegamento diretto alla Control Room del cliente.
+2. La coda permetteva soltanto di eliminare post in attesa.
+   Sostituita nella UI con Code e recupero: stato, tentativi, ricerca,
+   filtri e ripristino dei fallimenti o lock abbandonati da oltre 10 minuti.
+   Il recupero azzera i tentativi e rimette il post in pending: non lancia
+   immediatamente una chiamata AI. Il normale cron riprende il contenuto.
+   I vincoli sono inclusi nell'UPDATE per proteggere i worker concorrenti.
+3. Configurazione cliente prevalentemente in lettura.
+   Obiettivo, strategia, analisi attiva, esecuzione automatica, soglia
+   di articoli e indicizzazione rigorosa ora modificabili dalla Control Room.
+   Prompt e provider restano globali e sono indicati come tali.
+4. Gestione account senza ricerca e senza revoca autonoma delle sessioni.
+   Aggiunti ricerca, filtro per profilo, accesso al controllo cliente e revoca
+   di tutti i token senza cambiare password. L'auto-revoca richiede nuovo login.
+   Eliminazione cliente con conferma tramite email e promozione admin esplicita.
+5. Panoramica senza percorso immediato dall'anomalia all'intervento.
+   Aggiunte priorità per provider mancanti/disattivati e ultimi cron falliti,
+   collegamenti a coda/pubblicazioni e ora dell'ultimo aggiornamento riuscito.
+
+Confini e garanzie
+- Nuove API riservate agli amministratori autenticati; query parametrizzate.
+- Pubblicazione consentita solo con elaborazione conclusa, titolo e corpo.
+- Operazioni su singolo contenuto; conflitti restituiti esplicitamente.
+- Nessuna nuova tabella o colonna e nessun trasferimento di dati tra ambienti.
+- Log admin-audit per nuove azioni sui contenuti, revoche, configurazione
+  motore, modifiche account/strategia, password ed eliminazioni account.
+  Non vengono registrati password, chiavi provider o testi dei contenuti.
+- Le API di elenco non restituiscono payload completi o errori grezzi dei provider.
+- Nuovo servizio incluso esplicitamente nel pacchetto FTP production.
+
+Funzioni esistenti mantenute
+Prompt/storico/ripristino, collegamenti provider, crediti e tariffe, economia
+cliente, analisi del mix dei contenuti, fonti, analisi editoriale manuale,
+cron e log. Per configurazione sito, fonti e connettori esterni si continua
+a usare l'area cliente tramite accesso assistito amministrativo.
+Il ritiro nella Gestione contenuti riguarda il sito SocialToSite: non cancella
+articoli eventualmente già esportati su WordPress o altri siti esterni.
+
+Limiti da distinguere dal controllo operativo
+- Il monitor infrastrutturale conserva la propria autenticazione e impostazioni.
+- I log sono operativi, soggetti a rotazione e cancellabili: non costituiscono
+  un registro di audit immutabile o un sistema di conformità.
+- Il budget provider è una configurazione economica; non viene introdotto
+  un nuovo blocco rigido di spesa o un nuovo sistema di fatturazione.
+- Rimangono i ruoli admin/user; non viene introdotto RBAC granulare.
+- Migrazioni, backup/ripristino del database e amministrazione dei container
+  restano operazioni infrastrutturali separate, non pulsanti di routine.
+
+Stato delle verifiche locali
+Superati: sintassi PHP dei file modificati, test delle operazioni amministrative,
+test dei nuovi vincoli sui contenuti e controllo git diff --check.
+Superati anche build finale Vite e test browser completi con API simulate:
+ricerca clienti, revoca sessioni, recupero coda, pubblicazione/ritiro,
+configurazione cliente, provider e prompt, risposte obsolete, errori di
+caricamento e layout mobile. Runner: tools/run_admin_browser_tests.cjs.
+Pubblicazione richiesta su staging per revisione dell'utente. La verifica
+del rilascio comprende workflow GitHub e bundle effettivamente serviti.
+L'eventuale pubblicazione successiva su main usa la pipeline FTP canonica.

@@ -355,6 +355,39 @@ if ($action === 'purge-all-posts' && $method === 'POST') {
     }
 }
 
+if ($action === 'admin-content-list' && $method === 'GET') {
+    requireAdmin($isAdmin);
+    require_once __DIR__ . '/services/admin_operations.php';
+    try { $result = AdminOperations::listing($_GET); }
+    catch (InvalidArgumentException $e) { jsonError($e->getMessage(), 422); }
+    catch (Throwable $e) { error_log('[admin-content-list] ' . $e->getMessage()); jsonError('Archivio non disponibile. Riprova.', 503); }
+    json($result);
+}
+
+if ($action === 'admin-content-action' && $method === 'POST') {
+    requireAdmin($isAdmin);
+    require_once __DIR__ . '/services/admin_operations.php';
+    try { AdminOperations::change(body(), (int)$userId); }
+    catch (InvalidArgumentException $e) { jsonError($e->getMessage(), 422); }
+    catch (OutOfBoundsException $e) { jsonError($e->getMessage(), 404); }
+    catch (DomainException $e) { jsonError($e->getMessage(), 409); }
+    catch (Throwable $e) { error_log('[admin-content-action] ' . $e->getMessage()); jsonError('Operazione non riuscita. Aggiorna e riprova.', 503); }
+    json(['ok' => true]);
+}
+
+if ($action === 'admin-revoke-sessions' && $method === 'POST') {
+    requireAdmin($isAdmin);
+    $b = body();
+    $targetId = filter_var($b['id'] ?? null, FILTER_VALIDATE_INT);
+    if (!$targetId || $targetId < 1) jsonError('Utente non valido.', 422);
+    if (!DB::fetch('SELECT id FROM users WHERE id=?', [$targetId])) jsonError('Utente non trovato.', 404);
+    // Fail visibly if the existing auth schema is unavailable.
+    try { DB::execute('UPDATE users SET token_version=token_version+1 WHERE id=?', [$targetId]); }
+    catch (Throwable $e) { error_log('[admin-revoke-sessions] ' . $e->getMessage()); jsonError('Revoca non disponibile.', 503); }
+    if (class_exists('Logger')) Logger::info('admin-audit', 'Sessioni revocate', ['admin_id' => (int)$userId, 'user_id' => $targetId]);
+    json(['ok' => true]);
+}
+
 if ($action === 'admin-monitoring' && $method === 'GET') {
     requireAdmin($isAdmin);
     ensureAdminSchema();
@@ -1016,6 +1049,7 @@ if ($action === 'admin-update-user' && $method === 'POST') {
             [$b['role_mission'] ?? null, $b['content_strategy'] ?? null, $targetId]);
     }
 
+    if (class_exists('Logger')) Logger::info('admin-audit', 'Account o strategia aggiornati', ['admin_id' => (int)$userId, 'user_id' => $targetId]);
     json(['ok' => true]);
 }
 
@@ -1037,6 +1071,7 @@ if ($action === 'admin-password-reset' && $method === 'POST') {
         [password_hash($newPassword, PASSWORD_BCRYPT), $targetId]
     );
     revokeSessions($targetId);
+    if (class_exists('Logger')) Logger::info('admin-audit', 'Password reimpostata', ['admin_id' => (int)$userId, 'user_id' => $targetId]);
     json(['ok' => true, 'message' => 'Password utente aggiornata. Le sessioni aperte sono state chiuse.']);
 }
 
@@ -1048,6 +1083,7 @@ if ($action === 'admin-delete-user' && $method === 'POST') {
     if ($targetId === (int)$userId) jsonError('Non puoi eliminare il tuo account amministratore');
 
     DB::execute('DELETE FROM users WHERE id=?', [$targetId]);
+    if (class_exists('Logger')) Logger::info('admin-audit', 'Account eliminato', ['admin_id' => (int)$userId, 'user_id' => $targetId]);
     json(['ok' => true]);
 }
 
@@ -1156,13 +1192,17 @@ if ($action === 'admin-editorial-engine' && $method === 'GET') {
 if ($action === 'admin-editorial-engine-save' && $method === 'POST') {
     requireAdmin($isAdmin);
     $b = body();
-    $targetId = max(1, (int)($b['user_id'] ?? $userId));
+    $targetId = (int)($b['user_id'] ?? $userId);
+    $minPosts = filter_var($b['min_posts'] ?? 8, FILTER_VALIDATE_INT);
+    if ($targetId < 1 || $minPosts === false || $minPosts < 3 || $minPosts > 60) jsonError('Cliente o soglia non validi. Usa da 3 a 60 articoli.', 422);
+    if (!DB::fetch('SELECT user_id FROM sites WHERE user_id=?', [$targetId])) jsonError('Sito cliente non trovato.', 404);
     $settings = EditorialEngine::saveSettings($targetId, [
         'enabled' => !empty($b['enabled']),
         'auto_run' => !empty($b['auto_run']),
-        'min_posts' => max(3, (int)($b['min_posts'] ?? 8)),
+        'min_posts' => $minPosts,
         'strict_indexing_mode' => !empty($b['strict_indexing_mode']),
     ]);
+    if (class_exists('Logger')) Logger::info('admin-audit', 'Motore editoriale configurato', ['admin_id' => (int)$userId, 'user_id' => $targetId]);
     json(['ok' => true, 'settings' => $settings]);
 }
 
@@ -2620,7 +2660,10 @@ if ($action === 'admin-kill-process' && $method === 'POST') {
     requireAdmin($isAdmin);
     $b = body();
     $id = (int)($b['id'] ?? 0);
-    DB::execute('DELETE FROM posts WHERE id=? AND seo_score=-1', [$id]);
+    if ($id < 1) jsonError('Contenuto non valido.', 422);
+    $removed = DB::execute("DELETE FROM posts WHERE id=? AND seo_score=-1 AND published=0 AND processing_status IN ('pending','failed')", [$id]);
+    if ($removed !== 1) jsonError('Contenuto non disponibile o già in elaborazione.', 409);
+    if (class_exists('Logger')) Logger::info('admin-audit', 'Contenuto in coda eliminato', ['admin_id' => (int)$userId, 'post_id' => $id]);
     json(['ok' => true]);
 }
 
