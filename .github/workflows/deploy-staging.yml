@@ -128,8 +128,8 @@ jobs:
         with:
           name: administration-browser-evidence
           path: |
-            artifacts/admin-shell-*.png
-            artifacts/admin-overview-*.png
+            artifacts/admin-*.png
+            artifacts/control-room-*.png
             artifacts/release-shell-*.png
           if-no-files-found: ignore
 

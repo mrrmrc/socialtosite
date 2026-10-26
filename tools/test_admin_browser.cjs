@@ -129,7 +129,19 @@ const fs = require('node:fs');
     await nav('Panoramica').click();
     await page.getByRole('heading', { name: 'Clienti da seguire', exact: true }).waitFor();
     await page.screenshot({ path: 'artifacts/admin-platform-overview-mobile.png', fullPage: true });
-    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true, 'Platform overview fits mobile');
+    const overviewLayout = await page.evaluate(() => {
+      const viewport = innerWidth;
+      const width = document.documentElement.scrollWidth;
+      const overflowing = [...document.querySelectorAll('body *')].map(element => {
+        const bounds = element.getBoundingClientRect();
+        if (bounds.right <= viewport + 1 && bounds.left >= -1) return null;
+        const style = getComputedStyle(element);
+        return { tag: element.tagName, class: String(element.className || ''), left: Math.round(bounds.left), right: Math.round(bounds.right), width: Math.round(bounds.width), scrollWidth: element.scrollWidth, clientWidth: element.clientWidth, display: style.display, minWidth: style.minWidth, gridColumns: style.gridTemplateColumns, overflowX: style.overflowX, whiteSpace: style.whiteSpace };
+      }).filter(Boolean).slice(0, 40);
+      return { viewport, width, overflowing };
+    });
+    if (overviewLayout.width > overviewLayout.viewport) console.error('Mobile overview overflow diagnostics:', JSON.stringify(overviewLayout, null, 2));
+    assert.equal(overviewLayout.width <= overviewLayout.viewport, true, 'Platform overview fits mobile');
     assert.deepEqual(errors, [], 'No runtime errors across administration views');
     console.log('Admin browser: totals, prompts, providers, client search, session revocation, queue recovery, publication, client configuration and mobile passed.');
   } finally { await browser.close(); }
