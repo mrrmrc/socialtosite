@@ -4,8 +4,6 @@ import { DashboardScreen } from './screens/DashboardScreen';
 import { AdminWorkspaceScreen } from './screens/AdminWorkspaceScreen';
 import { LandingScreen } from './screens/LandingScreen';
 import { LegalScreen } from './screens/LegalScreen';
-import { ConnectScreen } from './screens/ConnectScreen';
-import { BasicUserScreen } from './screens/BasicUserScreen';
 import { apiFetch } from './utils/api';
 import './index.css';
 
@@ -68,15 +66,8 @@ export default function App() {
     return () => controller.abort();
   }, [token, identityRevision, recoveryLink]);
 
-  // Piano Base = nessun plan tra professional/pro/agency (stessa regola di
-  // DashboardScreen.jsx). Per questi account, al primo accesso (nessuna
-  // fonte ancora collegata) mostriamo BasicUserScreen invece del pannello
-  // completo: era già scritto e pronto, semplicemente mai collegato.
-  const normalizedPlan = String(user?.plan || '').trim().toLowerCase();
+  // Tutti i clienti iniziano dalla stessa conversazione con LIA, anche senza fonti.
   const isAdmin = user?.role === 'admin';
-  const isBasePlan = !!user && !isAdmin && !['professional', 'pro', 'agency'].includes(normalizedPlan);
-  const [hasSources, setHasSources] = useState(null); // null = non ancora verificato
-  const [showFullDashboard, setShowFullDashboard] = useState(false);
 
   useEffect(() => {
     function showRecovery() {
@@ -86,16 +77,6 @@ export default function App() {
     return () => window.removeEventListener('hashchange', showRecovery);
   }, [pathname]);
 
-  useEffect(() => {
-    if (recoveryLink || identityState !== 'ready' || !token || !user || !isBasePlan) { setHasSources(null); return; }
-    let cancelled = false;
-    apiFetch('/api/index.php?action=site', {}, token)
-      .then(data => { if (!cancelled) setHasSources((data?.sources || []).length > 0); })
-      // Se il controllo fallisce non blocchiamo l'utente dietro un gate
-      // forse rotto: meglio farlo entrare nel pannello che conosce già.
-      .catch(() => { if (!cancelled) setHasSources(true); });
-    return () => { cancelled = true; };
-  }, [token, user, isBasePlan, recoveryLink, identityState]);
 
   let screen;
   if (pathname === '/') {
@@ -119,19 +100,6 @@ export default function App() {
     screen = <AuthScreen onAuth={handleAuth} />;
   } else if (isAdmin) {
     screen = <AdminWorkspaceScreen token={token} user={user} onLogout={handleLogout} />;
-  } else if (pathname === '/connect') {
-    screen = <ConnectScreen token={token} onDone={() => { window.location.href = '/dashboard'; }} />;
-  } else if (isBasePlan && hasSources === false && !showFullDashboard) {
-    screen = (
-      <BasicUserScreen
-        user={user}
-        token={token}
-        onLogout={handleLogout}
-        onEnterDashboard={() => setShowFullDashboard(true)}
-      />
-    );
-  } else if (isBasePlan && hasSources === null) {
-    screen = <div className="app-loading" role="status">Caricamento del tuo spazio…</div>;
   } else {
     screen = <DashboardScreen token={token} user={user} onLogout={handleLogout} />;
   }

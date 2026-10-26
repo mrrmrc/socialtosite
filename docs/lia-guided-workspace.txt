@@ -1,0 +1,53 @@
+Esperienza cliente guidata da LIA — 26 ottobre 2026
+
+Problema
+L'ingresso mostrava allo stesso livello profilo, IDEA, canali, sito, statistiche
+e impostazioni. Il cliente doveva conoscere le funzioni e costruire da solo il
+prompt. La chat laterale spiegava i menu senza portare direttamente al risultato.
+
+Nuovo ingresso
+Ogni piano entra nella conversazione LIA, anche senza fonti o profilo completo.
+Le destinazioni principali sono LIA, Contenuti e Il sito. Profilo, canali,
+risultati, piano e sicurezza si trovano nel menu secondario Impostazioni.
+Il collegamento diretto a una sezione continua a funzionare.
+
+Il primo messaggio offre tre punti di partenza cliccabili. Il percorso guidato
+iniziale non usa il modello. Quando serve, la persona risponde con parole sue;
+il contesto gia raccolto permette a LIA di evitare domande ripetute.
+Il modello restituisce una domanda alla volta, opzioni brevi e proposte validate.
+
+Risultati dentro la conversazione
+- Articolo: proposta, generazione richiesta esplicitamente, lettura in chat,
+  salvataggio della bozza e accesso all'editor. Il salvataggio non pubblica.
+  Le richieste successive ricevono il testo della bozza: una revisione produce
+  una nuova anteprima basata sull'originale, che resta nella conversazione.
+- Presentazione: confronto fra i testi attuali e quelli proposti; titolo,
+  presentazione e obiettivo possono essere salvati dopo conferma esplicita.
+  L'interfaccia chiarisce che questi testi cambiano il sito pubblico.
+- Navigazione: LIA puo aprire le sezioni autorizzate per dati da inserire
+  direttamente o funzioni avanzate. Non puo chiamare endpoint arbitrari.
+
+Continuita e affidabilita
+Conversazione, testo in preparazione e risultati restano disponibili passando
+fra le sezioni. Lo stato appartiene all'account corrente e viene azzerato al
+cambio account/sessione. Non viene creata una cronologia persistente nel DB.
+Le risposte in errore mantengono domanda e proposta. Le generazioni possono
+essere riprovate; un salvataggio incerto invita a controllare le bozze prima
+di ripeterlo. I doppi clic non lanciano richieste concorrenti.
+All'ingresso non partono acquisizioni, revisioni AI o modifiche automatiche.
+
+Confini tecnici
+Nuova API autenticata lia-assistant, senza nuove tabelle/colonne.
+Contesto letto esclusivamente per l'account autenticato; dati e correzioni
+del titolare vengono sintetizzati e limitati. Nessuna chiave o credenziale
+viene fornita al modello. Azioni ammesse: navigazione locale, preparazione
+articolo, proposta presentazione. Le proposte del modello non eseguono scritture.
+Il testo generato viene ripulito e mostrato in anteprima sicura.
+
+Verifiche
+Build Vite, test PHP del contratto LIA e salvataggio privato delle bozze,
+regressioni amministrative e di identita. Test browser dell'app completa con
+API simulate: percorso principiante, nessuna AI automatica, generazione/riprova,
+salvataggio singolo, ritorno alla chat, conferma modifiche pubbliche, richiesta
+precompilata dal sito, layout desktop/mobile. La pipeline ripete le prove e
+controlla i bundle effettivamente pubblicati con account e API simulati.

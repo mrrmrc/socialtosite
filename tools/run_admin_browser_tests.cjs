@@ -47,13 +47,16 @@ function runTest(test) {
   for (let attempt = 0; attempt < 100; attempt++) {
     if (serverError) throw serverError;
     if (server.exitCode !== null) throw new Error('Vite stopped: ' + server.exitCode);
-    try { ready = (await fetch('http://127.0.0.1:5178', { signal: AbortSignal.timeout(500) })).ok; } catch {}
+    // Only probe the server started by this runner, never a different process on this port.
+    if (serverOutput.replace(/\u001b\[[0-9;]*m/g, '').includes('Local:')) {
+      try { ready = (await fetch('http://127.0.0.1:5178', { signal: AbortSignal.timeout(500) })).ok; } catch {}
+    }
     if (ready) break;
     await new Promise(resolve => setTimeout(resolve, 150));
   }
   if (!ready) throw new Error('Vite not ready');
   console.log('[admin-browser] Vite ready; running administration tests.');
-  for (const test of ['test_admin_browser.cjs', 'test_control_room.cjs', 'test_admin_shell.cjs']) {
+  for (const test of ['test_admin_browser.cjs', 'test_control_room.cjs', 'test_admin_shell.cjs', 'test_lia_workspace.cjs']) {
     await runTest(test);
   }
 })().catch(error => {

@@ -104,7 +104,7 @@ jobs:
             api/services/raw_import.php api/services/apify_client.php api/services/website_source.php api/services/profile_analyzer.php api/services/profile_interview.php \
             api/services/admin_console.php api/services/admin_validation.php api/services/admin_operations.php api/services/editorial_supervisor.php api/services/provider_config.php \
             api/services/ai.php api/services/content_ideas.php api/services/profile_knowledge.php \
-            api/services/ai_health.php api/services/article_studio.php \
+            api/services/ai_health.php api/services/article_studio.php api/services/lia_assistant.php \
             api/services/opportunities.php api/services/opportunity_brief.php api/routes/opportunities.php \
             api/routes/publication.php api/services/plan_policy.php \
             api/services/publication/{security,service,wordpress}.php cron/publish.php cron/sync.php cron/fetch_seo.php cron/check_alerts.php \
@@ -131,6 +131,8 @@ jobs:
           php tools/test_admin_operations.php
           php tools/test_admin_content.php
           php tools/test_session_identity.php
+          php tools/test_lia_assistant.php
+          php tools/test_lia_draft.php
           php tools/test_password_recovery.php
           php tools/test_content_ideas.php
           php tools/test_article_studio.php
@@ -156,7 +158,7 @@ jobs:
           npm install --legacy-peer-deps
           npm run build
 
-      - name: Test administrative role separation in browser
+      - name: Test role isolation and guided LIA workflows in browser
         timeout-minutes: 10
         shell: bash
         run: |
@@ -220,6 +222,7 @@ jobs:
           cp api/services/admin_operations.php release/api/services/
           cp api/services/password_recovery.php release/api/services/
           cp api/services/article_studio.php release/api/services/
+          cp api/services/lia_assistant.php release/api/services/
           cp api/routes/opportunities.php release/api/routes/
           cp api/services/{monitor_status,monitor_settings}.php release/api/services/
           cp api/routes/publication.php release/api/routes/

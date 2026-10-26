@@ -32,4 +32,9 @@ studioReject(fn()=>ArticleStudio::result(json_encode($proposals),$proposalBrief,
 $single=ArticleStudio::input(['mode'=>'articles','subject'=>'Sviluppa questa proposta','proposal'=>$proposal]);
 $result=ArticleStudio::result(json_encode(['articles'=>[$articles['articles'][0]]]),$single,$signals);
 studioCheck(count($result['articles'])===1,'Selecting one proposal produces its full article, not another batch of proposals');
+$revision=ArticleStudio::input(['mode'=>'articles','subject'=>'Rendi questa bozza più pratica','instructions'=>'Aggiungi un esempio senza nuovi servizi','source_text'=>'<p>'.str_repeat('Bozza originale da rivedere. ',700).'</p>','published'=>1]);
+studioCheck($revision['count']===1 && strlen($revision['source_text'])===12000 && !str_contains($revision['source_text'],'<p>') && !isset($revision['published']),'Revision source is bounded plain text and produces a single editable article without publishing flags');
+$revisionPrompt=ArticleStudio::prompt([],[],[],$revision,[]);
+studioCheck(str_contains($revisionPrompt,'REVISIONE DELLA BOZZA IN CORSO') && str_contains($revisionPrompt,'Bozza originale da rivedere.') && str_contains($revisionPrompt,'Conserva argomento e fatti presenti') && str_contains($revisionPrompt,'Non salvare e non pubblicare'),'Revision prompt uses the current draft and preserves facts without automatic writes');
+studioReject(fn()=>ArticleStudio::input(['mode'=>'articles','subject'=>'Rivedi','source_text'=>[]]),'Invalid revision source cannot reach the provider');
 echo "Article studio behavioral checks passed.\n";

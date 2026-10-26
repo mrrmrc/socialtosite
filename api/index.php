@@ -1592,8 +1592,8 @@ if ($action === 'post-create' && $method === 'POST') {
     $contentHash = hash('sha256', $userId . '|manual|' . bin2hex(random_bytes(10)));
     
     $postId = DB::insert(
-        'INSERT INTO posts (user_id, platform, platform_post_id, raw_content, generated_title, generated_body, generated_excerpt, tags, meta_description, slug, published_at, imported_at, content_hash, seo_score, published, edited_title, edited_body, edited_excerpt, media_url, media_type, media_display_width, media_alignment, noindex)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW(), ?, 10, 0, ?, ?, ?, ?, ?, ?, ?, ?)',
+        'INSERT INTO posts (user_id, platform, platform_post_id, raw_content, generated_title, generated_body, generated_excerpt, tags, meta_description, slug, published_at, imported_at, content_hash, seo_score, processing_status, published, edited_title, edited_body, edited_excerpt, media_url, media_type, media_display_width, media_alignment, noindex)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW(), ?, 10, \'done\', 0, ?, ?, ?, ?, ?, ?, ?, ?)',
         [$userId, 'manual', 'manual_'.bin2hex(random_bytes(5)), (string)($b['raw_content'] ?? ''), '', '', '', $tags, $metaDescription, $draftSlug, $contentHash, $title, $body, (string)($b['edited_excerpt'] ?? ''), $mediaUrl, $mediaUrl === '' ? '' : $mediaType, max(30,min(100,(int)($b['media_display_width'] ?? 100))), $alignment, !empty($b['noindex']) ? 1 : 0]
     );
     
@@ -2125,6 +2125,34 @@ if ($action === 'interview-chat' && $method === 'POST') {
         jsonError('Intervista fallita: ' . $e->getMessage(), 502);
     }
 }
+if ($action === 'lia-assistant' && $method === 'POST') {
+    require_once __DIR__ . '/services/lia_assistant.php';
+    try { $liaInput = LiaAssistant::input(body()); }
+    catch (InvalidArgumentException $e) { jsonError($e->getMessage(), 422); }
+    try {
+        require_once __DIR__ . '/services/ai.php';
+        AIHealth::assertRuntime();
+        $liaData = LiaAssistant::load((int)$userId);
+        $liaFacts = $liaData['facts'];
+        $liaFacts['visibility_available'] = false;
+        try {
+            $liaVisibility = VisibilityAnalytics::userSummary((int)$userId);
+            if (is_array($liaVisibility) && $liaVisibility) {
+                $liaFacts['visibility'] = $liaVisibility;
+                $liaFacts['visibility_available'] = true;
+            }
+        } catch (Throwable $visibilityError) {
+            if (class_exists('Logger')) Logger::warn('lia', 'Dati risultati non disponibili per la conversazione', ['user_id' => $userId, 'error' => $visibilityError->getMessage()]);
+        }
+        $liaResponse = LiaAssistant::reply($me, $liaData['site'], $liaFacts, $liaInput);
+        json(['ok' => true] + $liaResponse);
+    } catch (Throwable $e) {
+        if (class_exists('Logger')) Logger::warn('lia', 'Conversazione guidata non riuscita', ['user_id' => $userId, 'error' => $e->getMessage()]);
+        $failure = AIHealth::failure($e);
+        json(['error' => $failure['message'], 'error_code' => $failure['code']], 502);
+    }
+}
+
 if ($action === 'lia-chat' && $method === 'POST') {
     try {
         require_once __DIR__ . '/services/ai.php';
@@ -2190,6 +2218,7 @@ if ($action === 'lia-chat' && $method === 'POST') {
 if ($action === 'lia-builder' && $method === 'POST') {
     try {
         require_once __DIR__ . '/services/ai.php';
+        AIHealth::assertRuntime();
         $b = body();
         $incoming = is_array($b['messages'] ?? null) ? $b['messages'] : [];
         $style = is_array($b['style'] ?? null) ? $b['style'] : [];
@@ -2207,7 +2236,8 @@ if ($action === 'lia-builder' && $method === 'POST') {
         json(['ok' => true, 'response' => $reply]);
     } catch (Throwable $e) {
         if (class_exists('Logger')) Logger::warn('lia', 'Risposta LIA Builder non riuscita', ['user_id' => $userId, 'error' => $e->getMessage()]);
-        jsonError('LIA: ' . $e->getMessage(), 502);
+        $failure = AIHealth::failure($e);
+        json(['error' => $failure['message'], 'error_code' => $failure['code']], 502);
     }
 }
 

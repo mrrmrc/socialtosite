@@ -1,4 +1,5 @@
-import { GuidedHome } from '../components/GuidedHome';
+import { LiaWorkspace } from '../components/LiaWorkspace';
+import './CustomerWorkspace.css';
 import { EditorDialog } from '../components/EditorDialog';
 import { ArticleStudio } from '../components/ArticleStudio';
 import { useDashboardNavigation } from '../utils/dashboardNavigation.mjs';
@@ -16,11 +17,10 @@ import { SocialIcon } from "../components/SocialIcon";
 import { QuillEditor } from "../components/QuillEditor";
 import { AdminScreen } from "./AdminScreen";
 import { SpazioVivoLab } from "../components/SpazioVivoLab";
-import { ProductGuide } from "../components/ProductGuide";
 import { PublicationConnections } from "../components/PublicationConnections";
 import { BrandMark } from "./LandingScreen";
 import { ProfileReviewPanel } from "../components/ProfileReviewPanel";
-import { LiaKnowledge, LiaKnowledgeBadge, useLiaKnowledge } from "../components/LiaKnowledge";
+import { LiaKnowledge, useLiaKnowledge } from "../components/LiaKnowledge";
 const STUDIO_DEFAULTS = {
   font_heading: "Outfit",
   font_body: "Inter",
@@ -908,6 +908,17 @@ function GuidedStrategy({
 
 export function DashboardScreen({ token, user, onLogout }) {
   const [tab, setTab] = useDashboardNavigation();
+  const [liaWorkspaceState, setLiaWorkspaceState] = useState(() => ({ version: 1, ownerId: String(user.id), messages: [], intent: 'general', input: '' }));
+  const liaWorkspaceOwner = useRef({ token, userId: user.id });
+  useEffect(() => {
+    if (liaWorkspaceOwner.current.token === token && liaWorkspaceOwner.current.userId === user.id) return;
+    liaWorkspaceOwner.current = { token, userId: user.id };
+    setLiaWorkspaceState({ version: 1, ownerId: String(user.id), messages: [], intent: 'general', input: '' });
+  }, [token, user.id]);
+  function openLiaRequest(input) {
+    setLiaWorkspaceState(current => ({ ...current, input, intent: 'general' }));
+    setTab('overview');
+  }
   const [visibilitySection, setVisibilitySection] = useState("overview");
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -923,7 +934,6 @@ export function DashboardScreen({ token, user, onLogout }) {
   const isBasePlan = !["professional", "pro", "agency"].includes(
     normalizedUserPlan,
   );
-  const baseAutoSyncStarted = useRef(false);
   const [baseAcquisition, setBaseAcquisition] = useState({
     status: "idle",
     message: "",
@@ -1016,7 +1026,7 @@ export function DashboardScreen({ token, user, onLogout }) {
   });
   const [savingReachability, setSavingReachability] = useState(false);
   const [savingSearchVisible, setSavingSearchVisible] = useState(false);
-  const knowledge = useLiaKnowledge(data?.site, token);
+  const knowledge = useLiaKnowledge(tab === "profile" ? data?.site : null, token);
   const [articleLength, setArticleLength] = useState("compact");
   const [preparingIdea, setPreparingIdea] = useState(-1);
   const [editingIdea, setEditingIdea] = useState(null); // {index, title, reason}
@@ -1040,40 +1050,6 @@ export function DashboardScreen({ token, user, onLogout }) {
 
   const activeUnderstanding = understandingDraft || understandingReport || {};
   const declaredStrategy = activeUnderstanding.declared_strategy || {};
-  const isStrategyComplete = [
-    "activity_type",
-    "primary_goal",
-    "primary_audience",
-    "tone_of_voice",
-    "differentiators",
-  ].every((f) => declaredStrategy?.[f]);
-
-  useEffect(() => {
-    if (
-      isStrategyComplete &&
-      !userAgentPromptDraft &&
-      !data?.site?.user_agent_prompt &&
-      !hasGeneratedPrompt.current
-    ) {
-      hasGeneratedPrompt.current = true;
-      const draft = `Attività: ${declaredStrategy.activity_type || ""}
-Obiettivo: ${declaredStrategy.primary_goal || ""}
-Pubblico: ${declaredStrategy.primary_audience || ""}
-Tono di voce: ${declaredStrategy.tone_of_voice || ""}
-Punti distintivi: ${declaredStrategy.differentiators || ""}
-
-Linee guida per l'Agente Editoriale:
-Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono di voce indicato. Mantieni il focus sull'obiettivo principale e rivolgiti direttamente al pubblico target, mettendo in risalto gli elementi distintivi.`;
-      setUserAgentPromptDraft(draft);
-      // Auto-save the generated draft
-      apiFetch(
-        "/api/index.php?action=site-update",
-        { method: "POST", body: JSON.stringify({ user_agent_prompt: draft }) },
-        token,
-      ).catch((e) => console.error(e));
-    }
-  }, [isStrategyComplete, declaredStrategy, userAgentPromptDraft, data, token]);
-
   async function changeOwnPassword(e) {
     e.preventDefault();
     setPasswordMsg(null);
@@ -3533,13 +3509,6 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
     (post) => Number(post.seo_score) >= 0,
   ).length;
 
-  useEffect(() => {
-    if (!isBasePlan || !data || baseAutoSyncStarted.current) return;
-    if (activeChannelCount > 0 && posts.length === 0) {
-      baseAutoSyncStarted.current = true;
-      acquireBaseContent(true);
-    }
-  }, [isBasePlan, data, activeChannelCount, posts.length]);
   let seoFoundation = {};
   try {
     seoFoundation =
@@ -3556,201 +3525,25 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
     (seoFoundation.pages || []).length +
     (publishedPosts.length ? 1 : 0) +
     (sources.length ? 1 : 0);
-  const navigationGroups =
-    user?.role === "admin"
-      ? [
-          {
-            label: "Amministrazione",
-            items: [
-              {
-                id: "admin",
-                icon: (
-                  <svg
-                    width="20"
-                    height="20"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                  >
-                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
-                    <circle cx="9" cy="7" r="4"></circle>
-                    <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
-                    <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
-                  </svg>
-                ),
-                label: "Utenti",
-                hint: "Account e accessi",
-              },
-              ,
-              {
-                id: "idea",
-                icon: (
-                  <svg
-                    width="20"
-                    height="20"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                  >
-                    <path d="M9 18h6" />
-                    <path d="M10 22h4" />
-                    <path d="M12 2a7 7 0 0 0-7 7c0 2.38 1.19 4.67 3.03 6.17a1 1 0 0 1 .37.78V17h7v-1.05a1 1 0 0 1 .37-.78C17.81 13.67 19 11.38 19 9a7 7 0 0 0-7-7z" />
-                  </svg>
-                ),
-                label: "IDEA 💡",
-                hint: "Genera contenuti con l'AI",
-              },
-            ],
-          },
-        ]
-      : [
-          {
-            label: "Menu Principale",
-            items: [
-              {
-                id: "profile",
-                icon: (
-                  <svg
-                    width="20"
-                    height="20"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                  >
-                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-                    <circle cx="12" cy="7" r="4"></circle>
-                  </svg>
-                ),
-                label: "Il mio profilo",
-                hint: "Stile editoriale, presenza e contatti",
-              },
-              {
-                id: "overview",
-                icon: (
-                  <svg
-                    width="20"
-                    height="20"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                  >
-                    <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
-                    <polyline points="9 22 9 12 15 12 15 22"></polyline>
-                  </svg>
-                ),
-                label: "Home",
-                hint: "Lo stato del tuo sito",
-              },
-              {
-                id: "site",
-                icon: (
-                  <svg
-                    width="20"
-                    height="20"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                  >
-                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                    <polyline points="14 2 14 8 20 8"></polyline>
-                    <line x1="16" y1="13" x2="8" y2="13"></line>
-                    <line x1="16" y1="17" x2="8" y2="17"></line>
-                    <polyline points="10 9 9 9 8 9"></polyline>
-                  </svg>
-                ),
-                label: "Articoli",
-                hint: "Bozze da pubblicare e già online",
-              },
-              {
-                id: "sources",
-                icon: (
-                  <svg
-                    width="20"
-                    height="20"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                  >
-                    <rect
-                      x="2"
-                      y="2"
-                      width="20"
-                      height="20"
-                      rx="5"
-                      y="5"
-                    ></rect>
-                    <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path>
-                    <line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line>
-                  </svg>
-                ),
-                label: "Social collegati",
-                hint: "Da qui arrivano i tuoi contenuti",
-              },
-              {
-                id: "seo",
-                icon: (
-                  <svg
-                    width="20"
-                    height="20"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                  >
-                    <circle cx="11" cy="11" r="7"></circle>
-                    <path d="m20 20-4-4"></path>
-                    <path d="M8 11h6M11 8v6"></path>
-                  </svg>
-                ),
-                label: "Monitoraggio e SEO",
-                hint: "Come ti trovano online",
-              },
-              ,
-              {
-                id: "idea",
-                icon: (
-                  <svg
-                    width="20"
-                    height="20"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                  >
-                    <path d="M9 18h6" />
-                    <path d="M10 22h4" />
-                    <path d="M12 2a7 7 0 0 0-7 7c0 2.38 1.19 4.67 3.03 6.17a1 1 0 0 1 .37.78V17h7v-1.05a1 1 0 0 1 .37-.78C17.81 13.67 19 11.38 19 9a7 7 0 0 0-7-7z" />
-                  </svg>
-                ),
-                label: "IDEA 💡",
-                hint: "Genera contenuti con l'AI",
-              },
-            ],
-          },
-        ];
-  const existingNavigation = navigationGroups.flatMap(group => group.items).filter(Boolean);
-  const navItem = id => existingNavigation.find(item => item.id === id);
-  const visibleNavigationGroups = [
-    { label: "Inizio", items: [{ id: "overview", icon: <span>⌂</span>, label: "Home", hint: "Stato del progetto e prossime azioni" }] },
-    { label: "Profilo e contenuti", items: [navItem("profile") || { id: "profile", icon: <span>◎</span>, label: "Il mio profilo", hint: "Identità, stile editoriale e contatti" }, { id: "idea", icon: <span>✧</span>, label: "IDEA · articoli", hint: "Due proposte, due articoli su richiesta o scrittura libera" }, navItem("sources"), { ...navItem("site"), label: "Contenuti" }].filter(Boolean) },
-    { label: "Sito pubblico", items: [{ id: "publicsite", icon: <span>▣</span>, label: "Sito pubblico", hint: "Editor, temi, assistenza LIA e versioni" },navItem("seo")].filter(Boolean) },
-    { label: "Account", items: [
-      { id: "services", icon: <span>◇</span>, label: "Piano e servizi", hint: "Funzionalità e abbonamento" },
-    ] },
-    ...(user?.role === "admin" ? [{ label: "Amministrazione", items: [navItem("admin"), { id: "general", icon: <span>⚙</span>, label: "Impostazioni di sistema", hint: "Agenti e automazioni" }].filter(Boolean) }] : []),
+  const visibleNavigationGroups = [{ label: "Il tuo spazio", items: [
+    { id: "overview", icon: <span aria-hidden="true">✦</span>, label: "LIA", hint: "Parla con LIA e scegli il prossimo passo" },
+    { id: "site", icon: <span aria-hidden="true">▤</span>, label: "Contenuti", hint: "Rivedi le bozze e gli articoli pubblicati" },
+    { id: "publicsite", icon: <span aria-hidden="true">▣</span>, label: "Il sito", hint: "Guarda il tuo sito e chiedi una modifica" },
+  ] }];
+  const secondaryNavigation = [
+    { id: "profile", label: "La tua attività" },
+    { id: "sources", label: "Canali collegati" },
+    { id: "seo", label: "Risultati e statistiche" },
+    { id: "services", label: "Piano e servizi" },
+    { id: "account", label: "Dati account" },
+    { id: "security", label: "Password e accessi" },
   ];
   const flatNavigation = visibleNavigationGroups.flatMap((group) =>
     group.items.map((item) => ({ ...item, group: group.label })),
   );
   const isNavigationActive = (item) =>
-    tab === item.id && (!item.section || visibilitySection === item.section);
-  const activeNavigation = flatNavigation.find(isNavigationActive) || ({ account: { group: "Account", label: "Il mio account" }, security: { group: "Account", label: "Password e sicurezza" } })[tab];
+    (tab === item.id || (item.id === "site" && tab === "idea") || (item.id === "publicsite" && ["settings", "experience"].includes(tab))) && (!item.section || visibilitySection === item.section);
+  const activeNavigation = flatNavigation.find(isNavigationActive) || { ...secondaryNavigation.find(item => item.id === tab), group: "Impostazioni" };
   const pageMeta = {
     publicsite: ["Sito pubblico", "Modifica, scegli il layout con LIA e conserva le versioni del tuo sito."],
     profile: ["Il mio profilo", "Identità, obiettivi e contatti guidano i contenuti e la creazione del sito."],
@@ -4009,7 +3802,7 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
   }
   return (
     <div
-      className="dashboard-shell"
+      className="dashboard-shell customer-conversation-shell"
     >
       {acquisitionModal && (
         <div
@@ -4106,124 +3899,19 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
         <div className="backend-header-brand">
           <BrandMark iconOnly />
           <strong>All Social To Web</strong>
-          {tab !== 'overview' && <LiaKnowledgeBadge knowledge={knowledge} onClick={() => { setTab('profile'); setProfileSubTab('who'); }} />}
         </div>
         <div
           className="backend-header-actions"
           style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}
         >
-          {tab !== 'overview' && <button className={`btn ${tab === "idea" ? "btn-primary" : "btn-outline"}`} aria-pressed={tab === "idea"} onClick={() => setTab("idea")} title="Crea idee e nuovi contenuti"><span aria-hidden="true">{navItem("idea")?.icon || "✧"}</span> IDEA</button>}
-          <a
-            href={siteUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="btn btn-outline"
-            aria-label="Apri il mio sito pubblico"
-            style={{ display: "flex", alignItems: "center", gap: "6px" }}
-          >
-            <svg
-              width="18"
-              height="18"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              viewBox="0 0 24 24"
-            >
-              <path d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-            </svg>
-            <span className="header-site-label">Apri il mio sito</span>
-          </a>
 
-          <div style={{ position: "relative" }} onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) setAccountMenuOpen(false); }} onKeyDown={(event) => { if (event.key === "Escape") { setAccountMenuOpen(false); event.currentTarget.querySelector("button")?.focus(); } }}>
-            <button
-              className="btn btn-outline btn-icon"
-              aria-label="Menu account"
-              aria-expanded={accountMenuOpen}
-              aria-controls="account-menu"
-              onClick={() => setAccountMenuOpen(open => !open)}
-              style={{
-                borderRadius: "50%",
-                width: "40px",
-                height: "40px",
-                padding: 0,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-            >
-              <svg
-                width="20"
-                height="20"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-              >
-                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-                <circle cx="12" cy="7" r="4"></circle>
-              </svg>
-            </button>
-            <div
-              id="account-menu"
-              style={{
-                display: accountMenuOpen ? "block" : "none",
-                position: "absolute",
-                top: "100%",
-                right: "0",
-                marginTop: "0.5rem",
-                background: "var(--surface)",
-                border: "1px solid var(--border)",
-                borderRadius: "var(--radius)",
-                padding: "0.5rem",
-                boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
-                minWidth: "230px",
-                zIndex: 100,
-              }}
-            >
-              <button
-                className="btn btn-ghost"
-                style={{
-                  display: "block",
-                  width: "100%",
-                  textAlign: "left",
-                  padding: "0.5rem 1rem",
-                }}
-                onClick={() => { selectNavigation({ id: "account" }); setAccountMenuOpen(false); }}
-              >
-                Il mio account
-              </button>
-              <button
-                className="btn btn-ghost"
-                style={{
-                  display: "block",
-                  width: "100%",
-                  textAlign: "left",
-                  padding: "0.5rem 1rem",
-                }}
-                onClick={() => { selectNavigation({ id: "security" }); setAccountMenuOpen(false); }}
-              >
-                Password e sicurezza
-              </button>
-              <div
-                style={{
-                  height: "1px",
-                  background: "var(--border)",
-                  margin: "0.5rem 0",
-                }}
-              ></div>
-              <button
-                className="btn btn-ghost"
-                style={{
-                  display: "block",
-                  width: "100%",
-                  textAlign: "left",
-                  padding: "0.5rem 1rem",
-                  color: "var(--red)",
-                }}
-                onClick={onLogout}
-              >
-                Esci
-              </button>
+
+          <div className="customer-settings" onBlur={event => { if (!event.currentTarget.contains(event.relatedTarget)) setAccountMenuOpen(false); }} onKeyDown={event => { if (event.key === 'Escape') { setAccountMenuOpen(false); event.currentTarget.querySelector('button')?.focus(); } }}>
+            <button type="button" className="btn btn-outline" aria-expanded={accountMenuOpen} aria-controls="account-menu" onClick={() => setAccountMenuOpen(open => !open)}>Impostazioni</button>
+            <div id="account-menu" className="customer-settings-menu" hidden={!accountMenuOpen}>
+              <p>Da qui puoi gestire i dettagli, quando ti servono.</p>
+              {secondaryNavigation.map(item => <button type="button" key={item.id} onClick={() => { selectNavigation(item); setAccountMenuOpen(false); }}>{item.label}</button>)}
+              <button type="button" className="customer-settings-logout" onClick={onLogout}>Esci</button>
             </div>
           </div>
         </div>
@@ -4257,7 +3945,6 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
         <div
           className={`dashboard-content ${user?.role === "admin" ? "is-admin-wide" : ""}`}
         >
-          <div className="guided-home-actions" style={{ marginBottom: 24 }}><button className="btn btn-primary" onClick={() => setTab('idea')}>IDEA: crea un articolo</button><button className="btn btn-outline" onClick={() => openNewArticle()}>+ Aggiungi contenuto</button></div>
           {tab !== 'overview' && <header className="dashboard-page-header">
             <div className="page-heading">
               <div className="page-kicker">
@@ -4266,7 +3953,7 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
               <h1>{pageTitle}</h1>
               <p>{pageSubtitle}</p>
             </div>
-            <div className="page-actions"></div>
+            <div className="page-actions"><button type="button" className="btn btn-outline" onClick={() => setTab("overview")}>Torna da LIA</button></div>
           </header>}
           {homeError && tab !== 'overview' && <div role="alert" className="card"><p>Non riesco ad aggiornare i dati del progetto.</p><button type="button" className="btn btn-outline" disabled={homeLoading} onClick={loadData}>{homeLoading ? 'Caricamento…' : 'Riprova'}</button></div>}
           {syncMsg && (
@@ -4316,9 +4003,20 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
             </div>
           )}
 
-          {tab === 'publicsite' && Object.prototype.hasOwnProperty.call(data?.site || {}, 'openpage_config') && <section className="card profile-review-panel"><h2>Il tuo sito, le tue scelte</h2><p>LIA prepara proposte. Le modifiche grafiche si applicano dopo la tua autorizzazione; il sito online cambia quando pubblichi. Le versioni salvate permettono di tornare indietro.</p><div className="profile-review-fields">{[{href:'/builder/editor',icon:'✎',title:'Modifica sito',description:'Testi, immagini, sezioni e menu.'},{href:'/builder/themes',icon:'▦',title:'Temi e layout',description:'Guarda le anteprime o fatti aiutare da LIA a scegliere.'},{href:'/builder/create',icon:'✧',title:'Nuova proposta del sito',description:'Descrivi la tua idea e valuta una proposta prima di autorizzarla.'},{href:'/builder/versions',icon:'◷',title:'Versioni salvate',description:'Salva una versione, confrontala e ripristinala.'},{href:'/builder/profile',icon:'◎',title:'Aggiorna dal profilo',description:'Scegli quali dati pubblici trasferire alla bozza.'}].map(item=><a key={item.href} className="card" href={item.href} style={{textDecoration:'none',color:'inherit'}}><h3>{item.icon} {item.title}</h3><p>{item.description}</p></a>)}</div></section>}
+          {tab === 'publicsite' && <section className="card customer-site-intro">
+            <h2>Il tuo sito</h2><p>Guarda il risultato online. Se vuoi cambiare qualcosa, descrivilo a LIA: ti aiuterà a scegliere il passo giusto.</p>
+            <div className="customer-site-actions"><a className="btn btn-primary" href={siteUrl} target="_blank" rel="noopener noreferrer">Apri il sito</a><button type="button" className="btn btn-outline" onClick={() => openLiaRequest('Vorrei migliorare il mio sito. Aiutami a scegliere cosa cambiare.')}>Chiedi una modifica a LIA</button></div>
+            <details className="customer-advanced"><summary>Preferisci modificare il sito direttamente?</summary>
+              {Object.prototype.hasOwnProperty.call(data?.site || {}, 'openpage_config') ? <div className="profile-review-fields">{[
+                {href:'/builder/editor',title:'Apri editor del sito',description:'Modifica testi, immagini, sezioni e menu.'},
+                {href:'/builder/themes',title:'Scegli un tema',description:'Confronta le anteprime prima di decidere.'},
+                {href:'/builder/create',title:'Prepara una nuova proposta',description:'Rivedi una nuova bozza prima di pubblicarla.'},
+                {href:'/builder/versions',title:'Versioni salvate',description:'Confronta e ripristina una versione precedente.'},
+                {href:'/builder/profile',title:'Aggiorna dai tuoi dati',description:'Scegli i dati da trasferire alla bozza.'},
+              ].map(item => <a key={item.href} className="card" href={item.href} style={{textDecoration:'none',color:'inherit'}}><h3>{item.title}</h3><p>{item.description}</p></a>)}</div> : <div className="customer-site-actions"><button type="button" className="btn btn-outline" onClick={() => { setTab('profile'); setProfileSubTab('identity'); }}>Nome, presentazione e immagini</button><button type="button" className="btn btn-outline" onClick={() => { setTab('profile'); setProfileSubTab('presence'); }}>Contatti e collegamenti</button></div>}
+            </details>
+          </section>}
 
-          {tab === 'publicsite' && !Object.prototype.hasOwnProperty.call(data?.site || {}, 'openpage_config') && <section className="card"><h2>La tua presenza sul web</h2><p>I tuoi contenuti hanno uno spazio pubblico già ospitato. Puoi usarlo per approfondire ciò che condividi sui social, oppure valorizzare il sito che possiedi già.</p><div className="guided-home-actions"><a className="btn btn-primary" href={siteUrl} target="_blank" rel="noopener noreferrer">Apri la tua presenza pubblica</a><button type="button" className="btn btn-outline" onClick={() => { setTab('profile'); setProfileSubTab('identity'); }}>Aggiorna la presentazione</button><button type="button" className="btn btn-outline" onClick={() => { setTab('profile'); setProfileSubTab('presence'); }}>Sito esistente e contatti</button></div><p>LIA e IDEA preparano contenuti per le destinazioni che scegli. Nessun dominio aggiuntivo necessario.</p></section>}
           {/* Profile Sub-Navigation */}
           {tab === "profile" && (
             <div style={{ marginBottom: "2rem" }}>
@@ -4430,7 +4128,7 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
             <div
               style={{ display: "flex", flexDirection: "column", gap: "2rem" }}
             >
-              {tab === 'overview' && <GuidedHome onWrite={title => openNewArticle({ title: title || '' })} data={data} token={token} loading={homeLoading} error={homeError} knowledge={knowledge} strategy={declaredStrategy} syncing={syncing || scanning} siteUrl={siteUrl} onRetry={loadData} onCreateWeb={brief => createIdeaDraft(brief, -2)} onCreateSocial={generateSocialContent} onOpenPost={(id, brief) => { const post = data?.posts?.find(item => Number(item.id) === Number(id)); if (post) openPostEditor(post, brief); }} onAcquire={() => isBasePlan ? acquireBaseContent(false) : scanSources()} onNavigate={id => { selectNavigation({ id: id === 'reachability' ? 'profile' : id }); if (id === 'reachability') setProfileSubTab('presence'); if (id === 'profile') setProfileSubTab('who'); }} onEditSite={() => { setTab('publicsite'); }} />}
+              {tab === 'overview' && <LiaWorkspace token={token} user={user} state={liaWorkspaceState?.ownerId === String(user.id) ? liaWorkspaceState : null} onStateChange={setLiaWorkspaceState} data={data} site={site} sources={sources} posts={posts} loading={homeLoading} error={homeError} knowledge={knowledge} onRefresh={loadData} onPostEdit={post => openPostEditor(post)} onWrite={title => openNewArticle({ title: title || '' })} onAcquire={() => isBasePlan ? acquireBaseContent(false) : scanSources()} onNavigate={id => { selectNavigation({ id: id === 'reachability' ? 'profile' : id }); if (id === 'reachability') setProfileSubTab('presence'); if (id === 'profile') setProfileSubTab('who'); }} />}
 
               {tab === 'profile' && profileSubTab === 'who' && (
                 <div className="profile-review-stack">
@@ -5874,6 +5572,7 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
               return (
                 <div>
                   {/* Header Ricerca e Filtri */}
+                  <div className="customer-content-actions"><button type="button" className="btn btn-primary" onClick={() => openLiaRequest('Vorrei preparare un contenuto per la mia attività. Da dove iniziamo?')}>Prepara un contenuto con LIA</button><details><summary>Altri strumenti</summary><div><button type="button" className="btn btn-outline" onClick={() => openNewArticle()}>Scrivi da zero</button><button type="button" className="btn btn-outline" onClick={() => setTab('idea')}>Laboratorio articoli</button><button type="button" className="btn btn-outline" onClick={() => setTab('sources')}>Gestisci i canali</button></div></details></div>
                   <div
                     style={{
                       marginBottom: "2rem",
@@ -6164,9 +5863,9 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
                         Nessun contenuto trovato
                       </h3>
                       <p style={{ fontSize: "18px", marginTop: "0.5rem" }}>
-                        {posts.length ? 'Non ci sono articoli per i filtri selezionati.' : 'Scrivi o incolla il tuo primo contenuto, oppure importa dai social.'}
+                        {posts.length ? 'Non ci sono articoli per i filtri selezionati.' : 'Chiedi a LIA di aiutarti a preparare il primo contenuto.'}
                       </p>
-                      {posts.length ? <button className="btn btn-outline" onClick={() => { setPostSearch(''); setPostPlatformFilter('all'); setPostTagFilter('all'); setDashboardFilter('all'); }}>Azzera i filtri</button> : <button className="btn btn-primary" onClick={() => openNewArticle()}>Scrivi il primo contenuto</button>}
+                      {posts.length ? <button className="btn btn-outline" onClick={() => { setPostSearch(''); setPostPlatformFilter('all'); setPostTagFilter('all'); setDashboardFilter('all'); }}>Azzera i filtri</button> : <button className="btn btn-primary" onClick={() => openLiaRequest('Vorrei preparare il mio primo contenuto. Guidami un passo alla volta.')}>Prepara il primo contenuto con LIA</button>}
                     </div>
                   ) : viewMode === "table" ? (
                     <div
@@ -9599,7 +9298,6 @@ Scrivi tutti i contenuti per questa attività rispettando rigorosamente il tono 
         </div>
       )}
 
-      {tab !== 'overview' && <ProductGuide knowledge={knowledge} />}
       <PublicationConnections token={token} />
     </div>
   );

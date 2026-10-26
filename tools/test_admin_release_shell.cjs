@@ -40,6 +40,7 @@ const base = process.argv[2] || 'http://45.138.202.132:8088';
         if (action === 'admin-monitoring') data = { totals: { users: 3, published_posts: 12, queued_posts: 0 }, provider_settings: [], agents: [], diagnostics: [], usage_this_month: {}, cron_logs: [] };
         if (action === 'admin-settings') data = { settings: { cron_interval_sync: '6', cron_interval_seo: '24' } };
         if (action === 'admin-users') data = { users: [] };
+        if (action === 'lia-assistant') data = { version: 1, reply: 'Possiamo preparare una presentazione chiara della tua attività.', question: 'Quale servizio vuoi far conoscere?', options: ['Consulenza', 'Formazione'], actions: [], operations_executed: [] };
         if (['drafts', 'pending-posts'].includes(action)) data = [];
         await route.fulfill({ json: data });
       });
@@ -54,9 +55,16 @@ const base = process.argv[2] || 'http://45.138.202.132:8088';
         assert.deepEqual(actions.filter(action => !String(action).startsWith('admin-') && action !== 'me'), [], 'Published admin performs no customer API requests');
       } else {
         await page.getByRole('navigation', { name: 'Sezioni della piattaforma' }).waitFor();
+        await page.getByRole('heading', { name: 'Cosa facciamo oggi?', exact: true }).waitFor();
         await page.waitForTimeout(400);
         assert.equal(await page.locator('.admin-application-shell').count(), 0, 'Published customer stays outside admin shell');
         assert.equal(actions.some(action => String(action).startsWith('admin-')), false, 'Published customer does not call admin APIs');
+        assert.equal(actions.includes('lia-profile-review') || actions.includes('lia-assistant'), false, 'Published entry does not spend AI credit automatically');
+        await page.getByRole('button', { name: 'Non so da dove iniziare', exact: true }).click();
+        await page.getByRole('textbox', { name: 'Scrivi a LIA', exact: true }).fill('Aiutami a farmi conoscere dalle famiglie.');
+        await page.getByRole('button', { name: 'Invia a LIA', exact: true }).click();
+        await page.getByRole('button', { name: 'Consulenza', exact: true }).waitFor();
+        assert.equal(actions.includes('lia-assistant'), true, 'Published LIA sends the explicit request and offers a guided answer');
       }
       assert.deepEqual(errors, [], 'Published bundle has no runtime errors');
       assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), true, 'Published layout fits viewport');
