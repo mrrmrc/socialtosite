@@ -98,8 +98,9 @@ const forbiddenAdminRequests = ['site', 'admin-seo', 'current_plan', 'lia-profil
     assert.equal(actions.some(action => String(action).startsWith('admin-')), false, 'Customer never requests admin APIs');
     assert.deepEqual(errors, [], 'Customer shell remains functional');
     await context.close();
-    const baseCustomer = await openApp({ id: 3, name: 'Cliente Base', email: 'base@example.test', slug: 'cliente-base', plan: 'base', role: 'user' }, '/dashboard');
+    const baseCustomer = await openApp({ id: 3, name: 'Cliente Base', email: 'base@example.test', slug: 'cliente-base', plan: 'base', role: 'user' }, '/dashboard?tab=idea');
     await baseCustomer.page.getByRole('heading', { name: 'Cosa facciamo oggi?', exact: true }).waitFor();
+    assert.equal(new URL(baseCustomer.page.url()).searchParams.get('tab'), 'overview', 'Old IDEA bookmarks enter the guided LIA workspace');
     assert.equal(await baseCustomer.page.locator('.admin-application-shell').count(), 0, 'Base customer without sources enters LIA directly');
     assert.ok(baseCustomer.actions.includes('me') && baseCustomer.actions.includes('site'), 'LIA verifies identity and loads the current account');
     assert.equal(baseCustomer.actions.some(action => String(action).startsWith('admin-')), false, 'Base onboarding does not call admin APIs');

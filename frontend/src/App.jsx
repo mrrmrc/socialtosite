@@ -54,6 +54,10 @@ export default function App() {
           verifiedUrl.searchParams.delete('tab');
           window.history.replaceState(null, '', verifiedUrl);
         }
+        if (verifiedUser.role !== 'admin' && verifiedUrl.searchParams.get('tab') === 'idea') {
+          verifiedUrl.searchParams.set('tab', 'overview');
+          window.history.replaceState(null, '', verifiedUrl);
+        }
         localStorage.setItem('sts_user', JSON.stringify(verifiedUser));
         setUser(verifiedUser);
         setIdentityState('ready');
