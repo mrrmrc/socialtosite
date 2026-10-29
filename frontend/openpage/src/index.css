@@ -3,17 +3,17 @@
 
 @theme {
   /* Background layers */
-  --color-bg-0: #09090b;
-  --color-bg-1: #0f0f12;
-  --color-bg-2: #18181b;
-  --color-bg-3: #1e1e23;
-  --color-bg-4: #27272a;
-  --color-bg-5: #303036;
+  --color-bg-0: #111a15;
+  --color-bg-1: #16221b;
+  --color-bg-2: #1d2d23;
+  --color-bg-3: #24352a;
+  --color-bg-4: #304337;
+  --color-bg-5: #3e5444;
 
   /* Borders */
-  --color-border-default: #2a2a2f;
-  --color-border-subtle: #1f1f24;
-  --color-border-hover: #3a3a3f;
+  --color-border-default: #354839;
+  --color-border-subtle: #293a2e;
+  --color-border-hover: #60795b;
 
   /* Text */
   --color-text-0: #fafafa;
@@ -22,10 +22,10 @@
   --color-text-3: #a1a1aa;
 
   /* Accent */
-  --color-green: #22c55e;
-  --color-green-dim: #16a34a;
-  --color-green-glow: rgba(34, 197, 94, 0.12);
-  --color-green-glow2: rgba(34, 197, 94, 0.06);
+  --color-green: #c3df98;
+  --color-green-dim: #a6c47c;
+  --color-green-glow: rgba(195, 223, 152, 0.12);
+  --color-green-glow2: rgba(195, 223, 152, 0.06);
 
   /* Status */
   --color-status-red: #ef4444;
@@ -33,8 +33,8 @@
   --color-status-blue: #3b82f6;
 
   /* Radius */
-  --radius-default: 8px;
-  --radius-lg: 12px;
+  --radius-default: 10px;
+  --radius-lg: 14px;
 
   /* Fonts */
   --font-sans: "DM Sans", -apple-system, system-ui, sans-serif;
@@ -43,7 +43,7 @@
 }
 
 :root {
-  --color-accent-rgb: 34, 197, 94;
+  --color-accent-rgb: 195, 223, 152;
 }
 
 html {

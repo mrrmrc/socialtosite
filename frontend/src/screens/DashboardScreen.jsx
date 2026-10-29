@@ -1,4 +1,5 @@
 import { LiaWorkspace } from '../components/LiaWorkspace';
+import { LiaContextEntry } from '../components/LiaTaskPanel';
 import './CustomerWorkspace.css';
 import { EditorDialog } from '../components/EditorDialog';
 import { ArticleStudio } from '../components/ArticleStudio';
@@ -4121,6 +4122,7 @@ export function DashboardScreen({ token, user, onLogout }) {
           {tab === 'profile' && profileReviewMessage && <p role={profileReviewMessage.ok?'status':'alert'}>{profileReviewMessage.text}</p>}
           {tab === 'profile' && profileSubTab === 'social' && <div className="profile-review-stack"><ProfileReviewPanel social value={{...(profileUnderstanding || {}),...socialProfileDraft}} onChange={(key,value)=>setSocialProfileDraft(prev=>({...prev,[key]:value}))} onSave={()=>saveProfileReview('social')} busy={profileReviewBusy} /><section className="card"><h3>Origine delle informazioni</h3><p>{sources.length} canali collegati · {posts.length} contenuti acquisiti. {profileUnderstanding?.generated_at ? `Ultima analisi: ${profileUnderstanding.generated_at}` : 'Nessuna analisi disponibile: collega i social e avvia l’analisi.'}</p><button className="btn btn-outline" onClick={analyzeProfile} disabled={profileAnalyzing}>{profileAnalyzing?'Analisi in corso…':'Aggiorna l’analisi dai contenuti'}</button> <button className="btn btn-outline" onClick={()=>setTab('sources')}>Gestisci i social collegati</button></section>{profileQuestions.length>0 && <details className="card"><summary>Domande e chiarimenti dell’AI</summary>{profileQuestions.map(question=><div key={question.id}><label><strong>{question.question}</strong><textarea rows={3} value={answerDrafts[question.id] ?? question.answer ?? ''} onChange={event=>setAnswerDrafts(prev=>({...prev,[question.id]:event.target.value}))} /></label><button className="btn btn-outline" disabled={answeringId===question.id} onClick={()=>submitProfileAnswer(question.id)}>Salva risposta</button></div>)}</details>}</div>}
 
+          {tab !== 'overview' && <LiaContextEntry section={tab} onChoose={openLiaRequest} />}
           {tab === "idea" && <ArticleStudio state={articleStudioState} onStateChange={setArticleStudioState} token={token} onOpenEditor={openNewArticle} onWrite={() => openNewArticle()} />}
 
           {(tab === "overview" ||

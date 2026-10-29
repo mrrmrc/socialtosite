@@ -4,6 +4,7 @@ import { AdminControlRoom } from '../components/AdminControlRoom';
 import { AdminProviderCard } from '../components/AdminProviderCard';
 import { AdminOperations } from '../components/AdminOperations';
 import { AdminPlatformOverview } from '../components/AdminPlatformOverview';
+import { LiaAdminGuide } from '../components/LiaTaskPanel';
 
 const PANEL_STYLE = { padding: '14px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)' };
 
@@ -497,6 +498,7 @@ export function AdminScreen({ token, currentUser, adminPrompts, updatePrompt }) 
       </aside>
       <main className="admin-main">
       <header className="admin-commandbar"><div><div className="admin-scope"><span className="admin-scope-badge">AMMINISTRATORE</span><small>{adminTab === 'control-room' && selectedAccount ? 'Cliente: ' + (selectedAccount.name || selectedAccount.email) : 'Ambito piattaforma'}</small></div><h2>{activeSection?.[1] || 'Amministrazione'}</h2><small>{monitoringLoading ? 'Aggiornamento in corso…' : monitoringUpdated ? 'Dati piattaforma aggiornati alle ' + monitoringUpdated.toLocaleTimeString('it-IT') : 'Dati piattaforma non ancora aggiornati'}</small></div><select className="admin-global-search" aria-label="Vai al controllo cliente" value="" onChange={e => { if(e.target.value) openClient(e.target.value); }}><option value="">Vai al controllo cliente…</option>{controlUsers.map(user => <option key={user.id} value={user.id}>{user.name || user.email}</option>)}</select></header>
+      <LiaAdminGuide section={adminTab} onNavigate={navigateAdminTab} />
       {adminTab === 'content-manager' && <AdminOperations token={token} onClient={openClient} users={users} selectedUserId={contentScopeId} onUserSelect={setContentScopeId} />}
       {adminTab === 'processes' && <AdminOperations key="queue" token={token} queue onClient={openClient} users={users} selectedUserId={contentScopeId} onUserSelect={setContentScopeId} />}
 

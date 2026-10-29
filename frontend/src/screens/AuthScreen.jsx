@@ -65,7 +65,7 @@ export function AuthScreen({ onAuth }) {
   ];
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', background: '#F7F5F0', fontFamily: '"Inter", system-ui, sans-serif', overflowX: 'hidden' }}>
+    <div className="auth-screen" style={{ minHeight: '100vh', display: 'flex', background: '#F7F5F0', fontFamily: '"Inter", system-ui, sans-serif', overflowX: 'hidden' }}>
 
       {/* ── Left brand panel ─────────────────────────────── */}
       <div className="auth-left" style={{
@@ -123,7 +123,7 @@ export function AuthScreen({ onAuth }) {
 
       {/* ── Right form panel ─────────────────────────────── */}
       <div style={{
-        width: 'min(520px, 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+        width: 'min(600px, 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center',
         padding: 'clamp(2rem, 5vw, 4rem)', position: 'relative',
       }}>
         <div style={{ width: '100%', maxWidth: 380 }}>

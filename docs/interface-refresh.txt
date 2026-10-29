@@ -1,0 +1,65 @@
+INTERFACE REFRESH — 29 October 2026
+
+Scope and code review
+Reviewed the React application entry and role boundary, public/login/legal
+screens, customer navigation and workspace, guided LIA conversation, article
+generation and confirmation flows, administration navigation and operations,
+shared styles, active OpenPage editor theme, existing browser tests and both
+deployment workflows. Checked the PHP changes already present on staging
+against main for database structural changes; this delivery adds no SQL or
+database migration. This is an interface-focused review, not a complete
+security audit of every backend service.
+
+Findings addressed
+- Public presentation, customer UI and administration used competing visual
+  systems. Replaced premium.css with shared forest/sage/paper tokens, consistent
+  surfaces, borders, typography, controls, focus rings and responsive layouts.
+- Legacy public-* CSS unexpectedly affected the replacement landing page.
+  Isolated its classes under marketing-* to avoid the historical overrides.
+- Theme loading depended on main.jsx. App now imports the shared theme so
+  the actual application and App-based role tests use the same presentation.
+- Added a new public landing with LIA preview, keyboard-operable example tabs,
+  FAQ controls, clear plan descriptions and existing account-entry routing.
+  Examples are labeled illustrative; no synthetic testimonials or metrics.
+- LIA workspace has a conversation area plus a task/context panel with actual
+  project counts. Task buttons prepare editable prompts and focus the composer;
+  they do not send AI requests, consume credit or write account data.
+- Content, site and settings views offer contextual entry back to LIA while
+  preserving the existing conversation state and account ownership checks.
+- Administration uses a distinct navigation rail, cleaner KPIs and tables,
+  tighter action sizing and a contextual LIA guide. This guide is explicitly
+  static navigation assistance; it does not pretend to run AI analysis or
+  expose customer APIs to the platform administrator.
+- Login, legal screens and active visual-editor palette follow the new visual
+  direction. Editor generation, export logic and customer content are unchanged.
+- Reduced-motion preferences and visible keyboard focus are supported.
+
+Validation
+- Main frontend production build.
+- Active OpenPage TypeScript and production build.
+- OpenPage: 43 tests in 12 files passed.
+- Browser suites: administration operations, Control Room, real App role
+  isolation, guided LIA conversation/drafts/revisions/confirmation.
+- New interface browser regression: actual application entry, example tabs
+  and keyboard navigation, FAQ, login, task-to-composer and context-to-LIA
+  navigation, no automatic AI calls, administrator isolation, and no horizontal
+  overflow at 1440, 768, 390 and 360 pixels.
+- Browser screenshots are saved under artifacts/refresh-*.png.
+- git diff --check.
+
+Remaining architecture/performance findings
+- DashboardScreen.jsx remains very large and contains dormant legacy paths.
+  Extracting feature controllers and deleting old paths needs a dedicated
+  behavioral refactor, not a style-only deletion.
+- frontend/src/openpage is a legacy duplicate; the deployed builder is
+  frontend/openpage. This delivery changes only the active editor theme.
+- Vite reports existing large application/editor bundles and avatar PNG assets.
+  Route splitting and image delivery optimization remain separate follow-up
+  work; no dependency upgrades are included here.
+- AI availability still depends on the configured provider, credentials,
+  quota and credit. New UI affordances do not bypass those requirements.
+
+Delivery
+Use staging's existing push pipeline and production's canonical main commit
+with [deployvps], GitHub Actions and FTP/FTPS release verification. Transfer
+code only. No database data is copied or replaced.

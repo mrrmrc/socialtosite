@@ -140,6 +140,7 @@ jobs:
             artifacts/control-room-*.png
             artifacts/release-shell-*.png
             artifacts/lia-*.png
+            artifacts/refresh-*.png
           if-no-files-found: ignore
 
 

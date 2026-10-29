@@ -6,6 +6,7 @@ import { LandingScreen } from './screens/LandingScreen';
 import { LegalScreen } from './screens/LegalScreen';
 import { apiFetch } from './utils/api';
 import './index.css';
+import './premium.css';
 
 export default function App() {
   const pathname = window.location.pathname.replace(/\/+$/, '') || '/';
@@ -109,7 +110,7 @@ export default function App() {
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
+    <div className="application-root" style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
       <div style={{ flex: 1 }}>{screen}</div>
       <footer style={{ padding: '8px', textAlign: 'center', fontSize: '11px', color: 'var(--text-faint)', background: 'var(--surface)', borderTop: '1px solid var(--border)', zIndex: 1000 }}>
         Build: {typeof __BUILD_TIMESTAMP__ !== 'undefined' ? __BUILD_TIMESTAMP__ : 'Dev'}
