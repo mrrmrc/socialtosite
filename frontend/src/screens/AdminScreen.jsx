@@ -1,3 +1,4 @@
+import { InterfaceIcon as Icon } from '../components/InterfaceIcon';
 import React, { useEffect, useRef, useState } from 'react';
 import { apiFetch } from '../utils/api';
 import { AdminControlRoom } from '../components/AdminControlRoom';
@@ -495,7 +496,7 @@ export function AdminScreen({ token, currentUser, adminPrompts, updatePrompt }) 
     <div className={`admin-workspace${adminTab === 'control-room' ? ' admin-workspace-control' : ''}`}>
       <aside className="admin-navigation" aria-label="Navigazione amministrazione">
         <header><span>Amministrazione</span><strong>Controllo piattaforma</strong></header><p className="admin-nav-description">Clienti, produzione, accessi e configurazioni globali.</p>
-        {adminNavigation.map(section => <section key={section.group}><small>{section.group}</small>{section.items.map(([id,label,icon]) => <button key={id} className={adminTab === id ? 'is-active' : ''} aria-current={adminTab === id ? 'page' : undefined} onClick={() => navigateAdminTab(id)}><i aria-hidden="true">{icon}</i><span>{label}</span></button>)}</section>)}
+        {adminNavigation.map(section => <section key={section.group}><small>{section.group}</small>{section.items.map(([id,label,icon]) => <button key={id} className={adminTab === id ? 'is-active' : ''} aria-current={adminTab === id ? 'page' : undefined} onClick={() => navigateAdminTab(id)}><i aria-hidden="true"><Icon name={({ overview: 'chart', users: 'user', 'control-room': 'target', 'content-manager': 'layers', processes: 'arrow', 'content-mix': 'chart', agents: 'spark', economics: 'wallet', monitoring: 'shield', 'monitor-live': 'orbit', logs: 'pen' })[id]} size={18} /></i><span>{label}</span></button>)}</section>)}
       </aside>
       <main className="admin-main">
       <header className="admin-commandbar"><div><div className="admin-scope"><span className="admin-scope-badge">AMMINISTRATORE</span><small>{adminTab === 'control-room' && selectedAccount ? 'Cliente: ' + (selectedAccount.name || selectedAccount.email) : 'Ambito piattaforma'}</small></div><h2>{activeSection?.[1] || 'Amministrazione'}</h2><small>{monitoringLoading ? 'Aggiornamento in corso…' : monitoringUpdated ? 'Dati piattaforma aggiornati alle ' + monitoringUpdated.toLocaleTimeString('it-IT') : 'Dati piattaforma non ancora aggiornati'}</small></div><select className="admin-global-search" aria-label="Vai al controllo cliente" value="" onChange={e => { if(e.target.value) openClient(e.target.value); }}><option value="">Vai al controllo cliente…</option>{controlUsers.map(user => <option key={user.id} value={user.id}>{user.name || user.email}</option>)}</select></header>

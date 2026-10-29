@@ -1,0 +1,35 @@
+VIVID WORKSPACE — 29 October 2026
+
+New visual direction
+Indigo, violet, apricot and cyan replace the muted forest palette. Public
+landing, login, dashboard, LIA, administration and the active editor are aligned.
+SVG icons replace the navigation glyphs and appear in the project shortcuts,
+SEO/GEO panels, profile menu and account controls. Administration typography
+continues to use the shared scale checked in the previous correction.
+
+Customer entry
+The initial screen shows an observation panel before the LIA conversation:
+Google impressions/clicks, informational GEO foundations, published content,
+drafts, and links to activity, channels, statistics and services. The primary
+navigation exposes LIA, content, website, SEO/GEO and channels.
+No simulated charts, fabricated search scores or growth percentages are used.
+Missing Google observations display a dash, not a false zero. GEO foundations
+are local facts about identity, sources, content and contacts; the interface
+explicitly says citations and presence in AI answers are not measured.
+
+Personal account
+User silhouette menu with name, plan, account editing, other settings and logout.
+Supports keyboard focus, Escape and outside focus dismissal. Customer and admin
+accounts can change their own name and login email. Email changes require the
+current password; only authenticated account ID is used. Role, plan, slug and
+other users' records cannot be changed through this endpoint. Name/email use
+existing columns; there are no schema changes or migrations.
+
+Verification
+Both production builds; existing 43 editor tests; five browser suites covering
+roles, workflows, keyboard navigation, account updates and 1440/768/390/360px.
+Account backend test runs the actual route with isolated DB fixtures to verify
+validation, password requirement, ownership, privilege isolation and duplicates.
+The PHP syntax parser ran locally; PHP route tests also gate both CI pipelines.
+Screenshots: artifacts/refresh-*.png. Production remains main + [deployvps] +
+GitHub Actions + FTP/FTPS. Staging uses its existing branch pipeline.

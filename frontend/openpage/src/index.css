@@ -3,17 +3,17 @@
 
 @theme {
   /* Background layers */
-  --color-bg-0: #111a15;
-  --color-bg-1: #16221b;
-  --color-bg-2: #1d2d23;
-  --color-bg-3: #24352a;
-  --color-bg-4: #304337;
-  --color-bg-5: #3e5444;
+  --color-bg-0: #151526;
+  --color-bg-1: #1d1b33;
+  --color-bg-2: #28243f;
+  --color-bg-3: #322b4c;
+  --color-bg-4: #41365e;
+  --color-bg-5: #524570;
 
   /* Borders */
-  --color-border-default: #354839;
-  --color-border-subtle: #293a2e;
-  --color-border-hover: #60795b;
+  --color-border-default: #45365e;
+  --color-border-subtle: #342c49;
+  --color-border-hover: #7d60a4;
 
   /* Text */
   --color-text-0: #fafafa;
@@ -22,10 +22,10 @@
   --color-text-3: #a1a1aa;
 
   /* Accent */
-  --color-green: #c3df98;
-  --color-green-dim: #a6c47c;
-  --color-green-glow: rgba(195, 223, 152, 0.12);
-  --color-green-glow2: rgba(195, 223, 152, 0.06);
+  --color-green: #c3a6ff;
+  --color-green-dim: #ad8ce8;
+  --color-green-glow: rgba(195, 166, 255, 0.12);
+  --color-green-glow2: rgba(195, 166, 255, 0.06);
 
   /* Status */
   --color-status-red: #ef4444;
@@ -43,7 +43,7 @@
 }
 
 :root {
-  --color-accent-rgb: 195, 223, 152;
+  --color-accent-rgb: 195, 166, 255;
 }
 
 html {

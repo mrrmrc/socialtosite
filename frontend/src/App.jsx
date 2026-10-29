@@ -8,6 +8,7 @@ import { apiFetch } from './utils/api';
 import './index.css';
 import './premium.css';
 import './admin-design.css';
+import './experience.css';
 
 export default function App() {
   const pathname = window.location.pathname.replace(/\/+$/, '') || '/';
@@ -105,9 +106,9 @@ export default function App() {
   } else if (!user) {
     screen = <AuthScreen onAuth={handleAuth} />;
   } else if (isAdmin) {
-    screen = <AdminWorkspaceScreen token={token} user={user} onLogout={handleLogout} />;
+    screen = <AdminWorkspaceScreen token={token} user={user} onLogout={handleLogout} onUserUpdate={updated => { localStorage.setItem('sts_user', JSON.stringify(updated)); setUser(updated); }} />;
   } else {
-    screen = <DashboardScreen token={token} user={user} onLogout={handleLogout} />;
+    screen = <DashboardScreen token={token} user={user} onLogout={handleLogout} onUserUpdate={updated => { localStorage.setItem('sts_user', JSON.stringify(updated)); setUser(updated); }} />;
   }
 
   return (

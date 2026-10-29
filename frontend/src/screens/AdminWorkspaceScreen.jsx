@@ -1,3 +1,5 @@
+import { UserMenu } from '../components/UserMenu';
+import { AccountProfile } from '../components/AccountProfile';
 import React, { useEffect, useState } from 'react';
 import { AdminScreen } from './AdminScreen';
 import { BrandMark } from './LandingScreen';
@@ -43,10 +45,11 @@ function AdminAccountSecurity({ token, onLogout, onClose }) {
 }
 
 /** Platform administration never mounts the customer dashboard or its automations. */
-export function AdminWorkspaceScreen({ token, user, onLogout }) {
+export function AdminWorkspaceScreen({ token, user, onLogout, onUserUpdate }) {
   const [prompts, setPrompts] = useState([]);
   const [promptsError, setPromptsError] = useState('');
   const [promptsRevision, setPromptsRevision] = useState(0);
+  const [accountOpen, setAccountOpen] = useState(false);
   const [securityOpen, setSecurityOpen] = useState(false);
 
   useEffect(() => {
@@ -69,9 +72,10 @@ export function AdminWorkspaceScreen({ token, user, onLogout }) {
   return <div className="admin-application-shell">
     <header className="admin-application-header">
       <div className="admin-application-identity"><BrandMark compact /><div><span>Console amministrativa</span><h1>Amministrazione piattaforma</h1></div></div>
-      <div className="admin-application-account"><span>{user.name || user.email}<small>Amministratore</small></span><button className="btn btn-outline" aria-expanded={securityOpen} onClick={() => setSecurityOpen(open => !open)}>Sicurezza account</button><button className="btn btn-outline" onClick={onLogout}>Esci</button></div>
+      <div className="admin-application-account"><UserMenu user={user} items={[{ id: 'account', label: 'Modifica i miei dati' }, { id: 'security', label: 'Password e accessi' }]} onNavigate={id => { setAccountOpen(id === 'account'); setSecurityOpen(id === 'security'); }} onLogout={onLogout} /><button className="btn btn-outline" aria-expanded={securityOpen} onClick={() => setSecurityOpen(open => !open)}>Sicurezza account</button><button className="btn btn-outline" onClick={onLogout}>Esci</button></div>
     </header>
     <div className="admin-application-content">
+      {accountOpen && <AccountProfile key={user.id} user={user} token={token} onSaved={onUserUpdate} onNavigate={() => { setAccountOpen(false); setSecurityOpen(true); }} />}
       {securityOpen && <AdminAccountSecurity token={token} onLogout={onLogout} onClose={() => setSecurityOpen(false)} />}
       {promptsError && <div className="admin-warning" role="alert">Impossibile caricare le istruzioni degli agenti: {promptsError} <button className="btn btn-outline" onClick={() => setPromptsRevision(value => value + 1)}>Riprova istruzioni agenti</button></div>}
       <AdminScreen token={token} currentUser={user} adminPrompts={prompts} updatePrompt={updatePrompt} />

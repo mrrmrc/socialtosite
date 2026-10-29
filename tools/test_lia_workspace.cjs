@@ -71,7 +71,7 @@ const base = 'http://127.0.0.1:5178';
     await page.waitForTimeout(150);
     assert.equal(requests.filter(item => item.payload).length, 0, 'Opening a project does not launch AI or save changes');
     const nav = page.getByRole('navigation', { name: 'Sezioni della piattaforma' });
-    assert.deepEqual(await nav.locator('.tab-label').allTextContents(), ['LIA', 'Contenuti', 'Il sito']);
+    assert.deepEqual(await nav.locator('.tab-label').allTextContents(), ['LIA', 'Contenuti', 'Il sito', 'SEO e GEO', 'Canali']);
     fs.mkdirSync('artifacts', { recursive: true });
     await page.screenshot({ path: 'artifacts/lia-entry-desktop.png', fullPage: true });
     await page.getByRole('button', { name: 'Non so da dove iniziare', exact: true }).click();

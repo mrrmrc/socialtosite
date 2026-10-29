@@ -57,6 +57,7 @@ jobs:
           php tools/test_admin_operations.php
           php tools/test_admin_content.php
           php tools/test_session_identity.php
+          php tools/test_account_update.php
           php tools/test_lia_assistant.php
           php tools/test_lia_draft.php
           php tools/test_password_recovery.php

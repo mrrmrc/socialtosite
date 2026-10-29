@@ -303,6 +303,7 @@ $me = array_merge($me, [
 ]);
 $isAdmin = ($me['role'] ?? 'user') === 'admin';
 
+
 if (str_starts_with($action, 'publication-')) {
     require __DIR__ . '/routes/publication.php';
     exit;
@@ -317,6 +318,30 @@ function requireAdmin(bool $isAdmin): void {
 function revokeSessions(int $targetUserId): void {
     try { DB::execute('UPDATE users SET token_version = token_version + 1 WHERE id=?', [$targetUserId]); }
     catch (Throwable $e) { if (class_exists('Logger')) Logger::warn('auth', 'Revoca sessioni non riuscita', ['user_id' => $targetUserId, 'error' => $e->getMessage()]); }
+}
+
+if ($action === 'account-update' && $method === 'POST') {
+    $input = body();
+    if (!is_string($input['name'] ?? null) || !is_string($input['email'] ?? null)) jsonError('Inserisci nome ed email validi.', 422);
+    $name = trim($input['name']);
+    $email = strtolower(trim($input['email']));
+    if ($name === '' || mb_strlen($name) > 100 || strlen($email) > 190 || !filter_var($email, FILTER_VALIDATE_EMAIL)) jsonError('Inserisci un nome entro 100 caratteri e un’email valida.', 422);
+    if ($email !== strtolower((string)$me['email'])) {
+        $account = DB::fetch('SELECT password FROM users WHERE id=?', [$userId]);
+        $password = $input['current_password'] ?? '';
+        if (!is_string($password) || strlen($password) > 72 || !password_verify($password, $account['password'] ?? '')) jsonError('Per cambiare email conferma la password attuale.', 403);
+    }
+    try {
+        if (DB::fetch('SELECT id FROM users WHERE email=? AND id<>?', [$email, $userId])) jsonError('Questa email è già associata a un altro account.', 409);
+        DB::execute('UPDATE users SET name=?, email=? WHERE id=?', [$name, $email, $userId]);
+    } catch (Throwable $error) {
+        error_log('[account-update] ' . $error->getMessage());
+        jsonError('Non è stato possibile salvare i dati. Verifica l’email e riprova.', 409);
+    }
+    $updated = array_intersect_key($me, array_flip(['id', 'name', 'email', 'slug', 'role', 'plan']));
+    $updated['name'] = $name;
+    $updated['email'] = $email;
+    json(['ok' => true, 'user' => $updated]);
 }
 
 if ($action === 'sync-status' && $method === 'GET') {

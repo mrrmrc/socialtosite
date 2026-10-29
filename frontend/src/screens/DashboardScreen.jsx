@@ -1,3 +1,7 @@
+import { VisibilityPulse } from '../components/VisibilityPulse';
+import { UserMenu } from '../components/UserMenu';
+import { AccountProfile } from '../components/AccountProfile';
+import { InterfaceIcon as Icon } from '../components/InterfaceIcon';
 import { LiaWorkspace } from '../components/LiaWorkspace';
 import { LiaContextEntry } from '../components/LiaTaskPanel';
 import './CustomerWorkspace.css';
@@ -907,7 +911,7 @@ function GuidedStrategy({
   );
 }
 
-export function DashboardScreen({ token, user, onLogout }) {
+export function DashboardScreen({ token, user, onLogout, onUserUpdate }) {
   const [tab, setTab] = useDashboardNavigation();
   const [liaWorkspaceState, setLiaWorkspaceState] = useState(() => ({ version: 1, ownerId: String(user.id), messages: [], intent: 'general', input: '' }));
   const liaWorkspaceOwner = useRef({ token, userId: user.id });
@@ -921,7 +925,6 @@ export function DashboardScreen({ token, user, onLogout }) {
     setTab('overview');
   }
   const [visibilitySection, setVisibilitySection] = useState("overview");
-  const [accountMenuOpen, setAccountMenuOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [dashboardFilter, setDashboardFilter] = useState("all");
   const [data, setData] = useState(null);
@@ -3527,9 +3530,11 @@ export function DashboardScreen({ token, user, onLogout }) {
     (publishedPosts.length ? 1 : 0) +
     (sources.length ? 1 : 0);
   const visibleNavigationGroups = [{ label: "Il tuo spazio", items: [
-    { id: "overview", icon: <span aria-hidden="true">✦</span>, label: "LIA", hint: "Parla con LIA e scegli il prossimo passo" },
-    { id: "site", icon: <span aria-hidden="true">▤</span>, label: "Contenuti", hint: "Rivedi le bozze e gli articoli pubblicati" },
-    { id: "publicsite", icon: <span aria-hidden="true">▣</span>, label: "Il sito", hint: "Guarda il tuo sito e chiedi una modifica" },
+    { id: "overview", icon: <Icon name="spark" />, label: "LIA", hint: "Parla con LIA e scegli il prossimo passo" },
+    { id: "site", icon: <Icon name="layers" />, label: "Contenuti", hint: "Rivedi le bozze e gli articoli pubblicati" },
+    { id: "publicsite", icon: <Icon name="globe" />, label: "Il sito", hint: "Guarda il tuo sito e chiedi una modifica" },
+    { id: "seo", icon: <Icon name="chart" />, label: "SEO e GEO", hint: "Visibilit? e risultati disponibili" },
+    { id: "sources", icon: <Icon name="link" />, label: "Canali", hint: "Collega le tue fonti" },
   ] }];
   const secondaryNavigation = [
     { id: "profile", label: "La tua attività" },
@@ -3682,76 +3687,7 @@ export function DashboardScreen({ token, user, onLogout }) {
       </section>
     );
   };
-  const renderAccountProfile = () => (
-    <div className="card" style={{ maxWidth: "600px", margin: "2rem auto" }}>
-      <h2 style={{ marginBottom: "1.5rem", fontSize: "24px" }}>
-        Il tuo account
-      </h2>
-      <div style={{ display: "grid", gap: "1rem" }}>
-        <div
-          style={{
-            background: "var(--surface)",
-            padding: "1rem",
-            borderRadius: "var(--radius)",
-            border: "1px solid var(--border)",
-          }}
-        >
-          <strong
-            style={{
-              display: "block",
-              fontSize: "13px",
-              color: "var(--text-muted)",
-            }}
-          >
-            La tua email
-          </strong>
-          <span style={{ fontSize: "16px" }}>{user?.email}</span>
-        </div>
-        <div
-          style={{
-            background: "var(--surface)",
-            padding: "1rem",
-            borderRadius: "var(--radius)",
-            border: "1px solid var(--border)",
-          }}
-        >
-          <strong
-            style={{
-              display: "block",
-              fontSize: "13px",
-              color: "var(--text-muted)",
-            }}
-          >
-            Ruolo
-          </strong>
-          <span style={{ fontSize: "16px" }}>
-            {user?.role === "admin" ? "Amministratore" : "Utente standard"}
-          </span>
-        </div>
-        <div
-          style={{
-            background: "var(--surface)",
-            padding: "1rem",
-            borderRadius: "var(--radius)",
-            border: "1px solid var(--border)",
-          }}
-        >
-          <strong
-            style={{
-              display: "block",
-              fontSize: "13px",
-              color: "var(--text-muted)",
-            }}
-          >
-            Piano abbonamento
-          </strong>
-          <span style={{ fontSize: "16px", textTransform: "capitalize" }}>
-            {user?.plan || "Base"}
-          </span>
-        </div>
-      </div>
-    </div>
-  );
+  const renderAccountProfile = () => <AccountProfile key={user.id} user={user} token={token} onNavigate={setTab} onSaved={updated => { localStorage.setItem('sts_user', JSON.stringify(updated)); onUserUpdate?.(updated); }} />;
   const renderVisibilityServices = () => (
     <div className="services-page">
       <section className="services-intro">
@@ -3907,14 +3843,7 @@ export function DashboardScreen({ token, user, onLogout }) {
         >
 
 
-          <div className="customer-settings" onBlur={event => { if (!event.currentTarget.contains(event.relatedTarget)) setAccountMenuOpen(false); }} onKeyDown={event => { if (event.key === 'Escape') { setAccountMenuOpen(false); event.currentTarget.querySelector('button')?.focus(); } }}>
-            <button type="button" className="btn btn-outline" aria-expanded={accountMenuOpen} aria-controls="account-menu" onClick={() => setAccountMenuOpen(open => !open)}>Impostazioni</button>
-            <div id="account-menu" className="customer-settings-menu" hidden={!accountMenuOpen}>
-              <p>Da qui puoi gestire i dettagli, quando ti servono.</p>
-              {secondaryNavigation.map(item => <button type="button" key={item.id} onClick={() => { selectNavigation(item); setAccountMenuOpen(false); }}>{item.label}</button>)}
-              <button type="button" className="customer-settings-logout" onClick={onLogout}>Esci</button>
-            </div>
-          </div>
+          <UserMenu user={user} items={[{ id: 'account', label: 'Modifica i miei dati' }, ...secondaryNavigation.filter(item => item.id !== 'account')]} onNavigate={id => selectNavigation({ id })} onLogout={onLogout} />
         </div>
       </header>
 
@@ -3946,6 +3875,7 @@ export function DashboardScreen({ token, user, onLogout }) {
         <div
           className={`dashboard-content ${user?.role === "admin" ? "is-admin-wide" : ""}`}
         >
+          {tab === 'overview' && <VisibilityPulse user={user} data={data} loading={homeLoading} error={homeError} onNavigate={id => { if (id === 'profile') setProfileSubTab('presence'); setTab(id); }} onLia={input => { openLiaRequest(input); requestAnimationFrame(() => document.getElementById('lia-workspace-input')?.focus()); }} />}
           {tab !== 'overview' && <header className="dashboard-page-header">
             <div className="page-heading">
               <div className="page-kicker">

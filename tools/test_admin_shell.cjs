@@ -92,7 +92,7 @@ const forbiddenAdminRequests = ['site', 'admin-seo', 'current_plan', 'lia-profil
     assert.equal(await page.locator('.admin-application-shell').count(), 0, 'Customer does not enter admin shell');
     await page.getByRole('heading', { name: 'Cosa facciamo oggi?', exact: true }).waitFor();
     const customerNav = page.getByRole('navigation', { name: 'Sezioni della piattaforma' });
-    assert.deepEqual(await customerNav.locator('.tab-label').allTextContents(), ['LIA', 'Contenuti', 'Il sito'], 'Customer navigation is limited to three clear destinations');
+    assert.deepEqual(await customerNav.locator('.tab-label').allTextContents(), ['LIA', 'Contenuti', 'Il sito', 'SEO e GEO', 'Canali'], 'Customer navigation is limited to three clear destinations');
     assert.equal(actions.includes('lia-profile-review'), false, 'Entering LIA does not start background AI reviews');
     assert.ok(actions.includes('site'), 'Customer loads its own site');
     assert.equal(actions.some(action => String(action).startsWith('admin-')), false, 'Customer never requests admin APIs');

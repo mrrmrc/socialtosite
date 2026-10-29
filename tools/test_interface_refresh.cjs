@@ -44,6 +44,7 @@ const base = 'http://127.0.0.1:5178';
         let data = {};
         if (['me', 'current_plan'].includes(action)) data = { user };
         if (action === 'site') data = { site: { title: 'Studio Aurora', bio: 'Formazione per le famiglie' }, sources: [], posts: [], visibility: {} };
+        if (action === 'account-update') { const payload = route.request().postDataJSON(); data = { user: { ...user, name: payload.name, email: payload.email } }; }
         if (action === 'admin-users') data = { users: [user, { id: 23, role: 'user', plan: 'professional', name: 'Studio Aurora Formazione e consulenza per famiglie', email: 'informazioni.clienti@studio-aurora.example.test', slug: 'studio-aurora-formazione-consulenza', posts_count: 12, sources_count: 1, sources: [{ platform: 'website', url: 'https://studio-aurora.example.test/approfondimenti/formazione-per-le-famiglie' }] }] };
         if (action === 'admin-prompts') data = { prompts: [] };
         if (action === 'admin-settings') data = { settings: {} };
@@ -54,6 +55,20 @@ const base = 'http://127.0.0.1:5178';
       await app.goto(base + '/dashboard');
       if (role === 'user') {
         await app.getByRole('heading', { name: 'Cosa facciamo oggi?' }).waitFor();
+        await app.getByRole('heading', { name: 'Le tue idee. Più visibili.' }).waitFor();
+        assert.equal(await app.locator('.pulse-metrics strong').first().innerText(), '—', 'Missing Google data is not displayed as zero');
+        await app.getByText('Le citazioni e la presenza nelle risposte IA non sono ancora misurate.', { exact: false }).waitFor();
+        await app.getByRole('button', { name: 'Apri menu utente', exact: true }).click();
+        await app.getByRole('button', { name: 'Modifica i miei dati', exact: true }).click();
+        await app.getByRole('textbox', { name: 'Nome e cognome', exact: true }).fill('Aurora aggiornata');
+        await app.getByRole('button', { name: 'Salva i miei dati', exact: true }).click();
+        await app.getByText('Dati account aggiornati.', { exact: true }).waitFor();
+        assert.equal(await app.locator('.user-trigger-name strong').innerText(), 'Aurora aggiornata', 'Saved profile updates the user menu');
+        await app.getByRole('button', { name: 'Apri menu utente', exact: true }).click();
+        await app.locator('.user-menu-panel').getByRole('button', { name: 'Password e accessi', exact: true }).waitFor();
+        await app.getByRole('button', { name: 'Apri menu utente', exact: true }).press('Escape');
+        assert.equal(await app.getByRole('button', { name: 'Apri menu utente', exact: true }).getAttribute('aria-expanded'), 'false');
+        await app.getByRole('navigation', { name: 'Sezioni della piattaforma' }).getByRole('button', { name: 'LIA', exact: true }).click();
         assert.equal(await app.locator('.lw-work-area').evaluate(el => getComputedStyle(el).display), 'grid', 'Shared theme is loaded by the real entry point');
         const task = app.getByRole('button', { name: /Da un’idea a un contenuto/ });
         await task.click();
@@ -91,6 +106,10 @@ const base = 'http://127.0.0.1:5178';
       }
       for (const width of [1440, 768, 390, 360]) {
         await app.setViewportSize({ width, height: 1000 });
+        await app.getByRole('button', { name: 'Apri menu utente', exact: true }).click();
+        const menuBounds = await app.locator('.user-menu-panel').boundingBox();
+        assert.ok(menuBounds.x >= 0 && menuBounds.x + menuBounds.width <= width + 1, role + ' user menu fits ' + width);
+        await app.getByRole('button', { name: 'Apri menu utente', exact: true }).press('Escape');
         await app.evaluate(() => window.scrollTo(0, 0));
         await app.screenshot({ path: `artifacts/refresh-${role}-${width}.png`, fullPage: true, animations: 'disabled' });
         const overflow = await app.evaluate(() => ({ width: innerWidth, scroll: document.documentElement.scrollWidth, elements: [...document.querySelectorAll('body *')].filter(el => { const rect = el.getBoundingClientRect(); return rect.width > 0 && rect.right > innerWidth + 1; }).slice(0, 12).map(el => ({ tag: el.tagName, class: el.className, right: el.getBoundingClientRect().right })) }));
