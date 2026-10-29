@@ -44,7 +44,7 @@ const base = 'http://127.0.0.1:5178';
         let data = {};
         if (['me', 'current_plan'].includes(action)) data = { user };
         if (action === 'site') data = { site: { title: 'Studio Aurora', bio: 'Formazione per le famiglie' }, sources: [], posts: [], visibility: {} };
-        if (action === 'admin-users') data = { users: [] };
+        if (action === 'admin-users') data = { users: [user, { id: 23, role: 'user', plan: 'professional', name: 'Studio Aurora Formazione e consulenza per famiglie', email: 'informazioni.clienti@studio-aurora.example.test', slug: 'studio-aurora-formazione-consulenza', posts_count: 12, sources_count: 1, sources: [{ platform: 'website', url: 'https://studio-aurora.example.test/approfondimenti/formazione-per-le-famiglie' }] }] };
         if (action === 'admin-prompts') data = { prompts: [] };
         if (action === 'admin-settings') data = { settings: {} };
         if (action === 'admin-monitoring') data = { totals: { users: 0, published_posts: 0, queued_posts: 0 }, agents: [], provider_settings: [], usage_this_month: {} };
@@ -69,6 +69,24 @@ const base = 'http://127.0.0.1:5178';
         await app.getByRole('button', { name: 'Configura gli agenti IA', exact: true }).click();
         await app.getByRole('heading', { name: 'Agenti AI', exact: true }).waitFor();
         assert.ok(!requests.includes('lia-assistant') && !requests.includes('site'), 'Administrative guide preserves account isolation');
+        await app.locator('.admin-navigation').getByRole('button', { name: 'Panoramica', exact: true }).click();
+        const sectionHeading = await app.locator('.admin-section-heading h3').first().evaluate(el => ({ fontSize: getComputedStyle(el).fontSize, fontWeight: getComputedStyle(el).fontWeight, fontFamily: getComputedStyle(el).fontFamily }));
+        await app.locator('.admin-navigation').getByRole('button', { name: 'Clienti', exact: true }).click();
+        await app.getByRole('heading', { name: 'Account, piani e accessi', exact: true }).waitFor();
+        const clientHeading = await app.locator('#admin-accounts-heading').evaluate(el => ({ fontSize: getComputedStyle(el).fontSize, fontWeight: getComputedStyle(el).fontWeight, fontFamily: getComputedStyle(el).fontFamily }));
+        assert.deepEqual(clientHeading, sectionHeading, 'Clients headings share the overview type scale');
+        const controls = await app.locator('.admin-clients input, .admin-clients select, .admin-clients .btn').evaluateAll(elements => elements.map(el => { const style = getComputedStyle(el); return { fontFamily: style.fontFamily, fontSize: style.fontSize, minHeight: style.minHeight }; }));
+        assert.ok(controls.length > 12, 'Create, search, account actions and password controls are covered');
+        for (const control of controls) assert.deepEqual(control, controls[0], 'All Clients controls use one font, size and minimum height');
+        await app.getByRole('searchbox', { name: 'Cerca clienti' }).fill('non-esiste');
+        await app.getByText('Nessun account corrisponde ai filtri selezionati.', { exact: true }).waitFor();
+        await app.getByRole('searchbox', { name: 'Cerca clienti' }).fill('');
+        for (const width of [1440, 768, 390, 360]) {
+          await app.setViewportSize({ width, height: 1000 });
+          await app.evaluate(() => { document.activeElement?.blur(); window.scrollTo(0, 0); });
+          await app.screenshot({ path: `artifacts/refresh-admin-clients-${width}.png`, fullPage: true, animations: 'disabled' });
+          assert.ok(await app.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), 'Client accounts fit ' + width);
+        }
         await app.locator('.admin-navigation').getByRole('button', { name: 'Panoramica', exact: true }).click();
       }
       for (const width of [1440, 768, 390, 360]) {

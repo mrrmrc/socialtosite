@@ -7,6 +7,7 @@ import { LegalScreen } from './screens/LegalScreen';
 import { apiFetch } from './utils/api';
 import './index.css';
 import './premium.css';
+import './admin-design.css';
 
 export default function App() {
   const pathname = window.location.pathname.replace(/\/+$/, '') || '/';

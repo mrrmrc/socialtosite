@@ -5,6 +5,7 @@ import { AdminProviderCard } from '../components/AdminProviderCard';
 import { AdminOperations } from '../components/AdminOperations';
 import { AdminPlatformOverview } from '../components/AdminPlatformOverview';
 import { LiaAdminGuide } from '../components/LiaTaskPanel';
+import { AdminClients } from '../components/AdminClients';
 
 const PANEL_STYLE = { padding: '14px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)' };
 
@@ -693,121 +694,7 @@ export function AdminScreen({ token, currentUser, adminPrompts, updatePrompt }) 
         </div>
       )}
 
-      {adminTab === 'users' && (
-        <div>
-          <div className="card" style={{ marginBottom: '1rem' }}>
-            <h3 style={{ marginBottom: '1rem' }}>Crea account cliente o amministratore</h3>
-            <form onSubmit={createUser} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '12px' }}>
-              <div className="form-group" style={{ marginBottom: 0 }}>
-                <label className="label">Nome</label>
-                <input type="text" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} />
-              </div>
-              <div className="form-group" style={{ marginBottom: 0 }}>
-                <label className="label">Email</label>
-                <input type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} required />
-              </div>
-              <div className="form-group" style={{ marginBottom: 0 }}>
-                <label className="label">Password temporanea</label>
-                <input type="password" minLength={8} maxLength={72} autoComplete="new-password" value={form.password} onChange={e => setForm({ ...form, password: e.target.value })} required />
-              </div>
-              <div className="form-group" style={{ marginBottom: 0 }}>
-                <label className="label">Profilo</label>
-                <select value={form.profile} onChange={e => setForm({ ...form, profile: e.target.value })} style={{ width: '100%', padding: '10px 14px', border: '1px solid var(--border-strong)', borderRadius: 'var(--radius-sm)', background: 'var(--surface)' }}>
-                  <option value="base">Base</option>
-                  <option value="professional">Professional</option>
-                  <option value="agency">Agency</option>
-                  <option value="admin">Amministratore</option>
-                </select>
-              </div>
-              <button className="btn btn-primary" disabled={loading} style={{ gridColumn: '1 / -1', justifyContent: 'center' }}>
-                {loading ? 'Creazione...' : 'Crea utente'}
-              </button>
-            </form>
-          </div>
-
-          <div className="card">
-            <h3 style={{ marginBottom: '1rem' }}>Account, piani e accessi</h3><p className="admin-nav-description">Gli account cliente producono contenuti; gli amministratori gestiscono tutta la piattaforma.</p>
-            <div className="admin-client-filters"><input aria-label="Cerca clienti" type="search" value={userSearch} onChange={e => setUserSearch(e.target.value)} placeholder="Nome, email o indirizzo del sito"/><select aria-label="Filtra profilo clienti" value={userProfile} onChange={e => setUserProfile(e.target.value)}><option value="">Tutti i profili</option><option value="base">Base</option><option value="professional">Professional</option><option value="agency">Agency</option><option value="admin">Amministratori</option></select></div>
-            {usersLoading && <p role="status">Aggiornamento account…</p>}
-            {!usersLoading && !users.length && <p>Nessun account disponibile.</p>}
-            {users.filter(u => (!userProfile || (userProfile === 'admin' ? u.role === 'admin' : u.role !== 'admin' && u.plan === userProfile)) && [u.name,u.email,u.slug].some(value => String(value || '').toLowerCase().includes(userSearch.trim().toLowerCase()))).map(u => {
-              const siteUrl = `${(window.API_BASE || '').replace(/\/$/, '')}/${encodeURIComponent(u.slug)}`;
-              return (
-                <div key={u.id} style={{ padding: '12px 0', borderBottom: '1px solid var(--border)' }}>
-                  <div className="admin-user-row" style={{ display: 'grid', gridTemplateColumns: 'minmax(220px, 1.4fr) minmax(140px, .8fr) minmax(140px, .7fr) auto', gap: '12px', alignItems: 'center' }}>
-                    <div>
-                      <div style={{ fontWeight: 600 }}>{u.name || u.email}</div>
-                      <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{u.email}</div>
-                      {u.role !== 'admin' && <a href={siteUrl} target="_blank" rel="noopener" style={{ fontSize: '12px', color: 'var(--purple)', textDecoration: 'none' }}>{siteUrl}</a>}
-                    </div>
-                    <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-                      {u.role === 'admin' ? <strong>Accesso globale alla piattaforma</strong> : <><div>{u.posts_count ?? '—'} contenuti</div><div>{u.sources_count ?? '—'} fonti attive</div></>}
-                    </div>
-                    <div style={{ display: 'grid', gap: '6px' }}>
-                      <select aria-label={`Profilo di ${u.name || u.email}`} value={u.role === 'admin' ? 'admin' : (u.plan || 'base')} onChange={e => updateProfile(u.id, e.target.value)} style={{ padding: '7px', border: '1px solid var(--border-strong)', borderRadius: 'var(--radius-sm)', background: 'var(--surface)' }}>
-                        <option disabled={Number(u.id) === Number(currentUser.id)} value="base">Base</option>
-                        <option disabled={Number(u.id) === Number(currentUser.id)} value="professional">Professional</option>
-                        <option disabled={Number(u.id) === Number(currentUser.id)} value="agency">Agency</option>
-                        <option value="admin">Amministratore</option>
-                      </select>
-                    </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                      {u.role !== 'admin' && <button className="btn btn-outline" onClick={() => openClient(String(u.id))}>Apri controllo cliente</button>}
-                      <button className="btn btn-outline" disabled={Boolean(adminActionBusy)} onClick={() => revokeUserSessions(u.id)}>Revoca sessioni</button>
-                      <button className="btn btn-outline" onClick={() => impersonateUser(u.id)} disabled={u.id === currentUser.id} style={{ color: 'var(--purple)', borderColor: 'var(--purple-light)', padding: '6px', fontSize: '12px' }}>
-                        Accedi come
-                      </button>
-                      <button className="btn btn-outline" onClick={() => deleteUser(u.id)} disabled={u.id === currentUser.id} style={{ color: 'var(--red)', borderColor: 'var(--red-light)', padding: '6px', fontSize: '12px' }}>
-                        Elimina
-                      </button>
-                    </div>
-                  </div>
-
-                  <div style={{ marginTop: '12px', padding: '12px 14px', background: 'var(--bg)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', display: 'flex', alignItems: 'flex-end', gap: '10px', flexWrap: 'wrap' }}>
-                    <div style={{ flex: '1 1 240px' }}>
-                      <label className="label" htmlFor={`admin-password-${u.id}`}>Nuova password per {u.name || u.email}</label>
-                      <input
-                        id={`admin-password-${u.id}`}
-                        type="password"
-                        autoComplete="new-password"
-                        minLength={8}
-                        maxLength={72}
-                        placeholder="Minimo 8 caratteri"
-                        value={passwordDrafts[u.id] || ''}
-                        onChange={e => setPasswordDrafts(current => ({ ...current, [u.id]: e.target.value }))}
-                        style={{ width: '100%', padding: '9px 11px' }}
-                      />
-                    </div>
-                    <button
-                      type="button"
-                      className="btn btn-outline"
-                      onClick={() => resetUserPassword(u.id)}
-                      disabled={(passwordDrafts[u.id] || '').length < 8}
-                      style={{ padding: '9px 14px', whiteSpace: 'nowrap' }}
-                    >
-                      Imposta password
-                    </button>
-                  </div>
-
-                  {u.sources && u.sources.length > 0 && (
-                    <div style={{ marginTop: '12px', padding: '10px 14px', background: 'var(--surface)', borderRadius: 'var(--radius-sm)', border: '1px dashed var(--border-strong)' }}>
-                      <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text)', marginBottom: '8px' }}>Fonti Social Collegate</div>
-                      <div style={{ display: 'grid', gap: '6px' }}>
-                        {u.sources.map(s => (
-                          <div key={s.url} style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '12px' }}>
-                            <span style={{ fontWeight: 600, textTransform: 'capitalize', color: 'var(--text-muted)', width: '70px' }}>{s.platform}</span>
-                            <a href={s.url} target="_blank" rel="noopener" style={{ color: 'var(--purple)', textDecoration: 'none', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{s.url}</a>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
+      {adminTab === 'users' && <AdminClients users={users} currentUser={currentUser} form={form} setForm={setForm} loading={loading} usersLoading={usersLoading} userSearch={userSearch} setUserSearch={setUserSearch} userProfile={userProfile} setUserProfile={setUserProfile} passwordDrafts={passwordDrafts} setPasswordDrafts={setPasswordDrafts} busy={Boolean(adminActionBusy)} onCreate={createUser} onProfile={updateProfile} onClient={openClient} onRevoke={revokeUserSessions} onImpersonate={impersonateUser} onDelete={deleteUser} onPassword={resetUserPassword} />}
 
       {adminTab === 'control-room' && <AdminControlRoom
         users={controlUsers} selectedId={selectedControlUserId} onSelect={setSelectedControlUserId}

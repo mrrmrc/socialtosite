@@ -63,3 +63,15 @@ Delivery
 Use staging's existing push pipeline and production's canonical main commit
 with [deployvps], GitHub Actions and FTP/FTPS release verification. Transfer
 code only. No database data is copied or replaced.
+
+Administration typography correction
+- Extracted the Clients view into AdminClients and removed its inline font,
+  spacing, action-size and grid overrides.
+- Added admin-design.css, loaded after the shared theme: one inherited font,
+  section headings at 20px, body at 14px, captions at 12px, controls at 13px
+  with a 42px minimum height. Native controls include search and password.
+- Creation, filters, account identity, profile, actions, passwords and linked
+  sources now use semantic labels and responsive component classes.
+- Verified computed font family, size, weight and control minimum height;
+  compared Clients headings with the platform overview. Tested long account
+  names, email and source URLs and 1440/768/390/360px layouts with screenshots.

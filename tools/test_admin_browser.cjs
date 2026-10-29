@@ -82,7 +82,9 @@ const fs = require('node:fs');
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true, 'Provider settings fit mobile');
     await nav('Clienti').click();
     const selfProfile = page.getByRole('combobox', { name: 'Profilo di Admin' });
-    assert.equal(await selfProfile.locator('option[value=base]').isDisabled(), true);
+    // Read the option's native state: Playwright retargets label-wrapped options
+    // to their enabled select when using isDisabled().
+    assert.equal(await selfProfile.locator('option[value=base]').evaluate(option => option.disabled), true);
     await page.getByRole('searchbox', { name: 'Cerca clienti' }).fill('nessuna-corrispondenza');
     assert.equal(await page.locator('.admin-user-row').count(), 0, 'Client search filters results');
     await page.getByRole('searchbox', { name: 'Cerca clienti' }).fill('');
