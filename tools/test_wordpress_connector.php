@@ -4,10 +4,15 @@
 if (PHP_SAPI !== 'cli') exit;
 define('ABSPATH', __DIR__ . '/'); define('ARRAY_A', 'ARRAY_A');
 function register_activation_hook(...$args) {} function add_action(...$args) {}
+function add_filter(...$args) {} function register_deactivation_hook(...$args) {}
 class WP_Error { public function __construct(public string $code, public string $message, public array $data=[]) {} }
 class WP_REST_Request implements ArrayAccess {
     public array $headers=[];
-    public function __construct(public string $key, public array $payload) {}
+    public string $key; public array $payload;
+    public function __construct(string $key, array|string $payload) { $this->key=$key; $this->payload=is_array($payload) ? $payload : []; }
+    public function set_url_params($params) { $this->key=$params['key']; }
+    public function set_body($body) { $this->payload=json_decode($body,true); }
+    public function set_header($name,$value) { $this->headers[$name]=$value; }
     public function get_header($name) { return $this->headers[$name] ?? ''; }
     public function get_route() { return '/allsocialtoweb/v1/deliveries/' . $this->key; }
     public function get_method() { return 'POST'; }
@@ -27,7 +32,7 @@ function sanitize_textarea_field($v) { return strip_tags($v); }
 function wp_kses($v, $allowed, $protocols) { return strip_tags($v, '<p><strong>'); }
 function wp_strip_all_tags($v) { return strip_tags($v); }
 function absint($v) { return abs((int)$v); }
-function term_exists($id,$taxonomy) { return $id === 7; }
+function term_exists($id,$taxonomy) { return in_array($id, $taxonomy === 'post_tag' ? [9,10] : [7,8], true); }
 function wp_slash($v) { return $v; }
 function get_current_user_id() { return 3; }
 function current_user_can(...$args) { return true; }
@@ -35,7 +40,9 @@ function is_wp_error($v) { return $v instanceof WP_Error; }
 function get_permalink($id) { return 'https://example.com/?p=' . $id; }
 function get_post($id) { global $posts; return isset($posts[$id]) ? (object)$posts[$id] : null; }
 function wp_insert_post($data,$error) { global $posts,$nextId,$failCreate; if ($failCreate) return new WP_Error('failed','simulated'); $id=$nextId++; $posts[$id]=array_merge($data,['ID'=>$id]); return $id; }
-function wp_update_post($data,$error) { global $posts; $posts[$data['ID']]=array_merge($posts[$data['ID']],$data); return $data['ID']; }
+function wp_update_post($data,$error) { global $posts,$failPublish; if (!empty($failPublish)) return new WP_Error('failed','simulated'); $posts[$data['ID']]=array_merge($posts[$data['ID']],$data); return $data['ID']; }
+function get_post_meta($id,$key,$single) { global $posts; return $posts[$id]['meta_input'][$key] ?? ''; }
+function delete_post_meta($id,$key) { global $posts; unset($posts[$id]['meta_input'][$key]); }
 class FakeWpDb {
     public string $prefix='wp_'; public string $posts='wp_posts'; public array $rows=[];
     public array $nonces=[];
@@ -89,3 +96,47 @@ $failCreate=true; $failedKey=str_repeat('b',64); astw_deliver(new WP_REST_Reques
 expect(astw_deliver(new WP_REST_Request($failedKey,$payload))['state']==='uncertain' && count($posts)===1,'esito incerto non crea un duplicato');
 expect(is_wp_error(astw_deliver(new WP_REST_Request(str_repeat('c',64),['title'=>'x','html'=>'<p>x</p>','category_id'=>99]))),'categoria inesistente respinta');
 echo "Contratto WordPress locale superato.\n";
+
+function update_option($name,$value,...$args) { global $options; $options[$name]=$value; }
+function wp_parse_url($url) { return parse_url($url); }
+function wp_http_validate_url($url) { return filter_var($url,FILTER_VALIDATE_URL); }
+function wp_next_scheduled(...$args) { return false; }
+function wp_schedule_event(...$args) {}
+function wp_clear_scheduled_hook(...$args) {}
+function wp_json_encode($value) { return json_encode($value); }
+function add_query_arg($name,$value,$url) { return $url.'&'.$name.'='.$value; }
+function wp_safe_remote_get(...$args) { global $remoteFeed; return ['body'=>json_encode($remoteFeed)]; }
+function wp_remote_retrieve_response_code($response) { return 200; }
+function wp_remote_retrieve_body($response) { return $response['body']; }
+$settings=['feed_url'=>'https://platform.example/api/wordpress-feed.php?user_id=3','feed_token'=>str_repeat('f',64),'enabled'=>true,'post_status'=>'publish','category_id'=>7,'mappings'=>['Viaggi'=>['category_id'=>8,'tag_id'=>9]]];
+expect(astw_save_sync_settings(new WP_REST_Request('', $settings))['ok'], 'abbinamenti salvati sul plugin');
+$bad=$settings; $bad['mappings']['Viaggi']['tag_id']=99;
+expect(is_wp_error(astw_save_sync_settings(new WP_REST_Request('', $bad))), 'tag eliminato respinto prima del salvataggio');
+expect(is_wp_error(astw_save_sync_settings(new WP_REST_Request('', array_replace($settings,['feed_url'=>'http://platform.example/feed'])))), 'feed HTTP respinto');
+$mapped=astw_mapping(['Viaggi'], $settings);
+expect($mapped===['category_ids'=>[8],'tag_ids'=>[9]], 'categoria e tag abbinati per argomento');
+expect(astw_mapping(['Altro'], $settings)['category_ids']===[7], 'categoria predefinita per argomento sconosciuto');
+$before=count($posts);
+$remoteFeed=['posts'=>[['key'=>str_repeat('d',64),'title'=>'Post pubblicato sulla piattaforma','html'=>'<p>Testo pubblicato</p>','topics'=>['Viaggi']]],'next_cursor'=>0,'has_more'=>false];
+$result=astw_sync_feed();
+expect(!is_wp_error($result) && $result['imported']===1 && count($posts)===$before+1, 'sincronizzazione importa il contenuto pubblicato');
+$newId=$nextId-1;
+expect($posts[$newId]['post_status']==='publish' && $posts[$newId]['post_category']===[8] && $posts[$newId]['tags_input']===[9], 'post WordPress pubblicato con categoria e tag corretti');
+$posts[$newId]['post_content']='<p>Versione locale</p>';
+$result=astw_sync_feed();
+expect($result['imported']===0 && $result['skipped']===1 && count($posts)===$before+1 && $posts[$newId]['post_content']==='<p>Versione locale</p>', 'seconda sincronizzazione non duplica e conserva modifiche WordPress');
+$settings['post_status']='draft';
+astw_save_sync_settings(new WP_REST_Request('', $settings));
+$remoteFeed['posts'][0]['key']=str_repeat('e',64);
+$result=astw_sync_feed();
+expect($result['imported']===1 && $posts[$nextId-1]['post_status']==='draft', 'modalit? bozza rispettata');
+expect(!isset(astw_public_sync_settings()['feed_token']), 'credenziali escluse dalla risposta delle impostazioni');
+
+$settings['post_status']='publish';
+astw_save_sync_settings(new WP_REST_Request('', $settings));
+$remoteFeed['posts'][0]['key']=str_repeat('f',64);
+$failPublish=true;
+expect(is_wp_error(astw_sync_feed()), 'pubblicazione interrotta segnalata senza esito positivo fittizio');
+$pendingId=$nextId-1; $pendingCount=count($posts); $failPublish=false;
+$result=astw_sync_feed();
+expect(!is_wp_error($result) && count($posts)===$pendingCount && $posts[$pendingId]['post_status']==='publish', 'pubblicazione interrotta ripresa senza duplicare la bozza');

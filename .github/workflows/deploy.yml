@@ -106,9 +106,9 @@ jobs:
             api/services/ai.php api/services/content_ideas.php api/services/profile_knowledge.php \
             api/services/ai_health.php api/services/article_studio.php api/services/lia_assistant.php \
             api/services/opportunities.php api/services/opportunity_brief.php api/routes/opportunities.php \
-            api/routes/publication.php api/services/plan_policy.php \
+            api/routes/publication.php api/routes/wordpress.php api/wordpress-feed.php api/services/wordpress_bridge.php api/services/plan_policy.php \
             api/services/publication/{security,service,wordpress}.php cron/publish.php cron/sync.php cron/fetch_seo.php cron/check_alerts.php \
-            integrations/wordpress/allsocialtoweb/allsocialtoweb.php \
+            integrations/wordpress/allsocialtoweb/allsocialtoweb.php integrations/wordpress/allsocialtoweb/sync.php \
             public/site.php public/discover.php public/sitemap.php public/site-professional.php \
             config/db.php)
           [ "$errors" -eq 0 ] || exit 1
@@ -126,6 +126,10 @@ jobs:
           php tools/test_apify_credentials.php
           php tools/test_video_source.php
           php tools/test_wordpress_connector.php
+          php tools/test_wordpress_bridge.php
+          php tools/test_selective_sync.php
+          php tools/test_sitemaps.php
+          python3 tools/package_wordpress.py --check
           php tools/test_profile_knowledge.php
           php tools/test_ai_health.php
           php tools/test_admin_operations.php
@@ -226,7 +230,9 @@ jobs:
           cp api/services/lia_assistant.php release/api/services/
           cp api/routes/opportunities.php release/api/routes/
           cp api/services/{monitor_status,monitor_settings}.php release/api/services/
-          cp api/routes/publication.php release/api/routes/
+          cp api/routes/{publication,wordpress}.php release/api/routes/
+          cp api/wordpress-feed.php release/api/
+          cp api/services/wordpress_bridge.php release/api/services/
           cp api/services/plan_policy.php release/api/services/
           mkdir -p release/api/services/publication release/cron
           cp api/services/publication/{security,service,wordpress}.php release/api/services/publication/
@@ -255,6 +261,8 @@ jobs:
           mkdir -p release/public/media
           cp public/{site,discover,sitemap,site-professional}.php release/public/
           cp public/openpage-runtime.js public/openpage-typography.css release/public/
+          mkdir -p release/public/downloads
+          cp public/downloads/allsocialtoweb-connector.zip release/public/downloads/
 
           if find release \( -name 'config.php' -o -name 'keys.php' -o -name '*.env' \
                            -o -name 'reset-*' -o -name 'test_*' -o -name 'test-*' \

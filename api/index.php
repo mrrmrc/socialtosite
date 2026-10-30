@@ -304,6 +304,11 @@ $me = array_merge($me, [
 $isAdmin = ($me['role'] ?? 'user') === 'admin';
 
 
+if (str_starts_with($action, 'wordpress-')) {
+    require __DIR__ . '/routes/wordpress.php';
+    exit;
+}
+
 if (str_starts_with($action, 'publication-')) {
     require __DIR__ . '/routes/publication.php';
     exit;
@@ -1420,7 +1425,10 @@ if ($action === 'sync' && $method === 'POST') {
     $b = body();
     $maxPosts = isset($b['limit']) ? (int)$b['limit'] : 20;
     $sinceDate = !empty($b['since_date']) ? $b['since_date'] : null;
-    $results = Sync::syncUser($userId, $maxPosts, $sinceDate);
+    $sourceId = array_key_exists('source_id', $b) ? (int)$b['source_id'] : null;
+    if ($sourceId !== null && $sourceId <= 0) jsonError('Canale non valido.', 422);
+    try { $results = Sync::syncUser($userId, $maxPosts, $sinceDate, false, $sourceId); }
+    catch (DomainException $e) { jsonError($e->getMessage(), 404); }
     json(['ok' => true, 'results' => $results]);
 }
 

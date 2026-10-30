@@ -160,7 +160,7 @@ if (!$searchVisible) {
 // ── Sitemap XML ─────────────────────────────────────────────────────────────
 if ($action === 'sitemap') {
     header('Content-Type: application/xml; charset=utf-8');
-    $base = app_base_url() . '/' . $slug;
+    $base = app_base_url() . '/' . rawurlencode($slug);
     echo '<?xml version="1.0" encoding="UTF-8"?>' . "\n";
     echo '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">' . "\n";
     // Sito non visibile: sitemap valida ma vuota. Proporre a Google gli URL di
@@ -174,7 +174,8 @@ if ($action === 'sitemap') {
         }
     }
     $homeLastmod = $latestSiteDate !== '' ? "<lastmod>$latestSiteDate</lastmod>" : '';
-    echo "  <url><loc>$base</loc>$homeLastmod<changefreq>daily</changefreq><priority>1.0</priority></url>\n";
+    $baseXml = htmlspecialchars($base, ENT_XML1 | ENT_SUBSTITUTE, 'UTF-8');
+    echo "  <url><loc>$baseXml</loc>$homeLastmod<changefreq>daily</changefreq><priority>1.0</priority></url>\n";
     foreach ($foundationPagesBySlug as $page) {
         $pageUrl = $base . '/' . rawurlencode($page['slug']);
         $foundationLastmod = !empty($site['seo_foundation_updated_at']) ? '<lastmod>' . substr($site['seo_foundation_updated_at'], 0, 10) . '</lastmod>' : '';
@@ -198,8 +199,8 @@ if ($action === 'sitemap') {
     
     // Posts
     foreach ($allPosts as $p) {
-        if (!empty($p['noindex'])) continue;
-        $loc = "$base/{$p['slug']}";
+        if (!empty($p['noindex']) || empty($p['slug'])) continue;
+        $loc = $base . '/' . rawurlencode($p['slug']);
         $modSource = $p['updated_at'] ?? $p['published_at'] ?? $p['imported_at'] ?? '';
         $mod = preg_match('/^\d{4}-\d{2}-\d{2}/', (string)$modSource, $modMatch) ? $modMatch[0] : '';
         $lastmodXml = $mod !== '' ? "<lastmod>$mod</lastmod>" : '';

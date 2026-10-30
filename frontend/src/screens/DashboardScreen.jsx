@@ -22,7 +22,7 @@ import { SocialIcon } from "../components/SocialIcon";
 import { QuillEditor } from "../components/QuillEditor";
 import { AdminScreen } from "./AdminScreen";
 import { SpazioVivoLab } from "../components/SpazioVivoLab";
-import { PublicationConnections } from "../components/PublicationConnections";
+import { WordPressConnections } from "../components/WordPressConnections";
 import { BrandMark } from "./LandingScreen";
 import { ProfileReviewPanel } from "../components/ProfileReviewPanel";
 import { LiaKnowledge, useLiaKnowledge } from "../components/LiaKnowledge";
@@ -1868,25 +1868,27 @@ export function DashboardScreen({ token, user, onLogout, onUserUpdate }) {
     }
   }
 
-  async function syncAllChannels() {
+  async function syncAllChannels(sourceId = null) {
+    if (scanning || syncing) return;
+    const selectedSourceId = typeof sourceId === "number" ? sourceId : null;
     setScanning(true);
     setScanProgress([]);
     setScanMsg({
       ok: true,
-      text: "Sincronizzazione manuale di tutti i canali attivi...",
+      text: selectedSourceId ? "Sincronizzazione del canale selezionato..." : "Sincronizzazione manuale di tutti i canali attivi...",
       loading: true,
     });
     setAcquisitionModal({
       status: "working",
-      title: "Sincronizzo tutti i canali",
-      text: "Controllo ogni fonte collegata e acquisisco i nuovi contenuti. Puoi seguire qui l'avanzamento.",
+      title: selectedSourceId ? "Sincronizzo il canale selezionato" : "Sincronizzo tutti i canali",
+      text: selectedSourceId ? "Controllo questa fonte e acquisisco i nuovi contenuti." : "Controllo ogni fonte collegata e acquisisco i nuovi contenuti. Puoi seguire qui l'avanzamento.",
     });
     try {
       const sync = await apiFetch(
         "/api/index.php?action=sync",
         {
           method: "POST",
-          body: JSON.stringify({ limit: parseInt(syncLimit) || 20 }),
+          body: JSON.stringify({ limit: parseInt(syncLimit) || 20, ...(selectedSourceId ? { source_id: selectedSourceId } : {}) }),
         },
         token,
       );
@@ -1912,7 +1914,10 @@ export function DashboardScreen({ token, user, onLogout, onUserUpdate }) {
         });
         return;
       }
-      await processPendingLoop(true, null, debugLines);
+      const processingIds = [...new Set(results.flatMap(r => [...(r.imported_ids || []), ...(r.retryable_ids || [])]).map(Number))];
+      if (processingIds.length) await processPendingLoop(true, processingIds, debugLines);
+      else setAcquisitionModal({ status: "success", title: "Sincronizzazione completata", text: "Nessun nuovo contenuto da elaborare.", debug: debugLines });
+      setScanMsg({ ok: errors.length === 0, loading: false, text: `Sincronizzazione completata: ${imported} nuovi contenuti.${errors.length ? ` Alcune fonti non sono state aggiornate: ${errors.join(' · ')}` : ''}` });
       await loadData();
     } catch (err) {
       setScanMsg({ ok: false, text: err.message });
@@ -5028,6 +5033,8 @@ export function DashboardScreen({ token, user, onLogout, onUserUpdate }) {
                     </form>
                   </div>
 
+                  <WordPressConnections token={token} />
+
                   {/* Lista canali attivi */}
                   <div className="card">
                     <div
@@ -5092,7 +5099,7 @@ export function DashboardScreen({ token, user, onLogout, onUserUpdate }) {
                       </div>
                     ) : (
                       <div className="linked-channels-grid">
-                        {allChannels.map(channel => <LinkedChannelCard key={channel.key} channel={channel} isBasePlan={isBasePlan} removeChannel={removeChannel} savePlatformSource={savePlatformSource} />)}
+                        {allChannels.map(channel => <LinkedChannelCard key={channel.key} channel={channel} isBasePlan={isBasePlan} removeChannel={removeChannel} savePlatformSource={savePlatformSource} onSync={id => syncAllChannels(Number(id))} syncing={scanning || syncing} />)}
                       </div>
                     )}
 
@@ -9230,7 +9237,7 @@ export function DashboardScreen({ token, user, onLogout, onUserUpdate }) {
         </div>
       )}
 
-      <PublicationConnections token={token} />
+
     </div>
   );
 }

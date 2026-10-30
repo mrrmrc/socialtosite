@@ -13,7 +13,7 @@ final class WordPressPublicationAdapter
         $body = $payload === null ? '' : json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR);
         $timestamp = (string)time();
         $nonce = bin2hex(random_bytes(16));
-        $signature = PublicationSecurity::signature(PublicationSecurity::decrypt($connection['secret_ciphertext']), $timestamp, $nonce, $method, $route, $body);
+        $signature = PublicationSecurity::signature($connection['_secret'] ?? PublicationSecurity::decrypt($connection['secret_ciphertext']), $timestamp, $nonce, $method, $route, $body);
         $response = '';
         $ch = curl_init($endpoint . '/wp-json/allsocialtoweb/v1' . $route);
         curl_setopt_array($ch, [

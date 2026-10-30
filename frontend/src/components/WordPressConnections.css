@@ -1,0 +1,17 @@
+.wordpress-workspace { min-width: 0; }
+.wordpress-workspace h2 { margin: 0 0 8px; }
+.wordpress-workspace p, .wordpress-workspace li { color: var(--text-muted); line-height: 1.6; }
+.wordpress-heading, .wordpress-actions { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between; }
+.wordpress-actions { margin: 18px 0; justify-content: flex-start; overflow-wrap: anywhere; }
+.wordpress-heading .btn { flex-shrink: 0; }
+.wordpress-connect, .wordpress-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin-top: 20px; }
+.wordpress-workspace label { display: grid; gap: 6px; font-size: 13px; }
+.wordpress-workspace input:not([type=checkbox]), .wordpress-workspace select { width: 100%; min-width: 0; background: var(--surface); color: var(--text); padding: 10px; border: 1px solid var(--border); border-radius: 8px; }
+.wordpress-workspace .wordpress-check { display: flex; align-items: center; gap: 10px; margin-top: 20px; }
+.wordpress-mappings { max-height: 430px; overflow-y: auto; margin: 18px 0; }
+.wordpress-mapping { display: grid; grid-template-columns: minmax(0, 1fr) repeat(2, minmax(0, 1fr)); gap: 14px; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--border); }
+.wordpress-mapping strong { overflow-wrap: anywhere; }
+.wordpress-error, .wordpress-notice { padding: 12px; border-radius: 8px; }
+.wordpress-workspace .wordpress-error { background: #fff0f0; color: #9b2020; }
+.wordpress-workspace .wordpress-notice { background: #edf9f3; color: #185e3d; }
+@media (max-width: 650px) { .wordpress-connect, .wordpress-options, .wordpress-mapping { grid-template-columns: minmax(0, 1fr); } .wordpress-actions .btn { width: 100%; } }

@@ -2,7 +2,7 @@ import React from 'react';
 import { SOCIAL } from '../utils/api';
 import './LinkedChannelCard.css';
 
-export function LinkedChannelCard({ channel, isBasePlan, removeChannel, savePlatformSource }) {
+export function LinkedChannelCard({ channel, isBasePlan, removeChannel, savePlatformSource, onSync, syncing }) {
   const platform = SOCIAL[channel.platform] || SOCIAL.website || {};
   const title = channel.label || platform.label || channel.platform;
   const automatic = Number(channel.auto_sync ?? 1) === 1;
@@ -34,6 +34,7 @@ export function LinkedChannelCard({ channel, isBasePlan, removeChannel, savePlat
       {channel.failed_count > 0 && <span className="linked-channel-error">{channel.failed_count} {isBasePlan ? 'da correggere' : 'da riprovare'}</span>}
     </div>
     <small className="linked-channel-scope">Conteggi complessivi di {platform.label || channel.platform}.</small>
+    <button type="button" className="btn btn-primary" disabled={syncing} onClick={() => onSync(channel.sourceId)} aria-label={`Sincronizza ${title}`}>{syncing ? 'Sincronizzazione in corso…' : 'Sincronizza questo canale'}</button>
     {channel.last_scan_note && <details className={`linked-channel-log ${channel.content_count === 0 ? 'attention' : ''}`}>
       <summary><span>{channel.last_scan_note}</span></summary>
       <p>{channel.last_scan_note}</p>

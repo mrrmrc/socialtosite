@@ -30,7 +30,7 @@ echo "  </sitemap>\n";
 
 foreach ($users as $user) {
     // Genera l\'URL della sitemap specifica dell\'utente
-    $loc = app_base_url() . '/' . urlencode($user['slug']) . '/sitemap.xml';
+    $loc = app_base_url() . '/' . rawurlencode($user['slug']) . '/sitemap.xml';
     
     echo "  <sitemap>\n";
     echo "    <loc>" . htmlspecialchars($loc, ENT_XML1, 'UTF-8') . "</loc>\n";

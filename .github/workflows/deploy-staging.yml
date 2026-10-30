@@ -68,6 +68,11 @@ jobs:
           php -l api/services/openpage_versions.php
           php tools/test_openpage_versions.php
           php -l api/index.php
+          php tools/test_wordpress_connector.php
+          php tools/test_wordpress_bridge.php
+          php tools/test_selective_sync.php
+          php tools/test_sitemaps.php
+          python3 tools/package_wordpress.py --check
           php -l api/services/profile_interview.php
 
       - name: Test role isolation and guided LIA workflows in browser

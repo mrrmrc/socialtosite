@@ -8,7 +8,17 @@ function app_base_url(): string {
         ? trim((string)SOCIALTOSITE_RUNTIME_BASE_URL)
         : '';
     $configured = defined('BASE_URL') ? trim((string)BASE_URL) : '';
-    return rtrim($runtime !== '' ? $runtime : $configured, '/');
+    $base = $runtime !== '' ? $runtime : $configured;
+    // Staging may provide only database/JWT configuration. Sitemaps still need
+    // absolute URLs, including the staging port. Do not trust forwarded headers.
+    if ($base === '' && PHP_SAPI !== 'cli') {
+        $host = (string)($_SERVER['HTTP_HOST'] ?? '');
+        if (preg_match('/^[a-z0-9.-]+(?::[0-9]{1,5})?$/i', $host)) {
+            $https = !empty($_SERVER['HTTPS']) && strtolower((string)$_SERVER['HTTPS']) !== 'off';
+            $base = ($https ? 'https://' : 'http://') . $host;
+        }
+    }
+    return rtrim($base, '/');
 }
 
 /**

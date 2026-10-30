@@ -33,11 +33,14 @@ final class Sync {
         } catch (Throwable $e) {}
     }
 
-    public static function syncUser(int $userId, int $maxPosts = 20, ?string $sinceDate = null, bool $automatic = false): array {
+    public static function syncUser(int $userId, int $maxPosts = 20, ?string $sinceDate = null, bool $automatic = false, ?int $sourceId = null): array {
         self::ensureAutoSyncSchema();
         $sql = 'SELECT id, platform FROM social_sources WHERE user_id=? AND active=1';
         if ($automatic) $sql .= ' AND auto_sync=1';
-        $sources = DB::fetchAll($sql . ' ORDER BY id', [$userId]);
+        $params = [$userId];
+        if ($sourceId !== null) { $sql .= ' AND id=?'; $params[] = $sourceId; }
+        $sources = DB::fetchAll($sql . ' ORDER BY id', $params);
+        if ($sourceId !== null && !$sources) throw new DomainException('Canale non disponibile.');
         $results = [];
 
         foreach ($sources as $source) {
@@ -46,6 +49,9 @@ final class Sync {
                 if (function_exists('setSyncStatus')) setSyncStatus($userId, 'Aggiornamento ' . ucfirst($platform) . ' tramite Refetch(er)…');
                 $report = Ingest::scanSources($userId, $maxPosts, '', '', '', (int)$source['id'], $sinceDate);
                 $result = [
+                    'source_id' => (int)$source['id'],
+                    'imported_ids' => $report['imported_ids'] ?? [],
+                    'retryable_ids' => $report['retryable_ids'] ?? [],
                     'platform' => $platform,
                     'found' => (int)($report['found'] ?? 0),
                     'new' => (int)($report['imported'] ?? 0),
@@ -54,7 +60,7 @@ final class Sync {
                     'debug' => $report['debug'] ?? [],
                 ];
             } catch (Throwable $e) {
-                $result = ['platform' => $platform, 'found' => 0, 'new' => 0, 'duplicates' => 0, 'error' => mb_substr($e->getMessage(), 0, 1500)];
+                $result = ['source_id' => (int)$source['id'], 'platform' => $platform, 'found' => 0, 'new' => 0, 'duplicates' => 0, 'error' => mb_substr($e->getMessage(), 0, 1500)];
             }
             $results[] = $result;
             self::logResult($userId, $result);

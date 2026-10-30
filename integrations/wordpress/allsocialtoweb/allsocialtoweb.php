@@ -1,12 +1,13 @@
 <?php
 /**
  * Plugin Name: AllSocialToWeb Connector
- * Description: Riceve bozze e pubblicazioni esplicite da AllSocialToWeb. Versione pilota.
- * Version: 0.1.0
+ * Description: Importa i contenuti pubblicati su AllSocialToWeb con categorie e tag abbinati dalla tua area personale.
+ * Version: 0.2.0
  * Requires PHP: 8.0
  * Requires at least: 6.0
  */
 if (!defined('ABSPATH')) exit;
+require_once __DIR__ . '/sync.php';
 
 register_activation_hook(__FILE__, static function () {
     global $wpdb;
@@ -37,7 +38,11 @@ function astw_settings(): void {
         check_admin_referer('astw_connection');
         if (isset($_POST['disconnect'])) {
             delete_option('astw_secret'); delete_option('astw_author');
+            delete_option('astw_sync_settings');
+            wp_clear_scheduled_hook('astw_sync_feed');
         } else {
+            delete_option('astw_sync_settings');
+            wp_clear_scheduled_hook('astw_sync_feed');
             $newSecret = bin2hex(random_bytes(32));
             update_option('astw_secret', $newSecret, false);
             update_option('astw_author', get_current_user_id(), false);
@@ -50,7 +55,7 @@ function astw_settings(): void {
     wp_nonce_field('astw_connection');
     submit_button('Genera nuovo codice (revoca il precedente)', 'primary', 'connect');
     submit_button('Disabilita collegamento', 'secondary', 'disconnect');
-    echo '</form></div>';
+    echo '</form><p>Ultima sincronizzazione: ' . esc_html(wp_json_encode(get_option('astw_last_sync', []))) . '</p></div>';
 }
 
 function astw_permission(WP_REST_Request $request) {
@@ -74,13 +79,19 @@ function astw_permission(WP_REST_Request $request) {
 add_action('rest_api_init', static function () {
     register_rest_route('allsocialtoweb/v1', '/health', ['methods'=>'GET','permission_callback'=>'astw_permission','callback'=>static function () {
         $categories = get_categories(['hide_empty'=>false]);
-        return ['protocol'=>'1','categories'=>array_map(static fn($c)=>['id'=>$c->term_id,'name'=>$c->name], $categories)];
+        $tags = get_tags(['hide_empty'=>false]);
+        return ['protocol'=>'1', 'sync_available'=>true,
+            'categories'=>array_map(static fn($c)=>['id'=>$c->term_id,'name'=>$c->name], $categories),
+            'tags'=>array_map(static fn($t)=>['id'=>$t->term_id,'name'=>$t->name], $tags),
+            'settings'=>astw_public_sync_settings(), 'last_sync'=>get_option('astw_last_sync', [])];
     }]);
     register_rest_route('allsocialtoweb/v1', '/deliveries/(?P<key>[a-f0-9]{64})', [
         ['methods'=>'GET','permission_callback'=>'astw_permission','callback'=>static fn($r)=>astw_receipt($r['key'])],
         ['methods'=>'POST','permission_callback'=>'astw_permission','callback'=>'astw_deliver'],
     ]);
     register_rest_route('allsocialtoweb/v1', '/deliveries/(?P<key>[a-f0-9]{64})/publish', ['methods'=>'POST','permission_callback'=>'astw_permission','callback'=>'astw_publish']);
+    register_rest_route('allsocialtoweb/v1', '/sync-settings', ['methods'=>'POST','permission_callback'=>'astw_permission','callback'=>'astw_save_sync_settings']);
+    register_rest_route('allsocialtoweb/v1', '/sync-now', ['methods'=>'POST','permission_callback'=>'astw_permission','callback'=>'astw_sync_feed']);
 });
 
 function astw_receipt(string $key): array {
@@ -110,6 +121,10 @@ function astw_deliver(WP_REST_Request $request) {
     if ($title === '' || trim(wp_strip_all_tags($html)) === '') return new WP_Error('astw_empty','Titolo e testo obbligatori.',['status'=>422]);
     $category = absint($payload['category_id'] ?? 0);
     if ($category && !term_exists($category, 'category')) return new WP_Error('astw_category','Categoria non disponibile.',['status'=>422]);
+    $categoryIds = array_values(array_unique(array_map('absint', (array)($payload['category_ids'] ?? ($category ? [$category] : [])))));
+    $tagIds = array_values(array_unique(array_map('absint', (array)($payload['tag_ids'] ?? []))));
+    foreach ($categoryIds as $id) if (!$id || !term_exists($id, 'category')) return new WP_Error('astw_category','Categoria non disponibile.',['status'=>422]);
+    foreach ($tagIds as $id) if (!$id || !term_exists($id, 'post_tag')) return new WP_Error('astw_tag','Tag non disponibile.',['status'=>422]);
     $imageBytes = null;
     if (isset($payload['image'])) {
         $imageBytes = base64_decode((string)($payload['image']['data'] ?? ''), true);
@@ -142,8 +157,8 @@ function astw_deliver(WP_REST_Request $request) {
         $id = wp_insert_post(wp_slash([
             'post_title'=>$title, 'post_content'=>$html, 'post_excerpt'=>sanitize_textarea_field($payload['excerpt'] ?? ''),
             'post_status'=>'draft', 'post_type'=>'post', 'post_author'=>get_current_user_id(),
-            'post_category'=>$category ? [$category] : [], 'post_content_filtered'=>'astw:' . $key,
-            'meta_input'=>$imageId ? ['_thumbnail_id'=>$imageId] : [],
+            'post_category'=>$categoryIds, 'tags_input'=>$tagIds, 'post_content_filtered'=>'astw:' . $key,
+            'meta_input'=>array_merge($imageId ? ['_thumbnail_id'=>$imageId] : [], !empty($payload['sync_publish']) ? ['_astw_sync_publish'=>1] : []),
         ]), true);
         if (is_wp_error($id) || !$id) return new WP_Error('astw_create','Creazione da verificare.',['status'=>503]);
         $wpdb->update($wpdb->prefix . 'astw_deliveries', ['post_id'=>$id], ['delivery_key'=>$key]);
