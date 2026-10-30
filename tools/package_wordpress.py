@@ -14,10 +14,16 @@ with zipfile.ZipFile(buffer, 'w', zipfile.ZIP_DEFLATED) as archive:
             continue
         info = zipfile.ZipInfo('allsocialtoweb/' + path.name, (2026, 1, 1, 0, 0, 0))
         info.compress_type = zipfile.ZIP_DEFLATED
+        info.create_system = 3
         info.external_attr = 0o644 << 16
         archive.writestr(info, path.read_bytes())
 if '--check' in sys.argv:
-    assert target.read_bytes() == buffer.getvalue(), 'Plugin ZIP is out of date: run python tools/package_wordpress.py'
+    # ZIP container metadata and compression can differ between Windows/Linux
+    # and zlib versions. Verify the installable files rather than container bytes.
+    with zipfile.ZipFile(target) as existing, zipfile.ZipFile(buffer) as expected:
+        assert sorted(existing.namelist()) == sorted(expected.namelist()), 'Plugin ZIP file list is out of date'
+        for name in expected.namelist():
+            assert existing.read(name) == expected.read(name), f'Plugin ZIP is out of date: {name}'
 else:
     target.parent.mkdir(parents=True, exist_ok=True)
     target.write_bytes(buffer.getvalue())
