@@ -50,6 +50,31 @@ final class WordPressBridge {
         return hash_hmac('sha256', 'wordpress-feed:' . $userId, $secret);
     }
 
+    public static function settingsPayload(int $userId, array $connection, array $options): array {
+        $base = app_base_url();
+        if (!str_starts_with($base, 'https://')) throw new DomainException('Per collegare l’archivio WordPress usa AllSocialToWeb dal suo indirizzo HTTPS. Il collegamento non è completo finché il feed non è configurato.');
+        return [
+            'feed_url'=>$base . '/api/wordpress-feed.php?user_id=' . $userId,
+            'feed_token'=>self::feedToken($userId, self::crypt($connection['secret'], true)),
+            'enabled'=>!empty($options['enabled']),
+            'post_status'=>($options['post_status'] ?? '') === 'publish' ? 'publish' : 'draft',
+            'category_id'=>(int)($options['category_id'] ?? 0),
+            'mappings'=>$options['mappings'] ?? [],
+            'filters'=>self::filters(is_array($options['filters'] ?? null) ? $options['filters'] : ['scope'=>'all']),
+        ];
+    }
+
+    public static function configure(int $userId, array $connection, array $options): array {
+        $result = self::remote($connection, 'POST', '/sync-settings', self::settingsPayload($userId, $connection, $options));
+        if (empty($result['ok']) || empty($result['archive_available'])) throw new DomainException('Il plugin non ha confermato la configurazione dell’archivio. Aggiorna il plugin WordPress e riprova.');
+        return $result;
+    }
+
+    public static function ready(array $health): bool {
+        // Older supported plugins expose post_status only after saving the complete feed settings.
+        return array_key_exists('feed_ready', $health) ? !empty($health['feed_ready']) : !empty($health['settings']['post_status']);
+    }
+
     public static function filters(array $input): array {
         $scope = $input['scope'] ?? 'published';
         if (!in_array($scope, ['all','published','drafts'], true)) throw new DomainException('Seleziona un archivio valido.');

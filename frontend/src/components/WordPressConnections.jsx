@@ -11,6 +11,7 @@ export function WordPressConnections({ token }) {
   const [settings, setSettings] = useState({ enabled: false, post_status: 'draft', category_id: 0, mappings: {} });
   const [busy, setBusy] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [ready, setReady] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const [syncing, setSyncing] = useState(false);
@@ -23,10 +24,12 @@ export function WordPressConnections({ token }) {
     setLibrary(previous => ({ ...data, posts: cursor ? [...previous.posts, ...(data.posts || [])] : (data.posts || []) }));
   };
   const readTerms = async () => {
-    const data = await call('taxonomies');
+    setReady(false); setSaved(false);
+    const data = await call('prepare', {});
     setTerms(data);
     setSettings({ enabled: false, post_status: 'draft', category_id: 0, mappings: {}, ...data.settings, filters: ownerFilters.current });
-    setSaved(!!data.settings?.post_status && !!data.archive_available);
+    setReady(!!data.ready);
+    setSaved(!!data.ready && !!data.settings?.post_status && !!data.archive_available);
     return data;
   };
   useEffect(() => {
@@ -52,14 +55,14 @@ export function WordPressConnections({ token }) {
     {!status?.connected ? <form className="wordpress-connect" onSubmit={e => { e.preventDefault(); run(async () => {
       await call('connect', form);
       const connectedStatus = await call('status'); setStatus(connectedStatus); ownerFilters.current = { ...defaultFilters, ...connectedStatus.filters }; setForm(f => ({ ...f, secret: '' }));
-      await readTerms(); setMessage('Sito collegato. Ora salva gli abbinamenti e la modalità di importazione.');
+      await readTerms(); setMessage('Collegamento completo: l’archivio è già leggibile dal plugin WordPress. Puoi personalizzare categorie, tag e modalità di importazione.');
     }); }}>
       <label>Indirizzo WordPress<input type="url" required placeholder="https://www.iltuosito.it" value={form.endpoint} onChange={e => setForm({ ...form, endpoint: e.target.value })} /></label>
       <label>Codice generato dal plugin<input type="password" required autoComplete="off" value={form.secret} onChange={e => setForm({ ...form, secret: e.target.value.trim() })} /></label>
       <button className="btn btn-primary" disabled={busy || !status}>Verifica e collega</button>
     </form> : <>
       <p className="wordpress-archive">Archivio disponibile: <strong>{status.archive?.total ?? 0}</strong> contenuti · {status.archive?.published ?? 0} pubblicati · {status.archive?.drafts ?? 0} bozze o da elaborare.</p>
-      <div className="wordpress-actions"><strong>Collegato: {status.endpoint}</strong><button className="btn btn-outline" disabled={busy} onClick={() => run(async () => { await readTerms(); setMessage('Categorie e tag aggiornati da WordPress.'); })}>{terms ? 'Rileggi categorie e tag' : 'Leggi categorie e tag'}</button><button className="btn btn-outline" disabled={busy} onClick={() => run(async () => { await call('disconnect', {}); setStatus(await call('status')); setTerms(null); setSaved(false); setMessage('Collegamento disabilitato. I post in WordPress rimangono disponibili.'); })}>Disconnetti</button></div>
+      <div className="wordpress-actions"><strong>{ready ? 'Archivio collegato' : 'Collegamento da completare'}: {status.endpoint}</strong><button className="btn btn-outline" disabled={busy} onClick={() => run(async () => { await readTerms(); setMessage('Archivio collegato. Categorie e tag aggiornati da WordPress.'); })}>{terms ? 'Rileggi categorie e tag' : 'Completa collegamento'}</button><button className="btn btn-outline" disabled={busy} onClick={() => run(async () => { await call('disconnect', {}); setStatus(await call('status')); setTerms(null); setSaved(false); setReady(false); setMessage('Collegamento disabilitato. I post in WordPress rimangono disponibili.'); })}>Disconnetti</button></div>
       {terms && !terms.archive_available && <p role="alert">Per collegare tutto l’archivio, aggiorna WordPress installando il plugin 0.3.0 dal pulsante Scarica il plugin WordPress.</p>}
       {terms && !terms.media_available && <p role="alert">Aggiorna il plugin WordPress alla versione 0.4.0 per conservare anche foto, gallerie e video nei post e consultare l’archivio dal pannello WordPress.</p>}
       {terms && <form onSubmit={e => { e.preventDefault(); run(async () => { await call('settings', settings); ownerFilters.current = filters; setSaved(true); setMessage('Abbinamenti salvati. Puoi sincronizzare ora. Le regole si applicano ai nuovi post importati.'); }); }}>

@@ -19,28 +19,33 @@ try {
         $endpoint = PublicationSecurity::endpoint((string)($input['endpoint'] ?? ''));
         $secret = (string)($input['secret'] ?? '');
         if (!preg_match('/^[a-f0-9]{64}$/', $secret)) throw new DomainException('Inserisci il codice generato dal plugin WordPress.');
-        $candidate = ['endpoint'=>$endpoint, 'secret'=>WordPressBridge::crypt($secret), 'filters'=>WordPressBridge::filters(['scope'=>'all'])];
+        $sameSite = ($settings['endpoint'] ?? '') === $endpoint;
+        $candidate = ['endpoint'=>$endpoint, 'secret'=>WordPressBridge::crypt($secret), 'filters'=>WordPressBridge::filters($sameSite ? ($settings['filters'] ?? ['scope'=>'all']) : ['scope'=>'all'])];
         $health = WordPressBridge::remote($candidate, 'GET', '/health');
         if (empty($health['sync_available'])) throw new DomainException('Installa il plugin AllSocialToWeb versione 0.3.0 o successiva.');
+        $options = array_merge($sameSite ? ($settings['preferences'] ?? []) : [], $health['settings'] ?? [], ['filters'=>$candidate['filters']]);
+        $configured = WordPressBridge::configure($userId, $candidate, $options);
+        $candidate['preferences'] = $configured['settings'] ?? $options;
         WordPressBridge::save($userId, $candidate);
-        json(['ok'=>true, 'endpoint'=>$endpoint] + $health);
+        json(array_merge($health, $configured, ['ok'=>true, 'ready'=>true, 'endpoint'=>$endpoint]));
+    }
+    if ($action === 'wordpress-prepare') {
+        $health = WordPressBridge::remote($settings, 'GET', '/health');
+        if (!WordPressBridge::ready($health)) {
+            $options = array_merge($settings['preferences'] ?? [], $health['settings'] ?? [], ['filters'=>$settings['filters'] ?? ['scope'=>'all']]);
+            $configured = WordPressBridge::configure($userId, $settings, $options);
+            $settings['filters'] = $configured['settings']['filters'] ?? WordPressBridge::filters($options['filters']);
+            $settings['preferences'] = $configured['settings'] ?? $options;
+            WordPressBridge::save($userId, $settings);
+            $health = array_merge($health, $configured);
+        }
+        json(array_merge($health, ['ready'=>true]));
     }
     if ($action === 'wordpress-settings') {
-        $base = app_base_url();
-        if (!str_starts_with($base, 'https://')) throw new DomainException('La sincronizzazione automatica WordPress richiede un indirizzo HTTPS della piattaforma.');
         $filters = WordPressBridge::filters(is_array($input['filters'] ?? null) ? $input['filters'] : []);
-        $payload = [
-            'feed_url'=>$base . '/api/wordpress-feed.php?user_id=' . $userId,
-            'feed_token'=>WordPressBridge::feedToken($userId, WordPressBridge::crypt($settings['secret'], true)),
-            'enabled'=>!empty($input['enabled']),
-            'post_status'=>($input['post_status'] ?? '') === 'publish' ? 'publish' : 'draft',
-            'category_id'=>(int)($input['category_id'] ?? 0),
-            'mappings'=>$input['mappings'] ?? [],
-            'filters'=>$filters,
-        ];
-        $result = WordPressBridge::remote($settings, 'POST', '/sync-settings', $payload);
-        if (empty($result['archive_available'])) throw new DomainException('Aggiorna il plugin WordPress alla versione 0.3.0 per collegare tutto l’archivio.');
+        $result = WordPressBridge::configure($userId, $settings, array_merge($input, ['filters'=>$filters]));
         $settings['filters'] = $filters;
+        $settings['preferences'] = $result['settings'] ?? $input;
         WordPressBridge::save($userId, $settings);
         json($result);
     }

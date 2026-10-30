@@ -72,3 +72,12 @@ $mediaOnly=WordPressBridge::feed(12,28,['scope'=>'all']);
 bridgeCheck(count($mediaOnly['posts'])===1 && $mediaOnly['posts'][0]['title']!=='' && str_contains($mediaOnly['posts'][0]['media_html'],'photo.jpg'), 'articoli con sole foto inclusi nel connettore');
 WordPressBridge::save(12, []);
 bridgeCheck(WordPressBridge::load(12) === [], 'disconnessione revoca credenziale feed');
+
+$payload=WordPressBridge::settingsPayload(12,['secret'=>$cipher],[]);
+bridgeCheck($payload['feed_url']==='https://platform.example/api/wordpress-feed.php?user_id=12' && $payload['feed_token']===WordPressBridge::feedToken(12,$secret), 'prima connessione configura URL e credenziale del feed del proprietario');
+bridgeCheck($payload['post_status']==='draft' && $payload['enabled']===false && $payload['filters']['scope']==='all', 'prima connessione legge tutto archivio senza pubblicare o attivare automatismi');
+$preferences=['post_status'=>'publish','enabled'=>true,'category_id'=>7,'mappings'=>['Viaggi'=>['category_id'=>7,'tag_id'=>9]],'filters'=>['scope'=>'drafts','platforms'=>['instagram']]];
+$preserved=WordPressBridge::settingsPayload(12,['secret'=>$cipher],$preferences);
+bridgeCheck($preserved['post_status']==='publish' && $preserved['category_id']===7 && $preserved['mappings']===$preferences['mappings'] && $preserved['filters']['scope']==='drafts', 'ricollegamento conserva categorie, tag e preferenze gia configurate');
+bridgeCheck(!WordPressBridge::ready(['settings'=>[]]) && WordPressBridge::ready(['settings'=>['post_status'=>'draft']]), 'plugin precedenti: configurazione archivio distinta dal codice verificato');
+bridgeCheck(!WordPressBridge::ready(['feed_ready'=>false,'settings'=>['post_status'=>'draft']]), 'feed esplicitamente assente richiede ripristino');

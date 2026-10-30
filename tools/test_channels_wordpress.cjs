@@ -34,6 +34,7 @@ const fs = require('node:fs');
       if (action === 'wordpress-library') data = { posts: [{ id: new URL(req.url()).searchParams.get('cursor') === '21' ? 22 : 21, title: 'Articolo archivio completo', platform: 'facebook', published: 0 }], next_cursor: 21, has_more: new URL(req.url()).searchParams.get('cursor') !== '21' };
       if (action === 'wordpress-status') data = { connected, endpoint: connected ? 'https://wordpress.example' : '', topics: ['Viaggi'], filters: settings.filters || { scope: 'all' }, archive: { total: 45, published: 30, drafts: 15, platforms: ['instagram','manual'] } };
       if (action === 'wordpress-connect') { connected = true; data = { ok: true }; }
+      if (action === 'wordpress-prepare') { if (!settings.post_status) settings = { post_status: 'draft', enabled: false, category_id: 0, mappings: {}, filters: { scope: 'all', platforms: [], since_date: '', until_date: '', batch_size: 20 } }; data = { ready: true, archive_available: true, media_available: true, categories: [{ id: 7, name: 'Esperienze' }], tags: [{ id: 9, name: 'Famiglie' }], settings }; }
       if (action === 'wordpress-taxonomies') data = { archive_available: true, categories: [{ id: 7, name: 'Esperienze' }], tags: [{ id: 9, name: 'Famiglie' }], settings };
       if (action === 'wordpress-settings') { settings = payload; data = { ok: true }; }
       if (action === 'wordpress-sync') { syncPass++; data = { ok: true, imported: 2, skipped: 1, has_more: syncPass === 1 }; }
@@ -55,6 +56,9 @@ const fs = require('node:fs');
     await page.getByLabel('Indirizzo WordPress', { exact: true }).fill('https://wordpress.example');
     await page.getByLabel('Codice generato dal plugin', { exact: true }).fill('a'.repeat(64));
     await page.getByRole('button', { name: 'Verifica e collega', exact: true }).click();
+    await page.getByText(/Collegamento completo: l.archivio/).waitFor();
+    assert.ok(mutations.some(m => m.action === 'wordpress-prepare'), 'archive bootstrap happens automatically after connecting');
+    assert.equal(await page.getByRole('button', { name: 'Sincronizza WordPress', exact: true }).isEnabled(), true, 'first connection needs no second settings save');
     assert.equal(await page.getByLabel(/Archivio da sincronizzare/).inputValue(), 'all');
     await page.getByLabel(/Contenuti per passaggio/).fill('5');
     await page.getByLabel('Dalla data', { exact: true }).fill('2026-01-01');
@@ -76,10 +80,15 @@ const fs = require('node:fs');
     assert.equal(syncPass, 2, 'complete archive automatically fetches subsequent pages');
     assert.deepEqual(mutations.filter(m => m.action === 'wordpress-sync').map(m => m.payload.restart), [true,false]);
     await page.reload();
+    await page.getByLabel(/Contenuti per passaggio/).waitFor();
+    assert.equal(await page.getByLabel(/Contenuti per passaggio/).inputValue(), '5', 'configured connection preserves settings after reload');
+    assert.equal(await row.locator('select').nth(0).inputValue(), '7');
+    settings = {};
+    await page.reload();
     await page.getByRole('heading', { name: 'Connettore WordPress', exact: true }).waitFor();
     await page.getByLabel(/Contenuti per passaggio/).waitFor();
-    assert.equal(await page.getByLabel(/Contenuti per passaggio/).inputValue(), '5', 'settings automatically loaded on return to channels');
-    assert.equal(await row.locator('select').nth(0).inputValue(), '7');
+    assert.equal(await page.getByLabel(/Contenuti per passaggio/).inputValue(), '20', 'incomplete existing connection bootstraps on return to channels');
+    await page.getByText('Archivio collegato: https://wordpress.example', { exact: true }).waitFor();
     fs.mkdirSync('artifacts', { recursive: true });
     await page.locator('.wordpress-workspace').screenshot({ path: 'artifacts/channels-wordpress-desktop.png' });
     await page.setViewportSize({ width: 390, height: 844 });
