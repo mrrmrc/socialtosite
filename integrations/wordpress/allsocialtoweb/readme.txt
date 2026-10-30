@@ -1,7 +1,7 @@
 === AllSocialToWeb Connector ===
 Requires at least: 6.0
 Requires PHP: 8.0
-Stable tag: 0.2.0
+Stable tag: 0.3.0
 License: GPLv2 or later
 
 Importa come post i contenuti pubblicati nella tua pagina AllSocialToWeb.
@@ -15,15 +15,17 @@ Importa come post i contenuti pubblicati nella tua pagina AllSocialToWeb.
 6. Premi Sincronizza WordPress o abilita la sincronizzazione automatica.
 
 == Comportamento ==
-Solo i contenuti pubblicati su AllSocialToWeb e già elaborati sono importabili.
+Il connettore legge tutto l’archivio personale: pubblicati, bozze e testi acquisiti.
+Da Canali > Connettore WordPress scegli tutto l’archivio o solo pubblicati/bozze,
+le fonti incluse, il periodo e la dimensione dei passaggi (da 1 a 20 contenuti).
 Puoi importarli come bozze o come post pubblicati.
 Ogni argomento può assegnare una categoria e un tag WordPress già esistenti.
 La categoria predefinita si applica ai post senza un abbinamento di categoria.
 Gli abbinamenti si applicano alle nuove importazioni.
 I post già importati non sono duplicati e le modifiche fatte nel CMS sono conservate.
 La rimozione di un contenuto dalla piattaforma non elimina il post WordPress.
-Ogni passaggio controlla 20 contenuti; alla fine ricomincia per recuperare anche
-articoli meno recenti che vengono pubblicati in un secondo momento.
+Il comando manuale percorre automaticamente tutti i passaggi dell’archivio; alla fine ricomincia per recuperare anche
+articoli meno recenti aggiunti o pubblicati in un secondo momento.
 WP-Cron esegue i passaggi ogni 5 minuti quando il sito riceve visite.
 Per una puntualità indipendente dalle visite configura WP-Cron sul tuo hosting.
 Disconnettere dalla piattaforma revoca subito l'accesso al feed privato.

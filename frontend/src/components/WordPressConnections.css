@@ -1,4 +1,10 @@
 .wordpress-workspace { min-width: 0; }
+#wordpress-connector { scroll-margin-top: 190px; }
+.wordpress-sources { border: 1px solid var(--border); border-radius: 10px; margin: 20px 0; padding: 14px; display: flex; flex-wrap: wrap; gap: 12px 22px; }
+.wordpress-sources legend { padding: 0 6px; font-weight: 700; }
+.wordpress-sources p { flex-basis: 100%; margin: 0; font-size: 13px; }
+.wordpress-sources .wordpress-check { margin: 0; }
+.wordpress-archive { padding: 14px; background: var(--surface-hover, #f2f6f2); border-radius: 10px; }
 .wordpress-workspace h2 { margin: 0 0 8px; }
 .wordpress-workspace p, .wordpress-workspace li { color: var(--text-muted); line-height: 1.6; }
 .wordpress-heading, .wordpress-actions { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between; }

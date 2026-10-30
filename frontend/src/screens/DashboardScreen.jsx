@@ -4883,6 +4883,8 @@ export function DashboardScreen({ token, user, onLogout, onUserUpdate }) {
                     </div>
                   </section>
 
+                  <WordPressConnections token={token} />
+
                   {/* Form Aggiungi Canale */}
                   <div
                     className="card channels-connect"
@@ -5032,8 +5034,6 @@ export function DashboardScreen({ token, user, onLogout, onUserUpdate }) {
                       </div>
                     </form>
                   </div>
-
-                  <WordPressConnections token={token} />
 
                   {/* Lista canali attivi */}
                   <div className="card">

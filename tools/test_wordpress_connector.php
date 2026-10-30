@@ -105,7 +105,7 @@ function wp_schedule_event(...$args) {}
 function wp_clear_scheduled_hook(...$args) {}
 function wp_json_encode($value) { return json_encode($value); }
 function add_query_arg($name,$value,$url) { return $url.'&'.$name.'='.$value; }
-function wp_safe_remote_get(...$args) { global $remoteFeed; return ['body'=>json_encode($remoteFeed)]; }
+function wp_safe_remote_get(...$args) { global $remoteFeed,$feedRequestUrl; $feedRequestUrl=$args[0]; return ['body'=>json_encode($remoteFeed)]; }
 function wp_remote_retrieve_response_code($response) { return 200; }
 function wp_remote_retrieve_body($response) { return $response['body']; }
 $settings=['feed_url'=>'https://platform.example/api/wordpress-feed.php?user_id=3','feed_token'=>str_repeat('f',64),'enabled'=>true,'post_status'=>'publish','category_id'=>7,'mappings'=>['Viaggi'=>['category_id'=>8,'tag_id'=>9]]];
@@ -140,3 +140,11 @@ expect(is_wp_error(astw_sync_feed()), 'pubblicazione interrotta segnalata senza 
 $pendingId=$nextId-1; $pendingCount=count($posts); $failPublish=false;
 $result=astw_sync_feed();
 expect(!is_wp_error($result) && count($posts)===$pendingCount && $posts[$pendingId]['post_status']==='publish', 'pubblicazione interrotta ripresa senza duplicare la bozza');
+
+$settings['filters']=['scope'=>'all','platforms'=>['instagram'],'batch_size'=>5];
+$options['astw_sync_cursor']=100;
+expect(astw_save_sync_settings(new WP_REST_Request('', $settings))['archive_available'], 'plugin supporta parametri archivio completo');
+expect($options['astw_sync_cursor']===0 && astw_public_sync_settings()['filters']===$settings['filters'], 'cambio filtri azzera scansione e conserva parametri');
+$options['astw_sync_cursor']=200;
+astw_sync_feed(new WP_REST_Request('', ['restart'=>true]));
+expect(str_contains($feedRequestUrl,'cursor=0'), 'sincronizzazione completa riparte dal primo contenuto');

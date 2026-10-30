@@ -1,8 +1,8 @@
 <?php
 /**
  * Plugin Name: AllSocialToWeb Connector
- * Description: Importa i contenuti pubblicati su AllSocialToWeb con categorie e tag abbinati dalla tua area personale.
- * Version: 0.2.0
+ * Description: Collega l’intero archivio AllSocialToWeb a WordPress con filtri, categorie e tag dalla tua area personale.
+ * Version: 0.3.0
  * Requires PHP: 8.0
  * Requires at least: 6.0
  */
@@ -48,7 +48,7 @@ function astw_settings(): void {
             update_option('astw_author', get_current_user_id(), false);
         }
     }
-    echo '<div class="wrap"><h1>AllSocialToWeb</h1><p>Collega questo sito per ricevere articoli. La creazione iniziale è sempre una bozza. Gli articoli rimangono qui dopo la disconnessione.</p>';
+    echo '<div class="wrap"><h1>AllSocialToWeb</h1><p>Collega tutto il tuo archivio personale, comprese bozze e testi acquisiti. In AllSocialToWeb apri Canali → Connettore WordPress per scegliere fonti, periodo, categorie, tag e modalità di pubblicazione. Gli articoli rimangono qui dopo la disconnessione.</p>';
     echo '<p>Indirizzo del sito: <code>' . esc_html(untrailingslashit(home_url())) . '</code></p>';
     if ($newSecret) echo '<p>Copia ora il codice in AllSocialToWeb. Non sarà mostrato nuovamente.</p><code style="user-select:all">' . esc_html($newSecret) . '</code>';
     echo '<p>Stato: ' . (get_option('astw_secret') ? 'collegamento abilitato' : 'disabilitato') . '</p><form method="post">';
@@ -80,7 +80,7 @@ add_action('rest_api_init', static function () {
     register_rest_route('allsocialtoweb/v1', '/health', ['methods'=>'GET','permission_callback'=>'astw_permission','callback'=>static function () {
         $categories = get_categories(['hide_empty'=>false]);
         $tags = get_tags(['hide_empty'=>false]);
-        return ['protocol'=>'1', 'sync_available'=>true,
+        return ['protocol'=>'1', 'sync_available'=>true, 'archive_available'=>true, 'version'=>'0.3.0',
             'categories'=>array_map(static fn($c)=>['id'=>$c->term_id,'name'=>$c->name], $categories),
             'tags'=>array_map(static fn($t)=>['id'=>$t->term_id,'name'=>$t->name], $tags),
             'settings'=>astw_public_sync_settings(), 'last_sync'=>get_option('astw_last_sync', [])];

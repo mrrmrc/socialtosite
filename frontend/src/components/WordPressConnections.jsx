@@ -1,6 +1,8 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { apiFetch } from '../utils/api';
 import './WordPressConnections.css';
+
+const defaultFilters = { scope: 'all', platforms: [], since_date: '', until_date: '', batch_size: 20 };
 
 export function WordPressConnections({ token }) {
   const [status, setStatus] = useState(null);
@@ -11,56 +13,83 @@ export function WordPressConnections({ token }) {
   const [saved, setSaved] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
+  const [syncing, setSyncing] = useState(false);
+  const stopSync = useRef(false);
+  const ownerFilters = useRef(defaultFilters);
   const call = (action, payload) => apiFetch(`/api/index.php?action=wordpress-${action}`, payload === undefined ? {} : { method: 'POST', body: JSON.stringify(payload) }, token);
   const readTerms = async () => {
     const data = await call('taxonomies');
     setTerms(data);
-    setSettings({ enabled: false, post_status: 'draft', category_id: 0, mappings: {}, ...data.settings });
-    setSaved(!!data.settings?.post_status);
+    setSettings({ enabled: false, post_status: 'draft', category_id: 0, mappings: {}, ...data.settings, filters: ownerFilters.current });
+    setSaved(!!data.settings?.post_status && !!data.archive_available);
     return data;
   };
   useEffect(() => {
     let active = true;
-    call('status').then(data => { if (active) { setStatus(data); setForm(f => ({ ...f, endpoint: data.endpoint })); } }).catch(e => { if (active) setError(e.message); });
-    return () => { active = false; };
+    call('status').then(async data => { if (active) { setStatus(data); setForm(f => ({ ...f, endpoint: data.endpoint })); ownerFilters.current = { ...defaultFilters, ...data.filters }; if (data.connected) await readTerms(); } }).catch(e => { if (active) setError(e.message); });
+    return () => { active = false; stopSync.current = true; };
   }, [token]);
   const run = async operation => {
     setBusy(true); setError(''); setMessage('');
     try { await operation(); } catch (e) { setError(e.message); } finally { setBusy(false); }
   };
   const change = update => { setSettings(s => ({ ...s, ...update })); setSaved(false); };
+  const filters = { ...defaultFilters, ...settings.filters };
+  const changeFilters = update => change({ filters: { ...filters, ...update } });
   const map = (topic, field, value) => change({ mappings: { ...settings.mappings, [topic]: { ...settings.mappings[topic], [field]: Number(value) } } });
   const topics = [...new Set([...(status?.topics || []), ...Object.keys(settings.mappings || {})])];
-  return <section className="card wordpress-workspace" aria-labelledby="wordpress-title">
-    <div className="wordpress-heading"><div><h2 id="wordpress-title">WordPress</h2><p>Trasforma i contenuti pubblicati su AllSocialToWeb in post del tuo sito WordPress.</p></div><a className="btn btn-outline" href="/public/downloads/allsocialtoweb-connector.zip" download>Scarica il plugin WordPress</a></div>
+  return <section id="wordpress-connector" className="card wordpress-workspace" aria-labelledby="wordpress-title">
+    <div className="wordpress-heading"><div><h2 id="wordpress-title">Connettore WordPress</h2><p>Collega tutto il tuo archivio di contenuti: pubblicati, bozze e testi acquisiti. Gestisci qui fonti, periodo, categorie e tag.</p></div><a className="btn btn-outline" href="/public/downloads/allsocialtoweb-connector.zip" download>Scarica il plugin WordPress</a></div>
     <ol><li>In WordPress apri Plugin → Aggiungi plugin → Carica plugin e installa lo ZIP.</li><li>In Impostazioni → AllSocialToWeb genera il codice e inseriscilo qui.</li><li>Leggi categorie e tag, abbina gli argomenti e scegli come importare.</li></ol>
     {error && <p className="wordpress-error" role="alert">{error}</p>}
     {message && <p className="wordpress-notice" role="status">{message}</p>}
     {!status?.connected ? <form className="wordpress-connect" onSubmit={e => { e.preventDefault(); run(async () => {
       await call('connect', form);
-      setStatus(await call('status')); setForm(f => ({ ...f, secret: '' }));
+      const connectedStatus = await call('status'); setStatus(connectedStatus); ownerFilters.current = { ...defaultFilters, ...connectedStatus.filters }; setForm(f => ({ ...f, secret: '' }));
       await readTerms(); setMessage('Sito collegato. Ora salva gli abbinamenti e la modalità di importazione.');
     }); }}>
       <label>Indirizzo WordPress<input type="url" required placeholder="https://www.iltuosito.it" value={form.endpoint} onChange={e => setForm({ ...form, endpoint: e.target.value })} /></label>
       <label>Codice generato dal plugin<input type="password" required autoComplete="off" value={form.secret} onChange={e => setForm({ ...form, secret: e.target.value.trim() })} /></label>
       <button className="btn btn-primary" disabled={busy || !status}>Verifica e collega</button>
     </form> : <>
+      <p className="wordpress-archive">Archivio disponibile: <strong>{status.archive?.total ?? 0}</strong> contenuti · {status.archive?.published ?? 0} pubblicati · {status.archive?.drafts ?? 0} bozze o da elaborare.</p>
       <div className="wordpress-actions"><strong>Collegato: {status.endpoint}</strong><button className="btn btn-outline" disabled={busy} onClick={() => run(async () => { await readTerms(); setMessage('Categorie e tag aggiornati da WordPress.'); })}>{terms ? 'Rileggi categorie e tag' : 'Leggi categorie e tag'}</button><button className="btn btn-outline" disabled={busy} onClick={() => run(async () => { await call('disconnect', {}); setStatus(await call('status')); setTerms(null); setSaved(false); setMessage('Collegamento disabilitato. I post in WordPress rimangono disponibili.'); })}>Disconnetti</button></div>
-      {terms && <form onSubmit={e => { e.preventDefault(); run(async () => { await call('settings', settings); setSaved(true); setMessage('Abbinamenti salvati. Puoi sincronizzare ora. Le regole si applicano ai nuovi post importati.'); }); }}>
+      {terms && !terms.archive_available && <p role="alert">Per collegare tutto l’archivio, aggiorna WordPress installando il plugin 0.3.0 dal pulsante Scarica il plugin WordPress.</p>}
+      {terms && <form onSubmit={e => { e.preventDefault(); run(async () => { await call('settings', settings); ownerFilters.current = filters; setSaved(true); setMessage('Abbinamenti salvati. Puoi sincronizzare ora. Le regole si applicano ai nuovi post importati.'); }); }}>
+        <h3>Contenuti da collegare</h3>
+        <div className="wordpress-options">
+          <label>Archivio da sincronizzare<select value={filters.scope} onChange={e => changeFilters({ scope: e.target.value })}><option value="all">Tutto l’archivio, comprese bozze e contenuti acquisiti</option><option value="published">Solo contenuti pubblicati</option><option value="drafts">Solo bozze e contenuti non pubblicati</option></select></label>
+          <label>Contenuti per passaggio<input type="number" min="1" max="20" value={filters.batch_size} onChange={e => changeFilters({ batch_size: Number(e.target.value) })} /></label>
+          <label>Dalla data<input type="date" value={filters.since_date} onChange={e => changeFilters({ since_date: e.target.value })} /></label>
+          <label>Fino alla data<input type="date" min={filters.since_date || undefined} value={filters.until_date} onChange={e => changeFilters({ until_date: e.target.value })} /></label>
+        </div>
+        <fieldset className="wordpress-sources"><legend>Fonti incluse</legend><p>Lascia tutte le fonti per includere anche i nuovi canali aggiunti in futuro.</p><label className="wordpress-check"><input type="checkbox" checked={!filters.platforms.length} onChange={() => changeFilters({ platforms: [] })} />Tutte le fonti</label>{(status.archive?.platforms || []).map(platform => <label className="wordpress-check" key={platform}><input type="checkbox" checked={filters.platforms.includes(platform)} onChange={e => changeFilters({ platforms: e.target.checked ? [...filters.platforms, platform] : filters.platforms.filter(p => p !== platform) })} />{platform === 'manual' ? 'Contenuti manuali' : platform}</label>)}</fieldset>
+        <h3>Pubblicazione e categorie associate</h3>
         <div className="wordpress-options">
           <label>Importa i contenuti come<select value={settings.post_status} onChange={e => change({ post_status: e.target.value })}><option value="draft">Bozze WordPress</option><option value="publish">Post pubblicati</option></select></label>
           <label>Categoria per argomenti senza abbinamento<select value={settings.category_id} onChange={e => change({ category_id: Number(e.target.value) })}><option value="0">Predefinita WordPress</option>{(terms.categories || []).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
         </div>
         <label className="wordpress-check"><input type="checkbox" checked={!!settings.enabled} onChange={e => change({ enabled: e.target.checked })} />Sincronizzazione automatica ogni 5 minuti tramite WordPress</label>
-        <p>Vengono importati solo i contenuti pubblicati su AllSocialToWeb. Ogni argomento può assegnare una categoria e un tag già presenti in WordPress. Gli articoli già importati conservano le modifiche fatte in WordPress.</p>
+        <p>Puoi trasferire anche i contenuti non pubblicati: scegli qui se crearli come bozze o post su WordPress. Ogni argomento può assegnare una categoria e un tag già presenti in WordPress. Gli articoli già importati conservano le modifiche fatte in WordPress.</p>
         <div className="wordpress-mappings">{topics.length === 0 ? <p>Gli argomenti compariranno dopo aver acquisito i primi contenuti.</p> : topics.map(topic => <div className="wordpress-mapping" key={topic}><strong>{topic}</strong><label>Categoria<select value={settings.mappings?.[topic]?.category_id || 0} onChange={e => map(topic, 'category_id', e.target.value)}><option value="0">Nessun abbinamento</option>{(terms.categories || []).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label><label>Tag<select value={settings.mappings?.[topic]?.tag_id || 0} onChange={e => map(topic, 'tag_id', e.target.value)}><option value="0">Nessun abbinamento</option>{(terms.tags || []).map(t => <option key={t.id} value={t.id}>{t.name}</option>)}</select></label></div>)}</div>
         <div className="wordpress-actions"><button className="btn btn-primary" disabled={busy}>Salva abbinamenti e modalità</button><button type="button" className="btn btn-outline" disabled={busy || !saved} onClick={() => run(async () => {
-          const result = await call('sync', {});
-          setMessage(`Sincronizzazione completata: ${result.imported || 0} nuovi post, ${result.skipped || 0} già importati.${result.has_more ? ' Ci sono altri contenuti: premi di nuovo Sincronizza WordPress per continuare.' : ''}`);
+          stopSync.current = false; setSyncing(true);
+          let imported = 0, skipped = 0, more = true, first = true;
+          try {
+            while (more && !stopSync.current) {
+              const result = await call('sync', { restart: first }); first = false;
+              imported += Number(result.imported || 0); skipped += Number(result.skipped || 0); more = !!result.has_more;
+              setMessage(`Sincronizzazione archivio: ${imported} nuovi post, ${skipped} già importati. ${more ? 'Continuo con i prossimi contenuti…' : 'Archivio completato.'}`);
+            }
+            if (stopSync.current && more) setMessage(`Sincronizzazione interrotta dopo il passaggio corrente: ${imported} nuovi post. Puoi riprenderla senza creare duplicati.`);
+          } catch (error) {
+            setMessage(`Sincronizzazione interrotta: ${imported} nuovi post trasferiti, ${skipped} già presenti. Puoi riprovare senza creare duplicati.`);
+            throw error;
+          } finally { setSyncing(false); }
           const updated = await call('taxonomies'); setTerms(updated);
-        })}>{busy ? 'Operazione in corso…' : 'Sincronizza WordPress'}</button></div>
+        })}>{busy ? 'Operazione in corso…' : 'Sincronizza WordPress'}</button>{syncing && <button type="button" className="btn btn-outline" onClick={() => { stopSync.current = true; }}>Interrompi dopo questo passaggio</button>}</div>
         {!saved && <small>Salva le impostazioni per applicarle alla sincronizzazione.</small>}
-        <p><small>L’aggiornamento automatico usa WP-Cron e dipende dalle visite al sito WordPress. Ogni passaggio controlla fino a 20 contenuti.</small></p>
+        <p><small>L’aggiornamento automatico usa WP-Cron e dipende dalle visite al sito WordPress. Il comando Sincronizza WordPress percorre automaticamente tutto l’archivio selezionato, a blocchi della dimensione impostata.</small></p>
         {terms.last_sync?.at && <p><small>Ultimo passaggio: {new Date(terms.last_sync.at).toLocaleString('it-IT')}{terms.last_sync.error ? ` · ${terms.last_sync.error}` : ''}</small></p>}
       </form>}
     </>}

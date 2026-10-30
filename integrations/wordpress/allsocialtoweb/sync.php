@@ -8,11 +8,15 @@ add_filter('cron_schedules', static function ($schedules) {
 add_action('astw_sync_feed', static function () {
     if (!empty(get_option('astw_sync_settings', [])['enabled'])) astw_sync_feed();
 });
+add_action('init', static function () {
+    // Reinstalling/upgrading the ZIP can clear scheduled events while retaining options.
+    if (get_option('astw_secret') && !empty(get_option('astw_sync_settings', [])['enabled']) && !wp_next_scheduled('astw_sync_feed')) wp_schedule_event(time()+30, 'astw_five_minutes', 'astw_sync_feed');
+});
 register_deactivation_hook(__DIR__ . '/allsocialtoweb.php', static function () { wp_clear_scheduled_hook('astw_sync_feed'); });
 
 function astw_public_sync_settings(): array {
     $settings = get_option('astw_sync_settings', []);
-    return array_intersect_key($settings, array_flip(['enabled','post_status','category_id','mappings']));
+    return array_intersect_key($settings, array_flip(['enabled','post_status','category_id','mappings','filters']));
 }
 
 function astw_mapping(array $topics, array $settings): array {
@@ -47,16 +51,18 @@ function astw_save_sync_settings(WP_REST_Request $request) {
         if (($categoryId && !term_exists($categoryId, 'category')) || ($tagId && !term_exists($tagId, 'post_tag'))) return new WP_Error('astw_mapping','Categoria o tag non più disponibile: aggiorna l’elenco.',['status'=>422]);
         if ($categoryId || $tagId) $normalized[trim($topic)] = ['category_id'=>$categoryId, 'tag_id'=>$tagId];
     }
-    $settings = ['feed_url'=>$url, 'feed_token'=>$token, 'enabled'=>!empty($input['enabled']), 'post_status'=>$status, 'category_id'=>$category, 'mappings'=>$normalized];
+    $filters = $input['filters'] ?? ['scope'=>'published'];
+    if (!is_array($filters) || !in_array($filters['scope'] ?? '', ['all','published','drafts'], true)) return new WP_Error('astw_filters','Archivio non valido.',['status'=>422]);
+    $settings = ['feed_url'=>$url, 'feed_token'=>$token, 'enabled'=>!empty($input['enabled']), 'post_status'=>$status, 'category_id'=>$category, 'mappings'=>$normalized, 'filters'=>$filters];
     $old = get_option('astw_sync_settings', []);
     update_option('astw_sync_settings', $settings, false);
-    if (($old['feed_url'] ?? '') !== $url) update_option('astw_sync_cursor', 0, false);
+    if (($old['feed_url'] ?? '') !== $url || ($old['filters'] ?? []) !== $filters) update_option('astw_sync_cursor', 0, false);
     if ($settings['enabled'] && !wp_next_scheduled('astw_sync_feed')) wp_schedule_event(time()+30, 'astw_five_minutes', 'astw_sync_feed');
     if (!$settings['enabled']) wp_clear_scheduled_hook('astw_sync_feed');
-    return ['ok'=>true, 'settings'=>astw_public_sync_settings()];
+    return ['ok'=>true, 'archive_available'=>true, 'settings'=>astw_public_sync_settings()];
 }
 
-function astw_sync_feed() {
+function astw_sync_feed(?WP_REST_Request $command = null) {
     global $wpdb;
     $settings = get_option('astw_sync_settings', []);
     $author = (int)get_option('astw_author', 0);
@@ -67,6 +73,7 @@ function astw_sync_feed() {
     $lock = 'astw_sync:' . substr(hash('sha256', $wpdb->prefix), 0, 40);
     if ((int)$wpdb->get_var($wpdb->prepare('SELECT GET_LOCK(%s, 0)', $lock)) !== 1) { wp_set_current_user($previousUser); return new WP_Error('astw_busy','Sincronizzazione già in corso.',['status'=>409]); }
     try {
+        if ($command && !empty($command->get_json_params()['restart'])) update_option('astw_sync_cursor', 0, false);
         $cursor = (int)get_option('astw_sync_cursor', 0);
         $response = wp_safe_remote_get(add_query_arg('cursor', $cursor, $settings['feed_url']), [
             'headers'=>['X-ASTW-Feed'=>$settings['feed_token']], 'timeout'=>25, 'redirection'=>0, 'limit_response_size'=>12000000,

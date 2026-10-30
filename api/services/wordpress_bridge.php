@@ -49,21 +49,70 @@ final class WordPressBridge {
         return hash_hmac('sha256', 'wordpress-feed:' . $userId, $secret);
     }
 
-    public static function feed(int $userId, int $cursor): array {
-        $rows = DB::fetchAll('SELECT * FROM posts WHERE user_id=? AND published=1 AND seo_score>=0 AND id>? ORDER BY id LIMIT 21', [$userId, max(0, $cursor)]);
-        $more = count($rows) > 20; $rows = array_slice($rows, 0, 20);
+    public static function filters(array $input): array {
+        $scope = $input['scope'] ?? 'published';
+        if (!in_array($scope, ['all','published','drafts'], true)) throw new DomainException('Seleziona un archivio valido.');
+        $platforms = $input['platforms'] ?? [];
+        if (!is_array($platforms) || count($platforms) > 30) throw new DomainException('Seleziona le fonti da sincronizzare.');
+        foreach ($platforms as $platform) if (!is_string($platform) || !preg_match('/^[a-z0-9_-]{1,50}$/i', $platform)) throw new DomainException('Fonte non valida.');
+        $dates = [];
+        foreach (['since_date','until_date'] as $field) {
+            $date = $input[$field] ?? '';
+            if (!is_string($date)) throw new DomainException('Data non valida.');
+            if ($date !== '') {
+                $parsed = DateTimeImmutable::createFromFormat('!Y-m-d', $date);
+                if (!$parsed || $parsed->format('Y-m-d') !== $date) throw new DomainException('Data non valida.');
+            }
+            $dates[$field] = $date;
+        }
+        if ($dates['since_date'] && $dates['until_date'] && $dates['since_date'] > $dates['until_date']) throw new DomainException('La data finale deve seguire quella iniziale.');
+        return ['scope'=>$scope, 'platforms'=>array_values(array_unique($platforms)), 'batch_size'=>max(1, min(20, (int)($input['batch_size'] ?? 20)))] + $dates;
+    }
+
+    public static function archive(int $userId): array {
+        $total = 0; $published = 0; $platforms = [];
+        foreach (DB::fetchAll('SELECT platform,published,COUNT(*) total FROM posts WHERE user_id=? GROUP BY platform,published', [$userId]) as $row) {
+            $total += (int)$row['total'];
+            if (!empty($row['published'])) $published += (int)$row['total'];
+            $platforms[(string)$row['platform']] = true;
+        }
+        return ['total'=>$total, 'published'=>$published, 'drafts'=>$total-$published, 'platforms'=>array_keys($platforms)];
+    }
+
+    public static function feed(int $userId, int $cursor, array $input = []): array {
+        $filters = self::filters($input);
+        $sql = 'SELECT * FROM posts WHERE user_id=? AND id>?';
+        $params = [$userId, max(0, $cursor)];
+        if ($filters['scope'] === 'published') $sql .= ' AND published=1';
+        if ($filters['scope'] === 'drafts') $sql .= ' AND published=0';
+        if ($filters['platforms']) {
+            $sql .= ' AND platform IN (' . implode(',', array_fill(0, count($filters['platforms']), '?')) . ')';
+            array_push($params, ...$filters['platforms']);
+        }
+        if ($filters['since_date']) { $sql .= ' AND COALESCE(published_at,imported_at)>=?'; $params[] = $filters['since_date'] . ' 00:00:00'; }
+        if ($filters['until_date']) { $sql .= ' AND COALESCE(published_at,imported_at)<?'; $params[] = (new DateTimeImmutable($filters['until_date']))->modify('+1 day')->format('Y-m-d') . ' 00:00:00'; }
+        $size = $filters['batch_size'];
+        $rows = DB::fetchAll($sql . ' ORDER BY id LIMIT ' . ($size + 1), $params);
+        $more = count($rows) > $size; $rows = array_slice($rows, 0, $size);
         $posts = [];
         foreach ($rows as $row) {
             $cursor = (int)$row['id'];
-            $title = trim(strip_tags($row['edited_title'] ?: ($row['generated_title'] ?? '')));
-            $html = trim($row['edited_body'] ?: ($row['generated_body'] ?? ''));
+            $raw = trim((string)($row['transcript'] ?? '')) ?: trim((string)($row['raw_content'] ?? ''));
+            $title = trim(strip_tags(($row['edited_title'] ?? '') ?: ($row['generated_title'] ?? '')));
+            if ($title === '' && $raw !== '') {
+                $plain = preg_replace('/\s+/u', ' ', strip_tags($raw)) ?? '';
+                $title = function_exists('mb_substr') ? mb_substr($plain, 0, 100) : substr($plain, 0, 100);
+            }
+            $html = trim(($row['edited_body'] ?? '') ?: ($row['generated_body'] ?? ''));
+            if ($html === '' && $raw !== '') $html = '<p>' . nl2br(htmlspecialchars($raw, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8')) . '</p>';
             if ($title === '' || trim(strip_tags($html)) === '') continue;
             $tags = json_decode($row['tags'] ?? '[]', true);
             if (!is_array($tags)) $tags = explode(',', $row['tags'] ?? '');
             $posts[] = [
                 'key'=>hash('sha256', app_base_url() . ':' . $userId . ':' . $row['id']),
                 'title'=>$title, 'html'=>$html,
-                'excerpt'=>strip_tags($row['edited_excerpt'] ?: ($row['generated_excerpt'] ?? '')),
+                'excerpt'=>strip_tags(($row['edited_excerpt'] ?? '') ?: ($row['generated_excerpt'] ?? '')),
+                'id'=>(int)$row['id'], 'platform'=>$row['platform'] ?? '', 'published'=>!empty($row['published']),
                 'topics'=>array_values(array_filter($tags, 'is_string')),
             ];
         }
