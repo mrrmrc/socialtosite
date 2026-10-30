@@ -19,7 +19,7 @@ async function serve(directory,port){
   try{
     const user={id:22,role:'user',plan:'professional',name:'Maria',slug:'aurora',email:'maria@example.test'};
     const config={name:'Studio Aurora',theme:{bg1:'#102030',text0:'#fefefe',accent:'#ff9300',fontSans:'Georgia',fontDisplay:'Georgia'},blocks:[{id:'hero',type:'hero',variant:'minimal',props:{headline:'La mia identità originale',subheadline:'Formazione per le famiglie',primaryCta:'Contattami'}}]};
-    const context=await browser.newContext({viewport:{width:1440,height:1000}});
+    const context=await browser.newContext({viewport:{width:1440,height:1000},locale:'it-IT'});
     await context.addInitScript(user=>{if(window.top!==window)return;localStorage.setItem('sts_token','builder-shell-fixture');localStorage.setItem('sts_user',JSON.stringify(user));},user);
     const errors=[],writes=[];
     await context.route('**/api/**',async route=>{
