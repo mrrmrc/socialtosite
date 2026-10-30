@@ -2,7 +2,7 @@
 /**
  * Plugin Name: AllSocialToWeb Connector
  * Description: Collega l’intero archivio AllSocialToWeb a WordPress con filtri, categorie e tag dalla tua area personale.
- * Version: 0.4.0
+ * Version: 0.4.1
  * Requires PHP: 8.0
  * Requires at least: 6.0
  */
@@ -52,7 +52,9 @@ function astw_settings(): void {
     echo '<div class="wrap"><h1>AllSocialToWeb</h1><p>Collega tutto il tuo archivio personale, comprese bozze e testi acquisiti. In AllSocialToWeb apri Canali → Connettore WordPress per scegliere fonti, periodo, categorie, tag e modalità di pubblicazione. Gli articoli rimangono qui dopo la disconnessione.</p>';
     echo '<p>Indirizzo del sito: <code>' . esc_html(untrailingslashit(home_url())) . '</code></p>';
     if ($newSecret) echo '<p>Copia ora il codice in AllSocialToWeb. Non sarà mostrato nuovamente.</p><code style="user-select:all">' . esc_html($newSecret) . '</code>';
-    echo '<p>Stato: ' . (get_option('astw_secret') ? 'collegamento abilitato' : 'disabilitato') . '</p><form method="post">';
+    $feedSettings = get_option('astw_sync_settings', []);
+    $connectionState = !get_option('astw_secret') ? 'disabilitato' : (!empty($feedSettings['feed_url']) && !empty($feedSettings['feed_token']) ? 'archivio collegato' : 'codice attivo, collegamento archivio da completare');
+    echo '<p>Plugin 0.4.1 · Stato: ' . esc_html($connectionState) . '</p><form method="post">';
     wp_nonce_field('astw_connection');
     submit_button('Genera nuovo codice (revoca il precedente)', 'primary', 'connect');
     submit_button('Disabilita collegamento', 'secondary', 'disconnect');
@@ -83,7 +85,7 @@ add_action('rest_api_init', static function () {
     register_rest_route('allsocialtoweb/v1', '/health', ['methods'=>'GET','permission_callback'=>'astw_permission','callback'=>static function () {
         $categories = get_categories(['hide_empty'=>false]);
         $tags = get_tags(['hide_empty'=>false]);
-        return ['protocol'=>'1', 'sync_available'=>true, 'archive_available'=>true, 'media_available'=>true, 'version'=>'0.4.0',
+        return ['protocol'=>'1', 'sync_available'=>true, 'archive_available'=>true, 'feed_ready'=>!empty(get_option('astw_sync_settings', [])['feed_url']) && !empty(get_option('astw_sync_settings', [])['feed_token']), 'media_available'=>true, 'version'=>'0.4.1',
             'categories'=>array_map(static fn($c)=>['id'=>$c->term_id,'name'=>$c->name], $categories),
             'tags'=>array_map(static fn($t)=>['id'=>$t->term_id,'name'=>$t->name], $tags),
             'settings'=>astw_public_sync_settings(), 'last_sync'=>get_option('astw_last_sync', [])];

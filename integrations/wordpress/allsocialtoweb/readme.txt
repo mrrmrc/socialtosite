@@ -1,7 +1,7 @@
 === AllSocialToWeb Connector ===
 Requires at least: 6.0
 Requires PHP: 8.0
-Stable tag: 0.4.0
+Stable tag: 0.4.1
 License: GPLv2 or later
 
 Importa come post i contenuti pubblicati nella tua pagina AllSocialToWeb.

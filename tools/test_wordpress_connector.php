@@ -5,7 +5,7 @@ if (PHP_SAPI !== 'cli') exit;
 define('ABSPATH', __DIR__ . '/'); define('ARRAY_A', 'ARRAY_A');
 function register_activation_hook(...$args) {} function add_action(...$args) {}
 function add_filter(...$args) {} function register_deactivation_hook(...$args) {}
-class WP_Error { public function __construct(public string $code, public string $message, public array $data=[]) {} }
+class WP_Error { public function __construct(public string $code, public string $message, public array $data=[]) {} public function get_error_message() { return $this->message; } }
 class WP_REST_Request implements ArrayAccess {
     public array $headers=[];
     public string $key; public array $payload;
@@ -105,8 +105,8 @@ function wp_schedule_event(...$args) {}
 function wp_clear_scheduled_hook(...$args) {}
 function wp_json_encode($value) { return json_encode($value); }
 function add_query_arg($name,$value,$url=null) { if(is_array($name))return $value.'&'.http_build_query($name); return $url.'&'.$name.'='.$value; }
-function wp_safe_remote_get(...$args) { global $remoteFeed,$feedRequestUrl; $feedRequestUrl=$args[0]; return ['body'=>json_encode($remoteFeed)]; }
-function wp_remote_retrieve_response_code($response) { return 200; }
+function wp_safe_remote_get(...$args) { global $remoteFeed,$feedRequestUrl,$remoteError,$remoteStatus; $feedRequestUrl=$args[0]; return $remoteError ?? ['body'=>json_encode($remoteFeed),'status'=>$remoteStatus ?? 200]; }
+function wp_remote_retrieve_response_code($response) { return $response['status']; }
 function wp_remote_retrieve_body($response) { return $response['body']; }
 $settings=['feed_url'=>'https://platform.example/api/wordpress-feed.php?user_id=3','feed_token'=>str_repeat('f',64),'enabled'=>true,'post_status'=>'publish','category_id'=>7,'mappings'=>['Viaggi'=>['category_id'=>8,'tag_id'=>9]]];
 expect(astw_save_sync_settings(new WP_REST_Request('', $settings))['ok'], 'abbinamenti salvati sul plugin');
@@ -151,10 +151,25 @@ expect(str_contains($feedRequestUrl,'cursor=0'), 'sincronizzazione completa ripa
 
 function esc_html($value) { return htmlspecialchars((string)$value,ENT_QUOTES,'UTF-8'); }
 function esc_url($value) { return $value; }
+function wp_kses_post($value) { return strip_tags($value,'<p><strong><em><ul><li><br>'); }
 $remoteFeed['posts'][0]['key']=hash('sha256','media-import-case');
 $remoteFeed['posts'][0]['media_html']='<img src="https://platform.example/photo.jpg" alt="Foto"><video controls><source src="https://platform.example/movie.mp4"></video>';
 $result=astw_sync_feed();
 expect($result['imported']===1 && str_contains($posts[$nextId-1]['post_content'],'photo.jpg') && str_contains($posts[$nextId-1]['post_content'],'movie.mp4'), 'foto e video del feed conservati nei post WordPress');
-$_GET=['astw_archive'=>1];
+$_GET=[];
 ob_start(); astw_archive_panel(); $archiveHtml=ob_get_clean();
-expect(str_contains($archiveHtml,'Archivio AllSocialToWeb') && str_contains($archiveHtml,'Testo')===false && str_contains($archiveHtml,'Post pubblicato sulla piattaforma'), 'archivio articoli consultabile nel plugin WordPress');
+expect(str_contains($archiveHtml,'Post pubblicato sulla piattaforma') && str_contains($feedRequestUrl,'browse=1') && str_contains($feedRequestUrl,'cursor=0'), 'apertura plugin carica subito archivio completo senza pulsante o filtri di sincronizzazione');
+expect(str_contains($archiveHtml,'Testo pubblicato') && str_contains($archiveHtml,'photo.jpg') && str_contains($archiveHtml,'movie.mp4'), 'archivio mostra testo foto e video consultabili');
+$remoteFeed=['posts'=>[],'has_more'=>true,'next_cursor'=>20];
+function admin_url($path) { return 'https://example.com/wp-admin/'.$path; }
+ob_start(); astw_archive_panel(); $archiveHtml=ob_get_clean();
+expect(str_contains($archiveHtml,'Nessun contenuto') && str_contains($archiveHtml,'astw_cursor=20'), 'pagina senza contenuti esplicita e paginazione successiva conservata');
+$remoteError=new WP_Error('network','Connessione scaduta');
+ob_start(); astw_archive_panel(); $archiveHtml=ob_get_clean();
+expect(str_contains($archiveHtml,'Connessione scaduta'), 'errore di rete distinto da archivio vuoto');
+unset($remoteError); $remoteStatus=401;
+ob_start(); astw_archive_panel(); $archiveHtml=ob_get_clean();
+expect(str_contains($archiveHtml,'HTTP 401') && str_contains($archiveHtml,'ripristina il collegamento'), 'errore credenziali indica ripristino del collegamento');
+$options['astw_sync_settings']=[];
+ob_start(); astw_archive_panel(); $archiveHtml=ob_get_clean();
+expect(str_contains($archiveHtml,'non è ancora completo') && str_contains($archiveHtml,'Non occorre generare un nuovo codice'), 'codice abilitato distinto dal collegamento archivio completo');
