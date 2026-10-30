@@ -9,7 +9,7 @@ const root=path.resolve(__dirname,'..'),published=process.argv[2],servers=[];
 async function serve(directory,port){
   const server=spawn(process.execPath,['node_modules/vite/bin/vite.js','--host','127.0.0.1','--port',String(port),'--strictPort'],{cwd:path.join(root,directory),windowsHide:true,stdio:['ignore','pipe','pipe']});
   servers.push(server);let output='';server.stdout.on('data',chunk=>output+=chunk);server.stderr.on('data',chunk=>output+=chunk);
-  for(let i=0;i<100;i++){if(server.exitCode!==null)throw Error(output);if(output.includes('Local:'))return;await new Promise(resolve=>setTimeout(resolve,150));}
+  for(let i=0;i<100;i++){if(server.exitCode!==null)throw Error(output);if(output.replace(/\u001b\[[0-9;]*m/g,'').includes('Local:'))return;await new Promise(resolve=>setTimeout(resolve,150));}
   throw Error('Server not ready: '+output);
 }
 (async()=>{
