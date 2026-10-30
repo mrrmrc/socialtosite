@@ -9,6 +9,7 @@ SetEnvIf Authorization "(.*)" HTTP_AUTHORIZATION=$1
 </FilesMatch>
 
 Options -Indexes
+RewriteRule ^public/media/(?:\.metadata(?:/|$)|\.download-) - [R=404,L]
 
 # Codice interno: si esegue solo tramite api/index.php o da CLI, mai via URL diretto.
 RewriteRule ^api/(?:routes|services|middleware)(?:/|$) - [R=404,L]

@@ -1488,6 +1488,7 @@ if ($action === 'site' && $method === 'GET') {
               LIMIT 300',
             [$userId]
         );
+        $posts = array_map([PostMedia::class, 'hydrate'], $posts);
         // last_scan_note/last_scan_at le aggiunge ensureSocialSyncSchema() qui
         // sopra, ma se l'ALTER non fosse andato a buon fine questa query
         // farebbe fallire l'intera dashboard per una colonna accessoria:
@@ -1664,6 +1665,7 @@ if ($action === 'post-update' && $method === 'POST') {
     if (empty($fields)) json(['ok' => true]);
     $params[] = $id; $params[] = $userId;
     DB::execute('UPDATE posts SET ' . implode(',', $fields) . ' WHERE id=? AND user_id=?', $params);
+    if (array_key_exists('media_url', $b) && trim((string)$b['media_url']) === '') PostMedia::write($userId, $id, ['images'=>[], 'poster'=>'', 'primary'=>'', 'cache'=>[]]);
 
     if (array_key_exists('edited_body', $b) && ($b['published'] ?? 0) == 1) {
         $userPlan = DB::fetch('SELECT plan FROM users WHERE id=?', [$userId])['plan'] ?? 'base';

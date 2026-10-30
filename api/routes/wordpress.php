@@ -7,6 +7,12 @@ try {
     if ($action === 'wordpress-status' && $method === 'GET') {
         json(['connected'=>!empty($settings['secret']), 'endpoint'=>$settings['endpoint'] ?? '', 'topics'=>WordPressBridge::topics($userId), 'filters'=>WordPressBridge::filters($settings['filters'] ?? ['scope'=>'all']), 'archive'=>WordPressBridge::archive($userId)]);
     }
+    if ($action === 'wordpress-taxonomies' && in_array($method, ['GET','POST'], true)) json(WordPressBridge::remote($settings, 'GET', '/health'));
+    if ($action === 'wordpress-library' && $method === 'GET') {
+        $page = WordPressBridge::feed($userId, max(0, (int)($_GET['cursor'] ?? 0)), ['scope'=>'all']);
+        $page['posts'] = array_map(static function ($post) { unset($post['html']); return $post; }, $page['posts']);
+        json($page);
+    }
     if ($method !== 'POST') jsonError('Metodo non consentito.', 405);
     $input = body();
     if ($action === 'wordpress-connect') {
@@ -19,7 +25,6 @@ try {
         WordPressBridge::save($userId, $candidate);
         json(['ok'=>true, 'endpoint'=>$endpoint] + $health);
     }
-    if ($action === 'wordpress-taxonomies') json(WordPressBridge::remote($settings, 'GET', '/health'));
     if ($action === 'wordpress-settings') {
         $base = app_base_url();
         if (!str_starts_with($base, 'https://')) throw new DomainException('La sincronizzazione automatica WordPress richiede un indirizzo HTTPS della piattaforma.');

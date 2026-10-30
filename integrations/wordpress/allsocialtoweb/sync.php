@@ -98,7 +98,9 @@ function astw_sync_feed(?WP_REST_Request $command = null) {
                 }
                 $skipped++; continue;
             }
-            $payload = ['title'=>$item['title'] ?? '', 'html'=>$item['html'] ?? '', 'excerpt'=>$item['excerpt'] ?? '', 'sync_publish'=>$settings['post_status'] === 'publish'] + astw_mapping((array)($item['topics'] ?? []), $settings);
+            $mediaHtml = (string)($item['media_html'] ?? '');
+            if (str_contains($mediaHtml, '<iframe')) $mediaHtml = '<p><a href="' . esc_url($item['source_url'] ?? '') . '">Guarda il video originale</a></p>';
+            $payload = ['title'=>$item['title'] ?? '', 'html'=>($item['html'] ?? '') . $mediaHtml, 'excerpt'=>$item['excerpt'] ?? '', 'sync_publish'=>$settings['post_status'] === 'publish'] + astw_mapping((array)($item['topics'] ?? []), $settings);
             $request->set_body(wp_json_encode($payload));
             $request->set_header('content-type', 'application/json');
             $receipt = astw_deliver($request);

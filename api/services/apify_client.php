@@ -129,7 +129,10 @@ final class ApifyClient {
     }
 
     private static function itemUrl(array $item): string {
-        return trim((string)($item['url'] ?? $item['postUrl'] ?? $item['link'] ?? $item['videoUrl'] ?? $item['webVideoUrl'] ?? ''));
+        foreach (['url','postUrl','shareable_url','topLevelReelUrl','inputUrl','topLevelUrl','link','webVideoUrl','videoUrl'] as $key) {
+            if (is_string($item[$key] ?? null) && filter_var(trim($item[$key]), FILTER_VALIDATE_URL)) return trim($item[$key]);
+        }
+        return '';
     }
 
     private static function normalize(array $result): ?array {
@@ -145,63 +148,14 @@ final class ApifyClient {
         $caption = implode("\n\n", array_values(array_unique($captionParts)));
         $title = trim((string)($result['title'] ?? ''));
         if ($caption === '') $caption = $title;
+
+        $assets = self::media($result);
+        if (self::platform($url) === 'facebook' && preg_match('~/(?:reels?|videos?)(?:/|$)|^/watch(?:/|$)|^/video\.php$~i', (string)parse_url($url, PHP_URL_PATH))) $assets['is_video'] = true;
         
-        $mediaUrl = trim((string)(
-            $result['videoUrl'] ?? $result['hdVideoUrl'] ?? $result['displayUrl'] ?? $result['imageUrl'] ?? $result['thumbnailUrl'] ?? ''
-        ));
-
-        // L'attore Facebook non popola nessuno dei campi piatti qui sopra:
-        // mette foto e video in un array "media", con l'immagine vera dentro
-        // photo_image.uri. Senza leggerlo, ogni post privo di testo veniva
-        // scartato come vuoto ("Nessun testo estratto e nessun media trovato"),
-        // ed e' anche il motivo per cui i video non arrivavano mai alla
-        // trascrizione: analyzePostMedia riceveva un media_url vuoto.
-        $immaginiDaMedia = [];
-        $videoDaMedia = '';
-        $mediaDichiaraVideo = false;
-        foreach (($result['media'] ?? []) as $media) {
-            if (!is_array($media)) continue;
-            $tipoMedia = strtolower((string)($media['__typename'] ?? $media['__isMedia'] ?? ''));
-            if (str_contains($tipoMedia, 'video')) $mediaDichiaraVideo = true;
-            // I nomi del campo video cambiano fra versioni dell'attore: si
-            // prende il primo che contiene davvero un indirizzo.
-            foreach (['playable_url_quality_hd', 'playable_url', 'videoUrl', 'video_url', 'browser_native_hd_url', 'browser_native_sd_url'] as $chiave) {
-                $candidato = $media[$chiave] ?? '';
-                if ($videoDaMedia === '' && is_string($candidato) && str_starts_with($candidato, 'http')) $videoDaMedia = $candidato;
-            }
-            // Attenzione: $media['url'] e' la pagina Facebook della foto, non
-            // il file immagine, quindi non va usata come media.
-            if (!empty($media['photo_image']['uri'])) $immaginiDaMedia[] = (string)$media['photo_image']['uri'];
-            if (!empty($media['thumbnail'])) $immaginiDaMedia[] = (string)$media['thumbnail'];
-        }
-
-        $mediaType = 'text';
-        $typeHint = strtolower((string)($result['type'] ?? $result['mediaType'] ?? ''));
-        if (str_contains($typeHint, 'video') || !empty($result['videoUrl']) || !empty($result['hdVideoUrl']) || $mediaDichiaraVideo || $videoDaMedia !== '') {
-            $mediaType = 'video';
-            $mediaUrl = trim((string)($result['videoUrl'] ?? $result['hdVideoUrl'] ?? $videoDaMedia));
-            // Video senza indirizzo riproducibile: si tiene l'anteprima come
-            // immagine, cosi' il post conserva un contenuto analizzabile
-            // invece di essere buttato via.
-            // A thumbnail is not the spoken source. Keep missing videos as videos.
-        } elseif ($mediaUrl !== '' || $immaginiDaMedia || str_contains($typeHint, 'image') || str_contains($typeHint, 'photo')) {
-            $mediaType = 'image';
-            if ($mediaUrl === '' && $immaginiDaMedia) $mediaUrl = $immaginiDaMedia[0];
-        }
-
-        $nestedVideo = trim((string)($result['videoMeta']['downloadAddr'] ?? $result['videoMeta']['originalDownloadAddr'] ?? ''));
-        if ($nestedVideo !== '') { $mediaType = 'video'; $mediaUrl = $nestedVideo; }
-        $imageUrls = $immaginiDaMedia;
-        foreach (['imageUrl', 'displayUrl', 'thumbnailUrl', 'coverUrl'] as $key) {
-            if (!empty($result[$key])) $imageUrls[] = $result[$key];
-        }
-        foreach (($result['images'] ?? []) as $img) {
-            if (is_string($img)) $imageUrls[] = $img;
-            elseif (is_array($img) && !empty($img['url'])) $imageUrls[] = $img['url'];
-        }
-        
-        if ($mediaType === 'image' && $mediaUrl !== '') array_unshift($imageUrls, $mediaUrl);
-        $imageUrls = array_values(array_unique(array_filter($imageUrls, static fn(string $value): bool => filter_var($value, FILTER_VALIDATE_URL) !== false)));
+        $imageUrls = $assets['images'];
+        $mediaType = $assets['is_video'] || $assets['video'] !== '' ? 'video' : ($imageUrls ? 'image' : 'text');
+        $mediaUrl = $mediaType === 'video' ? $assets['video'] : ($imageUrls[0] ?? '');
+        if ($mediaType === 'video' && $assets['poster'] === '' && $imageUrls) $assets['poster'] = $imageUrls[0];
 
         $published = $result['publishedAt'] ?? $result['time'] ?? $result['timestamp'] ?? $result['createdAt'] ?? $result['takenAt'] ?? $result['takenAtIso'] ?? null;
         $timestamp = false;
@@ -216,15 +170,51 @@ final class ApifyClient {
 
         return [
             'url' => $url,
-            'id' => trim((string)($result['id'] ?? $result['postId'] ?? '')),
+            'id' => trim((string)($result['id'] ?? $result['postId'] ?? $result['video']['id'] ?? $result['playback_video']['id'] ?? $result['tracking']['video_id'] ?? '')),
             'title' => $title,
             'caption' => $caption,
             'published_at' => $timestamp ? date('Y-m-d H:i:s', $timestamp) : null,
             'media_url' => $mediaUrl,
             'image_urls' => $imageUrls,
             'media_type' => $mediaType,
+            'poster_url' => $assets['poster'],
             'raw_payload' => $result,
         ];
+    }
+
+    public static function media(array $result): array {
+        $images = []; $videos = []; $poster = ''; $isVideo = false;
+        $add = static function (&$list, $value): void {
+            if (is_string($value) && filter_var($value, FILTER_VALIDATE_URL) && preg_match('~^https?://~i', $value)) $list[] = $value;
+        };
+        $walk = static function ($node, int $depth = 0, string $context = '') use (&$walk, &$images, &$videos, &$poster, &$isVideo, $add): void {
+            if ($depth > 10 || !is_array($node)) return;
+            $hint = strtolower((string)($node['__typename'] ?? $node['__isMedia'] ?? $node['type'] ?? $node['mediaType'] ?? $node['contentType'] ?? $node['searchType'] ?? ''));
+            if (str_contains($hint, 'video') || str_contains($hint, 'reel') || !empty($node['isVideo'])) $isVideo = true;
+            foreach (['playable_url_quality_hd','browser_native_hd_url','hdVideoUrl','videoUrl','video_url','playable_url','browser_native_sd_url','downloadAddr','originalDownloadAddr','videoDownloadUrl'] as $key) {
+                if (!empty($node[$key]) && is_string($node[$key])) { $add($videos,$node[$key]); $isVideo=true; }
+            }
+            foreach ($node as $key => $value) {
+                if (in_array($key, ['imageUrl','displayUrl','thumbnailUrl','coverUrl','thumbnail','poster','thumbnailImage','first_frame_thumbnail'], true)) {
+                    if (is_string($value)) { $add($images, $value); if ($poster === '' && filter_var($value, FILTER_VALIDATE_URL)) $poster = $value; }
+                    elseif (is_array($value)) { $candidate = $value['uri'] ?? $value['url'] ?? ''; $add($images, $candidate); if ($poster === '' && is_string($candidate)) $poster = $candidate; }
+                }
+                if (in_array($context, ['photo_image','image','imageSrc','image_versions2','candidates','images','photos','displayResources'], true)) {
+                    if (in_array($key, ['uri','url','src'], true) || is_int($key)) $add($images, $value);
+                }
+                if (is_array($value) && !in_array($key, ['user','owner','author','video_owner','tracking','comments','taggedUsers'], true)) $walk($value, $depth+1, is_string($key) ? $key : $context);
+            }
+        };
+        $walk($result);
+        return ['images'=>array_values(array_unique($images)), 'video'=>$videos[0] ?? '', 'poster'=>$poster, 'is_video'=>$isVideo];
+    }
+
+    public static function facebookSearch(string $url, int $limit): ?array {
+        if (self::platform($url) !== 'facebook' || !str_starts_with((string)parse_url($url, PHP_URL_PATH), '/search/')) return null;
+        parse_str((string)parse_url($url, PHP_URL_QUERY), $query);
+        $term = trim((string)($query['q'] ?? ''));
+        if ($term === '') throw new RuntimeException('La ricerca Facebook deve contenere una parola chiave.');
+        return ['categories'=>[$term], 'searchType'=>str_contains((string)parse_url($url, PHP_URL_PATH), '/reels') ? 'reels' : 'posts', 'resultsLimit'=>max(1,min(100,$limit))];
     }
 
     public static function source(string $url, int $limit = 20, ?string $sinceDate = null): array {
@@ -236,7 +226,9 @@ final class ApifyClient {
 
         switch ($platform) {
             case 'facebook':
-                $actorId = 'apify/facebook-posts-scraper';
+                $search = self::facebookSearch($url, $limit);
+                if ($search !== null) { $actorId = 'apify/facebook-search-scraper'; $payload = $search; break; }
+                $actorId = preg_match('~/reels?/~i', (string)parse_url($url, PHP_URL_PATH)) ? 'apify/facebook-reels-scraper' : 'apify/facebook-posts-scraper';
                 $payload = [
                     'startUrls' => [['url' => $url]],
                     'resultsLimit' => $limit
@@ -313,6 +305,31 @@ final class ApifyClient {
             if (count($items) >= $limit) break;
         }
         
+        // Search results/reels often expose only thumbnails. Hydrate their direct
+        // post URLs in one bounded actor request to obtain actual playable files.
+        $missingVideos = array_filter($items, static fn($item) => $platform === 'facebook' && $item['media_type'] === 'video' && $item['media_url'] === '');
+        if ($missingVideos && $actorId === 'apify/facebook-search-scraper') {
+            $groups = [];
+            foreach ($missingVideos as $key=>$item) { $detailActor = preg_match('~/reels?/~i', (string)parse_url($item['url'],PHP_URL_PATH)) ? 'apify/facebook-reels-scraper' : 'apify/facebook-posts-scraper'; $groups[$detailActor][$key]=$item; }
+            foreach ($groups as $detailActor=>$group) {
+            try {
+                $details = self::request($detailActor, ['startUrls'=>array_map(static fn($item)=>['url'=>$item['url']], array_values($group)), 'resultsLimit'=>1]);
+                foreach ($details as $detail) {
+                    $extra = self::normalize($detail);
+                    if (!$extra || $extra['media_type'] !== 'video' || $extra['media_url'] === '') continue;
+                    foreach ($group as $key=>$item) {
+                        $sameId = $extra['id'] !== '' && $extra['id'] === $item['id'];
+                        $samePath = rtrim((string)parse_url($extra['url'],PHP_URL_PATH),'/') === rtrim((string)parse_url($item['url'],PHP_URL_PATH),'/') && parse_url($extra['url'],PHP_URL_QUERY) === parse_url($item['url'],PHP_URL_QUERY);
+                        if (!$sameId && !$samePath) continue;
+                        $items[$key]['media_url'] = $extra['media_url'];
+                        $items[$key]['poster_url'] = $extra['poster_url'] ?: $item['poster_url'];
+                        $items[$key]['image_urls'] = array_values(array_unique(array_merge($item['image_urls'],$extra['image_urls'])));
+                        $debug['videos_enriched'] = ($debug['videos_enriched'] ?? 0)+1;
+                    }
+                }
+            } catch (Throwable $e) { $debug['media_warning'] = 'File video non fornito dal social: anteprime e collegamenti conservati.'; }
+            }
+        }
         $debug['normalized_items'] = count($items);
         
         return ['platform' => $platform, 'profile' => $profile, 'items' => array_values($items), 'debug' => $debug];

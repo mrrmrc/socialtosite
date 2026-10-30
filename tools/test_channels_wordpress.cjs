@@ -24,9 +24,14 @@ const fs = require('node:fs');
       const req = route.request(); const action = new URL(req.url()).searchParams.get('action');
       const payload = req.method() === 'POST' ? req.postDataJSON() : null;
       if (payload) mutations.push({ action, payload });
+      if (action?.startsWith('wordpress-')) {
+        const read = ['wordpress-status','wordpress-taxonomies','wordpress-library'].includes(action);
+        assert.equal(req.method(), read ? 'GET' : 'POST', 'HTTP contract '+action);
+      }
       let data = {};
       if (action === 'site') data = fixture;
       if (action === 'sync') data = { results: [{ platform: 'website', source_id: payload.source_id, new: 0, imported_ids: [], retryable_ids: [] }] };
+      if (action === 'wordpress-library') data = { posts: [{ id: new URL(req.url()).searchParams.get('cursor') === '21' ? 22 : 21, title: 'Articolo archivio completo', platform: 'facebook', published: 0 }], next_cursor: 21, has_more: new URL(req.url()).searchParams.get('cursor') !== '21' };
       if (action === 'wordpress-status') data = { connected, endpoint: connected ? 'https://wordpress.example' : '', topics: ['Viaggi'], filters: settings.filters || { scope: 'all' }, archive: { total: 45, published: 30, drafts: 15, platforms: ['instagram','manual'] } };
       if (action === 'wordpress-connect') { connected = true; data = { ok: true }; }
       if (action === 'wordpress-taxonomies') data = { archive_available: true, categories: [{ id: 7, name: 'Esperienze' }], tags: [{ id: 9, name: 'Famiglie' }], settings };
@@ -55,6 +60,9 @@ const fs = require('node:fs');
     await page.getByLabel('Dalla data', { exact: true }).fill('2026-01-01');
     await page.getByLabel('Fino alla data', { exact: true }).fill('2026-12-31');
     await page.getByLabel('instagram', { exact: true }).check();
+    await page.locator('.wordpress-library summary').click();
+    await page.getByRole('button', { name: 'Carica altri articoli' }).click();
+    await page.getByText('Fine archivio: 2 contenuti leggibili.', { exact: true }).waitFor();
     const row = page.locator('.wordpress-mapping').filter({ hasText: 'Viaggi' });
     await row.locator('select').nth(0).selectOption('7');
     await row.locator('select').nth(1).selectOption('9');

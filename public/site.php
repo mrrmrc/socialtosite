@@ -26,6 +26,7 @@ header(
     . "base-uri 'none'; "
     . "form-action 'self'; "
     . "frame-ancestors 'self'"
+    . "; frame-src https://www.youtube.com https://www.youtube-nocookie.com"
 );
 header('X-Content-Type-Options: nosniff');
 header('Referrer-Policy: strict-origin-when-cross-origin');
@@ -34,6 +35,7 @@ require_once __DIR__ . '/../config/db.php';
 require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/../api/services/seo_foundation.php';
 require_once __DIR__ . '/../api/services/reachability.php';
+require_once __DIR__ . '/../api/services/post_media.php';
 
 $slug   = $_GET['slug']   ?? '';
 $action = $_GET['action'] ?? 'site';
@@ -71,6 +73,7 @@ $posts = DB::fetchAll(
     [$user['id']]
 );
 foreach ($posts as &$p) {
+    $p = PostMedia::hydrate($p);
     $decoded = json_decode($p['tags'] ?? '[]', true);
     if (!is_array($decoded)) {
         $decoded = is_string($p['tags']) ? explode(',', $p['tags']) : [];
@@ -861,22 +864,12 @@ function postBody(array $p): string {
 
 // ── Media embed ──────────────────────────────────────────────────────────────
 function mediaHtml(array $p): string {
-    $u = $p['media_url'] ?? '';
-    if (!$u) return '';
+    $content = PostMedia::render($p, postTitle($p));
+    if ($content === '') return '';
     $width = max(30, min(100, (int)($p['media_display_width'] ?? 100)));
     $alignment = in_array(($p['media_alignment'] ?? 'center'), ['left', 'center', 'right'], true) ? $p['media_alignment'] : 'center';
     $wrapper = '<div class="media media-sized media-align-' . $alignment . '" style="--media-display-width:' . $width . '%">';
-    $mediaLabel = h(postTitle($p));
-    if (preg_match('~(?:youtube\.com|youtu\.be)~i', $u) &&
-        preg_match('~(?:v=|youtu\.be/|shorts/|embed/)([A-Za-z0-9_-]{11})~', $u, $m)) {
-        return $wrapper . '<iframe src="https://www.youtube.com/embed/' . $m[1] . '" title="Video: ' . $mediaLabel . '" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen loading="lazy"></iframe></div>';
-    }
-    $type = strtolower($p['media_type'] ?? '');
-    if ($type === 'image' || preg_match('~\.(jpg|jpeg|png|webp)(\?|$)~i', $u))
-        return $wrapper . '<img src="' . h($u) . '" alt="' . $mediaLabel . '" loading="lazy" decoding="async"></div>';
-    if ($type === 'video' || preg_match('~\.(mp4|mov|webm)(\?|$)~i', $u))
-        return $wrapper . '<video controls preload="metadata" aria-label="Video: ' . $mediaLabel . '"><source src="' . h($u) . '"></video></div>';
-    return '';
+    return $wrapper . $content . '</div>';
 }
 
 // ── Sanitizzazione HTML degli articoli ─────────────────────────────────────
@@ -1152,6 +1145,8 @@ $themeCSS = [
   .post:hover { transform:scale(1.02) translateY(-5px); box-shadow:0 20px 60px rgba(0,0,0,0.08); }
   .post h2 { font-size:1.4rem; font-weight:600; line-height:1.3; margin-bottom:0.75rem; letter-spacing:-0.02em; }
   .post h2 a { color:var(--text); transition:color 0.2s; } .post h2 a:hover { color:var(--accent); }
+  .social-video-link { display:block; text-align:center; }
+  .social-video-link span { display:block; padding:12px; }
   .post .media { margin:-2rem -2rem 1.5rem -2rem; border-radius:var(--radius) var(--radius) 0 0; overflow:hidden; }
   .post .media img { width:100%; height:240px; object-fit:cover; transition:transform 0.5s ease; }
   .post:hover .media img { transform:scale(1.05); }

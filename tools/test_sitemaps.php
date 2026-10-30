@@ -2,6 +2,7 @@
 if (PHP_SAPI !== 'cli') exit;
 if (($argv[1] ?? '') === '--render') {
     $scenario = $argv[2];
+    require_once __DIR__ . '/../api/services/post_media.php';
     function app_base_url(): string { return 'https://platform.example'; }
     function app_public_user_sql($alias): string { return ''; }
     class ReachabilityNetwork {

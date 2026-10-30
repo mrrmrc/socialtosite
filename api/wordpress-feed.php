@@ -14,7 +14,8 @@ try {
     $settings = WordPressBridge::load($userId);
     if (empty($settings['secret']) || !hash_equals(WordPressBridge::feedToken($userId, WordPressBridge::crypt($settings['secret'], true)), $token)) jsonError('Collegamento non autorizzato.', 401);
     if (!DB::fetch('SELECT id FROM users WHERE id=?', [$userId])) jsonError('Collegamento non autorizzato.', 401);
-    json(WordPressBridge::feed($userId, max(0, (int)($_GET['cursor'] ?? 0)), $settings['filters'] ?? []));
+    $filters = ($_GET['browse'] ?? '') === '1' ? ['scope'=>'all'] : ($settings['filters'] ?? []);
+    json(WordPressBridge::feed($userId, max(0, (int)($_GET['cursor'] ?? 0)), $filters));
 } catch (Throwable $e) {
     error_log('[wordpress-feed] ' . $e->getMessage());
     jsonError('Feed temporaneamente non disponibile.', 503);

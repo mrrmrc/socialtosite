@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/publication/wordpress.php';
+require_once __DIR__ . '/post_media.php';
 
 /** Connector settings use the existing system_settings store; no schema migration. */
 final class WordPressBridge {
@@ -105,6 +106,14 @@ final class WordPressBridge {
             }
             $html = trim(($row['edited_body'] ?? '') ?: ($row['generated_body'] ?? ''));
             if ($html === '' && $raw !== '') $html = '<p>' . nl2br(htmlspecialchars($raw, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8')) . '</p>';
+            $row = PostMedia::hydrate($row);
+            $hasMedia = PostMedia::url($row['media_url'] ?? '') !== '' || !empty($row['image_urls']);
+            if ($title === '' && $hasMedia) $title = 'Contenuto ' . ucfirst((string)($row['platform'] ?? 'social')) . ' ' . $row['id'];
+            if (trim(strip_tags($html)) === '' && $hasMedia) {
+                $source = PostMedia::url($row['source_url'] ?? '');
+                $html = '<p>' . htmlspecialchars($title, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') . '</p>';
+                if ($source !== '') $html .= '<p><a href="' . htmlspecialchars($source, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') . '">Apri il contenuto originale</a></p>';
+            }
             if ($title === '' || trim(strip_tags($html)) === '') continue;
             $tags = json_decode($row['tags'] ?? '[]', true);
             if (!is_array($tags)) $tags = explode(',', $row['tags'] ?? '');
@@ -114,6 +123,9 @@ final class WordPressBridge {
                 'excerpt'=>strip_tags(($row['edited_excerpt'] ?? '') ?: ($row['generated_excerpt'] ?? '')),
                 'id'=>(int)$row['id'], 'platform'=>$row['platform'] ?? '', 'published'=>!empty($row['published']),
                 'topics'=>array_values(array_filter($tags, 'is_string')),
+                'media_url'=>PostMedia::url($row['media_url'] ?? ''), 'media_type'=>$row['media_type'] ?? '',
+                'image_urls'=>$row['image_urls'], 'poster_url'=>$row['poster_url'],
+                'source_url'=>PostMedia::url($row['source_url'] ?? ''), 'media_html'=>PostMedia::render($row, $title),
             ];
         }
         return ['posts'=>$posts, 'next_cursor'=>$more ? $cursor : 0, 'has_more'=>$more];

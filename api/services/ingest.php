@@ -7,6 +7,7 @@ require_once __DIR__ . '/ai.php';
 require_once __DIR__ . '/visibility.php';
 require_once __DIR__ . '/website_source.php';
 require_once __DIR__ . '/apify_client.php';
+require_once __DIR__ . '/post_media.php';
 require_once __DIR__ . '/../middleware/response.php';
 if (file_exists(__DIR__ . '/../middleware/logger.php')) require_once __DIR__ . '/../middleware/logger.php';
 
@@ -235,18 +236,19 @@ class Ingest {
 
         // Già importato?
         $exists = DB::fetch(
-            'SELECT id, published, seo_score, raw_content FROM posts WHERE user_id=? AND platform=? AND platform_post_id=?',
+            'SELECT id, published, seo_score, raw_content, media_url, media_type FROM posts WHERE user_id=? AND platform=? AND platform_post_id=?',
             [$userId, $platform, $postId]
         );
         if ($exists) {
+            $mediaReport = self::syncMedia($userId, (int)$exists['id'], $platform, $postId, $prefetched, (string)($exists['media_url'] ?? ''), (string)($exists['media_type'] ?? ''));
             // È un post visibile o già elaborato: è un vero duplicato → skip
             if ((int)$exists['published'] === 1 || (int)$exists['seo_score'] > -1) {
                 Logger::debug('ingest', 'Duplicato (elaborato)', ['platform' => $platform, 'postId' => $postId, 'db_id' => $exists['id']]);
-                return ['id' => (int) $exists['id'], 'platform' => $platform, 'duplicate' => true];
+                return ['id' => (int) $exists['id'], 'platform' => $platform, 'duplicate' => true, 'media_updated'=>$mediaReport['updated'], 'media_warnings'=>$mediaReport['warnings']];
             }
             // È una bozza fallita/vuota (published=0, seo_score=-1 e raw vuoto):
             // la eliminiamo così il re-import può procedere pulito
-            if (empty(trim($exists['raw_content'] ?? ''))) {
+            if (empty(trim($exists['raw_content'] ?? '')) && empty($exists['media_url']) && empty($mediaReport['media_url'])) {
                 Logger::info('ingest', 'Bozza vuota eliminata per re-import', ['platform' => $platform, 'postId' => $postId, 'db_id' => $exists['id']]);
                 DB::execute('DELETE FROM posts WHERE id=?', [(int)$exists['id']]);
             } else {
@@ -257,6 +259,7 @@ class Ingest {
                     'platform' => $platform,
                     'duplicate' => true,
                     'retryable' => true,
+                    'media_updated'=>$mediaReport['updated'], 'media_warnings'=>$mediaReport['warnings'],
                 ];
             }
         }
@@ -270,17 +273,15 @@ class Ingest {
             $caption = trim($page['title'] . "\n\n" . $page['description'] . "\n\n" . $page['text']);
             if ($mediaUrl === '' && !empty($page['image_url'])) { $mediaUrl = $page['image_url']; $mediaType = 'image'; }
         }
-        if (in_array($mediaType, ['image', 'video'], true) && str_starts_with($mediaUrl, 'http') && !($platform === 'youtube' && $mediaType === 'video')) {
-            $saved = self::saveMedia($mediaUrl, $platform, $postId, $mediaType === 'video' ? 'mp4' : 'jpg');
-            if ($saved) $mediaUrl = $saved['url'];
-        }
+        if ($mediaUrl === '' && !empty($prefetched['image_urls']) && $mediaType !== 'video') { $mediaUrl = (string)$prefetched['image_urls'][0]; $mediaType = 'image'; }
+        if ($mediaUrl === '' && $mediaType === 'video') $mediaUrl = $url;
 
         $raw = $transcript ?: $caption;
         if (!$raw && !$mediaUrl) {
             Logger::warn('ingest', 'Nessun testo o media estratto', ['platform' => $platform, 'url' => $url]);
             throw new Exception('Nessun testo estratto e nessun media trovato.');
         }
-        $contentHash = self::contentHash($raw ?: $mediaUrl);
+        $contentHash = self::contentHash(($raw ?: $mediaUrl) . ($mediaUrl !== '' ? "\n" . $platform . ':' . $postId : ''));
         $hashExists = DB::fetch('SELECT id, published, seo_score FROM posts WHERE user_id=? AND content_hash=?', [$userId, $contentHash]);
         if ($hashExists) {
             // Bozza fallita/vuota → elimina e reimporta
@@ -303,17 +304,56 @@ class Ingest {
             $caption, $transcript,
             $mediaUrl, $mediaType, $url, $prefetched['published_at'] ?? date('Y-m-d H:i:s'), $contentHash,
         ]);
+        $prefetched['media_url'] = $mediaUrl; $prefetched['media_type'] = $mediaType;
+        $mediaReport = self::syncMedia($userId, $id, $platform, $postId, $prefetched, $mediaUrl, $mediaType);
 
         return [
             'id'         => $id,
             'platform'   => $platform,
             'duplicate'  => false,
+            'media_updated'=>$mediaReport['updated'], 'media_warnings'=>$mediaReport['warnings'],
             'transcript' => $transcript,
             'preview'    => mb_substr($transcript ?: $caption, 0, 280),
         ];
     }
 
     // ── Scarica e conserva un media nel sito (public/media) ────────────────
+    public static function syncMedia(int $userId, int $id, string $platform, string $externalId, array $item, string $currentUrl = '', string $currentType = ''): array {
+        $old = PostMedia::read($userId, $id);
+        $type = strtolower((string)($item['media_type'] ?? $currentType));
+        $primary = PostMedia::url($item['media_url'] ?? '');
+        $images = array_values(array_unique(array_filter(array_map([PostMedia::class,'url'], (array)($item['image_urls'] ?? [])))));
+        if ($type === 'image' && $primary) array_unshift($images, $primary);
+        $images = array_slice(array_unique($images), 0, 20);
+        $poster = PostMedia::url($item['poster_url'] ?? ($type === 'video' ? ($images[0] ?? '') : ''));
+        if (!$primary && !$images && !$poster && $type !== 'video') return ['media_url'=>$currentUrl, 'updated'=>false, 'warnings'=>[]];
+        $cache = $old['cache'] ?? []; $warnings = [];
+        $copy = static function (string $url, bool $video = false) use (&$cache, &$warnings, $userId, $platform, $externalId): string {
+            if ($url === '' || PostMedia::localExists($url)) return $url;
+            $key = hash('sha256', (string)parse_url($url, PHP_URL_HOST) . (string)parse_url($url, PHP_URL_PATH));
+            if (!empty($cache[$key]) && PostMedia::localExists($cache[$key])) return $cache[$key];
+            $saved = self::saveMedia($url, $platform, $userId . '_' . $externalId . '_' . substr($key,0,12), $video ? 'mp4' : 'jpg');
+            if ($saved) { $cache[$key] = $saved['url']; return $saved['url']; }
+            $warnings[] = $video ? 'Video non salvato in locale: conservato il collegamento originale.' : 'Immagine non salvata in locale: conservato il collegamento originale.';
+            return $url;
+        };
+        if ($type === 'video') {
+            if ($primary && PostMedia::playable($primary)) $primary = $copy($primary, true);
+            else { $primary = PostMedia::url($item['url'] ?? '') ?: $currentUrl; $warnings[] = 'Video senza file disponibile: conservati anteprima e collegamento al social.'; }
+        }
+        $savedImages = [];
+        foreach ($images as $image) $savedImages[] = $copy($image);
+        if ($type === 'image') $primary = $savedImages[0] ?? $primary;
+        $poster = $copy($poster);
+        // Preserve an image manually uploaded by the owner while filling the original gallery.
+        if (PostMedia::localExists($currentUrl) && (!isset($old['primary']) || $currentUrl !== $old['primary'])) { $primary = $currentUrl; $type = strtolower($currentType); }
+        $data = ['images'=>array_values(array_unique($savedImages)), 'poster'=>$poster, 'primary'=>$primary, 'cache'=>$cache];
+        $updated = $data !== $old || $primary !== $currentUrl || $type !== strtolower($currentType);
+        if (!PostMedia::write($userId, $id, $data)) $warnings[] = 'Archivio della galleria non scrivibile.';
+        if ($primary !== $currentUrl || $type !== strtolower($currentType)) DB::execute('UPDATE posts SET media_url=?,media_type=? WHERE id=? AND user_id=?', [$primary,$type,$id,$userId]);
+        return ['media_url'=>$primary, 'updated'=>$updated, 'warnings'=>array_values(array_unique($warnings))];
+    }
+
     // Ritorna ['url'=>pubblico, 'path'=>locale, 'size'=>byte] oppure null.
     public static function saveMedia(string $src, string $platform, string $postId, string $ext): ?array {
         if (!in_array(strtolower((string)parse_url($src, PHP_URL_SCHEME)), ['http', 'https'], true)) return null;
@@ -322,13 +362,13 @@ class Ingest {
         if (!is_dir($dir) || !is_writable($dir)) return null;
 
         require_once __DIR__ . '/website_source.php';
+        $temp = $dir . '/.download-' . bin2hex(random_bytes(8)) . '.tmp';
         try {
-            $download = WebsiteSource::download($src);
+            $download = WebsiteSource::downloadToFile($src, $temp, $ext === 'mp4' ? 100000000 : 15000000);
         } catch (Throwable $e) {
+            @unlink($temp);
             return null;
         }
-        $bytes = (string)($download['body'] ?? '');
-        if ($bytes === '') return null;
 
         $safePlatform = preg_replace('/[^A-Za-z0-9_-]/', '', $platform) ?: 'media';
         $safePostId = preg_replace('/[^A-Za-z0-9_-]/', '', $postId) ?: bin2hex(random_bytes(8));
@@ -337,7 +377,7 @@ class Ingest {
 
         $detectedExt = '';
         if (class_exists('finfo')) {
-            $mime = (new finfo(FILEINFO_MIME_TYPE))->buffer($bytes) ?: '';
+            $mime = (new finfo(FILEINFO_MIME_TYPE))->file($temp) ?: '';
             $detectedExt = match ($mime) {
                 'image/jpeg' => 'jpg',
                 'image/png' => 'png',
@@ -345,15 +385,16 @@ class Ingest {
                 'image/gif' => 'gif',
                 'video/mp4' => 'mp4',
                 'video/quicktime' => 'mov',
+                'video/webm' => 'webm',
+                'image/avif' => 'avif',
                 default => '',
             };
         }
-        if ($detectedExt === '') return null;
+        if ($detectedExt === '' || ($ext === 'mp4' && !in_array($detectedExt,['mp4','mov','webm'],true)) || ($ext !== 'mp4' && in_array($detectedExt,['mp4','mov','webm'],true))) { @unlink($temp); return null; }
         $name = $safePlatform . '_' . $safePostId . '.' . $detectedExt;
         $path = "$dir/$name";
-        $written = @file_put_contents($path, $bytes, LOCK_EX);
-        if ($written === false || $written < 1) return null;
-        $size = (int)$written;
+        $size = (int)filesize($temp);
+        if (!@rename($temp, $path)) { @unlink($temp); return null; }
 
         $base = function_exists('app_base_url') ? app_base_url() : '';
         return ['url' => "$base/public/media/$name", 'path' => $path, 'size' => $size];
@@ -733,6 +774,8 @@ class Ingest {
                     $seenUrls[$normalizedUrl] = true;
                     try {
                         $ingested = self::url($userId, $sourceUrl, $item);
+                        if (!empty($ingested['media_updated'])) $report['media_updated'] = ($report['media_updated'] ?? 0) + 1;
+                        foreach ($ingested['media_warnings'] ?? [] as $warning) $report['media_warnings'][] = $warning;
                         if (!empty($ingested['duplicate'])) {
                             $report['duplicates']++;
                             if (!empty($ingested['retryable']) && !empty($ingested['id'])) {

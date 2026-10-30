@@ -67,5 +67,8 @@ foreach ([['scope'=>'private-other-users'],['platforms'=>["x') OR 1=1"]],['since
 }
 $archive=WordPressBridge::archive(12);
 bridgeCheck($archive['total']===27 && $archive['published']===24 && $archive['drafts']===3 && in_array('instagram',$archive['platforms'],true), 'conteggio completo isolato sul proprietario');
+DB::$posts[]=['id'=>29,'user_id'=>12,'platform'=>'facebook','published'=>0,'seo_score'=>-1,'media_url'=>'https://platform.example/photo.jpg','media_type'=>'image'];
+$mediaOnly=WordPressBridge::feed(12,28,['scope'=>'all']);
+bridgeCheck(count($mediaOnly['posts'])===1 && $mediaOnly['posts'][0]['title']!=='' && str_contains($mediaOnly['posts'][0]['media_html'],'photo.jpg'), 'articoli con sole foto inclusi nel connettore');
 WordPressBridge::save(12, []);
 bridgeCheck(WordPressBridge::load(12) === [], 'disconnessione revoca credenziale feed');

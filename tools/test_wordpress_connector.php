@@ -29,7 +29,7 @@ function user_can(...$args) { return true; }
 function wp_set_current_user($id) {}
 function sanitize_text_field($v) { return strip_tags($v); }
 function sanitize_textarea_field($v) { return strip_tags($v); }
-function wp_kses($v, $allowed, $protocols) { return strip_tags($v, '<p><strong>'); }
+function wp_kses($v, $allowed, $protocols) { return strip_tags($v, '<'.implode('><',array_keys($allowed)).'>'); }
 function wp_strip_all_tags($v) { return strip_tags($v); }
 function absint($v) { return abs((int)$v); }
 function term_exists($id,$taxonomy) { return in_array($id, $taxonomy === 'post_tag' ? [9,10] : [7,8], true); }
@@ -104,7 +104,7 @@ function wp_next_scheduled(...$args) { return false; }
 function wp_schedule_event(...$args) {}
 function wp_clear_scheduled_hook(...$args) {}
 function wp_json_encode($value) { return json_encode($value); }
-function add_query_arg($name,$value,$url) { return $url.'&'.$name.'='.$value; }
+function add_query_arg($name,$value,$url=null) { if(is_array($name))return $value.'&'.http_build_query($name); return $url.'&'.$name.'='.$value; }
 function wp_safe_remote_get(...$args) { global $remoteFeed,$feedRequestUrl; $feedRequestUrl=$args[0]; return ['body'=>json_encode($remoteFeed)]; }
 function wp_remote_retrieve_response_code($response) { return 200; }
 function wp_remote_retrieve_body($response) { return $response['body']; }
@@ -148,3 +148,13 @@ expect($options['astw_sync_cursor']===0 && astw_public_sync_settings()['filters'
 $options['astw_sync_cursor']=200;
 astw_sync_feed(new WP_REST_Request('', ['restart'=>true]));
 expect(str_contains($feedRequestUrl,'cursor=0'), 'sincronizzazione completa riparte dal primo contenuto');
+
+function esc_html($value) { return htmlspecialchars((string)$value,ENT_QUOTES,'UTF-8'); }
+function esc_url($value) { return $value; }
+$remoteFeed['posts'][0]['key']=hash('sha256','media-import-case');
+$remoteFeed['posts'][0]['media_html']='<img src="https://platform.example/photo.jpg" alt="Foto"><video controls><source src="https://platform.example/movie.mp4"></video>';
+$result=astw_sync_feed();
+expect($result['imported']===1 && str_contains($posts[$nextId-1]['post_content'],'photo.jpg') && str_contains($posts[$nextId-1]['post_content'],'movie.mp4'), 'foto e video del feed conservati nei post WordPress');
+$_GET=['astw_archive'=>1];
+ob_start(); astw_archive_panel(); $archiveHtml=ob_get_clean();
+expect(str_contains($archiveHtml,'Archivio AllSocialToWeb') && str_contains($archiveHtml,'Testo')===false && str_contains($archiveHtml,'Post pubblicato sulla piattaforma'), 'archivio articoli consultabile nel plugin WordPress');

@@ -9,6 +9,7 @@ import { EditorDialog } from '../components/EditorDialog';
 import { ArticleStudio } from '../components/ArticleStudio';
 import { useDashboardNavigation } from '../utils/dashboardNavigation.mjs';
 import { LinkedChannelCard } from '../components/LinkedChannelCard';
+import { PostMediaPreview } from '../components/PostMediaPreview';
 import { SiteMapGraph } from '../components/OnlinePresenceMap';
 import React, { useState, useEffect, useRef } from "react";
 import {
@@ -1914,10 +1915,12 @@ export function DashboardScreen({ token, user, onLogout, onUserUpdate }) {
         });
         return;
       }
+      const mediaUpdated = results.reduce((sum, result) => sum + Number(result.media_updated || 0), 0);
+      const mediaWarnings = [...new Set(results.flatMap(result => result.media_warnings || []))];
       const processingIds = [...new Set(results.flatMap(r => [...(r.imported_ids || []), ...(r.retryable_ids || [])]).map(Number))];
       if (processingIds.length) await processPendingLoop(true, processingIds, debugLines);
-      else setAcquisitionModal({ status: "success", title: "Sincronizzazione completata", text: "Nessun nuovo contenuto da elaborare.", debug: debugLines });
-      setScanMsg({ ok: errors.length === 0, loading: false, text: `Sincronizzazione completata: ${imported} nuovi contenuti.${errors.length ? ` Alcune fonti non sono state aggiornate: ${errors.join(' · ')}` : ''}` });
+      else setAcquisitionModal({ status: "success", title: "Sincronizzazione completata", text: mediaUpdated ? `Media recuperati o aggiornati per ${mediaUpdated} contenuti. Nessun articolo rigenerato.` : "Nessun nuovo contenuto da elaborare.", debug: [...debugLines, ...mediaWarnings] });
+      setScanMsg({ ok: errors.length === 0, loading: false, text: `Sincronizzazione completata: ${imported} nuovi contenuti, ${mediaUpdated} contenuti con media aggiornati.${mediaWarnings.length ? ` ${mediaWarnings.join(" ")}` : ""}${errors.length ? ` Alcune fonti non sono state aggiornate: ${errors.join(' · ')}` : ''}` });
       await loadData();
     } catch (err) {
       setScanMsg({ ok: false, text: err.message });
@@ -3271,6 +3274,8 @@ export function DashboardScreen({ token, user, onLogout, onUserUpdate }) {
       tags: (post.tags || []).join(", "),
       mediaUrl: post.media_url || "",
       mediaType: post.media_type || "",
+      imageUrls: post.image_urls || [],
+      posterUrl: post.poster_url || "",
       mediaWidth: Number(post.media_display_width || 100),
       mediaAlignment: post.media_alignment || "center",
       noindex: Number(post.noindex || 0),
@@ -6169,6 +6174,7 @@ export function DashboardScreen({ token, user, onLogout, onUserUpdate }) {
                           </div>
 
                           {/* Contenuto Testuale */}
+                          <PostMediaPreview post={post} />
                           <div
                             style={{
                               padding: "24px",
@@ -8705,28 +8711,7 @@ export function DashboardScreen({ token, user, onLogout, onUserUpdate }) {
                       <div
                         className={`article-image-preview align-${editingPost.mediaAlignment}`}
                       >
-                        {editingPost.mediaUrl &&
-                        String(editingPost.mediaType).toUpperCase() !==
-                          "VIDEO" ? (
-                          <img
-                            src={editingPost.mediaUrl}
-                            alt="Anteprima foto articolo"
-                            style={{ width: `${editingPost.mediaWidth}%` }}
-                          />
-                        ) : (
-                          <div>
-                            <span>▧</span>
-                            <strong>
-                              {editingPost.mediaType === "VIDEO"
-                                ? "Questo articolo contiene un video"
-                                : "Nessuna foto"}
-                            </strong>
-                            <small>
-                              Carica un’immagine oppure incolla un indirizzo per
-                              impostare la foto principale.
-                            </small>
-                          </div>
-                        )}
+                        <PostMediaPreview post={{ media_url: editingPost.mediaUrl, media_type: editingPost.mediaType, image_urls: editingPost.imageUrls || [], poster_url: editingPost.posterUrl || '', source_url: editingPost.sourceUrl || '' }} />
                       </div>
                       <div className="article-image-controls">
                         <label>

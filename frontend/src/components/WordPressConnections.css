@@ -5,6 +5,10 @@
 .wordpress-sources p { flex-basis: 100%; margin: 0; font-size: 13px; }
 .wordpress-sources .wordpress-check { margin: 0; }
 .wordpress-archive { padding: 14px; background: var(--surface-hover, #f2f6f2); border-radius: 10px; }
+.wordpress-library { margin: 18px 0; border: 1px solid var(--border); border-radius: 10px; padding: 14px; }
+.wordpress-library summary { cursor: pointer; font-weight: 700; }
+.wordpress-library article { display: grid; gap: 4px; padding: 10px 0; border-bottom: 1px solid var(--border); }
+.wordpress-library article span { color: var(--text-muted); font-size: 12px; }
 .wordpress-workspace h2 { margin: 0 0 8px; }
 .wordpress-workspace p, .wordpress-workspace li { color: var(--text-muted); line-height: 1.6; }
 .wordpress-heading, .wordpress-actions { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between; }

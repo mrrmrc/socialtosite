@@ -14,9 +14,14 @@ export function WordPressConnections({ token }) {
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const [syncing, setSyncing] = useState(false);
+  const [library, setLibrary] = useState({ posts: [], has_more: false, next_cursor: 0 });
   const stopSync = useRef(false);
   const ownerFilters = useRef(defaultFilters);
   const call = (action, payload) => apiFetch(`/api/index.php?action=wordpress-${action}`, payload === undefined ? {} : { method: 'POST', body: JSON.stringify(payload) }, token);
+  const readLibrary = async (cursor = 0) => {
+    const data = await apiFetch(`/api/index.php?action=wordpress-library&cursor=${cursor}`, {}, token);
+    setLibrary(previous => ({ ...data, posts: cursor ? [...previous.posts, ...(data.posts || [])] : (data.posts || []) }));
+  };
   const readTerms = async () => {
     const data = await call('taxonomies');
     setTerms(data);
@@ -26,7 +31,7 @@ export function WordPressConnections({ token }) {
   };
   useEffect(() => {
     let active = true;
-    call('status').then(async data => { if (active) { setStatus(data); setForm(f => ({ ...f, endpoint: data.endpoint })); ownerFilters.current = { ...defaultFilters, ...data.filters }; if (data.connected) await readTerms(); } }).catch(e => { if (active) setError(e.message); });
+    call('status').then(async data => { if (active) { setStatus(data); setForm(f => ({ ...f, endpoint: data.endpoint })); ownerFilters.current = { ...defaultFilters, ...data.filters }; await readLibrary(); if (data.connected) await readTerms(); } }).catch(e => { if (active) setError(e.message); });
     return () => { active = false; stopSync.current = true; };
   }, [token]);
   const run = async operation => {
@@ -43,6 +48,7 @@ export function WordPressConnections({ token }) {
     <ol><li>In WordPress apri Plugin → Aggiungi plugin → Carica plugin e installa lo ZIP.</li><li>In Impostazioni → AllSocialToWeb genera il codice e inseriscilo qui.</li><li>Leggi categorie e tag, abbina gli argomenti e scegli come importare.</li></ol>
     {error && <p className="wordpress-error" role="alert">{error}</p>}
     {message && <p className="wordpress-notice" role="status">{message}</p>}
+    <details className="wordpress-library"><summary>Il tuo archivio completo ({status?.archive?.total ?? 0} contenuti)</summary><p>Questa lista include tutti i tuoi articoli, anche bozze e contenuti con sole foto o video. I filtri sotto si applicano al trasferimento.</p>{library.posts.map(post => <article key={post.id}><strong>{post.title}</strong><span>{post.platform} · {post.published ? 'Pubblicato' : 'Bozza / acquisito'}{post.media_type === 'video' ? ' · Video' : post.media_url ? ' · Foto' : ''}</span></article>)}{library.has_more && <button type="button" className="btn btn-outline" disabled={busy} onClick={() => run(() => readLibrary(library.next_cursor))}>Carica altri articoli</button>}{!library.has_more && <small>Fine archivio: {library.posts.length} contenuti leggibili.</small>}</details>
     {!status?.connected ? <form className="wordpress-connect" onSubmit={e => { e.preventDefault(); run(async () => {
       await call('connect', form);
       const connectedStatus = await call('status'); setStatus(connectedStatus); ownerFilters.current = { ...defaultFilters, ...connectedStatus.filters }; setForm(f => ({ ...f, secret: '' }));
@@ -55,6 +61,7 @@ export function WordPressConnections({ token }) {
       <p className="wordpress-archive">Archivio disponibile: <strong>{status.archive?.total ?? 0}</strong> contenuti · {status.archive?.published ?? 0} pubblicati · {status.archive?.drafts ?? 0} bozze o da elaborare.</p>
       <div className="wordpress-actions"><strong>Collegato: {status.endpoint}</strong><button className="btn btn-outline" disabled={busy} onClick={() => run(async () => { await readTerms(); setMessage('Categorie e tag aggiornati da WordPress.'); })}>{terms ? 'Rileggi categorie e tag' : 'Leggi categorie e tag'}</button><button className="btn btn-outline" disabled={busy} onClick={() => run(async () => { await call('disconnect', {}); setStatus(await call('status')); setTerms(null); setSaved(false); setMessage('Collegamento disabilitato. I post in WordPress rimangono disponibili.'); })}>Disconnetti</button></div>
       {terms && !terms.archive_available && <p role="alert">Per collegare tutto l’archivio, aggiorna WordPress installando il plugin 0.3.0 dal pulsante Scarica il plugin WordPress.</p>}
+      {terms && !terms.media_available && <p role="alert">Aggiorna il plugin WordPress alla versione 0.4.0 per conservare anche foto, gallerie e video nei post e consultare l’archivio dal pannello WordPress.</p>}
       {terms && <form onSubmit={e => { e.preventDefault(); run(async () => { await call('settings', settings); ownerFilters.current = filters; setSaved(true); setMessage('Abbinamenti salvati. Puoi sincronizzare ora. Le regole si applicano ai nuovi post importati.'); }); }}>
         <h3>Contenuti da collegare</h3>
         <div className="wordpress-options">

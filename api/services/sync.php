@@ -52,6 +52,8 @@ final class Sync {
                     'source_id' => (int)$source['id'],
                     'imported_ids' => $report['imported_ids'] ?? [],
                     'retryable_ids' => $report['retryable_ids'] ?? [],
+                    'media_updated' => (int)($report['media_updated'] ?? 0),
+                    'media_warnings' => array_values(array_unique($report['media_warnings'] ?? [])),
                     'platform' => $platform,
                     'found' => (int)($report['found'] ?? 0),
                     'new' => (int)($report['imported'] ?? 0),

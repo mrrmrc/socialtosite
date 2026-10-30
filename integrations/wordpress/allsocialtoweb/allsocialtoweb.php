@@ -2,12 +2,13 @@
 /**
  * Plugin Name: AllSocialToWeb Connector
  * Description: Collega l’intero archivio AllSocialToWeb a WordPress con filtri, categorie e tag dalla tua area personale.
- * Version: 0.3.0
+ * Version: 0.4.0
  * Requires PHP: 8.0
  * Requires at least: 6.0
  */
 if (!defined('ABSPATH')) exit;
 require_once __DIR__ . '/sync.php';
+require_once __DIR__ . '/archive.php';
 
 register_activation_hook(__FILE__, static function () {
     global $wpdb;
@@ -40,7 +41,7 @@ function astw_settings(): void {
             delete_option('astw_secret'); delete_option('astw_author');
             delete_option('astw_sync_settings');
             wp_clear_scheduled_hook('astw_sync_feed');
-        } else {
+        } elseif (isset($_POST['connect'])) {
             delete_option('astw_sync_settings');
             wp_clear_scheduled_hook('astw_sync_feed');
             $newSecret = bin2hex(random_bytes(32));
@@ -55,7 +56,9 @@ function astw_settings(): void {
     wp_nonce_field('astw_connection');
     submit_button('Genera nuovo codice (revoca il precedente)', 'primary', 'connect');
     submit_button('Disabilita collegamento', 'secondary', 'disconnect');
-    echo '</form><p>Ultima sincronizzazione: ' . esc_html(wp_json_encode(get_option('astw_last_sync', []))) . '</p></div>';
+    echo '</form><p>Ultima sincronizzazione: ' . esc_html(wp_json_encode(get_option('astw_last_sync', []))) . '</p>';
+    astw_archive_panel();
+    echo '</div>';
 }
 
 function astw_permission(WP_REST_Request $request) {
@@ -80,7 +83,7 @@ add_action('rest_api_init', static function () {
     register_rest_route('allsocialtoweb/v1', '/health', ['methods'=>'GET','permission_callback'=>'astw_permission','callback'=>static function () {
         $categories = get_categories(['hide_empty'=>false]);
         $tags = get_tags(['hide_empty'=>false]);
-        return ['protocol'=>'1', 'sync_available'=>true, 'archive_available'=>true, 'version'=>'0.3.0',
+        return ['protocol'=>'1', 'sync_available'=>true, 'archive_available'=>true, 'media_available'=>true, 'version'=>'0.4.0',
             'categories'=>array_map(static fn($c)=>['id'=>$c->term_id,'name'=>$c->name], $categories),
             'tags'=>array_map(static fn($t)=>['id'=>$t->term_id,'name'=>$t->name], $tags),
             'settings'=>astw_public_sync_settings(), 'last_sync'=>get_option('astw_last_sync', [])];
@@ -116,7 +119,7 @@ function astw_deliver(WP_REST_Request $request) {
     $payload = $request->get_json_params();
     if (!is_array($payload)) return new WP_Error('astw_payload','Contenuto non valido.',['status'=>422]);
     $title = sanitize_text_field($payload['title'] ?? '');
-    $allowed = ['p'=>[], 'br'=>[], 'h2'=>[], 'h3'=>[], 'h4'=>[], 'strong'=>[], 'em'=>[], 'ul'=>[], 'ol'=>[], 'li'=>[], 'blockquote'=>[], 'a'=>['href'=>true,'title'=>true]];
+    $allowed = ['p'=>[], 'br'=>[], 'h2'=>[], 'h3'=>[], 'h4'=>[], 'strong'=>[], 'em'=>[], 'ul'=>[], 'ol'=>[], 'li'=>[], 'blockquote'=>[], 'a'=>['href'=>true,'title'=>true], 'img'=>['src'=>true,'alt'=>true,'loading'=>true,'decoding'=>true], 'video'=>['controls'=>true,'playsinline'=>true,'preload'=>true,'poster'=>true,'aria-label'=>true], 'source'=>['src'=>true,'type'=>true], 'span'=>[]];
     $html = wp_kses($payload['html'] ?? '', $allowed, ['https','http','mailto']);
     if ($title === '' || trim(wp_strip_all_tags($html)) === '') return new WP_Error('astw_empty','Titolo e testo obbligatori.',['status'=>422]);
     $category = absint($payload['category_id'] ?? 0);

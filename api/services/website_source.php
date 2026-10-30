@@ -71,6 +71,33 @@ final class WebsiteSource {
         return self::fetch($url, $maxBytes, 3);
     }
 
+    /** Stream large social videos to disk; validate and pin every redirect's destination. */
+    public static function downloadToFile(string $url, string $path, int $maxBytes = 100000000, int $redirects = 3): array {
+        $target = self::assertPublicUrl($url);
+        $file = fopen($path, 'wb');
+        if (!$file) throw new RuntimeException('Archivio media non scrivibile.');
+        $headers = []; $size = 0; $tooLarge = false;
+        $ch = curl_init($url);
+        curl_setopt_array($ch, [
+            CURLOPT_FOLLOWLOCATION=>false, CURLOPT_CONNECTTIMEOUT=>10, CURLOPT_TIMEOUT=>120,
+            CURLOPT_SSL_VERIFYPEER=>true, CURLOPT_SSL_VERIFYHOST=>2, CURLOPT_PROXY=>'',
+            CURLOPT_USERAGENT=>'Mozilla/5.0 (compatible; AllSocialToWeb media importer)',
+            CURLOPT_RESOLVE=>[$target['host'].':'.$target['port'].':'.$target['ip']],
+            CURLOPT_HEADERFUNCTION=>static function ($curl, string $line) use (&$headers): int { $parts=explode(':',$line,2); if(count($parts)===2)$headers[strtolower(trim($parts[0]))]=trim($parts[1]); return strlen($line); },
+            CURLOPT_WRITEFUNCTION=>static function ($curl, string $chunk) use ($file, &$size, &$tooLarge, $maxBytes): int {
+                if ($size+strlen($chunk)>$maxBytes) { $tooLarge=true; return 0; }
+                $written=fwrite($file,$chunk); $size+=(int)$written; return (int)$written;
+            },
+        ]);
+        $ok=curl_exec($ch); $status=(int)curl_getinfo($ch,CURLINFO_HTTP_CODE); curl_close($ch); fclose($file);
+        if ($status>=300 && $status<400 && !empty($headers['location']) && $redirects>0) return self::downloadToFile(self::absoluteUrl($url,$headers['location']),$path,$maxBytes,$redirects-1);
+        if ($tooLarge || $ok===false || $status<200 || $status>=300 || !$size) {
+            @unlink($path);
+            throw new RuntimeException($tooLarge ? 'Media oltre il limite di dimensione.' : 'Download media non riuscito.');
+        }
+        return ['url'=>$url,'path'=>$path,'size'=>$size,'headers'=>$headers];
+    }
+
     private static function absoluteUrl(string $base, string $candidate): string {
         if (preg_match('~^https?://~i', $candidate)) return $candidate;
         $parts = parse_url($base);

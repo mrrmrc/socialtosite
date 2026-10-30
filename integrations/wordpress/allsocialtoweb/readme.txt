@@ -1,7 +1,7 @@
 === AllSocialToWeb Connector ===
 Requires at least: 6.0
 Requires PHP: 8.0
-Stable tag: 0.3.0
+Stable tag: 0.4.0
 License: GPLv2 or later
 
 Importa come post i contenuti pubblicati nella tua pagina AllSocialToWeb.
@@ -36,3 +36,8 @@ Le credenziali non vengono inserite negli URL del feed.
 Il plugin legge un feed privato dalla piattaforma scelta durante il collegamento.
 Condivide categorie, tag e stato di sincronizzazione con l'account che possiede
 il codice di collegamento. Nessun altro servizio esterno è necessario.
+
+Foto, gallerie e video sono conservati nel corpo dei post con URL del sito AllSocialToWeb.
+Per video senza un file riproducibile viene conservato il collegamento originale.
+In WordPress > Impostazioni > AllSocialToWeb puoi sfogliare tutto l’archivio
+tramite il pulsante Leggi tutti gli articoli collegati e le pagine successive.
