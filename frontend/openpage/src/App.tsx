@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { ErrorBoundary } from './layout/ErrorBoundary'
 import { AppLayout } from './layout/AppLayout'
 import { Dashboard } from './routes/Dashboard'
@@ -17,6 +17,7 @@ import { useKeyboardShortcuts } from './lib/useKeyboardShortcuts'
 function AppRoutes() {
   useKeyboardShortcuts()
   const activeProjectId = useEditorStore(s => s.activeProjectId)
+  const currentSite = new URLSearchParams(useLocation().search).get('site') === 'current'
 
   return (
     <Routes>
@@ -25,11 +26,11 @@ function AppRoutes() {
         <Route path="public" element={<PublicSite />} />
         <Route path="versions" element={activeProjectId ? <Versions /> : <SiteWorkspace destination="/versions" />} />
         <Route path="create" element={<SiteWorkspace generate />} />
-        <Route path="themes" element={activeProjectId ? <Themes /> : <SiteWorkspace destination="/themes" />} />
+        <Route path="themes" element={activeProjectId && !currentSite ? <Themes /> : <SiteWorkspace destination="/themes" />} />
         <Route path="profile" element={activeProjectId?.startsWith('social-site-') ? <ProfileSync /> : <SiteWorkspace destination="/profile" />} />
         <Route path="projects" element={<Dashboard />} />
         <Route path="new" element={<Navigate to="/" replace />} />
-        <Route path="editor" element={activeProjectId ? <Editor /> : <SiteWorkspace />} />
+        <Route path="editor" element={activeProjectId && !currentSite ? <Editor /> : <SiteWorkspace />} />
         <Route path="components" element={<Components />} />
         <Route path="deploy" element={<Navigate to="/editor" replace />} />
         <Route path="settings" element={activeProjectId ? <Settings /> : <SiteWorkspace destination="/settings" />} />

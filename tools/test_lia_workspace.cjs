@@ -67,7 +67,7 @@ const base = 'http://127.0.0.1:5178';
     const document = `<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"></head><body><div id="root"></div><script type="module">import RefreshRuntime from '/@react-refresh';RefreshRuntime.injectIntoGlobalHook(window);window.$RefreshReg$=()=>{};window.$RefreshSig$=()=>type=>type;window.__vite_plugin_react_preamble_installed__=true;</script><script type="module">import React from '/node_modules/.vite/deps/react.js?v=${reactHash}';import ReactDOM from '/node_modules/.vite/deps/react-dom_client.js?v=${rendererHash}';import App from '/src/App.jsx';ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(App));</script></body></html>`;
     await page.route('**/*', async route => { if (route.request().resourceType() === 'document' && new URL(route.request().url()).origin === base) return route.fulfill({ contentType: 'text/html', body: document }); return route.fallback(); });
     await page.goto(base + '/dashboard');
-    await page.getByRole('heading', { name: 'Cosa facciamo oggi?', exact: true }).waitFor();
+    await page.getByRole('heading', { name: 'La tua redazione, ogni giorno.', exact: true }).waitFor();
     await page.waitForTimeout(150);
     assert.equal(requests.filter(item => item.payload).length, 0, 'Opening a project does not launch AI or save changes');
     const nav = page.getByRole('navigation', { name: 'Sezioni della piattaforma' });

@@ -30,6 +30,7 @@ const fs = require('node:fs');
       }
       let data = {};
       if (action === 'site') data = fixture;
+      if (action === 'social-source-upsert') {fixture.sources=fixture.sources.map(source=>source.url===payload.url?{...source,...payload}:source);data={ok:true};}
       if (action === 'sync') data = { results: [{ platform: 'website', source_id: payload.source_id, new: 0, imported_ids: [], retryable_ids: [] }] };
       if (action === 'wordpress-library') data = { posts: [{ id: new URL(req.url()).searchParams.get('cursor') === '21' ? 22 : 21, title: 'Articolo archivio completo', platform: 'facebook', published: 0 }], next_cursor: 21, has_more: new URL(req.url()).searchParams.get('cursor') !== '21' };
       if (action === 'wordpress-status') data = { connected, endpoint: connected ? 'https://wordpress.example' : '', topics: ['Viaggi'], filters: settings.filters || { scope: 'all' }, archive: { total: 45, published: 30, drafts: 15, platforms: ['instagram','manual'] } };
@@ -47,12 +48,29 @@ const fs = require('node:fs');
       <script type="module">import React from '/node_modules/.vite/deps/react.js?v=${reactHash}'; import ReactDOM from '/node_modules/.vite/deps/react-dom_client.js?v=${rendererHash}'; import {DashboardScreen} from '/src/screens/DashboardScreen.jsx'; import '/src/index.css'; import '/src/premium.css'; ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(DashboardScreen,{token:'fixture',user:{id:999,name:'Studio Aurora',slug:'studio-aurora',plan:'professional',role:'user'},onLogout:()=>{}}));</script></body></html>` }));
     await page.goto('http://127.0.0.1:5178/channels-fixture?tab=sources');
     if (!await page.locator('.linked-channel').count()) await page.getByRole('button', { name: 'Canali', exact: true }).click();
+    assert.equal(await page.getByLabel('Indirizzo WordPress',{exact:true}).count(),0,'Sources and publishing destinations are separate');
+    await page.getByLabel('Cerca una fonte',{exact:true}).fill('Secondo');
+    assert.equal(await page.locator('.linked-channel').count(),1,'Sources can be filtered without affecting the other channels');
+    await page.getByLabel('Cerca una fonte',{exact:true}).fill('');
+    const second=page.locator('.linked-channel').filter({hasText:'Secondo sito'});
+    await second.locator('.linked-channel-settings summary').click();
+    await second.getByLabel('Massimo di post',{exact:true}).fill('3');
+    await second.getByRole('checkbox',{name:'Importa automaticamente da questa fonte',exact:true}).uncheck();
+    assert.equal(mutations.some(item=>item.action==='social-source-upsert'),false,'Editing rules does not trigger an implicit save');
+    await second.getByRole('button',{name:'Salva regole',exact:true}).click();
+    await second.getByText('Regole salvate.',{exact:true}).waitFor();
+    const rules=mutations.find(item=>item.action==='social-source-upsert').payload;
+    assert.equal(rules.label,'Secondo sito','Saving rules retains the recognizable source name');
+    assert.equal(rules.max_posts,3);assert.equal(rules.auto_sync,0);assert.equal(rules.url,'https://second.example');
+    await second.locator('.linked-channel-settings summary').click();
+    fs.mkdirSync('artifacts',{recursive:true});await page.evaluate(()=>window.scrollTo(0,0));await page.screenshot({path:'artifacts/channels-sources-desktop.png',fullPage:true});
     await page.getByRole('button', { name: 'Sincronizza Secondo sito', exact: true }).click();
     await page.getByText('Nessun nuovo contenuto da elaborare.', { exact: true }).waitFor();
     assert.equal(mutations.find(m => m.action === 'sync').payload.source_id, 12, 'the selected source ID reaches the server');
     // Close acquisition result if the modal covers the WordPress form.
     const dialog = page.getByRole('dialog');
     if (await dialog.count()) await dialog.getByRole('button', { name: 'Chiudi', exact: true }).click();
+    await page.getByRole('tab', {name:/Dove pubblicare/}).click();
     await page.getByLabel('Indirizzo WordPress', { exact: true }).fill('https://wordpress.example');
     await page.getByLabel('Codice generato dal plugin', { exact: true }).fill('a'.repeat(64));
     await page.getByRole('button', { name: 'Verifica e collega', exact: true }).click();

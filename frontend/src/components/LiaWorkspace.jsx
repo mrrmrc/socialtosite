@@ -1,7 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { apiFetch } from '../utils/api';
 import { LiaAvatar } from './LiaAvatar';
-import { LiaTaskPanel, LiaTaskShortcuts } from './LiaTaskPanel';
+import { LiaTaskPanel } from './LiaTaskPanel';
+import { LiaAgenda } from './LiaAgenda';
 import './LiaWorkspace.css';
 
 const STARTERS = ['Non so da dove iniziare', 'Scriviamo un contenuto', 'Aggiorniamo il sito'];
@@ -28,6 +29,7 @@ function normalizeAction(value, index) {
     for (const [field, limit] of Object.entries({ title: 120, bio: 2000, role_mission: 4000 })) if (typeof value.changes?.[field] === 'string') changes[field] = value.changes[field].trim().slice(0, limit);
     if (Object.keys(changes).length) return { ...common, type: 'propose_profile', changes };
   }
+  if (value.type === 'social_draft' && ['instagram','facebook','linkedin','tiktok','x'].includes(value.platform) && text(value.caption,3000)) return {...common,type:'social_draft',platform:value.platform,caption:[text(value.caption,3000),(Array.isArray(value.hashtags)?value.hashtags:[]).filter(tag=>typeof tag==='string').join(' ')].filter(Boolean).join('\n\n')};
   return null;
 }
 
@@ -42,6 +44,7 @@ function articleText(html) {
 function latestArticleWork(messages) {
   for (const message of [...messages].reverse()) {
     for (const action of [...(message.actions || [])].reverse()) {
+      if (action.type === 'social_draft' && action.caption) return {article:{title:`Bozza ${action.platform}`,content:action.caption}};
       if (action.type !== 'prepare_article' || !action.article) continue;
       const title = text(action.article.title, 240);
       const content = text(articleText(action.article.content), 12000);
@@ -228,6 +231,7 @@ export function LiaWorkspace({ user, data, site: siteProp, sources: sourcesProp,
 
   function renderAction(message, action) {
     if (action.type === 'navigate') return <button type="button" className="lw-secondary" key={action.id} disabled={Boolean(busy)} data-lia-action="navigate" onClick={() => onNavigate?.(action.target)}>{action.label || 'Apri il dettaglio'}</button>;
+    if (action.type === 'social_draft') return <section className="lw-proposal" key={action.id} data-lia-proposal="social_draft"><span className="lw-eyebrow">SOCIAL MEDIA MANAGER · {action.platform}</span><h3>La tua bozza social</h3><label htmlFor={`caption-${message.id}-${action.id}`}>Testo del post</label><textarea id={`caption-${message.id}-${action.id}`} rows={7} maxLength={3500} value={action.caption} disabled={Boolean(busy)||!!action.savedPost} onChange={event=>changeAction(message.id,action.id,{caption:event.target.value})}/><div className="lw-actions"><button type="button" className="lw-secondary" onClick={async()=>{try{await navigator.clipboard.writeText(action.caption);changeAction(message.id,action.id,{copyMessage:'Testo copiato',error:''})}catch{changeAction(message.id,action.id,{error:'Copia non disponibile. Puoi selezionare il testo dal campo.'})}}}>Copia il testo</button>{action.savedPost?<span className="lw-success">Bozza salvata nei contenuti.</span>:<button type="button" className="lw-primary" disabled={Boolean(busy)||action.saveUncertain||!action.caption.trim()} onClick={()=>{const el=document.createElement('div');el.textContent=action.caption;saveDraft(message.id,{...action,article:{title:`${action.platform} · ${action.caption.slice(0,80)}`,content:`<p>${el.innerHTML.replace(/\n/g,'<br>')}</p>`,excerpt:action.caption.slice(0,155),tags:[]}})}}>Salva la bozza social</button>}</div><small>Testo pronto da rivedere e usare nel tuo social. Il salvataggio lo conserva in AllSocialToWeb.</small>{action.copyMessage&&<p role="status">{action.copyMessage}</p>}{(action.error||action.saveError)&&<p role="alert" className="lw-error">{action.error||action.saveError}</p>}</section>;
     if (action.type === 'prepare_article') return <section className="lw-proposal" key={action.id} data-lia-proposal="prepare_article">
       {!action.article ? <><span className="lw-eyebrow">La proposta di LIA</span><h3>{action.brief.title || action.brief.subject}</h3><p>{action.brief.subject}</p>{action.brief.objective && <p><strong>Obiettivo:</strong> {action.brief.objective}</p>}<small>{action.brief.length}. La bozza sarà mostrata qui per la tua revisione.</small><button type="button" className="lw-primary" data-lia-action="prepare_article" disabled={Boolean(busy)} onClick={() => prepareArticle(message.id, action)}>{action.status === 'preparing' ? 'Preparazione in corso…' : action.status === 'error' ? 'Riprova' : action.label || 'Prepara bozza'}</button>{action.error && <p className="lw-error" role="alert">{action.error}</p>}</> : <><span className="lw-eyebrow">{action.savedPost ? 'Salvata · non pubblicata' : 'Anteprima · non ancora salvata'}</span><h3>La tua bozza</h3><h4>{action.article.title}</h4>{action.article.excerpt && <p className="lw-excerpt">{action.article.excerpt}</p>}<div className="lw-draft-body" data-lia-preview="article">{articleText(action.article.content)}</div><div className="lw-actions">{action.savedPost ? <><span className="lw-success" role="status">Bozza salvata. Potrai pubblicarla dopo averla rivista.</span><button type="button" className="lw-primary" disabled={Boolean(busy)} onClick={() => onPostEdit ? onPostEdit(action.savedPost) : onNavigate?.('site')}>Apri nell’editor</button></> : action.saveUncertain ? <button type="button" className="lw-secondary" disabled={Boolean(busy)} onClick={() => onNavigate?.('site')}>Controlla le bozze</button> : <button type="button" className="lw-primary" disabled={Boolean(busy)} onClick={() => saveDraft(message.id, action)}>{action.savePending ? 'Salvataggio…' : 'Salva bozza'}</button>}</div>{action.saveError && <p className="lw-error" role="alert">{action.saveError}</p>}</>}
     </section>;
@@ -237,9 +241,9 @@ export function LiaWorkspace({ user, data, site: siteProp, sources: sourcesProp,
 
   if (workspace.ownerId !== ownerId) return <section className="lia-workspace" role="status">Caricamento del tuo spazio…</section>;
   return <section className="lia-workspace" aria-labelledby="lia-workspace-title">
-    <header className="lw-heading"><div className="lw-identity"><LiaAvatar size={56} knowledge={knowledge} thinking={Boolean(busy)} /><div><span>LIA · La tua assistente operativa</span><h2 id="lia-workspace-title">Cosa facciamo oggi?</h2></div></div><p>Idee per il prossimo contenuto, un articolo da migliorare, un passo avanti per il tuo sito. Scegli un’attività: iniziamo subito a lavorarci.</p></header>
+    <header className="lw-heading"><div className="lw-identity"><LiaAvatar size={64} knowledge={knowledge} thinking={Boolean(busy)} /><div><span>LIA · La responsabile della tua presenza online</span><h1 id="lia-workspace-title">La tua redazione, ogni giorno.</h1></div></div><p>Un obiettivo, un piano e il prossimo passo da fare insieme. Dall’idea ai contenuti, dai social alla presenza su Google e nelle ricerche con AI.</p></header>
     {error && <div className="lw-context-warning" role="alert"><p>Non riesco ad aggiornare i dati del tuo spazio: {error}</p><button type="button" className="lw-secondary" disabled={Boolean(busy) || loading} onClick={onRefresh}>Aggiorna i dati</button></div>}
-    <LiaTaskShortcuts disabled={Boolean(busy) || loading} onChoose={startTask} />
+    <LiaAgenda token={token} site={site} posts={posts} loading={loading} busy={Boolean(busy)} onWork={startTask}/>
     <div className="lw-work-area"><div className="lw-conversation"><header className="lw-conversation-heading"><div><strong>{site.title || user?.name || 'Il tuo progetto'}</strong><small>{loading ? 'Aggiornamento dati…' : busy ? 'LIA sta lavorando alla tua richiesta' : 'Idee, revisioni e bozze nello stesso spazio.'}</small></div><button type="button" className="lw-text-button" disabled={Boolean(busy)} onClick={() => { update(initialState(ownerId, null)); inputRef.current?.focus(); }}>Nuova conversazione</button></header>
       {workspace.contextPostId && <div className="lw-working-context"><span>Al lavoro su <strong>{posts.find(post => Number(post.id) === Number(workspace.contextPostId))?.edited_title || posts.find(post => Number(post.id) === Number(workspace.contextPostId))?.generated_title || `Contenuto #${workspace.contextPostId}`}</strong></span><button type="button" disabled={Boolean(busy)} onClick={() => update(current => ({ ...current, contextPostId: null, workFrom: current.messages.length }))}>Cambia argomento</button></div>}
       <div className="lw-log" ref={logRef} role="log" aria-label="Conversazione con LIA" aria-live="polite" aria-relevant="additions text">

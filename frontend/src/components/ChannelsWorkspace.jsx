@@ -1,0 +1,35 @@
+import React, { useState } from 'react';
+import { SOCIAL, detectPlatformFromUrl } from '../utils/api';
+import { LinkedChannelCard } from './LinkedChannelCard';
+import { WordPressConnections } from './WordPressConnections';
+import { InterfaceIcon as Icon } from './InterfaceIcon';
+import './ChannelsWorkspace.css';
+
+export function ChannelsWorkspace({ token, sources, isBasePlan, removeChannel, savePlatformSource, syncAllChannels, scanning, syncing, add, singleImport, scanMsg, scanProgress }) {
+  const [section, setSection] = useState(()=>new URLSearchParams(window.location.search).get('channel_view')==='destinations'?'destinations':'sources');
+  const chooseSection=value=>{setSection(value);const url=new URL(window.location.href);if(value==='destinations')url.searchParams.set('channel_view',value);else url.searchParams.delete('channel_view');window.history.replaceState(null,'',url)};
+  const [search, setSearch] = useState('');
+  const [platform, setPlatform] = useState('all');
+  const [adding, setAdding] = useState(!sources.length);
+  const channels = sources.map(source => ({ ...source, key:`src_${source.id}`,sourceId:source.id,rawPlatform:source.platform,content_count:Number(source.content_count||0),published_count:Number(source.published_count||0),draft_count:Number(source.draft_count||0),processing_count:Number(source.processing_count||0),failed_count:Number(source.failed_count||0) }));
+  const visible = channels.filter(channel => (platform==='all'||channel.platform===platform) && `${channel.label} ${channel.url} ${channel.platform}`.toLocaleLowerCase().includes(search.toLocaleLowerCase()));
+  const detected = detectPlatformFromUrl(add.url);
+  const busy = scanning || syncing;
+  return <section className="channel-hub" aria-labelledby="channel-hub-title">
+    <header className="channel-hub-heading"><div><span className="channel-hub-eyebrow">COLLEGAMENTI DELLA TUA REDAZIONE</span><h2 id="channel-hub-title">I tuoi canali, in ordine.</h2><p>Le fonti portano contenuti in AllSocialToWeb. Le destinazioni ricevono gli articoli preparati.</p></div><span className="channel-hub-count">{sources.length} fonti collegate</span></header>
+    <div className="channel-hub-tabs" role="tablist" aria-label="Tipo di collegamento">
+      <button type="button" id="channel-sources-tab" role="tab" aria-selected={section==='sources'} aria-controls="channel-sources-panel" onClick={()=>chooseSection('sources')}><Icon name="link" size={19}/><span>Fonti da cui importare<small>Social e siti collegati</small></span></button>
+      <button type="button" id="channel-destinations-tab" role="tab" aria-selected={section==='destinations'} aria-controls="channel-destinations-panel" onClick={()=>chooseSection('destinations')}><Icon name="globe" size={19}/><span>Dove pubblicare<small>WordPress e sito AllSocialToWeb</small></span></button>
+    </div>
+    {section==='sources' ? <div role="tabpanel" id="channel-sources-panel" aria-labelledby="channel-sources-tab" className="channel-hub-panel">
+      <div className="channel-hub-toolbar"><div><h3>Fonti collegate</h3><p>Aggiorna un singolo canale o importa i nuovi contenuti da tutte le fonti.</p></div><div><button type="button" className="btn btn-outline" onClick={()=>setAdding(!adding)}>{adding?'Chiudi modulo':'Aggiungi una fonte'}</button>{sources.length>0&&<button type="button" className="btn btn-primary" disabled={busy} onClick={()=>syncAllChannels()}>{busy?'Importazione in corso…':'Aggiorna tutte le fonti'}</button>}</div></div>
+      {adding&&<form className="channel-hub-add" onSubmit={add.submit}><h3>Collega un social o un sito</h3><p>Incolla l’indirizzo pubblico. Dopo il collegamento puoi importare i contenuti.</p><label>Indirizzo della fonte<input type="url" aria-label="URL pubblico del canale" required placeholder="https://www.instagram.com/iltuoprofilo/" value={add.url} onChange={event=>add.setUrl(event.target.value)}/></label>{detected&&<span className="channel-hub-recognized"><Icon name="check" size={15}/>{SOCIAL[detected]?.label||detected} riconosciuto</span>}<label>Nome per riconoscerla<input aria-label="Etichetta del canale (opzionale)" placeholder="Facoltativo, per esempio: il mio profilo Instagram" value={add.label} onChange={event=>add.setLabel(event.target.value)}/></label><button type="submit" className="btn btn-primary" disabled={add.loading||!add.url.trim()}>{add.loading?'Collegamento…':'Aggiungi canale'}</button>{add.message&&<p role={add.message.ok?'status':'alert'}>{add.message.text}</p>}</form>}
+      {scanMsg&&<div className={`channel-hub-feedback ${scanMsg.ok?'':'is-error'}`} role={scanMsg.ok?'status':'alert'}>{scanMsg.text}</div>}
+      {sources.length>1&&<div className="channel-hub-filters"><label>Cerca una fonte<input type="search" value={search} onChange={event=>setSearch(event.target.value)} placeholder="Nome o indirizzo"/></label><label>Piattaforma<select value={platform} onChange={event=>setPlatform(event.target.value)}><option value="all">Tutte le piattaforme</option>{[...new Set(sources.map(source=>source.platform))].map(name=><option key={name} value={name}>{SOCIAL[name]?.label||name}</option>)}</select></label></div>}
+      <div className="linked-channels-grid">{visible.map(channel=><LinkedChannelCard key={channel.key} channel={channel} isBasePlan={isBasePlan} removeChannel={removeChannel} savePlatformSource={savePlatformSource} onSync={id=>syncAllChannels(Number(id))} syncing={busy}/>)}</div>
+      {!visible.length&&<p className="channel-hub-empty">{sources.length?'Nessuna fonte corrisponde alla ricerca.':'Collega la prima fonte per iniziare a raccogliere contenuti.'}</p>}
+      {!!scanProgress.length&&<details className="channel-hub-details"><summary>Dettaglio dell’ultima importazione</summary>{scanProgress.map(item=><p key={item.id}><strong>{item.label||item.platform}</strong> · {item.status==='done'?item.details:item.status==='error'?'Da riprovare':item.status==='pending'?'In coda':'Lettura in corso'}</p>)}</details>}
+      <details className="channel-hub-details"><summary>Importa un solo articolo da un link</summary><form onSubmit={singleImport.submit}><label>Link dell’articolo<input type="url" required value={singleImport.url} onChange={event=>singleImport.setUrl(event.target.value)} placeholder="https://www.esempio.it/articolo"/></label><button type="submit" className="btn btn-outline" disabled={singleImport.loading}>{singleImport.loading?'Importazione…':'Importa articolo'}</button>{singleImport.message&&<p role={singleImport.message.ok?'status':'alert'}>{singleImport.message.text}</p>}</form></details>
+    </div> : <div role="tabpanel" id="channel-destinations-panel" aria-labelledby="channel-destinations-tab" className="channel-hub-panel"><aside className="channel-hub-explanation"><Icon name="globe" size={23}/><div><h3>Il tuo sito AllSocialToWeb</h3><p>I contenuti pubblicati sono disponibili sul tuo sito. Gestisci il suo aspetto dalla sezione Il sito.</p><a href="/dashboard?tab=publicsite">Gestisci il sito →</a></div></aside><WordPressConnections token={token}/></div>}
+  </section>;
+}

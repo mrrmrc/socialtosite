@@ -2160,6 +2160,23 @@ if ($action === 'interview-chat' && $method === 'POST') {
         jsonError('Intervista fallita: ' . $e->getMessage(), 502);
     }
 }
+if ($action === 'lia-agenda' && in_array($method,['GET','POST'],true)) {
+    require_once __DIR__ . '/services/lia_agenda.php';
+    try {
+        if ($method==='GET') json(['agenda'=>LiaAgenda::read((int)$userId)]);
+        $input=body();
+        if (!in_array($input['operation'] ?? 'generate',['generate','update'],true)) throw new InvalidArgumentException('Operazione del piano non valida.');
+        if (isset($input['goal']) && !is_string($input['goal'])) throw new InvalidArgumentException('Scrivi un obiettivo valido.');
+        if (($input['operation'] ?? 'generate')==='update') json(['agenda'=>LiaAgenda::update((int)$userId,(string)($input['plan_id'] ?? ''),(string)($input['task_id'] ?? ''),(string)($input['status'] ?? ''))]);
+        require_once __DIR__ . '/services/ai.php';
+        AIHealth::assertRuntime();
+        $metrics=[];
+        try { $metrics=VisibilityAnalytics::userSummary((int)$userId); } catch (Throwable $ignored) {}
+        json(['agenda'=>LiaAgenda::generate((int)$userId,$me,(string)($input['goal'] ?? ''),is_array($metrics)?$metrics:[])]);
+    } catch (InvalidArgumentException $e) { jsonError($e->getMessage(),422); }
+    catch (Throwable $e) { error_log('[lia-agenda] '.$e->getMessage()); $failure=AIHealth::failure($e); jsonError($failure['message'].' Il piano precedente è conservato.',502); }
+}
+
 if ($action === 'lia-assistant' && $method === 'POST') {
     require_once __DIR__ . '/services/lia_assistant.php';
     try { $liaInput = LiaAssistant::input(body()); }
@@ -2169,6 +2186,8 @@ if ($action === 'lia-assistant' && $method === 'POST') {
         AIHealth::assertRuntime();
         $liaData = LiaAssistant::load((int)$userId, $liaInput['context_post_id']);
         $liaFacts = $liaData['facts'];
+        $liaFacts['channels']=LiaAssistant::channelContext((int)$userId);
+        if (in_array($liaInput['intent'],['seo','geo','visibility'],true)) $liaFacts['search_queries']=LiaAssistant::searchContext((int)$userId);
         $liaFacts['visibility_available'] = false;
         try {
             $liaVisibility = VisibilityAnalytics::userSummary((int)$userId);

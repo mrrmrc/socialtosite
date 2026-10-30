@@ -8,7 +8,7 @@ import './CustomerWorkspace.css';
 import { EditorDialog } from '../components/EditorDialog';
 import { ArticleStudio } from '../components/ArticleStudio';
 import { useDashboardNavigation } from '../utils/dashboardNavigation.mjs';
-import { LinkedChannelCard } from '../components/LinkedChannelCard';
+
 import { PostMediaPreview } from '../components/PostMediaPreview';
 import { SiteMapGraph } from '../components/OnlinePresenceMap';
 import React, { useState, useEffect, useRef } from "react";
@@ -23,7 +23,7 @@ import { SocialIcon } from "../components/SocialIcon";
 import { QuillEditor } from "../components/QuillEditor";
 import { AdminScreen } from "./AdminScreen";
 import { SpazioVivoLab } from "../components/SpazioVivoLab";
-import { WordPressConnections } from "../components/WordPressConnections";
+import { ChannelsWorkspace } from "../components/ChannelsWorkspace";
 import { BrandMark } from "./LandingScreen";
 import { ProfileReviewPanel } from "../components/ProfileReviewPanel";
 import { LiaKnowledge, useLiaKnowledge } from "../components/LiaKnowledge";
@@ -1843,6 +1843,7 @@ export function DashboardScreen({ token, user, onLogout, onUserUpdate }) {
     max_posts = null,
     topic_summary = null,
     auto_sync = 1,
+    sourceLabel = null,
   ) {
     try {
       await apiFetch(
@@ -1851,7 +1852,7 @@ export function DashboardScreen({ token, user, onLogout, onUserUpdate }) {
           method: "POST",
           body: JSON.stringify({
             platform,
-            label: SOCIAL[platform]?.label || platform,
+            label: sourceLabel || SOCIAL[platform]?.label || platform,
             url,
             since_date,
             auto_publish,
@@ -1864,8 +1865,10 @@ export function DashboardScreen({ token, user, onLogout, onUserUpdate }) {
         token,
       );
       await loadData();
+      return true;
     } catch (err) {
       setScanMsg({ ok: false, text: err.message });
+      return false;
     }
   }
 
@@ -3475,7 +3478,7 @@ export function DashboardScreen({ token, user, onLogout, onUserUpdate }) {
       );
       setAddMsg({
         ok: true,
-        text: "Fonte aggiunta. Clicca “Sincronizza tutti” per importare i contenuti.",
+        text: "Fonte collegata. Usa Importa nuovi contenuti per acquisire i primi post.",
       });
       setAddUrl("");
       setAddLabel("");
@@ -3581,8 +3584,8 @@ export function DashboardScreen({ token, user, onLogout, onUserUpdate }) {
       "Logo e contenuti personali dentro una struttura accessibile e coerente.",
     ],
     sources: [
-      "Social collegati",
-      "Aggiungi i tuoi profili social: i contenuti arriveranno automaticamente.",
+      "Canali",
+      "Collega le fonti, importa i contenuti e scegli dove pubblicare gli articoli.",
     ],
     settings: [
       "Temi del sito",
@@ -3885,7 +3888,7 @@ export function DashboardScreen({ token, user, onLogout, onUserUpdate }) {
         <div
           className={`dashboard-content ${user?.role === "admin" ? "is-admin-wide" : ""}`}
         >
-          {tab === 'overview' && <VisibilityPulse user={user} data={data} loading={homeLoading} error={homeError} onNavigate={id => { if (id === 'profile') setProfileSubTab('presence'); setTab(id); }} onLia={input => { openLiaRequest(input); requestAnimationFrame(() => document.getElementById('lia-workspace-input')?.focus()); }} />}
+
           {tab !== 'overview' && <header className="dashboard-page-header">
             <div className="page-heading">
               <div className="page-kicker">
@@ -3945,17 +3948,18 @@ export function DashboardScreen({ token, user, onLogout, onUserUpdate }) {
           )}
 
           {tab === 'publicsite' && <section className="card customer-site-intro">
-            <h2>Il tuo sito</h2><p>Guarda il risultato online. Se vuoi cambiare qualcosa, descrivilo a LIA: ti aiuterà a scegliere il passo giusto.</p>
-            <div className="customer-site-actions"><a className="btn btn-primary" href={siteUrl} target="_blank" rel="noopener noreferrer">Apri il sito</a><button type="button" className="btn btn-outline" onClick={() => openLiaRequest('Vorrei migliorare il mio sito. Aiutami a scegliere cosa cambiare.')}>Chiedi una modifica a LIA</button></div>
-            <details className="customer-advanced"><summary>Preferisci modificare il sito direttamente?</summary>
+            <h2>Il tuo sito</h2><p>Scegli un layout, controlla l’anteprima e applicalo al sito online. Testi, articoli e contatti restano nel tuo progetto.</p>
+            <div className="customer-site-actions"><a className="btn btn-primary" href={siteUrl} target="_blank" rel="noopener noreferrer">Apri il sito</a>{Object.prototype.hasOwnProperty.call(data?.site || {}, 'openpage_config')&&<a className="btn btn-primary" href="/builder/themes?site=current">Cambia e applica layout</a>}<button type="button" className="btn btn-outline" onClick={() => openLiaRequest('Vorrei migliorare il mio sito. Aiutami a scegliere cosa cambiare.')}>Chiedi una modifica a LIA</button></div>
+            <div className="site-publication-guide"><strong>{site?.openpage_html?'Un layout visuale è pubblicato sul tuo sito.':'Il sito sta usando la presentazione attuale.'}</strong><p>“Applica alla bozza” prepara una modifica. Nel catalogo dei layout usa “Applica al sito online” per renderla visibile sul sito pubblico.</p></div>
+            <div className="customer-site-tools">
               {Object.prototype.hasOwnProperty.call(data?.site || {}, 'openpage_config') ? <div className="profile-review-fields">{[
-                {href:'/builder/editor',title:'Apri editor del sito',description:'Modifica testi, immagini, sezioni e menu.'},
-                {href:'/builder/themes',title:'Scegli un tema',description:'Confronta le anteprime prima di decidere.'},
+                {href:'/builder/editor?site=current',title:'Apri editor del sito',description:'Modifica testi, immagini, sezioni e menu.'},
+                {href:'/builder/themes?site=current',title:'Scegli un tema',description:'Confronta le anteprime prima di decidere.'},
                 {href:'/builder/create',title:'Prepara una nuova proposta',description:'Rivedi una nuova bozza prima di pubblicarla.'},
                 {href:'/builder/versions',title:'Versioni salvate',description:'Confronta e ripristina una versione precedente.'},
                 {href:'/builder/profile',title:'Aggiorna dai tuoi dati',description:'Scegli i dati da trasferire alla bozza.'},
               ].map(item => <a key={item.href} className="card" href={item.href} style={{textDecoration:'none',color:'inherit'}}><h3>{item.title}</h3><p>{item.description}</p></a>)}</div> : <div className="customer-site-actions"><button type="button" className="btn btn-outline" onClick={() => { setTab('profile'); setProfileSubTab('identity'); }}>Nome, presentazione e immagini</button><button type="button" className="btn btn-outline" onClick={() => { setTab('profile'); setProfileSubTab('presence'); }}>Contatti e collegamenti</button></div>}
-            </details>
+            </div>
           </section>}
 
           {/* Profile Sub-Navigation */}
@@ -4062,7 +4066,7 @@ export function DashboardScreen({ token, user, onLogout, onUserUpdate }) {
           {tab === 'profile' && profileReviewMessage && <p role={profileReviewMessage.ok?'status':'alert'}>{profileReviewMessage.text}</p>}
           {tab === 'profile' && profileSubTab === 'social' && <div className="profile-review-stack"><ProfileReviewPanel social value={{...(profileUnderstanding || {}),...socialProfileDraft}} onChange={(key,value)=>setSocialProfileDraft(prev=>({...prev,[key]:value}))} onSave={()=>saveProfileReview('social')} busy={profileReviewBusy} /><section className="card"><h3>Origine delle informazioni</h3><p>{sources.length} canali collegati · {posts.length} contenuti acquisiti. {profileUnderstanding?.generated_at ? `Ultima analisi: ${profileUnderstanding.generated_at}` : 'Nessuna analisi disponibile: collega i social e avvia l’analisi.'}</p><button className="btn btn-outline" onClick={analyzeProfile} disabled={profileAnalyzing}>{profileAnalyzing?'Analisi in corso…':'Aggiorna l’analisi dai contenuti'}</button> <button className="btn btn-outline" onClick={()=>setTab('sources')}>Gestisci i social collegati</button></section>{profileQuestions.length>0 && <details className="card"><summary>Domande e chiarimenti dell’AI</summary>{profileQuestions.map(question=><div key={question.id}><label><strong>{question.question}</strong><textarea rows={3} value={answerDrafts[question.id] ?? question.answer ?? ''} onChange={event=>setAnswerDrafts(prev=>({...prev,[question.id]:event.target.value}))} /></label><button className="btn btn-outline" disabled={answeringId===question.id} onClick={()=>submitProfileAnswer(question.id)}>Salva risposta</button></div>)}</details>}</div>}
 
-          {tab !== 'overview' && <LiaContextEntry section={tab} onChoose={openLiaRequest} />}
+          {!['overview','sources','publicsite'].includes(tab) && <LiaContextEntry section={tab} onChoose={openLiaRequest} />}
           {tab === "idea" && <ArticleStudio state={articleStudioState} onStateChange={setArticleStudioState} token={token} onOpenEditor={openNewArticle} onWrite={() => openNewArticle()} />}
 
           {(tab === "overview" ||
@@ -4071,6 +4075,7 @@ export function DashboardScreen({ token, user, onLogout, onUserUpdate }) {
               style={{ display: "flex", flexDirection: "column", gap: "2rem" }}
             >
               {tab === 'overview' && <LiaWorkspace token={token} user={user} state={liaWorkspaceState?.ownerId === String(user.id) ? liaWorkspaceState : null} onStateChange={setLiaWorkspaceState} data={data} site={site} sources={sources} posts={posts} loading={homeLoading} error={homeError} knowledge={knowledge} onRefresh={loadData} onPostEdit={post => openPostEditor(post)} onWrite={title => openNewArticle({ title: title || '' })} onAcquire={() => isBasePlan ? acquireBaseContent(false) : scanSources()} onNavigate={id => { selectNavigation({ id: id === 'reachability' ? 'profile' : id }); if (id === 'reachability') setProfileSubTab('presence'); if (id === 'profile') setProfileSubTab('who'); }} />}
+              {tab === 'overview' && <details className="lia-results-summary"><summary>Visibilità e riepilogo del progetto</summary><VisibilityPulse user={user} data={data} loading={homeLoading} error={homeError} onNavigate={id => { if (id === 'profile') setProfileSubTab('presence'); setTab(id); }} onLia={input => { openLiaRequest(input); requestAnimationFrame(() => document.getElementById('lia-workspace-input')?.focus()); }} /></details>}
 
               {tab === 'profile' && profileSubTab === 'who' && (
                 <div className="profile-review-stack">
@@ -4812,525 +4817,10 @@ export function DashboardScreen({ token, user, onLogout, onUserUpdate }) {
             </div>
           )}
 
-          {/* Tab: I miei canali (UNIFICATO) */}
-          {tab === "sources" &&
-            (() => {
-              const allChannels = [];
-              sources.forEach((s) => {
-                allChannels.push({
-                  key: "src_" + s.id,
-                  type: "url",
-                  platform: s.platform,
-                  rawPlatform: s.platform,
-                  sourceId: s.id,
-                  url: s.url,
-                  label: s.label,
-                  since_date: s.since_date,
-                  auto_publish: s.auto_publish,
-                  auto_sync: s.auto_sync,
-                  max_posts: s.max_posts,
-                  content_count: Number(s.content_count || 0),
-                  published_count: Number(s.published_count || 0),
-                  draft_count: Number(s.draft_count || 0),
-                  processing_count: Number(s.processing_count || 0),
-                  failed_count: Number(s.failed_count || 0),
-                  last_content_at: s.last_content_at || null,
-                  topic_summary: s.topic_summary,
-                  last_scan_note: s.last_scan_note || "",
-                  last_scan_at: s.last_scan_at || null,
-                });
-              });
+          {tab === "sources" && <ChannelsWorkspace token={token} sources={sources} isBasePlan={isBasePlan} removeChannel={removeChannel} savePlatformSource={savePlatformSource} syncAllChannels={syncAllChannels} scanning={scanning} syncing={syncing}
+            add={{url:addUrl,label:addLabel,setUrl:value=>{setAddUrl(value);setAddMsg(null)},setLabel:setAddLabel,submit:handleAddChannel,loading:addLoading,message:addMsg}}
+            singleImport={{url:linkUrl,setUrl:setLinkUrl,submit:doImport,loading:importing,message:importMsg}} scanMsg={scanMsg} scanProgress={scanProgress} />}
 
-              const detectedPlatform = detectPlatformFromUrl(addUrl);
-              const trackedPlatforms = new Set(
-                allChannels.map((channel) => channel.platform),
-              );
-              const acquiredPosts = posts.filter((post) =>
-                trackedPlatforms.has(post.platform),
-              );
-              const newestChannelDate =
-                allChannels
-                  .map((channel) => channel.last_content_at)
-                  .filter(Boolean)
-                  .sort()
-                  .reverse()[0] || null;
-
-              return (
-                <div className="channels-workspace">
-                  <section className="channels-hero">
-                    <div>
-                      <span>Acquisizione contenuti</span>
-                      <h2>
-                        {allChannels.length
-                          ? `${allChannels.length} canali sotto controllo`
-                          : "Collega il primo canale"}
-                      </h2>
-                      <p>
-                        Qui vedi subito quanto materiale è stato acquisito e
-                        quando è arrivato l'ultimo contenuto.
-                      </p>
-                    </div>
-                    <div className="channels-hero-metrics">
-                      <div>
-                        <strong>{acquiredPosts.length}</strong>
-                        <span>contenuti acquisiti</span>
-                      </div>
-                      <div>
-                        <strong>
-                          {newestChannelDate
-                            ? new Date(newestChannelDate).toLocaleDateString(
-                                "it-IT",
-                              )
-                            : "—"}
-                        </strong>
-                        <span>ultimo contenuto</span>
-                      </div>
-                    </div>
-                  </section>
-
-                  <WordPressConnections token={token} />
-
-                  {/* Form Aggiungi Canale */}
-                  <div
-                    className="card channels-connect"
-                    style={{
-                      padding: "24px",
-                      border: "2px solid var(--border)",
-                      background: "var(--surface)",
-                      borderRadius: "var(--radius-lg)",
-                    }}
-                  >
-                    <h2
-                      style={{
-                        marginBottom: "0.75rem",
-                        fontSize: "24px",
-                        fontWeight: 800,
-                      }}
-                    >
-                      Collega un nuovo social
-                    </h2>
-                    <p
-                      style={{
-                        fontSize: "16px",
-                        color: "var(--text-muted)",
-                        marginBottom: "1.5rem",
-                        lineHeight: 1.5,
-                      }}
-                    >
-                      Incolla l'URL pubblico di un sito, profilo, canale o
-                      singolo post. I contenuti verranno acquisiti
-                      automaticamente.
-                    </p>
-                    <form
-                      onSubmit={handleAddChannel}
-                      style={{
-                        display: "flex",
-                        flexDirection: "column",
-                        gap: "16px",
-                      }}
-                    >
-                      <div style={{ position: "relative" }}>
-                        <input
-                          className="channel-url-input"
-                          type="url"
-                          aria-label="URL pubblico del canale"
-                          placeholder="Es: https://www.instagram.com/iltuonome/"
-                          value={addUrl}
-                          onChange={(e) => {
-                            setAddUrl(e.target.value);
-                            setAddMsg(null);
-                          }}
-                          style={{
-                            paddingLeft: detectedPlatform ? "52px" : "24px",
-                            transition: "padding 0.2s",
-                            paddingRight: "24px",
-                            paddingTop: "16px",
-                            paddingBottom: "16px",
-                            fontSize: "18px",
-                            width: "100%",
-                            borderRadius: "12px",
-                            border: "2px solid var(--border-strong)",
-                          }}
-                        />
-                        {detectedPlatform && (
-                          <span
-                            style={{
-                              position: "absolute",
-                              left: "16px",
-                              top: "50%",
-                              transform: "translateY(-50%)",
-                              pointerEvents: "none",
-                            }}
-                          >
-                            <img
-                              src={SOCIAL[detectedPlatform]?.icon || ""}
-                              alt=""
-                              style={{ width: 24, height: 24 }}
-                            />
-                          </span>
-                        )}
-                      </div>
-                      {detectedPlatform && (
-                        <div
-                          style={{
-                            fontSize: "14px",
-                            color: "var(--text-muted)",
-                            padding: "10px 14px",
-                            background: "var(--purple-light)",
-                            borderRadius: "var(--radius-sm)",
-                            fontWeight: 600,
-                          }}
-                        >
-                          ✓ {SOCIAL[detectedPlatform]?.label || "Fonte"}{" "}
-                          riconosciuto
-                        </div>
-                      )}
-                      <input
-                        type="text"
-                        placeholder="Etichetta opzionale (es. Profilo Personale)"
-                        aria-label="Etichetta del canale (opzionale)"
-                        value={addLabel}
-                        onChange={(e) => setAddLabel(e.target.value)}
-                        style={{
-                          padding: "16px 24px",
-                          fontSize: "16px",
-                          width: "100%",
-                          borderRadius: "12px",
-                          border: "1px solid var(--border-strong)",
-                        }}
-                      />
-                      <div
-                        style={{
-                          display: "flex",
-                          gap: "12px",
-                          alignItems: "center",
-                        }}
-                      >
-                        <button
-                          type="submit"
-                          disabled={addLoading || !addUrl.trim()}
-                          className="btn btn-primary"
-                          style={{
-                            padding: "12px 24px",
-                            fontSize: "16px",
-                            fontWeight: 800,
-                          }}
-                        >
-                          {addLoading
-                            ? "Aggiunta in corso…"
-                            : "Aggiungi canale"}
-                        </button>
-                        {addMsg && (
-                          <span
-                            style={{
-                              fontSize: "14px",
-                              fontWeight: 600,
-                              color: addMsg.ok ? "var(--teal)" : "var(--red)",
-                              background: addMsg.ok
-                                ? "var(--teal-light)"
-                                : "var(--red-light)",
-                              padding: "10px 16px",
-                              borderRadius: "var(--radius)",
-                            }}
-                          >
-                            {addMsg.text}
-                          </span>
-                        )}
-                      </div>
-                    </form>
-                  </div>
-
-                  {/* Lista canali attivi */}
-                  <div className="card">
-                    <div
-                      style={{
-                        display: "flex",
-                        justifyContent: "space-between",
-                        alignItems: "center",
-                        marginBottom: "1rem",
-                      }}
-                    >
-                      <h2 style={{ margin: 0, fontSize: "18px" }}>
-                        I tuoi social collegati ({allChannels.length})
-                      </h2>
-                      {allChannels.length > 0 && (
-                        <div
-                          style={{
-                            display: "flex",
-                            gap: "10px",
-                            flexWrap: "wrap",
-                          }}
-                        >
-                          <button
-                            onClick={syncAllChannels}
-                            disabled={scanning}
-                            className="btn btn-primary"
-                            style={{ fontSize: "13px", padding: "8px 18px" }}
-                          >
-                            {scanning
-                              ? "⟳ Sincronizzazione..."
-                              : "🔄 Sincronizza tutti"}
-                          </button>
-                        </div>
-                      )}
-                    </div>
-
-                    {allChannels.length === 0 ? (
-                      <div
-                        style={{
-                          textAlign: "center",
-                          padding: "3rem 1rem",
-                          color: "var(--text-muted)",
-                        }}
-                      >
-                        <div
-                          style={{
-                            fontSize: "48px",
-                            marginBottom: "1rem",
-                            opacity: 0.4,
-                          }}
-                        >
-                          📭
-                        </div>
-                        <div
-                          style={{ fontWeight: 600, marginBottom: "0.5rem" }}
-                        >
-                          Nessun canale aggiunto
-                        </div>
-                        <div style={{ fontSize: "13px" }}>
-                          Aggiungi l'URL pubblico di un social o del sito web
-                          del cliente.
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="linked-channels-grid">
-                        {allChannels.map(channel => <LinkedChannelCard key={channel.key} channel={channel} isBasePlan={isBasePlan} removeChannel={removeChannel} savePlatformSource={savePlatformSource} onSync={id => syncAllChannels(Number(id))} syncing={scanning || syncing} />)}
-                      </div>
-                    )}
-
-                    {scanMsg && (
-                      <div
-                        style={{
-                          marginTop: "10px",
-                          padding: "10px 14px",
-                          borderRadius: "var(--radius-sm)",
-                          fontSize: "13px",
-                          background: scanMsg.ok
-                            ? "var(--teal-light)"
-                            : "var(--red-light)",
-                          color: scanMsg.ok ? "#0F6E56" : "var(--red)",
-                        }}
-                      >
-                        {scanMsg.loading && (
-                          <span style={{ marginRight: "8px" }}>⟳</span>
-                        )}
-                        {scanMsg.text}
-                      </div>
-                    )}
-                    {scanProgress.length > 0 && (
-                      <div
-                        style={{
-                          marginTop: "10px",
-                          display: "flex",
-                          flexDirection: "column",
-                          gap: "6px",
-                        }}
-                      >
-                        {scanProgress.map((s) => (
-                          <div
-                            key={s.id}
-                            style={{
-                              display: "flex",
-                              justifyContent: "space-between",
-                              fontSize: "12px",
-                              padding: "6px 10px",
-                              background: "var(--surface)",
-                              borderRadius: "4px",
-                            }}
-                          >
-                            <span style={{ fontWeight: 600 }}>
-                              {s.label || s.platform}
-                            </span>
-                            <span
-                              style={{
-                                color:
-                                  s.status === "done"
-                                    ? "var(--teal)"
-                                    : s.status === "error"
-                                      ? "var(--red)"
-                                      : "var(--text-muted)",
-                              }}
-                            >
-                              {s.status === "pending" && "⏳ In coda"}
-                              {s.status === "scanning" &&
-                                "🔍 Lettura in corso..."}
-                              {s.status === "done" && `✅ ${s.details}`}
-                              {s.status === "error" && `❌ Errore`}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Profilazione AI */}
-                  {false && (
-                    <div className="card">
-                      <h2 style={{ marginBottom: "0.5rem", fontSize: "18px" }}>
-                        🧠 Profilo editoriale
-                      </h2>
-                      <p
-                        style={{
-                          fontSize: "13px",
-                          color: "var(--text-muted)",
-                          marginBottom: "1rem",
-                        }}
-                      >
-                        Spiega all'AI chi sei e come deve comportarsi. Più
-                        dettagli dai, migliori saranno gli articoli generati.
-                      </p>
-                      <div
-                        style={{
-                          display: "flex",
-                          flexDirection: "column",
-                          gap: "12px",
-                        }}
-                      >
-                        <div>
-                          <label className="label">Chi sei e cosa fai?</label>
-                          <textarea
-                            value={profileDraft}
-                            onChange={(e) => setProfileDraft(e.target.value)}
-                            placeholder="Es: Sono Marco, un artigiano che crea ceramiche e vende online..."
-                            style={{
-                              width: "100%",
-                              minHeight: "60px",
-                              resize: "vertical",
-                              padding: "10px 14px",
-                              border: "1px solid var(--border-strong)",
-                              borderRadius: "var(--radius-sm)",
-                              background: "var(--surface)",
-                              fontFamily: "inherit",
-                              fontSize: "14px",
-                            }}
-                          />
-                        </div>
-                        <div>
-                          <label className="label">
-                            Pubblico target e obiettivo
-                          </label>
-                          <textarea
-                            value={roleMissionDraft}
-                            onChange={(e) =>
-                              setRoleMissionDraft(e.target.value)
-                            }
-                            placeholder="Es: Mi rivolgo ad appassionati di design d'interni e voglio vendere i miei vasi..."
-                            style={{
-                              width: "100%",
-                              minHeight: "60px",
-                              resize: "vertical",
-                              padding: "10px 14px",
-                              border: "1px solid var(--border-strong)",
-                              borderRadius: "var(--radius-sm)",
-                              background: "var(--surface)",
-                              fontFamily: "inherit",
-                              fontSize: "14px",
-                            }}
-                          />
-                        </div>
-                        <div>
-                          <label className="label">
-                            Tono di voce e regole editoriali
-                          </label>
-                          <textarea
-                            value={strategyDraft}
-                            onChange={(e) => setStrategyDraft(e.target.value)}
-                            placeholder="Es: Usa un tono ironico. NON parlare mai di argomenti sensibili..."
-                            style={{
-                              width: "100%",
-                              minHeight: "60px",
-                              resize: "vertical",
-                              padding: "10px 14px",
-                              border: "1px solid var(--border-strong)",
-                              borderRadius: "var(--radius-sm)",
-                              background: "var(--surface)",
-                              fontFamily: "inherit",
-                              fontSize: "14px",
-                            }}
-                          />
-                        </div>
-                        <button
-                          className="btn btn-outline"
-                          onClick={saveProfile}
-                          disabled={savingProfile}
-                          style={{ alignSelf: "flex-start" }}
-                        >
-                          {savingProfile
-                            ? "Salvataggio..."
-                            : "💾 Salva profilo editoriale"}
-                        </button>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Importa da link diretto */}
-                  <details className="card">
-                    <summary>Aggiungi un contenuto da un link web</summary>
-                    <div className="channel-add-body">
-                      <h2 style={{ marginBottom: "0.5rem", fontSize: "18px" }}>
-                        Aggiungi un articolo da un link
-                      </h2>
-                      <p
-                        style={{
-                          fontSize: "13px",
-                          color: "var(--text-muted)",
-                          marginBottom: "12px",
-                        }}
-                      >
-                        Incolla il link di un articolo o di una pagina: l'AI lo
-                        legge e lo trasforma in un articolo per il tuo sito.
-                      </p>
-                      <form
-                        onSubmit={doImport}
-                        style={{ display: "flex", gap: "8px" }}
-                      >
-                        <input
-                          className="channel-url-input"
-                          type="url"
-                          placeholder="https://www.esempio.it/articolo"
-                          value={linkUrl}
-                          onChange={(e) => setLinkUrl(e.target.value)}
-                          style={{ flex: 1 }}
-                        />
-                        <button
-                          type="submit"
-                          className="btn btn-primary"
-                          disabled={importing}
-                        >
-                          {importing ? "⟳ In corso…" : "Aggiungi"}
-                        </button>
-                      </form>
-                      {importMsg && (
-                        <div
-                          style={{
-                            marginTop: "10px",
-                            padding: "8px 12px",
-                            borderRadius: "var(--radius-sm)",
-                            fontSize: "13px",
-                            background: importMsg.ok
-                              ? "var(--teal-light)"
-                              : "var(--red-light)",
-                            color: importMsg.ok ? "#0F6E56" : "var(--red)",
-                          }}
-                        >
-                          {importMsg.text}
-                        </div>
-                      )}
-                    </div>
-                  </details>
-                </div>
-              );
-            })()}
 
           {tab === "profile" && profileSubTab === "identity" && (
             <div style={{ display: "grid", gap: "1rem" }}>

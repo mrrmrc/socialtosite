@@ -8,7 +8,7 @@ export async function saveSiteVersion(config:SiteConfig,label:string) {
   const settings=useProjectsStore.getState().projects.find(p=>p.id===id)?.settings
   return siteRequest('openpage-version',{config,label,settings})
 }
-export async function authorizePresentation(config:SiteConfig,label:string,apply:()=>void) {
+export async function authorizePresentation(config:SiteConfig,label:string,apply:()=>void|Promise<void>) {
   await saveSiteVersion(config,label)
-  apply()
+  await apply()
 }

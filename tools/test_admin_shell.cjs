@@ -90,7 +90,7 @@ const forbiddenAdminRequests = ['site', 'admin-seo', 'current_plan', 'lia-profil
     await page.getByRole('navigation', { name: 'Sezioni della piattaforma' }).waitFor();
     await page.waitForTimeout(300);
     assert.equal(await page.locator('.admin-application-shell').count(), 0, 'Customer does not enter admin shell');
-    await page.getByRole('heading', { name: 'Cosa facciamo oggi?', exact: true }).waitFor();
+    await page.getByRole('heading', { name: 'La tua redazione, ogni giorno.', exact: true }).waitFor();
     const customerNav = page.getByRole('navigation', { name: 'Sezioni della piattaforma' });
     assert.deepEqual(await customerNav.locator('.tab-label').allTextContents(), ['LIA', 'Contenuti', 'Il sito', 'SEO e GEO', 'Canali'], 'Customer navigation is limited to three clear destinations');
     assert.equal(actions.includes('lia-profile-review'), false, 'Entering LIA does not start background AI reviews');
@@ -99,7 +99,7 @@ const forbiddenAdminRequests = ['site', 'admin-seo', 'current_plan', 'lia-profil
     assert.deepEqual(errors, [], 'Customer shell remains functional');
     await context.close();
     const baseCustomer = await openApp({ id: 3, name: 'Cliente Base', email: 'base@example.test', slug: 'cliente-base', plan: 'base', role: 'user' }, '/dashboard?tab=idea');
-    await baseCustomer.page.getByRole('heading', { name: 'Cosa facciamo oggi?', exact: true }).waitFor();
+    await baseCustomer.page.getByRole('heading', { name: 'La tua redazione, ogni giorno.', exact: true }).waitFor();
     assert.equal(new URL(baseCustomer.page.url()).searchParams.get('tab'), 'overview', 'Old IDEA bookmarks enter the guided LIA workspace');
     assert.equal(await baseCustomer.page.locator('.admin-application-shell').count(), 0, 'Base customer without sources enters LIA directly');
     assert.ok(baseCustomer.actions.includes('me') && baseCustomer.actions.includes('site'), 'LIA verifies identity and loads the current account');

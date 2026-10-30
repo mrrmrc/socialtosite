@@ -30,6 +30,13 @@ describe('Design changes preserve functionality', () => {
       expect(loaded.blocks.map(b=>b.variant)).toEqual(styled.blocks.map(b=>b.variant))
     }
   })
+  it('applies AI variants even when the proposal generates new block IDs', () => {
+    const generated: SiteConfig={name:'New proposal',theme:{fontSans:'Georgia'},blocks:[{id:'new-articles',type:'articles',variant:'list',props:{title:'Invented'}},{id:'new-content',type:'content',variant:'columns',props:{body:'Replacement'}}]}
+    const result=applyGeneratedPresentation(original,generated)
+    expect(result.blocks.map(block=>block.variant)).toEqual(['list','columns'])
+    expect(result.blocks.map(block=>block.id)).toEqual(original.blocks.map(block=>block.id))
+    expect(result.blocks.map(block=>block.props)).toEqual(original.blocks.map(block=>block.props))
+  })
   it('uses identical font weights and typography in preview and published pages', () => {
     expect(googleFontUrl(['Space Grotesk','Inter','Inter'])).toBe(googleFontUrl(['Inter','Space Grotesk']))
     expect(googleFontUrl(['Space Grotesk'])).toContain('Space+Grotesk:wght@300;400;500;600;700')

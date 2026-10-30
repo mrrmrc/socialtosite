@@ -56,7 +56,7 @@ function runTest(test) {
   }
   if (!ready) throw new Error('Vite not ready');
   console.log('[admin-browser] Vite ready; running administration tests.');
-  for (const test of ['test_admin_browser.cjs', 'test_control_room.cjs', 'test_admin_shell.cjs', 'test_lia_workspace.cjs', 'test_interface_refresh.cjs', 'test_channels_wordpress.cjs', 'test_social_media_browser.cjs']) {
+  for (const test of ['test_admin_browser.cjs', 'test_control_room.cjs', 'test_admin_shell.cjs', 'test_lia_workspace.cjs', 'test_lia_agenda_browser.cjs', 'test_interface_refresh.cjs', 'test_channels_wordpress.cjs', 'test_social_media_browser.cjs']) {
     await runTest(test);
   }
 })().catch(error => {

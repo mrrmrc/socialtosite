@@ -20,7 +20,7 @@ class DB {
         }
         return ['acquired' => 8, 'ready' => 7, 'published' => 5, 'pending' => 1, 'processing' => 0];
     }
-    public static function fetchAll(string $sql, array $parameters): array { self::$reads[] = [$sql, $parameters]; return [['title' => 'Titolo account ' . $parameters[0]]]; }
+    public static function fetchAll(string $sql, array $parameters): array { self::$reads[] = [$sql, $parameters]; if(str_contains($sql,'seo_search_details'))return [['query_text'=>'Formazione famiglie','impressions'=>40,'clicks'=>3,'latest_date'=>'2026-10-29']];if(str_contains($sql,'SELECT platform,label'))return [['platform'=>'instagram','label'=>'Profilo del titolare']];return [['title' => 'Titolo account ' . $parameters[0]]]; }
     public static function execute(string $sql, array $parameters): int { self::$writes++; throw new LogicException('Conversation cannot write'); }
 }
 class AI {
@@ -56,6 +56,8 @@ liaCheck($video['facts']['selected_content']['content']==='' && $videoReply['act
 $context = LiaAssistant::context(['name' => 'Titolare', 'secret' => 'private'], $loaded['site'], $loaded['facts']);
 liaCheck($context['counts']['processing'] === 0 && $context['visibility'] === ['available' => false], 'Known zero and unavailable results remain different');
 liaCheck(!str_contains(json_encode($context), 'never-share') && !str_contains(json_encode($context), 'private'), 'Context excludes credentials and arbitrary account fields');
+$specialist=LiaAssistant::context([],[],['channels'=>LiaAssistant::channelContext(42),'search_queries'=>LiaAssistant::searchContext(42)]);
+liaCheck($specialist['channels'][0]['platform']==='instagram' && $specialist['search_queries'][0]['query']==='Formazione famiglie' && $specialist['search_queries'][0]['impressions']===40, 'Social and SEO specialists receive owned channels and measured search queries');
 $correctedContext = LiaAssistant::context([], ['site_understanding' => ['declared_strategy' => ['activity_type' => 'Consulenza', 'primary_audience' => 'Piccole imprese', 'priority_services' => ['Da cancellare']], 'secret_token' => 'do-not-share'], 'site_understanding_corrections' => ['declared_strategy' => ['activity_type' => 'Solo formazione, non consulenza', 'priority_services' => []]]], []);
 liaCheck($correctedContext['owner_corrections']['declared_strategy']['activity_type'] === 'Solo formazione, non consulenza', 'Owner corrections accompany inferred profile data');
 liaCheck($correctedContext['profile']['declared_strategy']['activity_type'] === 'Solo formazione, non consulenza' && $correctedContext['profile']['declared_strategy']['primary_audience'] === 'Piccole imprese', 'Already collected understanding is available without asking the owner again');
@@ -85,6 +87,9 @@ liaCheck(strlen($profile['actions'][0]['changes']['title']) === 120 && $profile[
 liaCheck(array_keys($profile['actions'][0]['changes']) === ['title', 'bio', 'role_mission'] && $profile['actions'][0]['affects_public_site'] && $profile['actions'][0]['requires_confirmation'], 'Presentation changes whitelist only public introduction fields and require confirmation');
 $navigation = LiaAssistant::normalize('{"reply":"Puoi rivedere i contenuti.","actions":[{"type":"navigate","target":"site","label":"Elimina tutto","endpoint":"purge-all-posts"},{"type":"navigate","target":"site"}]}');
 liaCheck(count($navigation['actions']) === 1 && $navigation['actions'][0]['label'] === 'Rivedi i contenuti' && !isset($navigation['actions'][0]['endpoint']), 'Navigation is canonical, deduplicated and never an API call');
+$social=LiaAssistant::normalize(json_encode(['reply'=>'Ecco una proposta per Instagram.','actions'=>[['type'=>'social_draft','platform'=>'instagram','caption'=>'<p>Un messaggio concreto per il tuo pubblico.</p>','hashtags'=>['#formazione','#famiglie','<script>bad</script>'],'publish'=>true]]]));
+liaCheck($social['actions'][0]['caption']==='Un messaggio concreto per il tuo pubblico.' && $social['actions'][0]['hashtags']===['#formazione','#famiglie'] && !isset($social['actions'][0]['publish']) && $social['operations_executed']===[], 'Social manager returns usable caption and safe hashtags without publishing');
+liaRejects(fn()=>LiaAssistant::normalize('{"reply":"Post","actions":[{"type":"social_draft","platform":"unapproved","caption":"Testo"}]}'),'Unsupported social platform accepted');
 
 AI::$response = json_encode(['reply' => 'Prepariamo un articolo a partire da quello che sai già.', 'actions' => [['type' => 'prepare_article', 'brief' => ['subject' => 'Come scegliere una consulenza']]]]);
 $answer = LiaAssistant::reply(['name' => 'Titolare'], $loaded['site'], $loaded['facts'], $input);

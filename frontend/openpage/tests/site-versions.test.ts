@@ -19,3 +19,9 @@ it('does not overwrite the draft when its backup cannot be saved',async()=>{
  await expect(authorizePresentation({name:'Original',blocks:[]},'Before change',apply)).rejects.toThrow('Storage unavailable')
  expect(apply).not.toHaveBeenCalled()
 })
+it('waits for publication and reports its failure instead of pretending the layout was applied',async()=>{
+ request.mockResolvedValue({ok:true})
+ const apply=vi.fn(async()=>{throw new Error('Publication unavailable')})
+ await expect(authorizePresentation({name:'Original',blocks:[]},'Publish layout',apply)).rejects.toThrow('Publication unavailable')
+ expect(apply).toHaveBeenCalledOnce()
+})

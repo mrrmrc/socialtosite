@@ -14,6 +14,8 @@ import { siteRequest } from '../lib/social-site'
 import { validateSiteConfig } from '../lib/generate-site'
 import type { SiteConfig } from '../blocks/types'
 import { t } from '../lib/i18n'
+import { publishSite } from '../lib/publish-site'
+import { toast } from 'sonner'
 
 const categories = [{name:'All',icon:LayoutGrid},{name:'Personal',icon:BookOpen},{name:'Creative',icon:Camera},{name:'Editorial',icon:BookOpen},{name:'Business',icon:BriefcaseBusiness},{name:'Community',icon:HeartHandshake}]
 const categoryOf = (id:string,category?:string) => category || ({author:'Personal',portfolio:'Creative',magazine:'Editorial',business:'Business',community:'Community'}[id] || 'Personal')
@@ -26,6 +28,7 @@ export function Themes() {
     else previewDialog.current?.close()
   }, [expanded])
   const [approval,setApproval]=useState(false)
+  const [publishLayout,setPublishLayout]=useState(false)
   const [lia,setLia]=useState({goal:'',feel:'',focus:''})
   const config = useConfigStore(s => s.config)
   const [selected, setSelected] = useState(siteLayouts[0])
@@ -40,9 +43,16 @@ export function Themes() {
   const proposal = useMemo(() => custom || applySiteLayout(config, selected), [config, selected, custom])
   const html = useMemo(() => exportSiteToHTML(proposal), [proposal])
   const layouts = siteLayouts.filter(layout => (category==='All' || categoryOf(layout.id,layout.category)===category) && (t(layout.name)+' '+t(layout.description)).toLocaleLowerCase().includes(search.toLocaleLowerCase()))
-  function apply() {
-    useConfigStore.getState().applyPresentation(proposal)
+  async function apply() {
     const id = useEditorStore.getState().activeProjectId
+    if (publishLayout) {
+      if (!id) throw new Error('Apri prima il tuo sito dalla dashboard.')
+      const project = useProjectsStore.getState().projects.find(project => project.id === id)
+      const result = await publishSite({config:proposal,settings:project?.settings})
+      useProjectsStore.getState().setDeployInfo(id,result.liveUrl,result.deploymentId)
+      toast.success('Nuovo layout pubblicato sul tuo sito')
+    }
+    useConfigStore.getState().applyPresentation(proposal)
     if (id) useProjectsStore.getState().updateProjectConfig(id, proposal)
     navigate('/editor')
   }
@@ -77,8 +87,8 @@ export function Themes() {
           <button onClick={() => setExpanded(true)} className="flex items-center gap-2 rounded-lg border border-border-default bg-bg-1 px-3 py-2"><Maximize2 size={18} aria-hidden="true" />{t('Expand preview')}</button>
         </div>
         <div className="themes-preview-stage" data-device={device}><iframe title={t('Layout preview')} srcDoc={html} sandbox="allow-scripts" className="themes-preview-frame" /></div>
-        <div className="flex flex-wrap gap-3"><button disabled={busy} onClick={()=>setApproval(true)} className="flex items-center gap-2 bg-green text-black rounded-lg px-5 py-3 font-semibold"><Check size={18} aria-hidden="true" />{t('Apply to draft')}</button><Link to="/editor" className="flex items-center gap-2 px-3 py-3"><ArrowLeft size={18} aria-hidden="true" />{t('Back to editor')}</Link></div><p className="text-sm text-text-2">{t('You can undo this change in the editor.')}</p></div>
+        <div className="flex flex-wrap gap-3"><button disabled={busy} onClick={()=>{setPublishLayout(true);setApproval(true)}} className="flex items-center gap-2 bg-green text-black rounded-lg px-5 py-3 font-semibold"><Check size={18} aria-hidden="true" />Applica al sito online</button><button disabled={busy} onClick={()=>{setPublishLayout(false);setApproval(true)}} className="border border-border-default rounded-lg px-4 py-3">{t('Apply to draft')}</button><Link to="/editor" className="flex items-center gap-2 px-3 py-3"><ArrowLeft size={18} aria-hidden="true" />{t('Back to editor')}</Link></div><p className="text-sm text-text-2">La sola bozza non cambia il sito pubblico. Scegli Applica al sito online per pubblicare questo layout.</p></div>
     </section>
     <section className="rounded-xl border border-border-default bg-bg-2 p-5 space-y-4"><h2 className="flex items-center gap-2 text-xl font-semibold"><Sparkles size={22} aria-hidden="true" />{t('Design a custom layout')}</h2><p>{t('Describe your visual idea. We keep your existing content and create a proposal to preview before applying it.')}</p><DesignBrief value={brief} onChange={setBrief} disabled={busy} /><button disabled={busy} onClick={()=>customize()} className="bg-green text-black rounded-lg px-5 py-3 font-semibold flex items-center gap-2">{busy?<Loader2 className="animate-spin" size={18} aria-hidden="true" />:<Sparkles size={18} aria-hidden="true" />}{busy?t('Creating proposal…'):t('Preview custom proposal')}</button>{error && <p role="alert" className="text-status-red">{error}</p>}{feedback.length>0 && <ul className="text-sm space-y-2" aria-label={t('Reference results')}>{feedback.map((ref,index)=><li key={index}>{ref.url} — {ref.status==='read'?t('HTML reference read'):ref.message}</li>)}</ul>}{custom && <p role="status">{t('Custom preview ready. Review it above and apply it when you are satisfied.')}</p>}</section>
-  </div><dialog ref={previewDialog} onClose={() => setExpanded(false)} className="themes-preview-dialog" aria-labelledby="expanded-preview-title"><div className="flex items-center justify-between gap-3 p-4"><h2 id="expanded-preview-title" className="text-xl font-semibold">{custom?t('Custom proposal'):t(selected.name)}</h2><button autoFocus onClick={() => setExpanded(false)} className="flex items-center gap-2 rounded-lg border border-border-default px-3 py-2"><X size={18} aria-hidden="true" />{t('Close preview')}</button></div>{expanded && <div className="themes-preview-stage" data-device={device}><iframe title={t('Layout preview')} srcDoc={html} sandbox="allow-scripts" className="themes-preview-frame" /></div>}</dialog>{approval&&<PresentationApproval proposal={proposal} label={custom?t("Custom proposal"):t(selected.name)} onApprove={apply} onClose={()=>setApproval(false)}/>}</div>
+  </div><dialog ref={previewDialog} onClose={() => setExpanded(false)} className="themes-preview-dialog" aria-labelledby="expanded-preview-title"><div className="flex items-center justify-between gap-3 p-4"><h2 id="expanded-preview-title" className="text-xl font-semibold">{custom?t('Custom proposal'):t(selected.name)}</h2><button autoFocus onClick={() => setExpanded(false)} className="flex items-center gap-2 rounded-lg border border-border-default px-3 py-2"><X size={18} aria-hidden="true" />{t('Close preview')}</button></div>{expanded && <div className="themes-preview-stage" data-device={device}><iframe title={t('Layout preview')} srcDoc={html} sandbox="allow-scripts" className="themes-preview-frame" /></div>}</dialog>{approval&&<PresentationApproval proposal={proposal} label={custom?t("Custom proposal"):t(selected.name)} publish={publishLayout} onApprove={apply} onClose={()=>setApproval(false)}/>}</div>
 }

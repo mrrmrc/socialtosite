@@ -55,7 +55,7 @@ const base = process.argv[2] || 'http://45.138.202.132:8088';
         assert.deepEqual(actions.filter(action => !String(action).startsWith('admin-') && action !== 'me'), [], 'Published admin performs no customer API requests');
       } else {
         await page.getByRole('navigation', { name: 'Sezioni della piattaforma' }).waitFor();
-        await page.getByRole('heading', { name: 'Cosa facciamo oggi?', exact: true }).waitFor();
+        await page.getByRole('heading', { name: 'La tua redazione, ogni giorno.', exact: true }).waitFor();
         await page.waitForTimeout(400);
         assert.equal(await page.locator('.admin-application-shell').count(), 0, 'Published customer stays outside admin shell');
         assert.equal(actions.some(action => String(action).startsWith('admin-')), false, 'Published customer does not call admin APIs');
