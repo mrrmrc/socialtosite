@@ -10,6 +10,8 @@ const fs = require('node:fs');
     page.setDefaultTimeout(15000);
     const errors = [], mutations = [];
     let connected = false, settings = {}, syncPass = 0;
+    let firstStatus = true, releaseInitialStatus;
+    const initialStatus = new Promise(resolve => { releaseInitialStatus = resolve; });
     page.on('pageerror', e => errors.push(e.message));
     const fixture = {
       site: { title: 'Studio Aurora', profile_summary: 'Formazione' },
@@ -33,7 +35,10 @@ const fs = require('node:fs');
       if (action === 'social-source-upsert') {fixture.sources=fixture.sources.map(source=>source.url===payload.url?{...source,...payload}:source);data={ok:true};}
       if (action === 'sync') data = { results: [{ platform: 'website', source_id: payload.source_id, new: 0, imported_ids: [], retryable_ids: [] }] };
       if (action === 'wordpress-library') data = { posts: [{ id: new URL(req.url()).searchParams.get('cursor') === '21' ? 22 : 21, title: 'Articolo archivio completo', platform: 'facebook', published: 0 }], next_cursor: 21, has_more: new URL(req.url()).searchParams.get('cursor') !== '21' };
-      if (action === 'wordpress-status') data = { connected, endpoint: connected ? 'https://wordpress.example' : '', topics: ['Viaggi'], filters: settings.filters || { scope: 'all' }, archive: { total: 45, published: 30, drafts: 15, platforms: ['instagram','manual'] } };
+      if (action === 'wordpress-status') {
+        if (firstStatus) { firstStatus = false; await initialStatus; }
+        data = { connected, endpoint: connected ? 'https://wordpress.example' : '', topics: ['Viaggi'], filters: settings.filters || { scope: 'all' }, archive: { total: 45, published: 30, drafts: 15, platforms: ['instagram','manual'] } };
+      }
       if (action === 'wordpress-connect') { connected = true; data = { ok: true }; }
       if (action === 'wordpress-prepare') { if (!settings.post_status) settings = { post_status: 'draft', enabled: false, category_id: 0, mappings: {}, filters: { scope: 'all', platforms: [], since_date: '', until_date: '', batch_size: 20 } }; data = { ready: true, archive_available: true, media_available: true, categories: [{ id: 7, name: 'Esperienze' }], tags: [{ id: 9, name: 'Famiglie' }], settings }; }
       if (action === 'wordpress-taxonomies') data = { archive_available: true, categories: [{ id: 7, name: 'Esperienze' }], tags: [{ id: 9, name: 'Famiglie' }], settings };
@@ -73,8 +78,16 @@ const fs = require('node:fs');
     await page.getByRole('tab', {name:/Dove pubblicare/}).click();
     await page.getByLabel('Indirizzo WordPress', { exact: true }).fill('https://wordpress.example');
     await page.getByLabel('Codice generato dal plugin', { exact: true }).fill('a'.repeat(64));
+    const statusReady = page.waitForResponse(response => new URL(response.url()).searchParams.get('action') === 'wordpress-status');
+    releaseInitialStatus();
+    await statusReady;
+    assert.equal(await page.getByLabel('Indirizzo WordPress', { exact: true }).inputValue(),'https://wordpress.example','A late status response preserves the address already entered by the owner');
     await page.getByRole('button', { name: 'Verifica e collega', exact: true }).click();
-    await page.getByText(/Collegamento completo: l.archivio/).waitFor();
+    await page.getByText(/Collegamento completo: l.archivio/).waitFor().catch(async error => {
+      await page.screenshot({path:'artifacts/channels-connection-failure.png',fullPage:true});
+      console.error(JSON.stringify({errors,actions:mutations.map(item=>item.action),endpoint:await page.getByLabel('Indirizzo WordPress',{exact:true}).inputValue().catch(()=>null),alerts:await page.getByRole('alert').allTextContents()}));
+      throw error;
+    });
     assert.ok(mutations.some(m => m.action === 'wordpress-prepare'), 'archive bootstrap happens automatically after connecting');
     assert.equal(await page.getByRole('button', { name: 'Sincronizza WordPress', exact: true }).isEnabled(), true, 'first connection needs no second settings save');
     assert.equal(await page.getByLabel(/Archivio da sincronizzare/).inputValue(), 'all');

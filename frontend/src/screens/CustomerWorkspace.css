@@ -9,3 +9,32 @@
   .customer-conversation-shell .backend-tabs .backend-tab{min-width:0;min-height:50px;justify-content:center;padding:10px 6px}
   .customer-conversation-shell .backend-tabs .backend-tab .tab-icon{display:none}
 }
+
+/* Persistent left navigation keeps the guided workspace free of tool menus. */
+.dashboard-shell.customer-sidebar-layout{display:grid;grid-template-columns:250px minmax(0,1fr);grid-template-rows:auto 1fr;align-items:start}
+.customer-sidebar-layout>.backend-header{grid-column:1/-1}
+.customer-sidebar-layout>.customer-left-menu{grid-column:1;grid-row:2;position:sticky;top:90px;align-self:start;min-width:0;max-height:calc(100dvh - 100px);overflow-y:auto;padding:16px 12px;background:var(--surface);border-right:1px solid var(--border)}
+.customer-sidebar-layout>.dashboard-main{grid-column:2;grid-row:2;min-width:0;width:100%;margin:0;padding:0}
+.customer-sidebar-layout .dashboard-main>.dashboard-content{width:100%;max-width:1200px;padding:22px 28px 32px}
+.customer-sidebar-layout .customer-left-menu .backend-tabs{display:flex;flex-direction:column;align-items:stretch;position:static;gap:6px;padding:0;border:0;box-shadow:none;overflow:visible;background:none}
+.customer-sidebar-layout .customer-left-menu .backend-tab{width:100%;min-width:0;min-height:54px;justify-content:flex-start;text-align:left;padding:12px 14px;border-radius:10px}
+.customer-sidebar-layout .customer-left-menu .tab-icon{display:flex}
+.customer-sidebar-layout .customer-left-menu .tab-label{font-size:18px}
+.customer-sidebar-layout .customer-lia-tools{display:grid;gap:6px;margin-top:18px;padding-top:16px;border-top:1px solid var(--border)}
+.customer-sidebar-layout .customer-lia-tools h2{font-size:16px;margin:0 12px 6px;color:var(--text-muted)}
+.customer-sidebar-layout .customer-lia-tools button{display:flex;align-items:center;gap:12px;width:100%;min-width:0;min-height:56px;padding:12px 14px;text-align:left;white-space:normal;border:1px solid transparent;border-radius:10px;background:transparent;color:var(--text);font:inherit;font-size:17px;line-height:1.4;cursor:pointer}
+.customer-sidebar-layout .customer-lia-tools button svg{flex-shrink:0}
+.customer-sidebar-layout .customer-lia-tools button:hover,.customer-sidebar-layout .customer-lia-tools button.is-active{background:var(--primary-light);color:var(--primary);border-color:var(--border)}
+.customer-sidebar-layout .customer-left-menu button:focus-visible{outline:3px solid var(--primary);outline-offset:2px}
+.customer-sidebar-layout .customer-menu-toggle{display:none}
+@media(max-width:900px){
+  .dashboard-shell.customer-sidebar-layout{grid-template-columns:minmax(0,1fr);grid-template-rows:auto auto 1fr}
+  .customer-sidebar-layout>.customer-left-menu{grid-column:1;grid-row:2;position:static;max-height:none;padding:8px 14px;border-right:0;border-bottom:1px solid var(--border)}
+  .customer-sidebar-layout>.dashboard-main{grid-column:1;grid-row:3}
+  .customer-sidebar-layout .dashboard-main>.dashboard-content{padding:18px 14px 28px}
+  .customer-sidebar-layout .customer-menu-toggle{display:flex;align-items:center;justify-content:space-between;width:100%;min-height:50px;padding:10px 14px;border:1px solid var(--border);border-radius:10px;background:var(--surface);color:var(--text);font:inherit;font-size:18px;font-weight:700;cursor:pointer}
+  .customer-sidebar-layout .customer-menu-items{display:none}
+  .customer-sidebar-layout .customer-menu-items.is-open{display:block;padding-top:10px}
+  .customer-sidebar-layout .customer-left-menu .backend-tabs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}
+  .customer-sidebar-layout .customer-lia-tools{grid-template-columns:minmax(0,1fr);margin-top:10px;padding-top:10px}
+}

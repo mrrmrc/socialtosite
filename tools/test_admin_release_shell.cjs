@@ -62,6 +62,7 @@ const base = process.argv[2] || 'http://45.138.202.132:8088';
         await page.locator('.lw-briefing-report').waitFor();
         assert.equal(actions.filter(action => action === 'lia-assistant').length, 1, 'Published entry automatically prepares one briefing');
         assert.equal(actions.includes('lia-profile-review'), false, 'Published entry does not launch a separate profile review');
+        await page.locator('.lw-conversation-entry > summary').click();
         await page.locator('.lw-start-choices > summary').click();
         await page.getByRole('button', { name: 'Non so da dove iniziare', exact: true }).click();
         await page.getByRole('textbox', { name: 'Scrivi a LIA', exact: true }).fill('Aiutami a farmi conoscere dalle famiglie.');

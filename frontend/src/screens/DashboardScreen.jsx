@@ -914,6 +914,7 @@ function GuidedStrategy({
 
 export function DashboardScreen({ token, user, onLogout, onUserUpdate }) {
   const [tab, setTab] = useDashboardNavigation();
+  const [liaPanel, setLiaPanel] = useState('');
   const [liaWorkspaceState, setLiaWorkspaceState] = useState(() => ({ version: 1, ownerId: String(user.id), messages: [], intent: 'general', input: '' }));
   const liaWorkspaceOwner = useRef({ token, userId: user.id });
   useEffect(() => {
@@ -922,6 +923,7 @@ export function DashboardScreen({ token, user, onLogout, onUserUpdate }) {
     setLiaWorkspaceState({ version: 1, ownerId: String(user.id), messages: [], intent: 'general', input: '' });
   }, [token, user.id]);
   function openLiaRequest(input) {
+    setLiaPanel('');
     setLiaWorkspaceState(current => ({ ...current, input, intent: 'general', pendingRequest: { id: Date.now(), input } }));
     setTab('overview');
   }
@@ -3752,7 +3754,7 @@ export function DashboardScreen({ token, user, onLogout, onUserUpdate }) {
   }
   return (
     <div
-      className="dashboard-shell customer-conversation-shell"
+      className="dashboard-shell customer-conversation-shell customer-sidebar-layout"
     >
       {acquisitionModal && (
         <div
@@ -3860,6 +3862,9 @@ export function DashboardScreen({ token, user, onLogout, onUserUpdate }) {
         </div>
       </header>
 
+      <aside className="customer-left-menu" aria-label="Menu del tuo spazio">
+      <button type="button" className="customer-menu-toggle" aria-expanded={mobileMenuOpen} aria-controls="customer-menu-items" onClick={() => setMobileMenuOpen(open => !open)}>Menu e strumenti <Icon name="chevron"/></button>
+      <div id="customer-menu-items" className={`customer-menu-items${mobileMenuOpen ? ' is-open' : ''}`}>
       <nav
         className="backend-tabs"
         aria-label="Sezioni della piattaforma"
@@ -3871,15 +3876,22 @@ export function DashboardScreen({ token, user, onLogout, onUserUpdate }) {
           .map((item) => (
             <button
               key={`${item.id}-${item.section || ""}`}
-              className={`backend-tab ${isNavigationActive(item) ? "is-active" : ""}`}
-              aria-current={isNavigationActive(item) ? 'page' : undefined}
-              onClick={() => selectNavigation(item)}
+              className={`backend-tab ${isNavigationActive(item) && (item.id !== 'overview' || !liaPanel) ? "is-active" : ""}`}
+              aria-current={isNavigationActive(item) && (item.id !== 'overview' || !liaPanel) ? 'page' : undefined}
+              onClick={() => { setLiaPanel(''); selectNavigation(item); }}
             >
               <span className="tab-icon">{item.icon}</span>
               <span className="tab-label">{item.label}</span>
             </button>
           ))}
       </nav>
+      {tab === 'overview' && <nav className="customer-lia-tools" aria-label="Strumenti di LIA"><h2>Con LIA</h2>{[
+        ['plan','target','Piano delle attività'],
+        ['content','pen','Migliora un contenuto'],
+        ['statistics','chart','Le mie statistiche'],
+      ].map(([panel,icon,label]) => <button type="button" key={panel} aria-current={liaPanel === panel ? 'page' : undefined} className={liaPanel === panel ? 'is-active' : ''} onClick={() => { setLiaPanel(panel); setMobileMenuOpen(false); window.scrollTo({top:0,behavior:'auto'}); }}><Icon name={icon}/><span>{label}</span></button>)}</nav>}
+      </div>
+      </aside>
 
       <div
         className="dashboard-main"
@@ -4074,8 +4086,7 @@ export function DashboardScreen({ token, user, onLogout, onUserUpdate }) {
             <div
               style={{ display: "flex", flexDirection: "column", gap: "2rem" }}
             >
-              {tab === 'overview' && <LiaWorkspace token={token} user={user} state={liaWorkspaceState?.ownerId === String(user.id) ? liaWorkspaceState : null} onStateChange={setLiaWorkspaceState} data={data} site={site} sources={sources} posts={posts} loading={homeLoading} error={homeError} knowledge={knowledge} onRefresh={loadData} onPostEdit={post => openPostEditor(post)} onWrite={title => openNewArticle({ title: title || '' })} onAcquire={() => isBasePlan ? acquireBaseContent(false) : scanSources()} onNavigate={id => { selectNavigation({ id: id === 'reachability' ? 'profile' : id }); if (id === 'reachability') setProfileSubTab('presence'); if (id === 'profile') setProfileSubTab('who'); }} />}
-              {tab === 'overview' && <details className="lia-results-summary"><summary>Le statistiche del mio sito</summary><VisibilityPulse user={user} data={data} loading={homeLoading} error={homeError} onNavigate={id => { if (id === 'profile') setProfileSubTab('presence'); setTab(id); }} onLia={input => { openLiaRequest(input); requestAnimationFrame(() => document.getElementById('lia-workspace-input')?.focus()); }} /></details>}
+              {tab === 'overview' && <LiaWorkspace token={token} user={user} state={liaWorkspaceState?.ownerId === String(user.id) ? liaWorkspaceState : null} onStateChange={setLiaWorkspaceState} data={data} site={site} sources={sources} posts={posts} loading={homeLoading} error={homeError} knowledge={knowledge} panel={liaPanel} onPanelChange={setLiaPanel} statistics={<VisibilityPulse user={user} data={data} loading={homeLoading} error={homeError} onNavigate={id => { if (id === 'profile') setProfileSubTab('presence'); setTab(id); }} onLia={openLiaRequest}/>} onRefresh={loadData} onPostEdit={post => openPostEditor(post)} onWrite={title => openNewArticle({ title: title || '' })} onAcquire={() => isBasePlan ? acquireBaseContent(false) : scanSources()} onNavigate={id => { selectNavigation({ id: id === 'reachability' ? 'profile' : id }); if (id === 'reachability') setProfileSubTab('presence'); if (id === 'profile') setProfileSubTab('who'); }} />}
 
               {tab === 'profile' && profileSubTab === 'who' && (
                 <div className="profile-review-stack">

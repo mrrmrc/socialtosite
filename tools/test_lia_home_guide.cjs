@@ -51,20 +51,45 @@ const fs = require('node:fs');
         fail=false;await page.getByRole('button',{name:'Riprova a consigliarmi',exact:true}).click();
       }
       await page.getByRole('heading',{name:step.title,exact:true}).waitFor();
-      assert.equal(await page.locator('.lw-more-tools').getAttribute('open'),null,'Roles and planning are not initial choices');
-      assert.equal(await page.locator('.lia-results-summary').getAttribute('open'),null,'Statistics are secondary');
+      assert.equal(await page.locator('.lw-more-tools').isVisible(),false,'Planning opens from the left menu instead of extending the home');
+      assert.equal(await page.locator('.lw-statistics-panel').isVisible(),false,'Statistics open in their own panel');
       assert.equal(await page.getByRole('button',{name:/Caporedattrice/}).count(),0,'Technical roles are absent from the accessible entry screen');
       const start=page.getByRole('button',{name:'Facciamolo insieme',exact:true});
+      const menu=page.getByRole('complementary',{name:'Menu del tuo spazio'});
+      const menuBounds=await menu.boundingBox(),workBounds=await page.locator('.lia-guided-home').boundingBox();
+      assert.ok(menuBounds.x+menuBounds.width<=workBounds.x,'Menu is in the left column, with the guided work to its right');
+      for(const [label,title] of [['Piano delle attività','Il piano delle attività'],['Migliora un contenuto','Miglioriamo un contenuto'],['Le mie statistiche','Le statistiche del tuo sito']]) {
+        await page.getByRole('button',{name:label,exact:true}).click();
+        await page.getByRole('heading',{name:title,exact:true}).waitFor();
+        assert.equal(await start.isVisible(),false,'A menu opens one panel rather than appending it under the home');
+        await page.getByRole('button',{name:'Torna al consiglio di LIA',exact:false}).click();
+        await start.waitFor();
+      }
+      assert.equal(calls.filter(call=>call.payload?.intent==='briefing').length,newcomer?2:1,'Switching panels preserves the existing AI recommendation');
       fs.mkdirSync('artifacts',{recursive:true});
       await page.screenshot({path:`artifacts/lia-guided-home-${newcomer?'new':'existing'}-desktop.png`,fullPage:true});
       const bounds=await start.boundingBox();assert.ok(bounds.height>=56,'Primary action is large enough to click easily: '+JSON.stringify({bounds,styles:await start.evaluate(button=>({height:getComputedStyle(button).minHeight,font:getComputedStyle(button).fontSize}))}));
+      assert.ok(bounds.y+bounds.height<1000,'The main action is available without scrolling on desktop');
       for(const width of [390,360]) {
         await page.setViewportSize({width,height:844});
+        const toggle=page.getByRole('button',{name:'Menu e strumenti',exact:true});
+        await toggle.click();
+        await page.getByRole('button',{name:'Le mie statistiche',exact:true}).click();
+        await page.getByRole('heading',{name:'Le statistiche del tuo sito',exact:true}).waitFor();
+        assert.equal(await toggle.getAttribute('aria-expanded'),'false','Selecting a mobile menu item returns space to the work');
+        await toggle.click();
+        await page.getByRole('navigation',{name:'Sezioni della piattaforma'}).getByRole('button',{name:'Home',exact:true}).click();
+        await start.waitFor();
         assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'Simple home fits narrow screens');
         assert.ok(await start.evaluate(button=>parseFloat(getComputedStyle(button).fontSize)>=18),'Primary label remains readable on mobile');
         await page.screenshot({path:`artifacts/lia-guided-home-${newcomer?'new':'existing'}-${width}.png`,fullPage:true});
       }
       await start.click();
+      const recommendationToggle=page.locator('.lw-recommendation > summary');
+      await recommendationToggle.click();
+      assert.equal(await page.locator('.lw-briefing-report').isVisible(),true,'The original recommendation can be reread during the conversation');
+      await recommendationToggle.click();
+      assert.equal(await page.locator('.lw-briefing-report').isVisible(),false,'The recommendation can be closed again to keep the current step visible');
       await page.getByRole('button',{name:newcomer?'Offro un servizio':'Alle famiglie',exact:true}).click();
       await page.locator('button[data-lia-action="prepare_article"]').waitFor();
       assert.equal(calls.some(call=>['post-create','site-update','article-studio'].includes(call.action)),false,'Guidance and answer buttons do not save, publish or generate an article without the next explicit action');

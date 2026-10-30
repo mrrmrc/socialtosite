@@ -67,7 +67,7 @@ const base = 'http://127.0.0.1:5178';
       await app.goto(base + '/dashboard');
       if (role === 'user') {
         await app.getByRole('heading', { name: 'Facciamo un passo insieme.' }).waitFor();
-        await app.locator('.lia-results-summary > summary').click();
+        await app.getByRole('button', { name: 'Le mie statistiche', exact: true }).click();
         await app.getByRole('heading', { name: 'Le tue idee. Più visibili.' }).waitFor();
         assert.equal(await app.locator('.pulse-metrics strong').first().innerText(), '—', 'Missing Google data is not displayed as zero');
         await app.getByText('Le citazioni e la presenza nelle risposte IA non sono ancora misurate.', { exact: false }).waitFor();
@@ -83,7 +83,7 @@ const base = 'http://127.0.0.1:5178';
         assert.equal(await app.getByRole('button', { name: 'Apri menu utente', exact: true }).getAttribute('aria-expanded'), 'false');
         await app.getByRole('navigation', { name: 'Sezioni della piattaforma' }).getByRole('button', { name: 'Home', exact: true }).click();
         assert.equal(await app.locator('.lw-work-area').evaluate(el => getComputedStyle(el).display), 'grid', 'Shared theme is loaded by the real entry point');
-        await app.locator('.lw-more-tools > summary').click();
+        await app.getByRole('button', { name: 'Piano delle attività', exact: true }).click();
         const task = app.getByRole('button', { name: /Caporedattrice/ });
         await task.click();
         await app.getByText('Ecco tre idee concrete per il tuo progetto.', { exact: true }).waitFor();

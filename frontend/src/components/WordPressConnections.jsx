@@ -18,6 +18,7 @@ export function WordPressConnections({ token }) {
   const [library, setLibrary] = useState({ posts: [], has_more: false, next_cursor: 0 });
   const stopSync = useRef(false);
   const ownerFilters = useRef(defaultFilters);
+  const endpointEdited = useRef(false);
   const call = (action, payload) => apiFetch(`/api/index.php?action=wordpress-${action}`, payload === undefined ? {} : { method: 'POST', body: JSON.stringify(payload) }, token);
   const readLibrary = async (cursor = 0) => {
     const data = await apiFetch(`/api/index.php?action=wordpress-library&cursor=${cursor}`, {}, token);
@@ -34,7 +35,8 @@ export function WordPressConnections({ token }) {
   };
   useEffect(() => {
     let active = true;
-    call('status').then(async data => { if (active) { setStatus(data); setForm(f => ({ ...f, endpoint: data.endpoint })); ownerFilters.current = { ...defaultFilters, ...data.filters }; await readLibrary(); if (data.connected) await readTerms(); } }).catch(e => { if (active) setError(e.message); });
+    endpointEdited.current = false;
+    call('status').then(async data => { if (active) { setStatus(data); setForm(f => ({ ...f, endpoint: endpointEdited.current ? f.endpoint : data.endpoint || '' })); ownerFilters.current = { ...defaultFilters, ...data.filters }; await readLibrary(); if (data.connected) await readTerms(); } }).catch(e => { if (active) setError(e.message); });
     return () => { active = false; stopSync.current = true; };
   }, [token]);
   const run = async operation => {
@@ -57,7 +59,7 @@ export function WordPressConnections({ token }) {
       const connectedStatus = await call('status'); setStatus(connectedStatus); ownerFilters.current = { ...defaultFilters, ...connectedStatus.filters }; setForm(f => ({ ...f, secret: '' }));
       await readTerms(); setMessage('Collegamento completo: l’archivio è già leggibile dal plugin WordPress. Puoi personalizzare categorie, tag e modalità di importazione.');
     }); }}>
-      <label>Indirizzo WordPress<input type="url" required placeholder="https://www.iltuosito.it" value={form.endpoint} onChange={e => setForm({ ...form, endpoint: e.target.value })} /></label>
+      <label>Indirizzo WordPress<input type="url" required placeholder="https://www.iltuosito.it" value={form.endpoint} onChange={e => { endpointEdited.current = true; setForm({ ...form, endpoint: e.target.value }); }} /></label>
       <label>Codice generato dal plugin<input type="password" required autoComplete="off" value={form.secret} onChange={e => setForm({ ...form, secret: e.target.value.trim() })} /></label>
       <button className="btn btn-primary" disabled={busy || !status}>Verifica e collega</button>
     </form> : <>

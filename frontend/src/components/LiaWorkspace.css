@@ -21,6 +21,13 @@
 .lia-results-summary{max-width:1040px;margin:25px auto 0;border:1px solid var(--border);border-radius:13px;background:var(--surface);padding:18px 20px}.lia-results-summary>summary{cursor:pointer;color:var(--text-muted);font-size:13px;font-weight:650}.lia-results-summary>.visibility-pulse{margin-top:20px;margin-bottom:0}.lw-proposal textarea{width:100%;min-width:0;border:1px solid var(--border-strong);border-radius:9px;background:var(--surface);color:var(--text);font:inherit;font-size:14px;line-height:1.8;padding:13px;resize:vertical}.lw-proposal label{font-size:12px;font-weight:650}.site-publication-guide{padding:17px 20px;margin-top:22px;border:1px solid var(--border);border-radius:11px;background:var(--primary-light)}.site-publication-guide strong{font-size:13px}.site-publication-guide p{font-size:12px;line-height:1.8;margin-top:8px;color:var(--text-muted)}.customer-site-tools{margin-top:25px}.customer-site-tools .profile-review-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:13px}.customer-site-tools a.card h3{font-size:15px}.customer-site-tools a.card p{font-size:12px;line-height:1.7}.customer-site-tools a.card{margin:0;padding:19px}@media(max-width:650px){.customer-site-tools .profile-review-fields{grid-template-columns:minmax(0,1fr)}}
 
 /* The home offers one guided action; the full toolset stays behind an explicit choice. */
+.lia-workspace.lia-guided-home .lw-home-content{display:grid;gap:16px;min-width:0}
+.lia-workspace.lia-guided-home .lw-recommendation>summary,.lia-workspace.lia-guided-home .lw-conversation-entry>summary{min-height:48px;padding:12px 16px;font-size:18px;color:var(--text);cursor:pointer;border:1px solid var(--border);border-radius:12px;background:var(--surface)}
+.lia-workspace.lia-guided-home .lw-recommendation:not(.has-conversation)[open]>summary,.lia-workspace.lia-guided-home .lw-conversation-entry[open]>summary{display:none}
+.lia-workspace.lia-guided-home .lw-briefing{padding:22px;gap:12px}
+.lia-workspace.lia-guided-home .lw-heading{gap:6px}
+.lia-workspace.lia-guided-home .lw-more-tools>.lia-agenda{margin-top:0}
+.lia-workspace.lia-guided-home .lw-statistics-panel .visibility-pulse{margin:0}
 .customer-conversation-shell .lia-results-summary>summary{font-size:17px;min-height:48px;padding:10px 0;color:var(--text)}
 .lia-workspace.lia-guided-home{max-width:880px;gap:20px}
 .lia-workspace.lia-guided-home .lw-heading{padding:6px 0 4px;background:none;border:0;gap:12px}
@@ -54,8 +61,6 @@
 .lia-workspace.lia-guided-home .lw-more-tools{border-top:1px solid var(--border);padding-top:8px;min-width:0}
 .lia-workspace.lia-guided-home .lw-more-tools>.lia-agenda,
 .lia-workspace.lia-guided-home .lw-more-tools>.lia-task-panel{margin-top:20px}
-.lia-workspace.lia-guided-home .lw-more-tools:not([open])>.lia-agenda,
-.lia-workspace.lia-guided-home .lw-more-tools:not([open])>.lia-task-panel{display:none}
 .lia-workspace.lia-guided-home summary:focus-visible{outline:3px solid var(--primary);outline-offset:4px;border-radius:5px}
 @media(max-width:650px){
 .lia-workspace.lia-guided-home .lw-briefing{padding:22px 18px}
@@ -68,3 +73,6 @@
 .lia-workspace.lia-guided-home .lw-message.is-user .lw-message-content>p{font-size:18px}
 .lia-workspace.lia-guided-home .lw-identity>div>span{font-size:16px}
 .lia-workspace.lia-guided-home .lw-composer textarea{font-size:18px}}
+.customer-sidebar-layout .lia-workspace.lia-guided-home .lw-briefing{padding:22px;gap:12px}
+.customer-sidebar-layout .lia-workspace.lia-guided-home .lw-heading{gap:6px}
+.customer-sidebar-layout .lia-workspace.lia-guided-home .lw-more-tools>.lia-agenda{margin-top:0}
