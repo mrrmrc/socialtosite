@@ -1,4 +1,6 @@
 @import "tailwindcss";
+@import "../../shared/platform-theme.css";
+@import "./layout/platform-shell.css";
 @import "./lib/site-typography.css";
 
 @theme {
@@ -52,8 +54,8 @@ html {
 
 body {
   font-family: var(--font-sans);
-  background: var(--color-bg-0);
-  color: var(--color-text-0);
+  background: var(--platform-background);
+  color: var(--platform-text);
   overflow: hidden;
   height: 100vh;
   width: 100vw;
@@ -254,28 +256,30 @@ textarea:focus-visible {
 /* Platform chrome shares All Social To Web's palette. Canvas themes override
    these variables locally; exports never include the builder-shell element. */
 .builder-shell {
-  --color-bg-0: #f3f0e8;
-  --color-bg-1: #ffffff;
-  --color-bg-2: #f5f3ef;
-  --color-bg-3: #eeeae2;
-  --color-bg-4: #e1ddd5;
-  --color-bg-5: #d2cdc3;
-  --color-text-0: #171917;
-  --color-text-1: #353833;
-  --color-text-2: #4a4d49;
-  --color-text-3: #6b6e69;
-  --color-border-default: #d8d5cc;
-  --color-border-subtle: #e7e3db;
-  --color-border-hover: #aaa59b;
-  --color-green: #6d5ce7;
-  --color-green-dim: #5a48d1;
-  --color-green-glow: rgba(109,92,231,.10);
-  --color-green-glow2: rgba(109,92,231,.06);
-  --color-accent-rgb: 109,92,231;
+  --color-bg-0: var(--platform-background);
+  --color-bg-1: var(--platform-surface);
+  --color-bg-2: #f8f9fe;
+  --color-bg-3: var(--platform-primary-light);
+  --color-bg-4: var(--platform-border);
+  --color-bg-5: var(--platform-border-strong);
+  --color-text-0: var(--platform-text);
+  --color-text-1: #414b68;
+  --color-text-2: var(--platform-text-muted);
+  --color-text-3: #717b93;
+  --color-border-default: var(--platform-border);
+  --color-border-subtle: #edf0f7;
+  --color-border-hover: var(--platform-border-strong);
+  --color-green: var(--platform-primary);
+  --color-green-dim: var(--platform-primary-hover);
+  --color-green-glow: rgba(101,80,235,.10);
+  --color-green-glow2: rgba(101,80,235,.06);
+  --color-accent-rgb: 101,80,235;
+  --font-sans: var(--platform-font);
+  --font-display: var(--platform-font);
   background: var(--color-bg-0);
   color: var(--color-text-0);
 }
-.builder-shell button.bg-green:not(.site-render *) { color: #fff; }
+.builder-shell :is(button,a).bg-green:not(.site-render *) { color: #fff; }
 
 /* Fluid workspaces reserve most of the screen for the actual site preview. */
 .workspace-page { padding-inline: clamp(16px, 2vw, 40px); }
@@ -304,24 +308,6 @@ textarea:focus-visible {
 .site-render [data-articles-layout="list"] article > .p-5 { flex: 1; min-width: 200px; }
 .site-render a.bg-bg-3 { color: var(--color-text-0); }
 
-/* Keep the platform navigation visible throughout the website workspace. */
-.platform-brandbar { height: 72px; }
-.platform-main-nav { height: 56px; }
-.platform-site-nav { height: 44px; }
-.platform-main { margin-top: 172px; }
-.platform-header-action { display: inline-flex; align-items: center; gap: 8px; padding: 10px 12px; border: 1px solid var(--color-border-default); border-radius: 12px; font-size: 14px; color: var(--color-green); white-space: nowrap; }
-.platform-nav-link { display: inline-flex; align-items: center; gap: 8px; padding: 12px 14px; border-radius: 12px; font-size: 15px; font-weight: 650; white-space: nowrap; color: var(--color-text-1); }
-.platform-nav-active { background: var(--color-green); color: #fff; }
-.platform-tool-link { display: inline-flex; align-items: center; gap: 6px; padding: 8px 12px; font-size: 14px; white-space: nowrap; border-bottom: 2px solid transparent; }
-.platform-tool-active { color: var(--color-green); border-bottom-color: var(--color-green); }
-.platform-header a:focus-visible, .platform-header button:focus-visible { outline: 2px solid var(--color-green); outline-offset: -2px; }
-@media (max-width: 640px) { .platform-brandbar { height: 64px; padding-inline: 12px; } .platform-brandbar strong { font-size: 14px; } .platform-header-action { padding: 8px; } .platform-main { margin-top: 164px; } }
-
-/* Keep the editor's two left tools visible without switching tabs. */
-.platform-site-nav { background:#e9e9ed; border-color:#d1d1d8; }
-.platform-tool-link { color:#41414d; border-radius:7px 7px 0 0; }
-.platform-tool-link:hover { background:#dedee5; }
-.platform-tool-active { background:#f7f7fa; color:var(--color-green); border-bottom-color:var(--color-green); font-weight:650; }
 .builder-shell { height:100dvh; }
 .editor-left-sidebar { width:340px; min-height:0; }
 .editor-sections { display:flex; flex-direction:column; min-height:100px; max-height:32%; flex:0 1 auto; border-bottom:1px solid var(--color-border-default); }

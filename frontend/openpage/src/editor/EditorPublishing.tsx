@@ -44,7 +44,7 @@ export function EditorPublishing() {
     URL.revokeObjectURL(url)
   }
 
-  return <div aria-label="Anteprima e pubblicazione del sito" className="flex shrink-0 items-center flex-wrap gap-2 border-b border-border-default bg-bg-2 px-3 py-1.5 text-xs">
+  return <div aria-label="Anteprima e pubblicazione del sito" className="editor-publishing flex shrink-0 items-center flex-wrap gap-2 border-b border-border-default bg-bg-2 px-3 py-1.5 text-xs">
     <span className="text-text-2">{previewMode ? 'Anteprima della bozza · naviga tra le pagine' : 'Bozza modificabile'}</span>
     <span className="text-text-3">Il sito online cambia solo con Pubblica.</span>
     {project?.deployUrl && <>

@@ -11,9 +11,10 @@
 }
 
 /* Persistent left navigation keeps the guided workspace free of tool menus. */
-.dashboard-shell.customer-sidebar-layout{display:grid;grid-template-columns:250px minmax(0,1fr);grid-template-rows:auto 1fr;align-items:start}
+.dashboard-shell.customer-sidebar-layout{display:grid;grid-template-columns:var(--platform-sidebar-width) minmax(0,1fr);grid-template-rows:auto 1fr;align-items:start;font-family:var(--platform-font)}
+.dashboard-shell.customer-sidebar-layout>.backend-header{min-height:var(--platform-header-height)}
 .customer-sidebar-layout>.backend-header{grid-column:1/-1}
-.customer-sidebar-layout>.customer-left-menu{grid-column:1;grid-row:2;position:sticky;top:90px;align-self:start;min-width:0;max-height:calc(100dvh - 100px);overflow-y:auto;padding:16px 12px;background:var(--surface);border-right:1px solid var(--border)}
+.customer-sidebar-layout>.customer-left-menu{grid-column:1;grid-row:2;position:sticky;top:var(--platform-header-height);align-self:start;min-width:0;max-height:calc(100dvh - var(--platform-header-height) - 10px);overflow-y:auto;padding:16px 12px;background:var(--surface);border-right:1px solid var(--border)}
 .customer-sidebar-layout>.dashboard-main{grid-column:2;grid-row:2;min-width:0;width:100%;margin:0;padding:0}
 .customer-sidebar-layout .dashboard-main>.dashboard-content{width:100%;max-width:1200px;padding:22px 28px 32px}
 .customer-sidebar-layout .customer-left-menu .backend-tabs{display:flex;flex-direction:column;align-items:stretch;position:static;gap:6px;padding:0;border:0;box-shadow:none;overflow:visible;background:none}

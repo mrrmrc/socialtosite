@@ -8,7 +8,7 @@ export function AppLayout() {
   const location = useLocation()
 
   return (
-    <div className="builder-shell h-screen w-screen flex flex-col overflow-hidden">
+    <div className="builder-shell">
       <a href="#main-content" className="skip-to-content">{t("Skip to content")}</a>
       <TopNav />
       <main id="main-content" className="platform-main flex-1 min-h-0 overflow-hidden" role="main">

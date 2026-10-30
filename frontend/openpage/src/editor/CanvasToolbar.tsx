@@ -179,7 +179,7 @@ export function CanvasToolbar() {
   const projectName = activeProject?.name || configName
 
   return (
-    <div className="min-h-12 py-2 shrink-0 flex-wrap bg-bg-1 border-b border-border-default flex items-center px-3 gap-1">
+    <div className="editor-canvas-toolbar min-h-12 py-2 shrink-0 flex-wrap bg-bg-1 border-b border-border-default flex items-center px-3 gap-1">
       {/* Breadcrumb */}
       <div className="flex items-center gap-1.5 text-[15px] text-text-3 shrink-0">
         <span

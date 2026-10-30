@@ -179,6 +179,7 @@ jobs:
           timeout 180s node "$NODE_PATH/playwright/cli.js" install --with-deps chromium
           node tools/run_admin_browser_tests.cjs
           node tools/test_builder_layouts.cjs
+          node tools/test_builder_shell.cjs
 
       - name: Prepare production release
         env:

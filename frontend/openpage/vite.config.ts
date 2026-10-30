@@ -6,6 +6,8 @@ import path from 'path'
 export default defineConfig({
   base: '/builder/',
   plugins: [react(), tailwindcss()],
+  // The dashboard and builder share application tokens and the brand asset.
+  server: { fs: { allow: [path.resolve(__dirname, '..')] } },
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),

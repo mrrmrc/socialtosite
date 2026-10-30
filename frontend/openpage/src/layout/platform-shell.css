@@ -1,0 +1,39 @@
+/* Only application controls: the website canvas keeps its own theme. */
+.builder-shell{display:grid;grid-template-columns:var(--platform-sidebar-width) minmax(0,1fr);grid-template-rows:var(--platform-header-height) minmax(0,1fr);width:100%;height:100dvh;overflow:hidden;font-family:var(--platform-font);font-size:16px;line-height:1.6}
+.platform-header{grid-column:1/-1;grid-row:1;z-index:50;background:var(--platform-surface);border-bottom:1px solid var(--platform-border)}
+.platform-brandbar{height:100%;display:flex;align-items:center;justify-content:space-between;gap:16px;padding:14px 36px}
+.platform-brand{display:flex;align-items:center;gap:12px;color:var(--platform-text);font-size:16px;font-weight:700;text-decoration:none}
+.platform-brand img{object-fit:contain;flex-shrink:0}.platform-account-actions{display:flex;align-items:center;gap:12px}
+.platform-header-action{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:48px;padding:10px 14px;border:1px solid var(--platform-border-strong);border-radius:12px;color:var(--platform-text-muted);background:var(--platform-surface);font-size:16px;text-decoration:none}
+.platform-account{position:relative}.platform-account-trigger{display:flex;align-items:center;gap:12px;min-height:54px;padding:6px 12px;border:1px solid var(--platform-border-strong);border-radius:14px;background:var(--platform-surface);color:var(--platform-text-muted);cursor:pointer}
+.platform-account-trigger>span{display:grid;place-items:center;width:38px;height:38px;border:1px solid var(--platform-border);border-radius:50%;color:var(--platform-primary);background:var(--platform-primary-light)}
+.platform-account-menu{position:absolute;right:0;top:calc(100% + 10px);width:290px;max-width:calc(100vw - 28px);padding:9px;border:1px solid var(--platform-border);border-radius:16px;background:var(--platform-surface);box-shadow:0 18px 60px #232a5426}
+.platform-account-menu a{display:flex;align-items:center;gap:12px;min-height:48px;padding:10px 12px;border-radius:9px;color:var(--platform-text);font-size:16px;text-decoration:none}
+.platform-account-menu a:hover{background:var(--platform-primary-light)}
+.platform-sidebar{grid-column:1;grid-row:2;min-height:0;overflow-y:auto;padding:16px 12px;background:var(--platform-surface);border-right:1px solid var(--platform-border)}
+.platform-main-nav,.platform-site-nav{display:grid;gap:6px}.platform-site-nav{margin-top:18px;padding-top:16px;border-top:1px solid var(--platform-border)}
+.platform-site-nav h2{margin:0 12px 6px;font-size:16px;font-weight:700;color:var(--platform-text-muted)}
+.platform-nav-link,.platform-tool-link{display:flex;align-items:center;gap:12px;min-width:0;min-height:54px;padding:12px 14px;border:1px solid transparent;border-radius:10px;color:var(--platform-text-muted);font-size:18px;font-weight:650;line-height:1.4;text-decoration:none;white-space:normal}
+.platform-tool-link{font-size:17px;font-weight:500}.platform-nav-link svg,.platform-tool-link svg{flex-shrink:0}
+.platform-nav-link:hover,.platform-tool-link:hover,.platform-nav-active,.platform-tool-active{background:var(--platform-primary-light);color:var(--platform-primary);border-color:var(--platform-border)}
+.platform-main{grid-column:2;grid-row:2;min-width:0;min-height:0;margin:0;overflow:hidden;background:radial-gradient(ellipse at 90% 0,#e9e8ff80,transparent 35%),var(--platform-background)}
+.platform-menu-toggle{display:none}
+.builder-shell :is(.platform-header,.platform-sidebar) :is(a,button):focus-visible{outline:3px solid var(--platform-primary);outline-offset:2px}
+.builder-shell .workspace-page :is(button,input,select,textarea):not(.site-render *){min-height:44px;font-size:16px;border-radius:10px}
+.builder-shell .editor-catalogue{background:var(--color-bg-2)}
+.builder-shell .editor-left-sidebar{width:260px}.builder-shell .editor-right-sidebar{width:260px}
+.builder-shell .editor-component-tile{min-height:44px;padding:8px;font-size:14px;line-height:1.35}
+.builder-shell .editor-panel-title{font-size:16px}.builder-shell .editor-panel-title span{font-size:13px}
+.builder-shell .editor-left-sidebar :is(input,select){min-height:40px;font-size:15px}
+.builder-shell .editor-canvas-toolbar button{min-height:40px;min-width:40px}
+.builder-shell .editor-publishing{font-size:14px;line-height:1.5;padding:10px 12px}
+.builder-shell .editor-publishing button{min-height:44px;padding:9px 12px;font-size:16px;border-radius:9px}
+@media(max-width:1100px){
+  .builder-shell{grid-template-columns:minmax(0,1fr);grid-template-rows:78px auto minmax(0,1fr)}
+  .platform-brandbar{padding:10px 16px}.platform-brand{gap:10px}.platform-sidebar{grid-column:1;grid-row:2;padding:8px 14px;border-right:0;border-bottom:1px solid var(--platform-border);max-height:55dvh}
+  .platform-menu-toggle{display:flex;align-items:center;justify-content:space-between;width:100%;min-height:50px;padding:10px 14px;border:1px solid var(--platform-border);border-radius:10px;background:var(--platform-surface);color:var(--platform-text);font:inherit;font-size:18px;font-weight:700;cursor:pointer}
+  .platform-menu-items{display:none}.platform-menu-items.is-open{display:block;padding-top:10px}.platform-main-nav{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .platform-site-nav{margin-top:10px;padding-top:10px}.platform-main{grid-column:1;grid-row:3}
+  .builder-shell .editor-left-sidebar{width:230px}.builder-shell .editor-right-sidebar{width:230px}
+}
+@media(max-width:480px){.platform-brand strong,.platform-open-site-label{display:none}.platform-header-action{padding:10px}.platform-account-actions{gap:8px}}

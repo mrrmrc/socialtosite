@@ -1,0 +1,15 @@
+/* Application chrome shared by the dashboard and website builder. */
+:root {
+  --platform-primary: #6550eb;
+  --platform-primary-hover: #4c36c7;
+  --platform-primary-light: #efecff;
+  --platform-background: #f4f6fd;
+  --platform-surface: #ffffff;
+  --platform-text: #202743;
+  --platform-text-muted: #616b85;
+  --platform-border: #e1e5f1;
+  --platform-border-strong: #bac3dc;
+  --platform-font: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --platform-header-height: 92px;
+  --platform-sidebar-width: 250px;
+}
