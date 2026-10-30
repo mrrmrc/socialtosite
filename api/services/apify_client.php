@@ -129,6 +129,7 @@ final class ApifyClient {
     }
 
     private static function itemUrl(array $item): string {
+        if (is_string($item['webVideoUrl'] ?? null) && self::platform($item['webVideoUrl']) === 'tiktok' && filter_var($item['webVideoUrl'],FILTER_VALIDATE_URL)) return trim($item['webVideoUrl']);
         foreach (['url','postUrl','shareable_url','topLevelReelUrl','inputUrl','topLevelUrl','link','webVideoUrl','videoUrl'] as $key) {
             if (is_string($item[$key] ?? null) && filter_var(trim($item[$key]), FILTER_VALIDATE_URL)) return trim($item[$key]);
         }
@@ -150,14 +151,33 @@ final class ApifyClient {
         if ($caption === '') $caption = $title;
 
         $assets = self::media($result);
+        $tiktokSlideshow = false;
+        if (self::platform($url) === 'tiktok') {
+            $slideshow = !empty($result['isSlideshow']) || !empty($result['slideshowImageLinks']) || str_contains((string)parse_url($url, PHP_URL_PATH), '/photo/');
+            $links = [];
+            foreach ((array)($result['mediaUrls'] ?? []) as $value) if (is_string($value) && filter_var($value,FILTER_VALIDATE_URL) && preg_match('~^https?://~i',$value)) $links[] = $value;
+            if ($slideshow) {
+                $tiktokSlideshow = true;
+                foreach ((array)($result['slideshowImageLinks'] ?? []) as $value) {
+                    $image = is_array($value) ? ($value['downloadLink'] ?? $value['imageUrl'] ?? $value['url'] ?? '') : $value;
+                    if (is_string($image) && filter_var($image,FILTER_VALIDATE_URL)) $links[] = $image;
+                }
+                $assets['images'] = array_values(array_unique(array_merge($links,$assets['images'])));
+                $assets['is_video'] = false; $assets['video'] = '';
+            } else {
+                // mediaUrls contains the actor's downloaded files; coverUrl is only a poster.
+                $assets['is_video'] = true;
+                $assets['video'] = $links[0] ?? $assets['video'];
+            }
+        }
         if (self::platform($url) === 'facebook' && preg_match('~/(?:reels?|videos?)(?:/|$)|^/watch(?:/|$)|^/video\.php$~i', (string)parse_url($url, PHP_URL_PATH))) $assets['is_video'] = true;
         
         $imageUrls = $assets['images'];
-        $mediaType = $assets['is_video'] || $assets['video'] !== '' ? 'video' : ($imageUrls ? 'image' : 'text');
+        $mediaType = $tiktokSlideshow ? 'image' : ($assets['is_video'] || $assets['video'] !== '' ? 'video' : ($imageUrls ? 'image' : 'text'));
         $mediaUrl = $mediaType === 'video' ? $assets['video'] : ($imageUrls[0] ?? '');
         if ($mediaType === 'video' && $assets['poster'] === '' && $imageUrls) $assets['poster'] = $imageUrls[0];
 
-        $published = $result['publishedAt'] ?? $result['time'] ?? $result['timestamp'] ?? $result['createdAt'] ?? $result['takenAt'] ?? $result['takenAtIso'] ?? null;
+        $published = $result['publishedAt'] ?? $result['time'] ?? $result['timestamp'] ?? $result['createTimeISO'] ?? $result['createTime'] ?? $result['createdAt'] ?? $result['takenAt'] ?? $result['takenAtIso'] ?? null;
         $timestamp = false;
         if ($published) {
             if (is_numeric($published)) {
@@ -202,7 +222,7 @@ final class ApifyClient {
                 if (in_array($context, ['photo_image','image','imageSrc','image_versions2','candidates','images','photos','displayResources'], true)) {
                     if (in_array($key, ['uri','url','src'], true) || is_int($key)) $add($images, $value);
                 }
-                if (is_array($value) && !in_array($key, ['user','owner','author','video_owner','tracking','comments','taggedUsers'], true)) $walk($value, $depth+1, is_string($key) ? $key : $context);
+                if (is_array($value) && !in_array($key, ['user','owner','author','authorMeta','musicMeta','video_owner','tracking','comments','taggedUsers'], true)) $walk($value, $depth+1, is_string($key) ? $key : $context);
             }
         };
         $walk($result);
@@ -215,6 +235,16 @@ final class ApifyClient {
         $term = trim((string)($query['q'] ?? ''));
         if ($term === '') throw new RuntimeException('La ricerca Facebook deve contenere una parola chiave.');
         return ['categories'=>[$term], 'searchType'=>str_contains((string)parse_url($url, PHP_URL_PATH), '/reels') ? 'reels' : 'posts', 'resultsLimit'=>max(1,min(100,$limit))];
+    }
+
+    public static function tiktokInput(string $url, int $limit): array {
+        self::validateSourceUrl($url, 'tiktok');
+        $path = trim((string)parse_url($url, PHP_URL_PATH), '/');
+        $input = ['resultsPerPage'=>max(1,min(100,$limit)), 'shouldDownloadVideos'=>true, 'shouldDownloadCovers'=>true, 'shouldDownloadSlideshowImages'=>true];
+        if (preg_match('~/(?:video|photo)/\d+~i', '/' . $path) || in_array(strtolower((string)parse_url($url,PHP_URL_HOST)),['vm.tiktok.com','vt.tiktok.com'],true)) return $input + ['postURLs'=>[$url]];
+        $profile = ltrim(explode('/',$path)[0] ?? '', '@');
+        if ($profile === '') throw new RuntimeException('URL profilo TikTok non valido');
+        return $input + ['profiles'=>[$profile]];
     }
 
     public static function source(string $url, int $limit = 20, ?string $sinceDate = null): array {
@@ -252,15 +282,8 @@ final class ApifyClient {
                 ];
                 break;
             case 'tiktok':
-                $actorId = 'clockworks/tiktok-profile-scraper';
-                $path = trim((string)parse_url($url, PHP_URL_PATH), '/');
-                $segments = array_values(array_filter(explode('/', $path)));
-                $profile = ltrim((string)($segments[0] ?? ''), '@');
-                if ($profile === '') throw new RuntimeException('URL profilo TikTok non valido');
-                $payload = [
-                    'profiles' => [$profile],
-                    'resultsPerPage' => $limit
-                ];
+                $payload = self::tiktokInput($url,$limit);
+                $actorId = isset($payload['postURLs']) ? 'clockworks/tiktok-scraper' : 'clockworks/tiktok-profile-scraper';
                 break;
             case 'x':
                 $actorId = 'apidojo/tweet-scraper';

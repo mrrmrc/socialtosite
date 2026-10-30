@@ -45,6 +45,12 @@ final class PostMedia {
         return str_starts_with($path, '/public/media/') && basename($path) !== '' && is_file(__DIR__ . '/../../public/media/' . basename($path));
     }
 
+    public static function localVideo(string $url): bool {
+        if (!self::localExists($url) || !class_exists('finfo')) return false;
+        $path = __DIR__ . '/../../public/media/' . basename((string)parse_url($url,PHP_URL_PATH));
+        return str_starts_with((string)(new finfo(FILEINFO_MIME_TYPE))->file($path), 'video/');
+    }
+
     public static function playable(string $url): bool {
         $host = strtolower((string)parse_url($url, PHP_URL_HOST));
         return $url !== '' && !preg_match('/(^|\.)(facebook\.com|fb\.watch|youtube\.com|youtu\.be|tiktok\.com)$/i', $host);

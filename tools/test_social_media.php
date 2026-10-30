@@ -1,6 +1,7 @@
 <?php
 if (PHP_SAPI !== 'cli') exit;
 require __DIR__ . '/../api/services/post_media.php';
+require __DIR__ . '/../api/services/video_source.php';
 class WebsiteSource {
     public static int $downloads = 0;
     public static function downloadToFile($url,$path,...$args) {
@@ -56,6 +57,15 @@ mediaCheck($reel['media_url']==='https://cdn.example/video.mp4' && $reel['id']==
 $search=ApifyClient::facebookSearch('https://www.facebook.com/search/top/?q=agriturismo&locale=it_IT',5);
 mediaCheck($search===['categories'=>['agriturismo'],'searchType'=>'posts','resultsLimit'=>5], 'ricerca Facebook instradata al motore di ricerca post');
 mediaCheck(ApifyClient::facebookSearch('https://www.facebook.com/example',5)===null,'pagina Facebook mantiene il connettore pagine');
+$tiktokInput=ApifyClient::tiktokInput('https://www.tiktok.com/@example',20);
+mediaCheck($tiktokInput['shouldDownloadVideos'] && $tiktokInput['shouldDownloadCovers'] && $tiktokInput['profiles']===['example'], 'TikTok richiede i file video oltre alle anteprime');
+$singleInput=ApifyClient::tiktokInput('https://www.tiktok.com/@example/video/1234',1);
+mediaCheck(isset($singleInput['postURLs']) && !isset($singleInput['profiles']), 'retry di un singolo TikTok usa URL del post, non tutto il profilo');
+$tiktok=$normalize->invoke(null,['id'=>'1234','text'=>'Testo social','webVideoUrl'=>'https://www.tiktok.com/@example/video/1234','mediaUrls'=>['https://cdn.example/video.mp4'],'videoMeta'=>['coverUrl'=>'https://cdn.example/poster.jpg'],'createTimeISO'=>'2026-10-20T12:00:00Z']);
+mediaCheck($tiktok['media_type']==='video' && $tiktok['media_url']==='https://cdn.example/video.mp4' && $tiktok['poster_url']==='https://cdn.example/poster.jpg','mediaUrls TikTok separato dalla copertina');
+mediaCheck(str_starts_with($tiktok['published_at'],'2026-10-20'),'TikTok conserva la data originale del contenuto');
+$slideshow=$normalize->invoke(null,['id'=>'5678','isSlideshow'=>true,'webVideoUrl'=>'https://www.tiktok.com/@example/photo/5678','mediaUrls'=>['https://cdn.example/one.jpg','https://cdn.example/two.jpg'],'text'=>'Post fotografico']);
+mediaCheck($slideshow['media_type']==='image' && !VideoSource::isVideo(['platform'=>'tiktok','media_type'=>'image']) && count($slideshow['image_urls'])===2,'post fotografici TikTok non inviati alla trascrizione video');
 $user=2147483646;
 try {
     $created=Ingest::url($user,$photo['url'],$album); $id=$created['id'];
@@ -76,6 +86,20 @@ try {
     $fallback=PostMedia::render(['media_type'=>'video','media_url'=>$preview['url'],'poster_url'=>$preview['poster_url'],'source_url'=>$preview['url']]);
     mediaCheck(str_contains($fallback,'Guarda il video originale') && !str_contains($fallback,'<video'),'Facebook senza file mostra anteprima e collegamento, non player rotto');
     mediaCheck(PostMedia::url('javascript:alert(1)')==='' && !str_contains(PostMedia::render(['media_url'=>'javascript:alert(1)','media_type'=>'image']),'<img'),'URL eseguibili esclusi dai media');
+    $legacy=$tiktok; $legacy['media_type']='image';$legacy['media_url']='https://cdn.example/poster.jpg';$legacy['image_urls']=[$legacy['media_url']];
+    $legacyId=Ingest::url($user,$legacy['url'],$legacy)['id'];
+    $metadata=PostMedia::read($user,$legacyId);unset($metadata['source_type']);PostMedia::write($user,$legacyId,$metadata);
+    $resolveCalls=0;
+    $repaired=Ingest::ensureTikTokMedia($user,DB::$posts[$legacyId],function($url,$limit)use(&$resolveCalls,$tiktok){$resolveCalls++;mediaCheck($url===$tiktok['url'] && $limit===1,'ripristino usa il post originale in coda');return ['items'=>[$tiktok]];});
+    mediaCheck($resolveCalls===1 && $repaired['media_type']==='video' && PostMedia::localVideo($repaired['media_url']),'bozza TikTok con miniatura recupera il vero file video prima della trascrizione');
+    $valid=Ingest::ensureTikTokMedia($user,$repaired,function(){throw new RuntimeException('Unnecessary refetch');});
+    mediaCheck($valid['media_url']===$repaired['media_url'],'video locale valido non riscaricato a ogni retry');
+    $wrong=$tiktok; $wrong['id']='9999';$pending=$repaired;$pending['media_url']='';$rejected=false;
+    try { Ingest::ensureTikTokMedia($user,$pending,fn()=>['items'=>[$wrong]]); } catch(RuntimeException $e) { $rejected=true; }
+    mediaCheck($rejected,'retry non associa il video di un altro post alla bozza');
+    $imageId=Ingest::url($user,$slideshow['url'],$slideshow)['id'];
+    $image=Ingest::ensureTikTokMedia($user,DB::$posts[$imageId],function(){throw new RuntimeException('Slideshow must not be refetched');});
+    mediaCheck($image['media_type']==='image','slideshow verificato resta immagine durante elaborazione');
 } finally {
     foreach(DB::$posts as $post) {
         $data=PostMedia::read($user,$post['id']);

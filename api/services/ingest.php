@@ -346,8 +346,9 @@ class Ingest {
         if ($type === 'image') $primary = $savedImages[0] ?? $primary;
         $poster = $copy($poster);
         // Preserve an image manually uploaded by the owner while filling the original gallery.
-        if (PostMedia::localExists($currentUrl) && (!isset($old['primary']) || $currentUrl !== $old['primary'])) { $primary = $currentUrl; $type = strtolower($currentType); }
-        $data = ['images'=>array_values(array_unique($savedImages)), 'poster'=>$poster, 'primary'=>$primary, 'cache'=>$cache];
+        $replaceBadVideo = $type === 'video' && $platform === 'tiktok' && !PostMedia::localVideo($currentUrl);
+        if (!$replaceBadVideo && PostMedia::localExists($currentUrl) && (!isset($old['primary']) || $currentUrl !== $old['primary'])) { $primary = $currentUrl; $type = strtolower($currentType); }
+        $data = ['images'=>array_values(array_unique($savedImages)), 'poster'=>$poster, 'primary'=>$primary, 'cache'=>$cache, 'source_type'=>$type];
         $updated = $data !== $old || $primary !== $currentUrl || $type !== strtolower($currentType);
         if (!PostMedia::write($userId, $id, $data)) $warnings[] = 'Archivio della galleria non scrivibile.';
         if ($primary !== $currentUrl || $type !== strtolower($currentType)) DB::execute('UPDATE posts SET media_url=?,media_type=? WHERE id=? AND user_id=?', [$primary,$type,$id,$userId]);
@@ -401,10 +402,35 @@ class Ingest {
     }
 
     // ── AGENTE 2 (Armonizzatore): bozza → articolo SEO pubblicato ──────────
+    /** Repair queued legacy TikTok thumbnails/pages before asking the transcription engine. */
+    public static function ensureTikTokMedia(int $userId, array $post, ?callable $resolver = null): array {
+        if (($post['platform'] ?? '') !== 'tiktok' || VideoSource::speech((string)($post['transcript'] ?? '')) !== '') return $post;
+        $metadata = PostMedia::read($userId,(int)$post['id']);
+        if (PostMedia::localVideo((string)($post['media_url'] ?? ''))) {
+            if (strtolower((string)($post['media_type'] ?? '')) !== 'video') DB::execute('UPDATE posts SET media_type=? WHERE id=? AND user_id=?', ['video',$post['id'],$userId]);
+            $post['media_type']='video';
+            return $post;
+        }
+        if (($metadata['source_type'] ?? '') === 'image' && strtolower((string)($post['media_type'] ?? '')) === 'image') return $post;
+        $source = (string)($post['source_url'] ?? '');
+        if ($source === '') throw new RuntimeException('URL originale TikTok mancante: impossibile recuperare il file del contenuto.');
+        $result = $resolver ? $resolver($source,1) : ApifyClient::source($source,1);
+        $item = $result['items'][0] ?? null;
+        if (!$item) throw new RuntimeException('TikTok non ha restituito il contenuto originale. Il post resta in coda.');
+        preg_match('~/(?:video|photo)/(\d+)~',$source,$match);
+        $expectedId = $match[1] ?? (string)($post['platform_post_id'] ?? '');
+        if ($expectedId === '' || (string)($item['id'] ?? '') !== $expectedId) throw new RuntimeException('TikTok ha restituito un contenuto diverso: trascrizione sospesa.');
+        $report = self::syncMedia($userId,(int)$post['id'],'tiktok',(string)($item['id'] ?? $post['id']),$item,(string)($post['media_url'] ?? ''),(string)($post['media_type'] ?? ''));
+        $post['media_url']=$report['media_url']; $post['media_type']=$item['media_type'];
+        if ($item['media_type']==='video' && !PostMedia::localVideo($post['media_url'])) throw new RuntimeException('File video TikTok non disponibile per la trascrizione. Conservata l’anteprima; il contenuto resta in coda.');
+        return $post;
+    }
+
     public static function harmonize(int $userId, int $postId, int $autoPublish = 1, string $length = 'compact'): array {
         self::ensureProcessingSchema();
         $post = DB::fetch('SELECT * FROM posts WHERE id=? AND user_id=?', [$postId, $userId]);
         if (!$post) throw new Exception('Contenuto non trovato');
+        $post = self::ensureTikTokMedia($userId, $post);
 
         $sources = DB::fetchAll(
             'SELECT platform, label, url, topic_summary FROM social_sources WHERE user_id=? AND active=1 ORDER BY platform, id',

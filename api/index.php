@@ -2639,12 +2639,13 @@ if ($action === 'process-pending' && $method === 'POST') {
         ]);
     }
 
-    $post = DB::fetch('SELECT id, platform, media_url, media_type, raw_content, source_url, transcript FROM posts WHERE id=? AND user_id=? AND seo_score=-1 AND processing_status=\'processing\'', [$postId, $userId]);
+    $post = DB::fetch('SELECT id, platform, platform_post_id, media_url, media_type, raw_content, source_url, transcript FROM posts WHERE id=? AND user_id=? AND seo_score=-1 AND processing_status=\'processing\'', [$postId, $userId]);
     if (!$post) jsonError('Impossibile acquisire il contenuto dalla coda', 409);
 
     try {
         require_once __DIR__ . '/services/ai.php';
 
+        $post = Ingest::ensureTikTokMedia($userId, $post);
         // 1. Analisi media: la didascalia non sostituisce mai il contenuto
         // visivo. Un evento, un nome o una data possono esistere solo nel
         // fotogramma, nella locandina o nel parlato del video.
@@ -2708,7 +2709,7 @@ if ($action === 'process-pending' && $method === 'POST') {
         // riprovabile, conservando testo e media originali come sorgenti.
         try {
             Ingest::markProcessingFailed($userId, $postId, $e->getMessage());
-            jsonError('Il motore editoriale non ha prodotto un articolo valido. Il contenuto resta in coda e puÃ² essere riprovato: ' . $e->getMessage(), 502);
+            jsonError('Il motore editoriale non ha prodotto un articolo valido. Il contenuto resta in coda e può essere riprovato: ' . $e->getMessage(), 502);
         } catch (Throwable $recoveryError) {
             $message = mb_substr($e->getMessage() . ' | Recupero: ' . $recoveryError->getMessage(), 0, 2000);
             DB::execute(

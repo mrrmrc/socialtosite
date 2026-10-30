@@ -2,7 +2,10 @@
 /** Video articles preserve the spoken source; captions and profiles cannot replace it. */
 final class VideoSource {
     public static function isVideo(array $post): bool {
-        return strtolower((string)($post['media_type'] ?? '')) === 'video'
+        $type = strtolower((string)($post['media_type'] ?? ''));
+        if (strtolower((string)($post['platform'] ?? '')) === 'youtube') return true;
+        if (in_array($type,['image','photo'],true)) return false;
+        return $type === 'video'
             || in_array(strtolower((string)($post['platform'] ?? '')), ['tiktok', 'youtube'], true);
     }
     public static function transcriptionPrompt(): string {
