@@ -55,11 +55,14 @@ const base = process.argv[2] || 'http://45.138.202.132:8088';
         assert.deepEqual(actions.filter(action => !String(action).startsWith('admin-') && action !== 'me'), [], 'Published admin performs no customer API requests');
       } else {
         await page.getByRole('navigation', { name: 'Sezioni della piattaforma' }).waitFor();
-        await page.getByRole('heading', { name: 'La tua redazione, ogni giorno.', exact: true }).waitFor();
+        await page.getByRole('heading', { name: 'Facciamo un passo insieme.', exact: true }).waitFor();
         await page.waitForTimeout(400);
         assert.equal(await page.locator('.admin-application-shell').count(), 0, 'Published customer stays outside admin shell');
         assert.equal(actions.some(action => String(action).startsWith('admin-')), false, 'Published customer does not call admin APIs');
-        assert.equal(actions.includes('lia-profile-review') || actions.includes('lia-assistant'), false, 'Published entry does not spend AI credit automatically');
+        await page.locator('.lw-briefing-report').waitFor();
+        assert.equal(actions.filter(action => action === 'lia-assistant').length, 1, 'Published entry automatically prepares one briefing');
+        assert.equal(actions.includes('lia-profile-review'), false, 'Published entry does not launch a separate profile review');
+        await page.locator('.lw-start-choices > summary').click();
         await page.getByRole('button', { name: 'Non so da dove iniziare', exact: true }).click();
         await page.getByRole('textbox', { name: 'Scrivi a LIA', exact: true }).fill('Aiutami a farmi conoscere dalle famiglie.');
         await page.getByRole('button', { name: 'Invia a LIA', exact: true }).click();

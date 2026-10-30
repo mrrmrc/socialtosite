@@ -3543,10 +3543,10 @@ export function DashboardScreen({ token, user, onLogout, onUserUpdate }) {
     (publishedPosts.length ? 1 : 0) +
     (sources.length ? 1 : 0);
   const visibleNavigationGroups = [{ label: "Il tuo spazio", items: [
-    { id: "overview", icon: <Icon name="spark" />, label: "LIA", hint: "Parla con LIA e scegli il prossimo passo" },
+    { id: "overview", icon: <Icon name="spark" />, label: "Home", hint: "LIA ti accompagna, un passo alla volta" },
     { id: "site", icon: <Icon name="layers" />, label: "Contenuti", hint: "Rivedi le bozze e gli articoli pubblicati" },
     { id: "publicsite", icon: <Icon name="globe" />, label: "Il sito", hint: "Guarda il tuo sito e chiedi una modifica" },
-    { id: "seo", icon: <Icon name="chart" />, label: "SEO e GEO", hint: "Visibilit? e risultati disponibili" },
+    { id: "seo", icon: <Icon name="chart" />, label: "Risultati", hint: "Guarda come va il tuo sito" },
     { id: "sources", icon: <Icon name="link" />, label: "Canali", hint: "Collega le tue fonti" },
   ] }];
   const secondaryNavigation = [
@@ -4075,7 +4075,7 @@ export function DashboardScreen({ token, user, onLogout, onUserUpdate }) {
               style={{ display: "flex", flexDirection: "column", gap: "2rem" }}
             >
               {tab === 'overview' && <LiaWorkspace token={token} user={user} state={liaWorkspaceState?.ownerId === String(user.id) ? liaWorkspaceState : null} onStateChange={setLiaWorkspaceState} data={data} site={site} sources={sources} posts={posts} loading={homeLoading} error={homeError} knowledge={knowledge} onRefresh={loadData} onPostEdit={post => openPostEditor(post)} onWrite={title => openNewArticle({ title: title || '' })} onAcquire={() => isBasePlan ? acquireBaseContent(false) : scanSources()} onNavigate={id => { selectNavigation({ id: id === 'reachability' ? 'profile' : id }); if (id === 'reachability') setProfileSubTab('presence'); if (id === 'profile') setProfileSubTab('who'); }} />}
-              {tab === 'overview' && <details className="lia-results-summary"><summary>Visibilità e riepilogo del progetto</summary><VisibilityPulse user={user} data={data} loading={homeLoading} error={homeError} onNavigate={id => { if (id === 'profile') setProfileSubTab('presence'); setTab(id); }} onLia={input => { openLiaRequest(input); requestAnimationFrame(() => document.getElementById('lia-workspace-input')?.focus()); }} /></details>}
+              {tab === 'overview' && <details className="lia-results-summary"><summary>Le statistiche del mio sito</summary><VisibilityPulse user={user} data={data} loading={homeLoading} error={homeError} onNavigate={id => { if (id === 'profile') setProfileSubTab('presence'); setTab(id); }} onLia={input => { openLiaRequest(input); requestAnimationFrame(() => document.getElementById('lia-workspace-input')?.focus()); }} /></details>}
 
               {tab === 'profile' && profileSubTab === 'who' && (
                 <div className="profile-review-stack">

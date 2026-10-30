@@ -2187,7 +2187,11 @@ if ($action === 'lia-assistant' && $method === 'POST') {
         $liaData = LiaAssistant::load((int)$userId, $liaInput['context_post_id']);
         $liaFacts = $liaData['facts'];
         $liaFacts['channels']=LiaAssistant::channelContext((int)$userId);
-        if (in_array($liaInput['intent'],['seo','geo','visibility'],true)) $liaFacts['search_queries']=LiaAssistant::searchContext((int)$userId);
+        if (in_array($liaInput['intent'],['seo','geo','visibility','briefing'],true)) $liaFacts['search_queries']=LiaAssistant::searchContext((int)$userId);
+        if ($liaInput['intent']==='briefing') {
+            require_once __DIR__ . '/services/lia_agenda.php';
+            $liaFacts['agenda']=LiaAgenda::read((int)$userId);
+        }
         $liaFacts['visibility_available'] = false;
         try {
             $liaVisibility = VisibilityAnalytics::userSummary((int)$userId);

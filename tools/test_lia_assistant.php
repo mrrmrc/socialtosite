@@ -107,6 +107,27 @@ liaRejects(fn() => LiaAssistant::reply([], [], [], $input), 'Revision without a 
 liaRejects(fn() => LiaAssistant::normalize('{"reply":"Rivediamo il testo.","actions":[{"type":"prepare_article","brief":{"subject":"Testo","revise_current":"true"}}]}'), 'Revision flag must be a real boolean');
 $forgedSource = LiaAssistant::normalize('{"reply":"Prepariamo un nuovo testo.","actions":[{"type":"prepare_article","brief":{"subject":"Un nuovo argomento","source_text":"Fonte non autorizzata"}}]}');
 liaCheck(!isset($forgedSource['actions'][0]['brief']['source_text']), 'Fresh model action cannot inject a revision source');
+$briefingInput=LiaAssistant::input(['intent'=>'briefing','messages'=>[['role'=>'user','text'=>'Prepara il bollettino']],'agenda'=>['goal'=>'Forged client agenda']]);
+liaCheck(!isset($briefingInput['agenda']), 'Briefing agenda cannot be supplied by the client');
+$briefingFacts=$loaded['facts']+['agenda'=>['goal'=>'Ricevere richieste dalle famiglie','secret'=>'do-not-share','tasks'=>[['role'=>'editorial','title'=>'Guida famiglie','reason'=>'Priorità concordata','brief'=>'Rivedere il titolo','date'=>'2026-10-29','status'=>'done','secret'=>'do-not-share']]]];
+$briefingContext=LiaAssistant::context([], $loaded['site'], $briefingFacts);
+liaCheck($briefingContext['agenda']['tasks'][0]['status']==='done' && isset($briefingContext['today']) && !str_contains(json_encode($briefingContext),'do-not-share'), 'Briefing receives bounded saved progress and the current date without arbitrary fields');
+AI::$response=json_encode(['reply'=>"Hai completato una guida.\nPossiamo preparare il prossimo contenuto.",'next_step'=>['title'=>'Prepariamo una risposta utile per le famiglie','reason'=>'Ti aiuta a spiegare cosa offri.','prompt'=>'Aiutami a scrivere una risposta utile per le famiglie.','context_post_id'=>null],'actions'=>[]]);
+$briefingReply=LiaAssistant::reply([], $loaded['site'], $briefingFacts, $briefingInput);
+liaCheck(str_contains($briefingReply['reply'],"\nPossiamo") && $briefingReply['operations_executed']===[], 'Guide preserves readable lines and executes no writes');
+liaCheck($briefingReply['next_step']['title']==='Prepariamo una risposta utile per le famiglie' && $briefingReply['actions']===[] && $briefingReply['question']===null && $briefingReply['options']===[], 'Entry offers a single concrete next step without a competing question or actions');
+liaCheck(str_contains(AI::$lastRequest[0][0]['text'],'GUIDA DI APERTURA') && str_contains(AI::$lastRequest[0][0]['text'],'Ricevere richieste dalle famiglie') && str_contains(AI::$lastRequest[0][0]['text'],'senza competenze informatiche'), 'Startup uses the saved objective and instructs the agent to guide a novice in plain language');
+$guideData=json_decode(AI::$response,true);
+$guideData['next_step']['context_post_id']=99;
+$guideData['actions']=[['type'=>'navigate','target'=>'site']];
+AI::$response=json_encode($guideData);
+$ownedGuide=LiaAssistant::reply([],[],['recent_contents'=>[['id'=>99,'title'=>'Guida del titolare']]],$briefingInput);
+liaCheck($ownedGuide['next_step']['context_post_id']===99 && $ownedGuide['actions']===[], 'Guided continuation retains an owned article ID and suppresses competing operations');
+liaRejects(fn()=>LiaAssistant::reply([],[],['recent_contents'=>[['id'=>100,'title'=>'Altro contenuto']]],$briefingInput),'Guide cannot recommend an article outside its owned context');
+AI::$response='{"reply":"Non so cosa fare","actions":[]}';
+liaRejects(fn()=>LiaAssistant::reply([],[],[],$briefingInput),'A generic reply without a concrete next step must remain retryable rather than pretending to be useful guidance');
+liaRejects(fn()=>LiaAssistant::normalize('{"reply":"Ti aiuto","next_step":{"title":"Un passo","prompt":"Procedi"}}'),'Incomplete guide is rejected');
+liaRejects(fn()=>LiaAssistant::normalize('{"reply":"Ti aiuto","next_step":{"title":"Un passo","reason":"Serve","prompt":"Procedi","context_post_id":-1}}'),'Invalid guide content ID is rejected');
 AI::$failure = new RuntimeException('Gemini (402): provider details never returned');
 try { LiaAssistant::reply([], [], [], $input); throw new LogicException('Provider failure was hidden'); }
 catch (RuntimeException $error) { liaCheck(AIHealth::failure($error)['code'] === 'provider_credit_exhausted', 'Provider quota/credit failures remain explicit'); }
