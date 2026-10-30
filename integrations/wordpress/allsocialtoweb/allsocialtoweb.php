@@ -2,7 +2,7 @@
 /**
  * Plugin Name: AllSocialToWeb Connector
  * Description: Collega l’intero archivio AllSocialToWeb a WordPress con filtri, categorie e tag dalla tua area personale.
- * Version: 0.4.1
+ * Version: 0.5.0
  * Requires PHP: 8.0
  * Requires at least: 6.0
  */
@@ -54,7 +54,7 @@ function astw_settings(): void {
     if ($newSecret) echo '<p>Copia ora il codice in AllSocialToWeb. Non sarà mostrato nuovamente.</p><code style="user-select:all">' . esc_html($newSecret) . '</code>';
     $feedSettings = get_option('astw_sync_settings', []);
     $connectionState = !get_option('astw_secret') ? 'disabilitato' : (!empty($feedSettings['feed_url']) && !empty($feedSettings['feed_token']) ? 'archivio collegato' : 'codice attivo, collegamento archivio da completare');
-    echo '<p>Plugin 0.4.1 · Stato: ' . esc_html($connectionState) . '</p><form method="post">';
+    echo '<p>Plugin 0.5.0 · Stato: ' . esc_html($connectionState) . '</p><form method="post">';
     wp_nonce_field('astw_connection');
     submit_button('Genera nuovo codice (revoca il precedente)', 'primary', 'connect');
     submit_button('Disabilita collegamento', 'secondary', 'disconnect');
@@ -85,7 +85,7 @@ add_action('rest_api_init', static function () {
     register_rest_route('allsocialtoweb/v1', '/health', ['methods'=>'GET','permission_callback'=>'astw_permission','callback'=>static function () {
         $categories = get_categories(['hide_empty'=>false]);
         $tags = get_tags(['hide_empty'=>false]);
-        return ['protocol'=>'1', 'sync_available'=>true, 'archive_available'=>true, 'feed_ready'=>!empty(get_option('astw_sync_settings', [])['feed_url']) && !empty(get_option('astw_sync_settings', [])['feed_token']), 'media_available'=>true, 'version'=>'0.4.1',
+        return ['protocol'=>'1', 'sync_available'=>true, 'archive_available'=>true, 'article_updates_available'=>true, 'feed_ready'=>!empty(get_option('astw_sync_settings', [])['feed_url']) && !empty(get_option('astw_sync_settings', [])['feed_token']), 'media_available'=>true, 'version'=>'0.5.0',
             'categories'=>array_map(static fn($c)=>['id'=>$c->term_id,'name'=>$c->name], $categories),
             'tags'=>array_map(static fn($t)=>['id'=>$t->term_id,'name'=>$t->name], $tags),
             'settings'=>astw_public_sync_settings(), 'last_sync'=>get_option('astw_last_sync', [])];
@@ -113,6 +113,30 @@ function astw_receipt(string $key): array {
     $post = get_post((int)$row['post_id']);
     if (!$post || !in_array($post->post_status, ['draft','publish'], true)) return ['state'=>'uncertain'];
     return ['state'=>$post->post_status === 'publish' ? 'published' : 'draft','id'=>$post->ID,'url'=>get_permalink($post->ID)];
+}
+
+/** Compare the stored CMS fields, including taxonomy changes made by its editor. */
+function astw_sync_fingerprint(int $id): string {
+    $post = get_post($id);
+    if (!$post) return '';
+    $categories = wp_get_post_categories($id); $tags = wp_get_post_tags($id, ['fields'=>'ids']);
+    if (is_wp_error($categories) || is_wp_error($tags)) return '';
+    sort($categories); sort($tags);
+    return hash('sha256', wp_json_encode([$post->post_title,$post->post_content,$post->post_excerpt,$categories,$tags]));
+}
+
+function astw_sync_baseline(int $id, string $key): string {
+    global $wpdb;
+    $baseline = (string)get_post_meta($id, '_astw_sync_snapshot', true);
+    if ($baseline !== '') return $baseline;
+    // Upgrade older imports only when their current fields still match the saved delivery.
+    $post = get_post($id);
+    $row = $wpdb->get_row($wpdb->prepare("SELECT * FROM {$wpdb->prefix}astw_deliveries WHERE delivery_key=%s", $key), ARRAY_A);
+    if (!$post || !$row) return '';
+    $categories = wp_get_post_categories($id); $tags = wp_get_post_tags($id, ['fields'=>'ids']);
+    if (is_wp_error($categories) || is_wp_error($tags)) return '';
+    $legacy = ['title'=>$post->post_title,'html'=>$post->post_content,'excerpt'=>$post->post_excerpt,'sync_publish'=>!empty(get_post_meta($id, '_astw_sync_publish', true)), 'category_ids'=>$categories,'tag_ids'=>$tags];
+    return hash_equals($row['payload_hash'], hash('sha256', wp_json_encode($legacy))) ? astw_sync_fingerprint($id) : '';
 }
 
 function astw_deliver(WP_REST_Request $request) {
@@ -143,8 +167,20 @@ function astw_deliver(WP_REST_Request $request) {
     try {
         $row = $wpdb->get_row($wpdb->prepare("SELECT * FROM {$wpdb->prefix}astw_deliveries WHERE delivery_key=%s", $key), ARRAY_A);
         if ($row) {
-            if (!hash_equals($row['payload_hash'], $hash)) return new WP_Error('astw_conflict','La versione consegnata è diversa.',['status'=>409]);
-            return astw_receipt($key);
+            if (hash_equals($row['payload_hash'], $hash)) return astw_receipt($key);
+            if (empty($payload['sync_managed'])) return new WP_Error('astw_conflict','La versione consegnata è diversa.',['status'=>409]);
+            $receipt = astw_receipt($key);
+            $id = (int)($receipt['id'] ?? 0);
+            $baseline = $id ? astw_sync_baseline($id, $key) : '';
+            if (($receipt['state'] ?? '') !== 'draft' || $baseline === '' || !hash_equals($baseline, astw_sync_fingerprint($id))) return $receipt + ['preserved'=>true];
+            if (!current_user_can('edit_post', $id)) return new WP_Error('astw_edit','Modifica articolo non autorizzata.',['status'=>403]);
+            $result = wp_update_post(wp_slash(['ID'=>$id,'post_title'=>$title,'post_content'=>$html,'post_excerpt'=>sanitize_textarea_field($payload['excerpt'] ?? ''),'post_category'=>$categoryIds,'tags_input'=>$tagIds]), true);
+            if (is_wp_error($result)) return new WP_Error('astw_update','Aggiornamento bozza da verificare.',['status'=>503]);
+            if (!empty($payload['sync_publish'])) update_post_meta($id, '_astw_sync_publish', 1);
+            else delete_post_meta($id, '_astw_sync_publish');
+            update_post_meta($id, '_astw_sync_snapshot', astw_sync_fingerprint($id));
+            $wpdb->update($wpdb->prefix . 'astw_deliveries', ['payload_hash'=>$hash], ['delivery_key'=>$key]);
+            return astw_receipt($key) + ['updated'=>true];
         }
         $inserted = $wpdb->insert($wpdb->prefix . 'astw_deliveries', ['delivery_key'=>$key,'payload_hash'=>$hash,'created_at'=>gmdate('Y-m-d H:i:s')]);
         if ($inserted !== 1) return new WP_Error('astw_storage','Registro consegna non disponibile.',['status'=>503]);
@@ -166,6 +202,7 @@ function astw_deliver(WP_REST_Request $request) {
             'meta_input'=>array_merge($imageId ? ['_thumbnail_id'=>$imageId] : [], !empty($payload['sync_publish']) ? ['_astw_sync_publish'=>1] : []),
         ]), true);
         if (is_wp_error($id) || !$id) return new WP_Error('astw_create','Creazione da verificare.',['status'=>503]);
+        if (!empty($payload['sync_managed'])) update_post_meta($id, '_astw_sync_snapshot', astw_sync_fingerprint((int)$id));
         $wpdb->update($wpdb->prefix . 'astw_deliveries', ['post_id'=>$id], ['delivery_key'=>$key]);
         return astw_receipt($key);
     } finally { $wpdb->get_var($wpdb->prepare('SELECT RELEASE_LOCK(%s)', $lock)); }

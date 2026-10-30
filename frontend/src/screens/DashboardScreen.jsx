@@ -922,7 +922,7 @@ export function DashboardScreen({ token, user, onLogout, onUserUpdate }) {
     setLiaWorkspaceState({ version: 1, ownerId: String(user.id), messages: [], intent: 'general', input: '' });
   }, [token, user.id]);
   function openLiaRequest(input) {
-    setLiaWorkspaceState(current => ({ ...current, input, intent: 'general' }));
+    setLiaWorkspaceState(current => ({ ...current, input, intent: 'general', pendingRequest: { id: Date.now(), input } }));
     setTab('overview');
   }
   const [visibilitySection, setVisibilitySection] = useState("overview");

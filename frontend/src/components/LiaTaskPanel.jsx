@@ -1,16 +1,32 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { LiaAvatar } from './LiaAvatar';
 import { InterfaceIcon as Icon } from './InterfaceIcon';
 
 export const LIA_TASKS = [
-  { icon: 'pen', title: 'Da un’idea a un contenuto', detail: 'Mettiamo a fuoco argomento, pubblico e prima bozza.', prompt: 'Aiutami a trasformare una mia idea in un contenuto. Chiedimi prima argomento, pubblico e obiettivo.' },
+  { icon: 'pen', title: 'Da un’idea a un contenuto', detail: 'Ricevi 3 idee concrete basate sulla tua attività.', prompt: 'Proponimi tre idee concrete di contenuto per la mia attività. Usa il profilo e i contenuti già presenti, evita di ripetere gli stessi argomenti. Per ciascuna dammi un titolo, un taglio utile e il motivo per cui può interessare al mio pubblico.' },
   { icon: 'spark', title: 'Le parole giuste per te', detail: 'Rivediamo come racconti la tua attività.', prompt: 'Vorrei una presentazione più chiara della mia attività. Partiamo dalle informazioni del mio profilo e chiedimi quello che manca.' },
-  { icon: 'globe', title: 'Un sito che ti somiglia', detail: 'Troviamo insieme cosa migliorare sul tuo sito.', prompt: 'Aiutami a migliorare il mio sito: rivediamo chiarezza, presentazione e informazioni utili per chi lo visita.' },
+  { icon: 'globe', title: 'Il prossimo passo utile', detail: 'Una priorità motivata, con qualcosa da fare adesso.', prompt: 'In base al mio profilo e allo stato dei miei contenuti, scegli una sola azione utile da fare adesso. Spiega perché la consigli e aiutami a svolgerla. Non ripetere il riepilogo e non inventare risultati o dati mancanti.' },
 ];
 
-export function LiaTaskPanel({ onChoose, sources = [], posts = [], loading = false, busy = false }) {
-  const published = posts.filter(post => Number(post.published) === 1).length;
-  return <aside className="lia-task-panel" aria-label="Idee e strumenti con LIA"><div className="lia-task-panel-title"><Icon name="spark" size={17} /><span>UN BUON PUNTO DI PARTENZA</span></div><h2>Fai spazio alla prossima idea.</h2><p>Scegli una direzione. Prepariamo insieme la richiesta, poi decidi tu quando inviarla.</p><div className="lia-task-list">{LIA_TASKS.map(task => <button key={task.title} type="button" disabled={busy} onClick={() => onChoose(task.prompt)}><span className="lia-task-icon"><Icon name={task.icon} /></span><span><strong>{task.title}</strong><small>{task.detail}</small></span><Icon name="arrow" size={16} /></button>)}</div><div className="lia-project-snapshot"><span>IL TUO PROGETTO, A COLPO D’OCCHIO</span><dl><div><dt>Fonti collegate</dt><dd>{loading ? '…' : sources.length}</dd></div><div><dt>Contenuti pubblicati</dt><dd>{loading ? '…' : published}</dd></div><div><dt>Bozze e lavorazioni</dt><dd>{loading ? '…' : posts.length - published}</dd></div></dl></div><div className="lia-task-note"><LiaAvatar size={34} /><p>Le idee prendono forma qui.<br /><strong>L’ultima parola resta a te.</strong></p></div></aside>;
+export function LiaTaskShortcuts({ onChoose, disabled }) {
+  return <nav className="lw-quick-tools" aria-label="Attività con LIA">{LIA_TASKS.map(task => <button key={task.title} type="button" disabled={disabled} onClick={() => onChoose(task.prompt)}><span className="lw-tool-icon"><Icon name={task.icon} size={21} /></span><span><strong>{task.title}</strong><small>{task.detail}</small></span><Icon name="arrow" size={17} /></button>)}</nav>;
+}
+
+export function LiaTaskPanel({ onChoose, onPostEdit, sources = [], posts = [], loading = false, busy = false }) {
+  const [chosenId, setChosenId] = useState('');
+  const candidates = [...posts].sort((a,b) => Number(a.published) - Number(b.published));
+  const chosen = candidates.find(post => String(post.id) === chosenId) || candidates[0];
+  const title = post => post.edited_title || post.generated_title || `Contenuto ${post.platform || ''} #${post.id}`;
+  return <aside className="lia-task-panel lw-agent-panel" aria-label="Idee e strumenti con LIA">
+    <div className="lia-task-panel-title"><Icon name="spark" size={17} /><span>INIZIAMO A LAVORARE</span></div><h2>Un aiuto concreto, adesso.</h2><p>Scegli un’attività: LIA usa quello che conosce del tuo progetto e ti risponde qui.</p>
+    <section className="lw-content-coach" aria-label="Migliora un tuo contenuto"><span className="lw-eyebrow">DAL TUO ARCHIVIO</span><h3>Miglioriamo un contenuto.</h3>{chosen ? <>
+      <label htmlFor="lia-content-choice">Su quale lavoriamo?</label><select id="lia-content-choice" value={String(chosen.id)} disabled={busy || loading} onChange={event => setChosenId(event.target.value)}>{candidates.map(post => <option key={post.id} value={post.id}>{title(post)}</option>)}</select>
+      <p>{Number(chosen.published) === 1 ? 'Un articolo già online: possiamo renderlo più chiaro o sviluppare un nuovo approfondimento.' : 'Una bozza da sviluppare: troviamo cosa manca e prepariamo una versione migliore.'}</p>
+      <button type="button" className="lw-primary" disabled={busy || loading} onClick={() => onChoose('Analizza il contenuto selezionato: indicami due miglioramenti specifici a titolo, chiarezza o utilità per il lettore. Proponi poi una bozza rivista mantenendo i fatti e senza pubblicare o modificare l’originale.', Number(chosen.id), 'article')}>Analizza e migliora</button>
+      {onPostEdit && <button type="button" className="lw-text-button" disabled={busy} onClick={() => onPostEdit(chosen)}>Apri il contenuto nell’editor</button>}
+    </> : <><p>Non hai ancora contenuti su cui lavorare. Partiamo da un’idea adatta alla tua attività.</p><button type="button" className="lw-secondary" disabled={busy || loading} onClick={() => onChoose(LIA_TASKS[0].prompt)}>Trova il primo argomento</button></>}</section>
+    <div className="lia-task-note"><LiaAvatar size={34} /><p>{loading ? 'Aggiorno il contesto…' : `${posts.length} contenuti · ${sources.length} canali`}<br /><strong>Le tue idee, pronte a fare un passo avanti.</strong></p></div>
+  </aside>;
 }
 
 const adminGuides = {

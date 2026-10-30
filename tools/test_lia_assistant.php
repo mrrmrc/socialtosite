@@ -14,6 +14,10 @@ class DB {
         self::$reads[] = [$sql, $parameters];
         if (str_contains($sql, 'FROM sites')) return ['title' => 'Studio proprietario ' . $parameters[0], 'bio' => 'Consulenza locale', 'secret_token' => 'never-share'];
         if (str_contains($sql, 'FROM social_sources')) return ['sources' => 2];
+        if (str_contains($sql, 'WHERE id=? AND user_id=?')) {
+            if ($parameters === [100,42]) return ['id'=>100,'platform'=>'tiktok','media_type'=>'video','raw_content'=>'Didascalia non verificata'];
+            return $parameters === [99,42] ? ['id'=>99,'platform'=>'manual','published'=>0,'edited_title'=>'Articolo del titolare','edited_body'=>'<p>Una fonte concreta da migliorare.</p>'] : null;
+        }
         return ['acquired' => 8, 'ready' => 7, 'published' => 5, 'pending' => 1, 'processing' => 0];
     }
     public static function fetchAll(string $sql, array $parameters): array { self::$reads[] = [$sql, $parameters]; return [['title' => 'Titolo account ' . $parameters[0]]]; }
@@ -41,6 +45,14 @@ foreach ([['work' => 'text'], ['work' => ['article' => ['content' => []]]], ['wo
 $loaded = LiaAssistant::load(42);
 liaCheck(count(DB::$reads) === 4, 'Conversation reads bounded account context');
 foreach (DB::$reads as [$sql, $parameters]) liaCheck(str_contains($sql, 'user_id=?') && $parameters === [42], 'Every context query belongs to the authenticated account');
+$selectedInput=LiaAssistant::input(['messages'=>[['role'=>'user','text'=>'Migliora il mio articolo']],'context_post_id'=>99]);
+$selected=LiaAssistant::load(42,$selectedInput['context_post_id']);
+liaCheck($selected['facts']['selected_content']['id']===99 && $selected['facts']['selected_content']['content']==='Una fonte concreta da migliorare.', 'Selected article comes from the authenticated owner and contains actual text');
+liaRejects(fn()=>LiaAssistant::load(43,99), 'An article belonging to another account was accepted');
+liaRejects(fn()=>LiaAssistant::input(['messages'=>[['role'=>'user','text'=>'Testo']],'context_post_id'=>-1]), 'Invalid selected article accepted');
+$video=LiaAssistant::load(42,100);
+$videoReply=LiaAssistant::reply([], $video['site'], $video['facts'], $selectedInput);
+liaCheck($video['facts']['selected_content']['content']==='' && $videoReply['actions'][0]['type']==='navigate' && AI::$lastRequest===[], 'Untranscribed videos cannot become invented articles through assistant review');
 $context = LiaAssistant::context(['name' => 'Titolare', 'secret' => 'private'], $loaded['site'], $loaded['facts']);
 liaCheck($context['counts']['processing'] === 0 && $context['visibility'] === ['available' => false], 'Known zero and unavailable results remain different');
 liaCheck(!str_contains(json_encode($context), 'never-share') && !str_contains(json_encode($context), 'private'), 'Context excludes credentials and arbitrary account fields');
@@ -84,6 +96,8 @@ AI::$response = json_encode(['reply' => 'Posso rendere questa bozza più pratica
 $refined = LiaAssistant::reply([], [], [], $workInput);
 liaCheck($refined['actions'][0]['brief']['source_text'] === $workInput['work']['article']['content'] && strlen($refined['actions'][0]['brief']['instructions']) === 800, 'Revision source is attached from sanitized browser work, never copied from model output');
 liaCheck(str_contains(AI::$lastRequest[0][0]['text'], 'LAVORO IN CORSO') && str_contains(AI::$lastRequest[0][0]['text'], 'Testo concreto della bozza.') && $refined['operations_executed'] === [], 'Follow-up prompt contains actual draft and revision stays a proposal');
+$selectedReply=LiaAssistant::reply([], $selected['site'], $selected['facts'], $selectedInput);
+liaCheck($selectedReply['actions'][0]['brief']['source_text']==='Una fonte concreta da migliorare.', 'Revision attaches the real selected source rather than asking the user to paste it');
 liaRejects(fn() => LiaAssistant::reply([], [], [], $input), 'Revision without a current draft accepted');
 liaRejects(fn() => LiaAssistant::normalize('{"reply":"Rivediamo il testo.","actions":[{"type":"prepare_article","brief":{"subject":"Testo","revise_current":"true"}}]}'), 'Revision flag must be a real boolean');
 $forgedSource = LiaAssistant::normalize('{"reply":"Prepariamo un nuovo testo.","actions":[{"type":"prepare_article","brief":{"subject":"Un nuovo argomento","source_text":"Fonte non autorizzata"}}]}');

@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { apiFetch } from '../utils/api';
 import { LiaAvatar } from './LiaAvatar';
-import { LiaTaskPanel } from './LiaTaskPanel';
+import { LiaTaskPanel, LiaTaskShortcuts } from './LiaTaskPanel';
 import './LiaWorkspace.css';
 
 const STARTERS = ['Non so da dove iniziare', 'Scriviamo un contenuto', 'Aggiorniamo il sito'];
@@ -135,17 +135,36 @@ export function LiaWorkspace({ user, data, site: siteProp, sources: sourcesProp,
     inputRef.current?.focus();
   }
 
+  function startTask(prompt, postId = null, intent = 'general') {
+    if (busyRef.current) return;
+    update(current => ({ ...current, intent, contextPostId: postId, workFrom: current.messages.length, pendingRequest: null }));
+    ask(prompt);
+    logRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+
+  const handledRequest = useRef(null);
+  useEffect(() => {
+    const request = state?.pendingRequest;
+    if (!request || request.id === handledRequest.current || state.ownerId !== ownerId || busyRef.current) return;
+    const timer = setTimeout(() => {
+      if (busyRef.current || handledRequest.current === request.id) return;
+      handledRequest.current = request.id;
+      startTask(request.input);
+    }, 0);
+    return () => clearTimeout(timer);
+  }, [state?.pendingRequest?.id, ownerId, busy]);
+
   async function ask(value, retry = false) {
     const clean = text(value, 2000);
     if ((!clean && !retry) || busyRef.current) return;
     const operation = begin('LIA sta preparando la risposta…');
     if (!operation) return;
     const nextMessages = retry ? workspaceRef.current.messages : [...workspaceRef.current.messages, { id: uid(), role: 'user', text: clean }];
-    const work = latestArticleWork(nextMessages);
+    const work = latestArticleWork(nextMessages.slice(workspaceRef.current.workFrom || 0));
     update(current => ({ ...current, input: '', pendingChat: true, chatFailure: null, messages: nextMessages }));
     const timer = setTimeout(() => operation.controller.abort(), 90000);
     try {
-      const result = await apiFetch('/api/index.php?action=lia-assistant', { method: 'POST', signal: operation.controller.signal, body: JSON.stringify({ intent: workspaceRef.current.intent, ...(work ? { work } : {}), messages: nextMessages.filter(message => message.role === 'assistant' || message.role === 'user').slice(-12).map(message => ({ role: message.role, text: message.text + (message.question ? `\n${message.question}` : '') })) }) }, token);
+      const result = await apiFetch('/api/index.php?action=lia-assistant', { method: 'POST', signal: operation.controller.signal, body: JSON.stringify({ intent: workspaceRef.current.intent, context_post_id: workspaceRef.current.contextPostId || null, ...(work ? { work } : {}), messages: nextMessages.filter(message => message.role === 'assistant' || message.role === 'user').slice(-12).map(message => ({ role: message.role, text: message.text + (message.question ? `\n${message.question}` : '') })) }) }, token);
       if (operation.revision !== generation.current) return;
       if (!text(result.reply, 8000)) throw new Error('LIA non ha restituito una risposta. La tua richiesta è conservata.');
       const reply = { id: uid(), role: 'assistant', text: text(result.reply, 8000), question: text(result.question, 1000), options: (Array.isArray(result.options) ? result.options : []).map(option => text(option, 180)).filter(Boolean).slice(0, 3), actions: (Array.isArray(result.actions) ? result.actions : []).map(normalizeAction).filter(Boolean).slice(0, 2), warnings: (Array.isArray(result.warnings) ? result.warnings : []).map(warning => text(warning, 500)).filter(Boolean).slice(0, 3) };
@@ -218,9 +237,11 @@ export function LiaWorkspace({ user, data, site: siteProp, sources: sourcesProp,
 
   if (workspace.ownerId !== ownerId) return <section className="lia-workspace" role="status">Caricamento del tuo spazio…</section>;
   return <section className="lia-workspace" aria-labelledby="lia-workspace-title">
-    <header className="lw-heading"><div className="lw-identity"><LiaAvatar size={56} knowledge={knowledge} thinking={Boolean(busy)} /><div><span>LIA · Il tuo spazio di lavoro</span><h2 id="lia-workspace-title">Cosa facciamo oggi?</h2></div></div><p>Non serve sapere cosa scrivere. Scegli un punto di partenza oppure raccontamelo con le tue parole.</p></header>
+    <header className="lw-heading"><div className="lw-identity"><LiaAvatar size={56} knowledge={knowledge} thinking={Boolean(busy)} /><div><span>LIA · La tua assistente operativa</span><h2 id="lia-workspace-title">Cosa facciamo oggi?</h2></div></div><p>Idee per il prossimo contenuto, un articolo da migliorare, un passo avanti per il tuo sito. Scegli un’attività: iniziamo subito a lavorarci.</p></header>
     {error && <div className="lw-context-warning" role="alert"><p>Non riesco ad aggiornare i dati del tuo spazio: {error}</p><button type="button" className="lw-secondary" disabled={Boolean(busy) || loading} onClick={onRefresh}>Aggiorna i dati</button></div>}
-    <div className="lw-work-area"><div className="lw-conversation"><header className="lw-conversation-heading"><div><strong>{site.title || user?.name || 'Il tuo progetto'}</strong><small>{loading ? 'Aggiornamento dati…' : 'Un passo alla volta, con le tue conferme.'}</small></div><button type="button" className="lw-text-button" disabled={Boolean(busy)} onClick={() => { update(initialState(ownerId, null)); inputRef.current?.focus(); }}>Nuova conversazione</button></header>
+    <LiaTaskShortcuts disabled={Boolean(busy) || loading} onChoose={startTask} />
+    <div className="lw-work-area"><div className="lw-conversation"><header className="lw-conversation-heading"><div><strong>{site.title || user?.name || 'Il tuo progetto'}</strong><small>{loading ? 'Aggiornamento dati…' : busy ? 'LIA sta lavorando alla tua richiesta' : 'Idee, revisioni e bozze nello stesso spazio.'}</small></div><button type="button" className="lw-text-button" disabled={Boolean(busy)} onClick={() => { update(initialState(ownerId, null)); inputRef.current?.focus(); }}>Nuova conversazione</button></header>
+      {workspace.contextPostId && <div className="lw-working-context"><span>Al lavoro su <strong>{posts.find(post => Number(post.id) === Number(workspace.contextPostId))?.edited_title || posts.find(post => Number(post.id) === Number(workspace.contextPostId))?.generated_title || `Contenuto #${workspace.contextPostId}`}</strong></span><button type="button" disabled={Boolean(busy)} onClick={() => update(current => ({ ...current, contextPostId: null, workFrom: current.messages.length }))}>Cambia argomento</button></div>}
       <div className="lw-log" ref={logRef} role="log" aria-label="Conversazione con LIA" aria-live="polite" aria-relevant="additions text">
         {messages.map((message, index) => <article key={message.id} className={`lw-message is-${message.role}`}><span className="lw-message-author">{message.role === 'assistant' ? 'LIA' : 'Tu'}</span><div className="lw-message-content"><p>{message.text}</p>{message.question && <p className="lw-question">{message.question}</p>}{index === messages.length - 1 && Boolean(message.options?.length) && <div className="lw-options">{message.options.map((option, optionIndex) => <button key={`${option}-${optionIndex}`} type="button" disabled={Boolean(busy)} onClick={() => message.local ? localChoice(message, option) : ask(option)}>{option}</button>)}</div>}{message.warnings?.map((warning, warningIndex) => <p className="lw-note" key={warningIndex}>{warning}</p>)}{Boolean(message.actions?.length) && <div className="lw-action-list">{message.actions.map(action => renderAction(message, action))}</div>}</div></article>)}
         {busy && <div className="lw-thinking" role="status"><LiaAvatar size={32} knowledge={knowledge} thinking /><span>{busy}</span></div>}
@@ -228,7 +249,7 @@ export function LiaWorkspace({ user, data, site: siteProp, sources: sourcesProp,
       </div>
       <form className="lw-composer" onSubmit={event => { event.preventDefault(); ask(workspaceRef.current.input); }}><label htmlFor="lia-workspace-input">Scrivi a LIA</label><textarea id="lia-workspace-input" ref={inputRef} rows={3} maxLength={2000} value={workspace.input || ''} onChange={event => update(current => ({ ...current, input: event.target.value }))} placeholder={workspace.intent === 'article' ? 'Per esempio: voglio spiegare ai miei clienti come scegliere il servizio giusto…' : workspace.intent === 'site' ? 'Per esempio: vorrei una presentazione più chiara e accogliente…' : 'Per esempio: aiutami a presentare meglio la mia attività…'} disabled={Boolean(busy)} /><div><small>Le proposte si preparano qui. Decidi tu cosa salvare o pubblicare.</small><button type="submit" className="lw-primary" disabled={Boolean(busy) || !text(workspace.input, 2000)}>Invia a LIA</button></div></form>
     </div>
-    <LiaTaskPanel sources={sources} posts={posts} loading={loading} busy={Boolean(busy)} onChoose={prompt => { update(current => ({ ...current, input: prompt })); inputRef.current?.focus(); inputRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }); }} /></div>
+    <LiaTaskPanel sources={sources} posts={posts} loading={loading} busy={Boolean(busy)} onChoose={startTask} onPostEdit={onPostEdit} /></div>
     <details className="lw-project-details"><summary>Il tuo spazio e gli strumenti</summary><p>{sources.length} fonti collegate · {posts.filter(post => Number(post.published) === 1).length} contenuti pubblicati · {posts.filter(post => Number(post.published) !== 1).length} bozze e lavorazioni.</p><div className="lw-actions"><button type="button" className="lw-secondary" onClick={() => onNavigate?.('site')}>Ritrova i tuoi contenuti</button><button type="button" className="lw-secondary" onClick={() => onNavigate?.('publicsite')}>Rivedi il sito</button>{onWrite && <button type="button" className="lw-secondary" onClick={() => onWrite('')}>Scrivi senza assistente</button>}</div></details>
   </section>;
 }

@@ -50,11 +50,11 @@ bridgeCheck(WordPressBridge::topics(12) === ['Cucina','Viaggi'], 'argomenti unic
 DB::$posts[] = ['id'=>27, 'user_id'=>12, 'platform'=>'instagram', 'published'=>0, 'seo_score'=>-2, 'raw_content'=>"Testo acquisito <script>alert(1)</script>\nSeconda riga"];
 DB::$posts[] = ['id'=>28, 'user_id'=>12, 'platform'=>'website', 'published'=>0, 'seo_score'=>-2];
 $all=WordPressBridge::feed(12,20,['scope'=>'all']);
-bridgeCheck(count($all['posts'])===6 && in_array(26,array_column($all['posts'],'id')) && in_array(27,array_column($all['posts'],'id')), 'archivio completo include bozze e acquisiti senza punteggio SEO');
+bridgeCheck(count($all['posts'])===7 && in_array(26,array_column($all['posts'],'id')) && in_array(27,array_column($all['posts'],'id')) && in_array(28,array_column($all['posts'],'id')), 'archivio completo include anche contenuti ancora privi di testo');
 $raw=array_values(array_filter($all['posts'],fn($p)=>$p['id']===27))[0];
 bridgeCheck($raw['title']!=='' && str_contains($raw['html'],'&lt;script&gt;') && !str_contains($raw['html'],'<script>'), 'testo acquisito esportato con titolo e HTML sicuro');
 $drafts=WordPressBridge::feed(12,0,['scope'=>'drafts']);
-bridgeCheck(array_column($drafts['posts'],'id')===[26,27], 'solo bozze esclude i pubblicati e ignora testi vuoti');
+bridgeCheck(array_column($drafts['posts'],'id')===[26,27,28], 'solo bozze include ogni contenuto non pubblicato');
 $filtered=WordPressBridge::feed(12,0,['scope'=>'all','platforms'=>['instagram'],'since_date'=>'2026-01-01','until_date'=>'2026-12-31','batch_size'=>1]);
 bridgeCheck(array_column($filtered['posts'],'id')===[27], 'filtro fonte applicato anche ai testi acquisiti');
 [$sql,$params]=end(DB::$queries);
@@ -75,9 +75,18 @@ bridgeCheck(WordPressBridge::load(12) === [], 'disconnessione revoca credenziale
 
 $payload=WordPressBridge::settingsPayload(12,['secret'=>$cipher],[]);
 bridgeCheck($payload['feed_url']==='https://platform.example/api/wordpress-feed.php?user_id=12' && $payload['feed_token']===WordPressBridge::feedToken(12,$secret), 'prima connessione configura URL e credenziale del feed del proprietario');
-bridgeCheck($payload['post_status']==='draft' && $payload['enabled']===false && $payload['filters']['scope']==='all', 'prima connessione legge tutto archivio senza pubblicare o attivare automatismi');
+bridgeCheck($payload['post_status']==='draft' && $payload['enabled']===true && $payload['filters']['scope']==='all', 'nuovi collegamenti importano automaticamente tutto archivio come bozze');
+bridgeCheck(WordPressBridge::settingsPayload(12,['secret'=>$cipher],['enabled'=>false])['enabled']===false, 'preferenza esistente di sincronizzazione disattivata conservata');
 $preferences=['post_status'=>'publish','enabled'=>true,'category_id'=>7,'mappings'=>['Viaggi'=>['category_id'=>7,'tag_id'=>9]],'filters'=>['scope'=>'drafts','platforms'=>['instagram']]];
 $preserved=WordPressBridge::settingsPayload(12,['secret'=>$cipher],$preferences);
 bridgeCheck($preserved['post_status']==='publish' && $preserved['category_id']===7 && $preserved['mappings']===$preferences['mappings'] && $preserved['filters']['scope']==='drafts', 'ricollegamento conserva categorie, tag e preferenze gia configurate');
 bridgeCheck(!WordPressBridge::ready(['settings'=>[]]) && WordPressBridge::ready(['settings'=>['post_status'=>'draft']]), 'plugin precedenti: configurazione archivio distinta dal codice verificato');
 bridgeCheck(!WordPressBridge::ready(['feed_ready'=>false,'settings'=>['post_status'=>'draft']]), 'feed esplicitamente assente richiede ripristino');
+DB::$posts=[['id'=>50,'user_id'=>12,'platform'=>'tiktok','published'=>0,'seo_score'=>-1,'transcript'=>VideoSource::encode('{"speech":"Parlato originale verificato"}'),'media_url'=>'/public/media/video.mp4','media_type'=>'video','poster_url'=>'/public/media/cover.jpg','image_urls'=>['/public/media/foto.jpg']]];
+$prepared=WordPressBridge::feed(12,0,['scope'=>'all'])['posts'][0];
+bridgeCheck(str_contains($prepared['html'],'Parlato originale verificato') && !str_contains($prepared['html'],'spoken-source-v1') && !$prepared['article_ready'], 'bozza video esporta il parlato leggibile senza JSON o pubblicazione anticipata');
+bridgeCheck(WordPressBridge::feed(12,0,['scope'=>'all','ready_only'=>true])['posts']===[], 'vecchi plugin non ricevono contenuti non pronti da pubblicare');
+bridgeCheck($prepared['media_url']==='https://platform.example/public/media/video.mp4' && $prepared['poster_url']==='https://platform.example/public/media/cover.jpg' && $prepared['image_urls']===['https://platform.example/public/media/foto.jpg'] && !str_contains($prepared['media_html'],'="/public/media/'), 'file video foto e poster hanno indirizzi assoluti utilizzabili da WordPress');
+DB::$posts[0]=array_merge(DB::$posts[0],['generated_title'=>'Articolo definitivo','generated_body'=>'<p>Testo definitivo</p><img src="/public/media/editor.jpg">','seo_score'=>80]);
+$prepared=WordPressBridge::feed(12,0,['scope'=>'all'])['posts'][0];
+bridgeCheck($prepared['article_ready'] && str_contains($prepared['html'],'https://platform.example/public/media/editor.jpg') && $prepared['excerpt']!=='', 'articolo elaborato pronto con titolo corpo estratto e immagini corrette');

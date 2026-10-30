@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/profile_knowledge.php';
+require_once __DIR__ . '/video_source.php';
 
 /** Conversation produces proposals only. Account writes stay in their authorized endpoints. */
 final class LiaAssistant
@@ -39,11 +40,13 @@ final class LiaAssistant
             if ($article['content'] === '') throw new InvalidArgumentException('Il testo della bozza è vuoto.');
             $work['article'] = $article;
         }
-        return ['messages' => $messages, 'intent' => $intent, 'work' => $work];
+        $postId = $payload['context_post_id'] ?? null;
+        if ($postId !== null && (filter_var($postId, FILTER_VALIDATE_INT) === false || (int)$postId < 1)) throw new InvalidArgumentException('Scegli un contenuto valido per lavorare con LIA.');
+        return ['messages' => $messages, 'intent' => $intent, 'work' => $work, 'context_post_id'=>$postId === null ? null : (int)$postId];
     }
 
     /** Only the authenticated owner's rows are read; no client-supplied account ID is accepted. */
-    public static function load(int $userId): array
+    public static function load(int $userId, ?int $postId = null): array
     {
         if ($userId < 1) throw new InvalidArgumentException('Account non valido.');
         $site = DB::fetch('SELECT title,profile_summary,bio,role_mission,content_strategy,brand_voice_profile,site_understanding,site_understanding_corrections FROM sites WHERE user_id=? LIMIT 1', [$userId]) ?: [];
@@ -58,6 +61,13 @@ final class LiaAssistant
         if (!$sourceCount) throw new RuntimeException('Contesto LIA non disponibile.');
         $titles = DB::fetchAll("SELECT COALESCE(NULLIF(edited_title,''),generated_title) title FROM posts WHERE user_id=? ORDER BY id DESC LIMIT 6", [$userId]);
         $facts = array_merge($counts, ['sources' => (int)$sourceCount['sources'], 'recent_titles' => array_map(fn($row) => self::text($row['title'] ?? '', 180), $titles)]);
+        if ($postId !== null) {
+            $post = DB::fetch('SELECT id,platform,published,media_type,transcript,raw_content,generated_title,edited_title,generated_body,edited_body,generated_excerpt,edited_excerpt FROM posts WHERE id=? AND user_id=?', [$postId,$userId]);
+            if (!$post || (int)$post['id'] !== $postId) throw new InvalidArgumentException('Il contenuto selezionato non è disponibile nel tuo archivio.');
+            $body = ($post['edited_body'] ?? '') ?: ($post['generated_body'] ?? '');
+            $source = VideoSource::isVideo($post) ? VideoSource::speech((string)($post['transcript'] ?? '')) : ($post['raw_content'] ?? '');
+            $facts['selected_content'] = ['id'=>$postId,'title'=>self::text(($post['edited_title'] ?? '') ?: ($post['generated_title'] ?? ''),240),'content'=>self::text($body ?: $source,12000),'awaiting_transcription'=>VideoSource::isVideo($post) && !$body && !$source,'platform'=>self::text($post['platform'] ?? '',40),'published'=>!empty($post['published'])];
+        }
         return ['site' => $site, 'facts' => $facts];
     }
 
@@ -74,6 +84,7 @@ final class LiaAssistant
             $context['counts'][$key] = is_numeric($value) && (float)$value >= 0 ? (int)$value : null;
         }
         foreach (array_slice(is_array($facts['recent_titles'] ?? null) ? $facts['recent_titles'] : [], 0, 6) as $title) $context['recent_titles'][] = self::text($title, 180);
+        if (isset($facts['selected_content'])) $context['selected_content'] = $facts['selected_content'];
         if (!empty($facts['visibility_available']) && is_array($facts['visibility'] ?? null)) {
             $context['visibility']['available'] = true;
             foreach (['unique_visitors', 'impressions', 'clicks', 'actions', 'published_pages'] as $key) {
@@ -103,10 +114,12 @@ final class LiaAssistant
 
     public static function prompt(array $context, array $messages, string $intent, array $work = []): string
     {
-        return "Sei LIA, assistente AI di All Social To Web. Aiuti una persona non esperta a ottenere un risultato concreto con il suo sito e i suoi contenuti. Scrivi in italiano semplice, 2-4 frasi brevi, senza gergo tecnico o una lista di schermate da studiare.\n"
+        return "Sei LIA, assistente operativa di All Social To Web. Lavora con l'utente sui suoi contenuti: dai subito un contributo concreto, non limitarti a indicare schermate o a ripetere statistiche. Scrivi in italiano semplice, 2-4 frasi brevi; per idee o analisi usa fino a 10 righe leggibili.\n"
+            . "Se chiede idee, proponi tre idee distinte legate alla sua attività e ai titoli già presenti: per ciascuna indica titolo, angolo concreto e utilità per il pubblico. Offri i titoli in options per svilupparne una, senza inventare notizie attuali o fatti esterni. Per una priorità proponi una sola azione motivata e attuabile adesso. Per migliorare un contenuto usa selected_content e il suo testo reale: evidenzia un problema specifico e proponi la revisione con prepare_article e revise_current=true. Non chiedere di incollare un testo già disponibile. Una selezione di contenuto indica il contesto di lavoro, non autorizza pubblicazioni.\n"
+            . "Se selected_content.awaiting_transcription=true, spiega che il video deve prima essere trascritto e offri navigate verso site per riprovare la lavorazione. Non proporre un articolo ricavato dalla didascalia o dal titolo del video.\n"
             . "Conversazione guidata: capisci cosa vuole ottenere e usa quanto ha già detto. profile contiene anche l'intervista e la comprensione già raccolte: se attività, offerta, pubblico od obiettivo sono noti, usali senza richiederli. Una sola domanda alla volta, soltanto se manca un dettaglio che cambia il risultato. Non ripetere informazioni già raccolte. Al massimo tre risposte brevi selezionabili in options; sono risposte che l'utente può scegliere, non operazioni eseguite.\n"
             . "Se chiede un articolo e l'argomento è chiaro, proponi prepare_article con un brief concreto: il clic dell'utente prepara un testo completo in anteprima modificabile qui nel percorso; non rimandarlo a cercare IDEA. Se l'argomento è vago chiedi una sola cosa (per esempio di quale servizio parlare). Obiettivo, pubblico e tono possono provenire dal profilo; segnala quando sono proposte da confermare. La richiesta esplicita dell'utente prevale sul profilo.\n"
-            . "LAVORO IN CORSO contiene la bozza in anteprima fornita dal browser, non un articolo già salvato o pubblicato. Se l'utente dice 'rendila più breve', 'più pratica' o chiede di correggere il testo appena preparato e work.article è presente, riferisciti a quella bozza: prepare_article con brief.revise_current=true e brief.instructions (max800caratteri) che riassume la modifica richiesta. Non chiedere nuovamente l'argomento. Mantieni i fatti della bozza senza nuove esperienze o promesse. Non copiare il testo in source_text nel JSON: sarà il server a collegare la copia sanificata. Se manca la bozza non fingere di averla: fai una sola domanda per recuperare il testo o l'argomento. Per un nuovo testo revise_current=false.\n"
+            . "LAVORO IN CORSO contiene una copia del testo da rivedere: può essere una bozza in anteprima o il contenuto selezionato dal database. Preparare una revisione non modifica l'originale salvato o pubblicato. Se l'utente dice 'rendila più breve', 'più pratica' o chiede di correggere il testo appena preparato e work.article è presente, riferisciti a quella bozza: prepare_article con brief.revise_current=true e brief.instructions (max800caratteri) che riassume la modifica richiesta. Non chiedere nuovamente l'argomento. Mantieni i fatti della bozza senza nuove esperienze o promesse. Non copiare il testo in source_text nel JSON: sarà il server a collegare la copia sanificata. Se manca la bozza non fingere di averla: fai una sola domanda per recuperare il testo o l'argomento. Per un nuovo testo revise_current=false.\n"
             . "Gli articoli hanno un minimo di 400 parole: per 'più breve' proponi la fascia 400-600 e uno stile più conciso; se la richiesta è sotto 400 parole spiega il limite anziché promettere una caption o una lunghezza non supportata.\n"
             . "Per sito, profilo, canali o risultati spiega prima il prossimo passo e proponi soltanto una destinazione ammessa. Per un contenuto social puoi aiutare a definirne messaggio e pubblico, poi preparare un testo base da rivedere; non dichiarare esportazioni o pubblicazioni social.\n"
             . "Se vuole presentarsi meglio o migliorare la presentazione del sito, usa i dati conosciuti per proporre un testo concreto con propose_profile. Se manca la descrizione di cosa fa, chiedi una sola cosa e aspetta. changes può contenere soltanto title (max120caratteri), bio (max2000), role_mission (max4000). Non cambiare tutti i campi se basta uno; non inventare servizi, titoli professionali, contatti, esperienze o promesse. Spiega che il testo proposto sarà visibile sul sito solo dopo conferma dell'utente.\n"
@@ -169,7 +182,10 @@ final class LiaAssistant
     public static function reply(array $account, array $site, array $facts, array $input): array
     {
         $context = self::context($account, $site, $facts);
+        if (!empty($context['selected_content']['awaiting_transcription'])) return self::normalize(json_encode(['reply'=>'Questo video non ha ancora una trascrizione verificata. Prima di ricavarne un articolo, riprova la lavorazione nella sezione Contenuti: la didascalia non può sostituire il parlato.','actions'=>[['type'=>'navigate','target'=>'site']]], JSON_UNESCAPED_UNICODE)) + ['context'=>$context['counts'], 'warnings'=>[]];
         $work = $input['work'] ?? [];
+        if (empty($work['article']) && !empty($context['selected_content']['content'])) $work['article'] = ['title'=>$context['selected_content']['title'], 'content'=>$context['selected_content']['content']];
+        unset($context['selected_content']['content']);
         $raw = AI::gemini([['text' => self::prompt($context, $input['messages'], $input['intent'], $work)]], ['responseMimeType' => 'application/json', 'temperature' => 0.4, 'maxOutputTokens' => 2048, '_fastThinking' => true, '_timeout' => 60]);
         $result = self::normalize($raw);
         foreach ($result['actions'] as &$action) {

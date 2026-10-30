@@ -1,10 +1,10 @@
 === AllSocialToWeb Connector ===
 Requires at least: 6.0
 Requires PHP: 8.0
-Stable tag: 0.4.1
+Stable tag: 0.5.0
 License: GPLv2 or later
 
-Importa come post i contenuti pubblicati nella tua pagina AllSocialToWeb.
+Trasforma tutto l’archivio AllSocialToWeb in veri articoli WordPress modificabili.
 
 == Installazione ==
 1. Carica lo ZIP da Plugin > Aggiungi plugin > Carica plugin e attivalo.
@@ -22,7 +22,13 @@ Puoi importarli come bozze o come post pubblicati.
 Ogni argomento può assegnare una categoria e un tag WordPress già esistenti.
 La categoria predefinita si applica ai post senza un abbinamento di categoria.
 Gli abbinamenti si applicano alle nuove importazioni.
-I post già importati non sono duplicati e le modifiche fatte nel CMS sono conservate.
+Ogni contenuto, anche senza testo, diventa un articolo WordPress modificabile.
+I contenuti non ancora elaborati restano bozze anche in modalità pubblicazione automatica.
+Quando AllSocialToWeb completa il testo, aggiorna lo stesso articolo se la bozza non
+è stata modificata in WordPress. Testo, categorie e tag modificati nel CMS sono conservati.
+Gli articoli già pubblicati non sono sovrascritti. Le importazioni non creano duplicati.
+I nuovi collegamenti attivano la sincronizzazione automatica come bozze; le preferenze
+dei collegamenti già configurati rimangono invariate.
 La rimozione di un contenuto dalla piattaforma non elimina il post WordPress.
 Il comando manuale percorre automaticamente tutti i passaggi dell’archivio; alla fine ricomincia per recuperare anche
 articoli meno recenti aggiunti o pubblicati in un secondo momento.
@@ -40,4 +46,4 @@ il codice di collegamento. Nessun altro servizio esterno è necessario.
 Foto, gallerie e video sono conservati nel corpo dei post con URL del sito AllSocialToWeb.
 Per video senza un file riproducibile viene conservato il collegamento originale.
 In WordPress > Impostazioni > AllSocialToWeb puoi sfogliare tutto l’archivio
-tramite il pulsante Leggi tutti gli articoli collegati e le pagine successive.
+con caricamento automatico e pagine successive.

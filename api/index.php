@@ -2167,7 +2167,7 @@ if ($action === 'lia-assistant' && $method === 'POST') {
     try {
         require_once __DIR__ . '/services/ai.php';
         AIHealth::assertRuntime();
-        $liaData = LiaAssistant::load((int)$userId);
+        $liaData = LiaAssistant::load((int)$userId, $liaInput['context_post_id']);
         $liaFacts = $liaData['facts'];
         $liaFacts['visibility_available'] = false;
         try {
@@ -2181,6 +2181,8 @@ if ($action === 'lia-assistant' && $method === 'POST') {
         }
         $liaResponse = LiaAssistant::reply($me, $liaData['site'], $liaFacts, $liaInput);
         json(['ok' => true] + $liaResponse);
+    } catch (InvalidArgumentException $e) {
+        jsonError($e->getMessage(), 422);
     } catch (Throwable $e) {
         if (class_exists('Logger')) Logger::warn('lia', 'Conversazione guidata non riuscita', ['user_id' => $userId, 'error' => $e->getMessage()]);
         $failure = AIHealth::failure($e);

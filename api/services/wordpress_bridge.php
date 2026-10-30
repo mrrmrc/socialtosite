@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__ . '/publication/wordpress.php';
 require_once __DIR__ . '/post_media.php';
+require_once __DIR__ . '/video_source.php';
 
 /** Connector settings use the existing system_settings store; no schema migration. */
 final class WordPressBridge {
@@ -56,7 +57,7 @@ final class WordPressBridge {
         return [
             'feed_url'=>$base . '/api/wordpress-feed.php?user_id=' . $userId,
             'feed_token'=>self::feedToken($userId, self::crypt($connection['secret'], true)),
-            'enabled'=>!empty($options['enabled']),
+            'enabled'=>array_key_exists('enabled', $options) ? !empty($options['enabled']) : true,
             'post_status'=>($options['post_status'] ?? '') === 'publish' ? 'publish' : 'draft',
             'category_id'=>(int)($options['category_id'] ?? 0),
             'mappings'=>$options['mappings'] ?? [],
@@ -123,36 +124,47 @@ final class WordPressBridge {
         $posts = [];
         foreach ($rows as $row) {
             $cursor = (int)$row['id'];
-            $raw = trim((string)($row['transcript'] ?? '')) ?: trim((string)($row['raw_content'] ?? ''));
+            $transcript = trim((string)($row['transcript'] ?? ''));
+            $raw = VideoSource::speech($transcript) ?: (json_decode($transcript, true) === null ? $transcript : '');
+            $raw = $raw ?: trim((string)($row['raw_content'] ?? ''));
             $title = trim(strip_tags(($row['edited_title'] ?? '') ?: ($row['generated_title'] ?? '')));
             if ($title === '' && $raw !== '') {
                 $plain = preg_replace('/\s+/u', ' ', strip_tags($raw)) ?? '';
                 $title = function_exists('mb_substr') ? mb_substr($plain, 0, 100) : substr($plain, 0, 100);
             }
             $html = trim(($row['edited_body'] ?? '') ?: ($row['generated_body'] ?? ''));
+            $articleReady = $title !== '' && trim(strip_tags($html)) !== '' && (int)($row['seo_score'] ?? -1) >= 0;
+            if (!empty($input['ready_only']) && !$articleReady) continue;
             if ($html === '' && $raw !== '') $html = '<p>' . nl2br(htmlspecialchars($raw, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8')) . '</p>';
             $row = PostMedia::hydrate($row);
-            $hasMedia = PostMedia::url($row['media_url'] ?? '') !== '' || !empty($row['image_urls']);
-            if ($title === '' && $hasMedia) $title = 'Contenuto ' . ucfirst((string)($row['platform'] ?? 'social')) . ' ' . $row['id'];
-            if (trim(strip_tags($html)) === '' && $hasMedia) {
+            if ($title === '') $title = 'Contenuto ' . ucfirst((string)($row['platform'] ?? 'social')) . ' ' . $row['id'];
+            if (trim(strip_tags($html)) === '') {
                 $source = PostMedia::url($row['source_url'] ?? '');
                 $html = '<p>' . htmlspecialchars($title, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') . '</p>';
                 if ($source !== '') $html .= '<p><a href="' . htmlspecialchars($source, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') . '">Apri il contenuto originale</a></p>';
             }
-            if ($title === '' || trim(strip_tags($html)) === '') continue;
             $tags = json_decode($row['tags'] ?? '[]', true);
             if (!is_array($tags)) $tags = explode(',', $row['tags'] ?? '');
             $posts[] = [
                 'key'=>hash('sha256', app_base_url() . ':' . $userId . ':' . $row['id']),
-                'title'=>$title, 'html'=>$html,
-                'excerpt'=>strip_tags(($row['edited_excerpt'] ?? '') ?: ($row['generated_excerpt'] ?? '')),
+                'title'=>$title, 'html'=>self::absoluteMediaHtml($html), 'article_ready'=>$articleReady,
+                'excerpt'=>strip_tags(($row['edited_excerpt'] ?? '') ?: ($row['generated_excerpt'] ?? '')) ?: (function_exists('mb_substr') ? mb_substr(strip_tags($html),0,155) : substr(strip_tags($html),0,155)),
                 'id'=>(int)$row['id'], 'platform'=>$row['platform'] ?? '', 'published'=>!empty($row['published']),
                 'topics'=>array_values(array_filter($tags, 'is_string')),
-                'media_url'=>PostMedia::url($row['media_url'] ?? ''), 'media_type'=>$row['media_type'] ?? '',
-                'image_urls'=>$row['image_urls'], 'poster_url'=>$row['poster_url'],
-                'source_url'=>PostMedia::url($row['source_url'] ?? ''), 'media_html'=>PostMedia::render($row, $title),
+                'media_url'=>self::absoluteMediaUrl($row['media_url'] ?? ''), 'media_type'=>$row['media_type'] ?? '',
+                'image_urls'=>array_map([self::class,'absoluteMediaUrl'],$row['image_urls']), 'poster_url'=>self::absoluteMediaUrl($row['poster_url']),
+                'source_url'=>PostMedia::url($row['source_url'] ?? ''), 'media_html'=>self::absoluteMediaHtml(PostMedia::render($row, $title)),
             ];
         }
         return ['posts'=>$posts, 'next_cursor'=>$more ? $cursor : 0, 'has_more'=>$more];
+    }
+
+    private static function absoluteMediaUrl($value): string {
+        $url = PostMedia::url($value);
+        return str_starts_with($url, '/public/media/') ? app_base_url() . $url : $url;
+    }
+
+    private static function absoluteMediaHtml(string $html): string {
+        return preg_replace_callback('~(\b(?:src|poster|href)\s*=\s*)([\x22\x27])(/public/media/[^\x22\x27]*)\2~i', static fn($m) => $m[1] . $m[2] . htmlspecialchars(app_base_url(), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') . $m[3] . $m[2], $html) ?? $html;
     }
 }

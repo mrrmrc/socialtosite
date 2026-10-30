@@ -15,6 +15,8 @@ try {
     if (empty($settings['secret']) || !hash_equals(WordPressBridge::feedToken($userId, WordPressBridge::crypt($settings['secret'], true)), $token)) jsonError('Collegamento non autorizzato.', 401);
     if (!DB::fetch('SELECT id FROM users WHERE id=?', [$userId])) jsonError('Collegamento non autorizzato.', 401);
     $filters = ($_GET['browse'] ?? '') === '1' ? ['scope'=>'all'] : ($settings['filters'] ?? []);
+    // Older plugins cannot distinguish editable source drafts from finished articles.
+    if (($_GET['browse'] ?? '') !== '1' && ($_GET['format'] ?? '') !== 'article-v2') $filters['ready_only'] = true;
     json(WordPressBridge::feed($userId, max(0, (int)($_GET['cursor'] ?? 0)), $filters));
 } catch (Throwable $e) {
     error_log('[wordpress-feed] ' . $e->getMessage());

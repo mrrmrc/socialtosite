@@ -75,13 +75,13 @@ function astw_sync_feed(?WP_REST_Request $command = null) {
     try {
         if ($command && !empty($command->get_json_params()['restart'])) update_option('astw_sync_cursor', 0, false);
         $cursor = (int)get_option('astw_sync_cursor', 0);
-        $response = wp_safe_remote_get(add_query_arg('cursor', $cursor, $settings['feed_url']), [
+        $response = wp_safe_remote_get(add_query_arg(['cursor'=>$cursor,'format'=>'article-v2'], $settings['feed_url']), [
             'headers'=>['X-ASTW-Feed'=>$settings['feed_token']], 'timeout'=>25, 'redirection'=>0, 'limit_response_size'=>12000000,
         ]);
         if (is_wp_error($response) || wp_remote_retrieve_response_code($response) !== 200) throw new RuntimeException('Feed non disponibile: controlla il collegamento in AllSocialToWeb.');
         $feed = json_decode(wp_remote_retrieve_body($response), true);
         if (!is_array($feed) || !is_array($feed['posts'] ?? null) || !isset($feed['next_cursor'], $feed['has_more'])) throw new RuntimeException('Risposta feed non valida.');
-        $imported = 0; $skipped = 0;
+        $imported = 0; $updated = 0; $skipped = 0;
         foreach ($feed['posts'] as $item) {
             $key = $item['key'] ?? '';
             if (!preg_match('/^[a-f0-9]{64}$/', $key)) throw new RuntimeException('Identificativo contenuto non valido.');
@@ -91,29 +91,32 @@ function astw_sync_feed(?WP_REST_Request $command = null) {
             $request = new WP_REST_Request('POST', '/allsocialtoweb/v1/deliveries/' . $key);
             $request->set_url_params(['key'=>$key]);
             if (($receipt['state'] ?? '') !== 'missing') {
-                if ($receipt['state'] === 'draft' && get_post_meta((int)$receipt['id'], '_astw_sync_publish', true)) {
-                    $published = astw_publish($request);
-                    if (is_wp_error($published) || ($published['state'] ?? '') !== 'published') throw new RuntimeException('Pubblicazione da verificare in WordPress.');
-                    delete_post_meta((int)$receipt['id'], '_astw_sync_publish');
-                }
-                $skipped++; continue;
+                $id = (int)($receipt['id'] ?? 0);
+                $baseline = $id ? astw_sync_baseline($id, $key) : '';
+                if (($receipt['state'] ?? '') !== 'draft' || $baseline === '' || !hash_equals($baseline, astw_sync_fingerprint($id))) { $skipped++; continue; }
             }
             $mediaHtml = (string)($item['media_html'] ?? '');
             if (str_contains($mediaHtml, '<iframe')) $mediaHtml = '<p><a href="' . esc_url($item['source_url'] ?? '') . '">Guarda il video originale</a></p>';
-            $payload = ['title'=>$item['title'] ?? '', 'html'=>($item['html'] ?? '') . $mediaHtml, 'excerpt'=>$item['excerpt'] ?? '', 'sync_publish'=>$settings['post_status'] === 'publish'] + astw_mapping((array)($item['topics'] ?? []), $settings);
+            $publish = $settings['post_status'] === 'publish' && ($item['article_ready'] ?? true);
+            $wasMissing = ($receipt['state'] ?? '') === 'missing';
+            $payload = ['title'=>$item['title'] ?? '', 'html'=>($item['html'] ?? '') . $mediaHtml, 'excerpt'=>$item['excerpt'] ?? '', 'sync_publish'=>$publish, 'sync_managed'=>true] + astw_mapping((array)($item['topics'] ?? []), $settings);
             $request->set_body(wp_json_encode($payload));
             $request->set_header('content-type', 'application/json');
             $receipt = astw_deliver($request);
             if (is_wp_error($receipt) || empty($receipt['id'])) throw new RuntimeException('Importazione interrotta: controlla categorie, tag e registro WordPress.');
-            if ($settings['post_status'] === 'publish') {
+            if (!empty($receipt['preserved'])) { $skipped++; continue; }
+            $wasUpdated = !empty($receipt['updated']);
+            if ($publish) {
                 $receipt = astw_publish($request);
                 if (is_wp_error($receipt) || ($receipt['state'] ?? '') !== 'published') throw new RuntimeException('Articolo importato come bozza; pubblicazione da verificare in WordPress.');
                 delete_post_meta((int)$receipt['id'], '_astw_sync_publish');
             }
-            $imported++;
+            if ($wasMissing) $imported++;
+            elseif ($wasUpdated) $updated++;
+            else $skipped++;
         }
         update_option('astw_sync_cursor', max(0, (int)$feed['next_cursor']), false);
-        $result = ['ok'=>true, 'imported'=>$imported, 'skipped'=>$skipped, 'has_more'=>(bool)$feed['has_more'], 'at'=>gmdate('c')];
+        $result = ['ok'=>true, 'imported'=>$imported, 'updated'=>$updated, 'skipped'=>$skipped, 'has_more'=>(bool)$feed['has_more'], 'at'=>gmdate('c')];
         update_option('astw_last_sync', $result, false);
         return $result;
     } catch (Throwable $e) {

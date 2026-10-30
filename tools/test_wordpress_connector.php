@@ -42,6 +42,9 @@ function get_post($id) { global $posts; return isset($posts[$id]) ? (object)$pos
 function wp_insert_post($data,$error) { global $posts,$nextId,$failCreate; if ($failCreate) return new WP_Error('failed','simulated'); $id=$nextId++; $posts[$id]=array_merge($data,['ID'=>$id]); return $id; }
 function wp_update_post($data,$error) { global $posts,$failPublish; if (!empty($failPublish)) return new WP_Error('failed','simulated'); $posts[$data['ID']]=array_merge($posts[$data['ID']],$data); return $data['ID']; }
 function get_post_meta($id,$key,$single) { global $posts; return $posts[$id]['meta_input'][$key] ?? ''; }
+function update_post_meta($id,$key,$value) { global $posts; $posts[$id]['meta_input'][$key]=$value; }
+function wp_get_post_categories($id) { global $posts; return $posts[$id]['post_category'] ?? []; }
+function wp_get_post_tags($id,$args) { global $posts; return $posts[$id]['tags_input'] ?? []; }
 function delete_post_meta($id,$key) { global $posts; unset($posts[$id]['meta_input'][$key]); }
 class FakeWpDb {
     public string $prefix='wp_'; public string $posts='wp_posts'; public array $rows=[];
@@ -173,3 +176,32 @@ expect(str_contains($archiveHtml,'HTTP 401') && str_contains($archiveHtml,'ripri
 $options['astw_sync_settings']=[];
 ob_start(); astw_archive_panel(); $archiveHtml=ob_get_clean();
 expect(str_contains($archiveHtml,'non è ancora completo') && str_contains($archiveHtml,'Non occorre generare un nuovo codice'), 'codice abilitato distinto dal collegamento archivio completo');
+
+unset($remoteStatus);
+$settings['post_status']='publish';
+astw_save_sync_settings(new WP_REST_Request('', $settings));
+$draftKey=hash('sha256','source-to-final-article');
+$remoteFeed=['posts'=>[['key'=>$draftKey,'title'=>'Contenuto acquisito','html'=>'<p>Testo originale</p>','article_ready'=>false,'topics'=>['Viaggi']]],'next_cursor'=>0,'has_more'=>false];
+$before=count($posts); $result=astw_sync_feed(); $articleId=$nextId-1;
+expect($result['imported']===1 && count($posts)===$before+1 && $posts[$articleId]['post_type']==='post' && $posts[$articleId]['post_status']==='draft', 'contenuto in elaborazione crea un vero articolo WordPress senza pubblicarlo prima del tempo');
+$remoteFeed['posts'][0]['title']='Articolo completato'; $remoteFeed['posts'][0]['html']='<p>Testo definitivo</p>'; $remoteFeed['posts'][0]['article_ready']=true;
+$result=astw_sync_feed();
+expect($result['updated']===1 && count($posts)===$before+1 && $posts[$articleId]['post_title']==='Articolo completato' && $posts[$articleId]['post_status']==='publish', 'testo definitivo aggiorna e pubblica lo stesso articolo senza duplicazione');
+$remoteFeed['posts'][0]['html']='<p>Nuova versione remota</p>'; astw_sync_feed();
+expect($posts[$articleId]['post_content']==='<p>Testo definitivo</p>', 'articoli gia pubblicati conservano la versione WordPress');
+$settings['post_status']='draft'; astw_save_sync_settings(new WP_REST_Request('', $settings));
+$remoteFeed['posts'][0]['key']=hash('sha256','local-editor-controls-draft');
+astw_sync_feed(); $editedId=$nextId-1;
+$posts[$editedId]['post_content']='<p>Modifica del redattore</p>';
+$remoteFeed['posts'][0]['html']='<p>Nuovo testo AllSocialToWeb</p>'; $result=astw_sync_feed();
+expect($result['skipped']===1 && $posts[$editedId]['post_content']==='<p>Modifica del redattore</p>', 'aggiornamenti automatici non sovrascrivono bozze modificate nel CMS');
+$remoteFeed['posts'][0]['key']=hash('sha256','local-taxonomy-controls-draft');
+astw_sync_feed(); $taxonomyId=$nextId-1;
+$posts[$taxonomyId]['tags_input']=[10]; $remoteFeed['posts'][0]['html']='<p>Altra modifica remota</p>'; $result=astw_sync_feed();
+expect($result['skipped']===1 && $posts[$taxonomyId]['tags_input']===[10], 'anche modifiche locali a categorie e tag proteggono la bozza');
+$legacyKey=hash('sha256','legacy-draft-upgrade');
+$legacyPayload=['title'=>'Vecchia bozza','html'=>'<p>Testo acquisito</p>','excerpt'=>'','sync_publish'=>false,'category_ids'=>[8],'tag_ids'=>[9]];
+astw_deliver(new WP_REST_Request($legacyKey,$legacyPayload)); $legacyId=$nextId-1;
+$remoteFeed['posts']=[['key'=>$legacyKey,'title'=>'Bozza aggiornata','html'=>'<p>Testo finale</p>','article_ready'=>true,'topics'=>['Viaggi']]];
+$result=astw_sync_feed();
+expect($result['updated']===1 && $posts[$legacyId]['post_title']==='Bozza aggiornata', 'bozze dei vecchi plugin aggiornate solo se ancora identiche alla consegna originale');
