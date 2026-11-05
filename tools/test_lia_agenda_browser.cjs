@@ -19,7 +19,7 @@ const fs=require('node:fs');
    if(action==='lia-agenda'){
     if(payload?.operation==='generate'){
      if(failPlan)return route.fulfill({status:502,json:{error:'Piano non disponibile. Il precedente è conservato.'}});
-     agenda={id:'plan-fixture',goal:payload.goal,tasks:['editorial','social','seo','geo'].map((role,i)=>({id:'task-'+i,role,title:['Rivedi la guida per le famiglie','Prepara un post Instagram','Migliora il titolo della guida','Chiarisci la presentazione dello studio'][i],reason:'Una priorità basata sui tuoi contenuti.',brief:'Lavora su un risultato concreto per le famiglie.',date:'2026-10-'+(30+i>31?'31':30+i),post_id:i===0?321:null,status:'todo'}))};
+     agenda={id:'plan-fixture',goal:payload.goal,timezone:'Europe/Rome',schedule_mode:'suggested',tasks:['editorial','social','seo','geo'].map((role,i)=>({id:'task-'+i,role,title:['Rivedi la guida per le famiglie','Prepara un post Instagram','Migliora il titolo della guida','Chiarisci la presentazione dello studio'][i],reason:'Una priorità basata sui tuoi contenuti.',brief:'Lavora su un risultato concreto per le famiglie.',date:'2026-11-0'+(6+i),time:i===1?'18:30':'',channel:i===1?'instagram':'site',format:i===1?'Post':'Articolo',campaign:'Percorsi per le famiglie',deliverable:i===1?'Post che promuove la guida sul sito':'Guida utile alle famiglie',measure:'Confrontare le richieste ricevute',post_id:i===0?321:null,status:'todo'}))};
     }
     if(payload?.operation==='update')agenda={...agenda,tasks:agenda.tasks.map(task=>task.id===payload.task_id?{...task,status:payload.status}:task)};
     data={agenda};
@@ -34,19 +34,27 @@ const fs=require('node:fs');
   await page.locator('.lw-briefing-report').waitFor();
   assert.equal(calls.filter(call=>call.payload).length,1,'Opening the workspace prepares one briefing without generating or saving a plan');
   assert.equal(calls.find(call=>call.payload).payload.intent,'briefing');
-  await page.getByRole('button',{name:'Piano delle attività',exact:true}).click();
+  await page.getByRole('button',{name:'Costruisci il piano con LIA',exact:true}).click();
   await page.getByLabel('Il risultato su cui lavoriamo',{exact:true}).fill('Aiutare le famiglie a conoscere i nostri percorsi');
   await page.getByRole('button',{name:'Organizza la mia settimana',exact:true}).click();
   await page.getByRole('list',{name:'Piano di lavoro di LIA'}).waitFor();
   assert.equal(await page.locator('.lia-agenda-tasks>li').count(),4);
+  await page.getByText('Post che promuove la guida sul sito',{exact:true}).waitFor();
+  assert.ok(await page.locator('.lia-agenda-tasks').innerText().then(value=>value.includes('18:30')&&value.includes('Come lo verifichiamo')));
+  assert.ok(await page.locator('.lia-agenda-schedule-note').innerText().then(value=>value.includes('non programma pubblicazioni')));
+  fs.mkdirSync('artifacts',{recursive:true});await page.screenshot({path:'artifacts/lia-proactive-plan-desktop.png',fullPage:true});
+  await page.setViewportSize({width:360,height:844});assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'Plan and campaign details fit mobile');await page.screenshot({path:'artifacts/lia-proactive-plan-mobile.png',fullPage:true});await page.setViewportSize({width:1440,height:1000});
   await page.getByRole('checkbox',{name:'Completata: Rivedi la guida per le famiglie',exact:true}).click();
   await page.getByText('1/4 attività completate',{exact:true}).waitFor();
   await page.reload();await page.getByRole('button',{name:'Piano delle attività',exact:true}).click();await page.getByRole('checkbox',{name:'Completata: Rivedi la guida per le famiglie',exact:true}).waitFor();
   assert.equal(await page.getByRole('checkbox',{name:'Completata: Rivedi la guida per le famiglie',exact:true}).isChecked(),true,'Progress survives reload');
   failPlan=true;await page.getByRole('button',{name:'Riorganizza i prossimi 7 giorni',exact:true}).click();await page.getByRole('alert').filter({hasText:'Piano non disponibile'}).waitFor();assert.equal(await page.locator('.lia-agenda-tasks>li').count(),4,'Provider errors retain the previous plan');
-  await page.getByRole('button',{name:/Social media manager Messaggi/}).click();await page.getByRole('heading',{name:'La tua bozza social',exact:true}).waitFor();
+  await page.locator('.lia-agenda-tasks>li').nth(1).getByRole('button',{name:'Lavora su questo',exact:true}).click();await page.getByRole('heading',{name:'La tua bozza social',exact:true}).waitFor();
   assert.equal(calls.filter(call=>call.action==='lia-assistant').at(-1).payload.intent,'social');
+  const taskRequest=calls.filter(call=>call.action==='lia-assistant').at(-1).payload.messages.at(-1).text;
+  assert.ok(taskRequest.includes('18:30')&&taskRequest.includes('Post che promuove la guida sul sito')&&taskRequest.includes('Percorsi per le famiglie'),'Starting a task keeps its campaign, deliverable and suggested timing');
   await page.getByRole('button',{name:'Salva la bozza social',exact:true}).click();await page.getByText('Bozza salvata nei contenuti.',{exact:true}).waitFor();assert.ok(calls.find(call=>call.action==='post-create').payload.edited_body.includes('Una scelta consapevole'));
+  const saved=calls.find(call=>call.action==='post-create').payload;assert.equal(saved.content_type,'social');assert.equal(saved.platform,'instagram');assert.equal(saved.noindex,1);assert.ok(saved.tags.includes('lia-social:instagram'));
   assert.equal(calls.some(call=>/publish|delete/.test(call.action||'')),false,'Planning and social draft preparation do not publish or delete');
   fs.mkdirSync('artifacts',{recursive:true});await page.evaluate(()=>{document.documentElement.style.scrollBehavior='auto';window.scrollTo(0,0)});await page.screenshot({path:'artifacts/lia-agenda-desktop.png',fullPage:true});
   for(const width of [390,360]){await page.setViewportSize({width,height:844});assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'Agenda fits mobile');await page.screenshot({path:`artifacts/lia-agenda-${width}.png`,fullPage:true})}

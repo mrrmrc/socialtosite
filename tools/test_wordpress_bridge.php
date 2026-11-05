@@ -71,6 +71,8 @@ DB::$posts[]=['id'=>29,'user_id'=>12,'platform'=>'facebook','published'=>0,'seo_
 $mediaOnly=WordPressBridge::feed(12,28,['scope'=>'all']);
 bridgeCheck(count($mediaOnly['posts'])===1 && $mediaOnly['posts'][0]['title']!=='' && str_contains($mediaOnly['posts'][0]['media_html'],'photo.jpg'), 'articoli con sole foto inclusi nel connettore');
 WordPressBridge::save(12, []);
+DB::$posts[]=['id'=>30,'user_id'=>12,'platform'=>'manual','platform_post_id'=>'lia_social_instagram_fixture','published'=>0,'seo_score'=>10,'edited_title'=>'Caption Instagram','edited_body'=>'<p>Solo social.</p>'];
+bridgeCheck(WordPressBridge::feed(12,29,['scope'=>'all'])['posts']===[], 'le caption social LIA non vengono importate come articoli WordPress');
 bridgeCheck(WordPressBridge::load(12) === [], 'disconnessione revoca credenziale feed');
 
 $payload=WordPressBridge::settingsPayload(12,['secret'=>$cipher],[]);

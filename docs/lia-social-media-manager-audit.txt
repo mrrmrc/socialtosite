@@ -1,0 +1,236 @@
+AUDIT PRODOTTO E ARCHITETTURA: LIA SOCIAL MEDIA MANAGER
+Data: 5 novembre 2026
+Ambito: analisi statica del repository SocialToSite / All Social To Web.
+Non sono stati verificati account clienti, dati reali, configurazione dei provider,
+esecuzione dei cron sui server o permessi social esterni. Le capacita descritte
+sono evidenze del codice, non una certificazione di disponibilita in produzione.
+
+OBIETTIVO DEL CAMBIAMENTO
+
+LIA deve partire dall'attivita, dall'offerta, dal pubblico e dal risultato voluto.
+Deve proporre un lavoro coordinato: migliorare una pagina, sviluppare un articolo,
+adattarlo ai social, suggerire quando usarlo e verificare i segnali disponibili.
+Le fonti social diventano materiali utili, senza essere un prerequisito per creare.
+Il percorso desiderato e: obiettivo -> campagna -> contenuti sito e social ->
+calendario operativo -> revisione -> pubblicazione/condivisione -> apprendimento.
+
+CAPACITA GIA PRESENTI NEL CODICE
+
+1. Conoscenza dell'attivita
+   api/services/profile_knowledge.php definisce dieci campi: attivita, offerta,
+   pubblico, obiettivo, tono, differenziatori, bisogni, azione desiderata,
+   territorio e servizi prioritari. Le correzioni del titolare prevalgono sulle
+   deduzioni. La review AI distingue informazioni chiare, vaghe e mancanti.
+   Questo e gia un buon nucleo per un brief da social media manager.
+
+2. Regia di LIA
+   api/services/lia_assistant.php usa il modello configurato tramite AI::gemini.
+   Il contesto include profilo, contenuti recenti, dati disponibili, canali e
+   attivita concordate. Il modello produce proposte validate dal server.
+   Gli strumenti ammessi sono navigazione, preparazione articolo, bozza social e
+   proposta di presentazione del sito. LIA non ha uno strumento di pubblicazione.
+   Il briefing iniziale sceglie una sola priorita e prosegue sul contenuto reale.
+   frontend/src/components/LiaWorkspace.jsx conserva la conversazione nel parent
+   durante i cambi di sezione; DashboardScreen.jsx la mantiene in stato React.
+   La conversazione completa non risulta persistita sul server per il riaccesso.
+
+3. Squadra specialistica e agenda
+   frontend/src/components/LiaAgenda.jsx espone quattro competenze: redazione,
+   social media manager, SEO e GEO. api/services/lia_agenda.php crea con AI un
+   piano di 4-7 attivita su sette giorni, coprendo tutti i ruoli.
+   Piano e avanzamenti sono salvati in system_settings per account.
+   Stati disponibili: todo, in_progress, done. Le date usano Europe/Rome.
+   L'avvio di un'attivita passa il brief alla conversazione LIA.
+   L'aggiornamento controlla l'identita del piano e le modifiche concorrenti.
+
+4. Ideazione e materiali editoriali
+   AI::contentIdeas in api/services/ai.php combina strategia, contenuti pubblicati,
+   domande Google e segnali recenti; restituisce tre idee con obiettivo, formato,
+   hook, invito all'azione e taglio social. I fallback sono dichiarati come tali.
+   api/services/content_ideas.php normalizza i risultati e costruisce tracce dal
+   profilo se il provider non produce una risposta utilizzabile.
+   api/services/article_studio.php e la relativa interfaccia preparano articoli
+   completi e revisionabili. LIA usa questo percorso per prepare_article.
+
+5. Opportunita concrete
+   api/services/opportunities.php distingue dati osservati e ipotesi. Puo
+   suggerire revisione di una pagina, completamento contatti, riuso sui social e
+   nuove risposte per il pubblico. Associa query a una pagina solo con prova
+   esplicita del collegamento, evitando deduzioni basate sul solo titolo.
+   frontend/src/components/OpportunityWorkspace.jsx consente di sviluppare la
+   proposta come testo social oppure bozza web.
+
+6. Contenuti social
+   LIA social_draft prepara caption e hashtag per Instagram, Facebook, LinkedIn,
+   TikTok e X. L'interfaccia permette modifica, copia e salvataggio della bozza.
+   Il percorso separato generate-social-content usa AI::socialContent, supporta
+   Instagram/Facebook/TikTok/LinkedIn e produce anche un visual_brief.
+   Per il riuso di articoli carica il testo dell'utente dal server e puo aggiungere
+   il collegamento pubblico verificabile. La risposta dichiara device_share.
+
+7. Risultati e miglioramenti del sito
+   api/services/visibility.php registra visite stimate, azioni sui contatti e
+   dati di ricerca Google, con query e pagine quando disponibili.
+   frontend/src/components/VisibilityPulse.jsx distingue dati assenti e zero,
+   clic sui contatti e richieste effettive. La presenza nelle risposte AI non e
+   misurata. Sono disponibili profilo, contatti, titoli, descrizioni e fondazioni
+   informative del sito, utili per interventi coordinati da LIA.
+
+CALENDARIO E PUBBLICAZIONE: CAPACITA REALI E LIMITI
+
+Agenda LIA
+   E un calendario di lavoro. La data di un'attivita non attiva alcuna consegna.
+   Segnare done non dimostra che il contenuto sia pubblico e non crea un post.
+   Un orario suggerito deve essere presentato come proposta organizzativa.
+   Senza metriche specifiche non e un orario ottimale misurato per il pubblico.
+
+Social esterni
+   I canali collegati sono fonti da cui acquisire materiali. Il collegamento a
+   una fonte non dimostra un'autorizzazione a pubblicare su quel social.
+   generate-social-content dichiara condivisione dal dispositivo; la pubblicazione
+   finale richiede l'azione dell'utente nell'app scelta. Non e stato individuato
+   uno scheduler OAuth/API per pubblicare automaticamente nei social esterni.
+
+Sito interno
+   api/index.php espone creazione/modifica di bozze e aggiornamento del flag
+   published. L'atto di pubblicare e distinto dalla generazione e dall'agenda.
+   Non e stato individuato un publish_at editoriale collegato all'agenda LIA.
+
+WordPress: bridge di sincronizzazione
+   api/services/wordpress_bridge.php configura feed, filtri, categorie e tag.
+   integrations/wordpress/allsocialtoweb/sync.php registra WP-Cron ogni cinque
+   minuti quando abilitato. L'utente sceglie importazione come draft o publish;
+   il contenuto non pronto resta bozza. Sono previsti filtri su fonti, date e
+   archivio. Questo sincronizza l'archivio, non gli orari della campagna LIA.
+   WP-Cron dipende dall'esecuzione sul sito WordPress e dalle visite, come
+   dichiarato da frontend/src/components/WordPressConnections.jsx.
+
+WordPress: coda di consegna separata
+   api/services/publication/service.php e cron/publish.php implementano una coda
+   con snapshot, tentativi, lease e ricevute remote. Il servizio e subordinato a
+   PUBLICATION_CONNECTORS_ENABLED, piano abilitato e PUBLICATION_PILOT_USERS.
+   next_attempt_at governa disponibilita/retry del job; nelle API analizzate non
+   e una data editoriale selezionabile e non e collegata alle task LIA.
+   Questo percorso non deve essere confuso con il bridge di sincronizzazione.
+
+Cron di acquisizione e SEO
+   cron/sync.php raccoglie fonti, completa elaborazioni e aggiorna Search Console
+   se configurata. Non e un calendario di campagne social.
+
+GAP CONCRETI RISPETTO A UN SERVIZIO SOCIAL MEDIA MANAGER
+
+A. Attivita ancora isolate
+   Il piano esistente richiede tutti e quattro i ruoli anche quando una campagna
+   avrebbe bisogno di un diverso mix. Manca un legame esplicito tra articolo,
+   adattamenti social, miglioramento della pagina di destinazione e verifica.
+
+B. Brief operativo poco strutturato
+   Le task originali contengono ruolo, giorno, titolo, motivo, brief e post_id.
+   Non prevedono canale, formato, orario, output atteso, invito all'azione,
+   durata del lavoro o criterio di verifica. Il brief libero puo menzionarli,
+   ma la UI non puo filtrarli o presentarli in modo affidabile.
+
+C. Riorganizzazione distruttiva della memoria del piano
+   generate crea un nuovo piano e lo salva al posto del precedente. Non emerge
+   un archivio dei piani, ne un trasferimento esplicito delle attivita aperte.
+   Un piano futuro dovrebbe mostrare cosa sostituisce e conservare il lavoro.
+
+D. Avanzamento scollegato dall'output
+   Il click segna in_progress e apre LIA, ma il salvataggio di una bozza non
+   collega automaticamente il nuovo post alla task. Il completamento e manuale.
+   Manca una differenza strutturata fra bozza pronta, approvata e pubblicata.
+
+E. Tipizzazione delle bozze social
+   LiaWorkspace salva una social_draft attraverso post-create come post manuale.
+   Quel percorso non conserva piattaforma di destinazione o finalita social.
+   create-idea-draft supporta invece is_external -> external_social_use.
+   Una semplice etichetta non basta: feed WordPress e filtri di pubblicazione
+   devono rispettare la destinazione prima di poter promettere separazione.
+
+F. Due percorsi social non allineati
+   LIA e generate-social-content hanno piattaforme e output diversi. LIA non
+   conserva visual_brief e non dispone del link pubblico nel proprio contratto.
+   Un briefing visuale e utile per guidare caroselli/video, ma non e un asset
+   grafico o un video generato. Questi output vanno chiamati con precisione.
+
+G. Misura delle campagne incompleta
+   Le metriche presenti descrivono sito e ricerca. Non risultano acquisizione
+   coordinata di reach, engagement, follower o performance social per campagna.
+   site_events registra referrer_host ma non un modello UTM/campagna dedicato.
+   Non e possibile attribuire automaticamente una vendita o richiesta a un post.
+
+H. Proattivita prevalentemente su richiesta
+   Il briefing viene generato quando l'utente apre il workspace; l'agenda viene
+   creata dal pulsante. Non risulta un ciclo periodico che riesamini obiettivo,
+   risultati, scadenze e task scadute con notifiche persistenti.
+   Le risposte non devono dichiarare lavoro in background che non esiste.
+
+I. Copertura professionale ulteriore
+   Community management, moderazione, risposta ai commenti, gestione messaggi,
+   customer care, campagne a pagamento, approvazioni di team, asset management e
+   budget pubblicitario non risultano coperti dal flusso LIA analizzato.
+   Non e corretto affermare che il prodotto soddisfi gia ogni esigenza SMM.
+
+ROADMAP ORDINATA E REQUISITI DI ACCETTAZIONE
+
+Priorita immediata: LIA come regia della promozione
+   Rendere esplicito nei prompt che si parte da obiettivo e offerta anche senza
+   materiali social importati. Ogni proposta deve usare dati confermati e
+   collegare un contributo concreto a un risultato verificabile.
+   Arricchire l'agenda con canale, formato, orario suggerito, output e misura.
+   Rendere visibile che si tratta di pianificazione, non pubblicazione.
+   Accettazione: una stessa attivita produce un piano sito/social coerente;
+   dati mancanti non diventano statistiche o promesse inventate; le vecchie
+   agende restano leggibili; nessuna task esegue pubblicazioni da sola.
+
+Priorita successiva: continuita del lavoro
+   Collegare task e bozze create, conservare storico e attivita aperte, gestire
+   scadenze superate. Persistenza della conversazione e ripresa da altro accesso.
+   Distinguere stato editoriale, stato pubblicazione e conferma manuale esterna.
+   Accettazione: riprendere una task mantiene contenuto, brief e stato effettivo;
+   riorganizzare non perde bozze e non duplica consegne.
+
+Priorita successiva: contenuti coordinati e archivio corretto
+   Una campagna ha una pagina/articolo sorgente e varianti social collegate;
+   piattaforma e formato sono tipizzati. LIA puo preparare scaletta carosello,
+   script breve, visual brief e invito coerente alla pagina o al contatto.
+   Rivedere tutti i consumer prima di usare external_social_use come garanzia
+   che una caption non sia pubblicata sul sito o importata in WordPress.
+   Accettazione: una bozza destinata al social resta riconoscibile e i filtri
+   di pubblicazione rispettano la scelta del proprietario.
+
+Priorita successiva: verifica e apprendimento
+   Definire baseline, periodo e metrica per ogni campagna. LIA deve distinguere
+   obiettivi ipotizzati, azioni svolte e risultati misurati. UTM e attribuzione
+   richiedono una progettazione specifica e verifica di schema/dati.
+   Accettazione: LIA spiega cosa puo misurare e non trasforma clic in vendite;
+   il piano successivo usa soltanto risultati realmente disponibili.
+
+Evoluzione separata: pubblicazione programmata effettiva
+   Servono integrazioni autorizzate per social, gestione token, permessi,
+   validazione media, fusi orari, approvazione, idempotenza, annullamento e
+   ricevute remote. Per il sito va definito il contratto di pubblicazione futura.
+   L'eventuale schema necessario va testato in staging e allineato in produzione
+   soltanto dopo la conferma prevista in AGENTS.md. Nessuna sincronizzazione DB
+   da staging a produzione. Nessuna promessa di questa capacita nella fase attuale.
+
+SOLUZIONE IN CORSO NELLA SESSIONE
+
+La squadra sta lavorando su regia LIA, agenda operativa piu concreta e interfaccia
+per attivita di promozione sito/social. Questo documento registra l'analisi e i
+requisiti; non certifica che quelle modifiche siano gia completate, testate o
+distribuite. Il resoconto finale deve indicare i cambiamenti effettivamente
+verificati e lo stato dei workflow di produzione e staging.
+
+VERIFICHE RACCOMANDATE PER LA CONSEGNA
+
+Validazione backend di tutti i campi dell'agenda e compatibilita dei vecchi piani;
+scoping per account; gestione di risposte AI incomplete senza perdere il piano;
+assenza di pubblicazione implicita; prosecuzione dalla task al contenuto reale;
+build frontend e regressioni LIA rilevanti. Per lo scheduling effettivo futuro,
+test dedicati su fusi orari, annullamento, concorrenza e consegne duplicate.
+La verifica in produzione non puo essere sostituita dal solo completamento locale.
+
+IMPLEMENTAZIONE VERIFICATA NELLA SESSIONE
+Agenda estesa con campagna, canale, formato, orario suggerito Europe/Rome, risultato e verifica. Ingresso diretto dalla home e prosecuzione in chat LIA con contesto. Il piano puo partire senza importazioni. Le bozze social usano marcatori nelle colonne esistenti (platform_post_id e tags), restano private e noindex; escluse da publish-all e feed WordPress. Nessuna migrazione. Verificati build, test PHP agenda/assistant/draft/bridge e browser home/agenda/workspace. Lo stato della distribuzione viene riportato separatamente a conclusione dei workflow.
+

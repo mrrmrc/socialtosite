@@ -6,6 +6,7 @@ export const LIA_TASKS = [
   { icon: 'pen', title: 'Da un’idea a un contenuto', detail: 'Ricevi 3 idee concrete basate sulla tua attività.', prompt: 'Proponimi tre idee concrete di contenuto per la mia attività. Usa il profilo e i contenuti già presenti, evita di ripetere gli stessi argomenti. Per ciascuna dammi un titolo, un taglio utile e il motivo per cui può interessare al mio pubblico.' },
   { icon: 'spark', title: 'Le parole giuste per te', detail: 'Rivediamo come racconti la tua attività.', prompt: 'Vorrei una presentazione più chiara della mia attività. Partiamo dalle informazioni del mio profilo e chiedimi quello che manca.' },
   { icon: 'globe', title: 'Il prossimo passo utile', detail: 'Una priorità motivata, con qualcosa da fare adesso.', prompt: 'In base al mio profilo e allo stato dei miei contenuti, scegli una sola azione utile da fare adesso. Spiega perché la consigli e aiutami a svolgerla. Non ripetere il riepilogo e non inventare risultati o dati mancanti.' },
+  { icon: 'layers', title: 'Dal sito ai social', detail: 'Una campagna coordinata per il tuo obiettivo.', prompt: 'Agisci come la mia social media manager con LIA. Parti dal mio profilo e dal mio obiettivo per proporre una campagna: un articolo utile sul sito, due adattamenti social per promuoverlo e un invito concreto a visitare il sito o contattarmi. Non aspettare nuovi post da importare. Prepara una proposta alla volta, con contenuti originali e fatti verificati.' },
 ];
 
 export function LiaTaskShortcuts({ onChoose, disabled }) {
@@ -19,6 +20,7 @@ export function LiaTaskPanel({ onChoose, onPostEdit, sources = [], posts = [], l
   const title = post => post.edited_title || post.generated_title || `Contenuto ${post.platform || ''} #${post.id}`;
   return <aside className="lia-task-panel lw-agent-panel" aria-label="Idee e strumenti con LIA">
     <div className="lia-task-panel-title"><Icon name="spark" size={17} /><span>INIZIAMO A LAVORARE</span></div><h2>Un aiuto concreto, adesso.</h2><p>Scegli un’attività: LIA usa quello che conosce del tuo progetto e ti risponde qui.</p>
+    <LiaTaskShortcuts onChoose={onChoose} disabled={busy||loading}/>
     <section className="lw-content-coach" aria-label="Migliora un tuo contenuto"><span className="lw-eyebrow">DAL TUO ARCHIVIO</span><h3>Miglioriamo un contenuto.</h3>{chosen ? <>
       <label htmlFor="lia-content-choice">Su quale lavoriamo?</label><select id="lia-content-choice" value={String(chosen.id)} disabled={busy || loading} onChange={event => setChosenId(event.target.value)}>{candidates.map(post => <option key={post.id} value={post.id}>{title(post)}</option>)}</select>
       <p>{Number(chosen.published) === 1 ? 'Un articolo già online: possiamo renderlo più chiaro o sviluppare un nuovo approfondimento.' : 'Una bozza da sviluppare: troviamo cosa manca e prepariamo una versione migliore.'}</p>

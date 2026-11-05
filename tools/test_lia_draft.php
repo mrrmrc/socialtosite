@@ -27,6 +27,17 @@ catch (DraftResponse $result) {
 if ($parameters[0] !== 22) throw new LogicException('The authenticated owner must own the draft');
 if (!str_contains($sql, 'seo_score, processing_status, published') || !str_contains($sql, "10, 'done', 0")) throw new LogicException('A saved draft must be ready but unpublished');
 DB::$writes = [];
+$GLOBALS['draftPayload'] = ['edited_title'=>'Bozza Instagram', 'edited_body'=>'Un messaggio per le famiglie.', 'content_type'=>'social', 'platform'=>'instagram', 'noindex'=>0, 'published'=>1];
+try { eval($route); throw new LogicException('Missing response'); }
+catch (DraftResponse $result) { if ($result->status !== 200) throw new LogicException('Social draft save failed'); }
+[$socialSql, $socialParameters] = DB::$writes[0];
+if (!str_starts_with($socialParameters[2], 'lia_social_instagram_') || !in_array('lia-social:instagram', json_decode($socialParameters[7], true), true) || end($socialParameters) !== 1) throw new LogicException('Social drafts must preserve their destination and stay out of search');
+if (!str_contains($socialSql, "10, 'done', 0")) throw new LogicException('Social draft must remain private');
+DB::$writes = [];
+$GLOBALS['draftPayload']['platform'] = 'unsupported';
+try { eval($route); throw new LogicException('Invalid channel accepted'); }
+catch (DraftResponse $result) { if ($result->status !== 422 || DB::$writes) throw new LogicException('Invalid social channels cannot write'); }
+DB::$writes = [];
 $GLOBALS['draftPayload'] = ['edited_title' => str_repeat('x', 241), 'edited_body' => '<p>Text</p>'];
 try { eval($route); throw new LogicException('Long title accepted'); }
 catch (DraftResponse $result) { if ($result->status !== 422 || DB::$writes) throw new LogicException('Invalid drafts cannot write'); }

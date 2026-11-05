@@ -1585,11 +1585,11 @@ if ($action === 'toggle-publish-post' && $method === 'POST') {
 // utile per l'onboarding quando l'utente ha tanti contenuti ancora in bozza.
 if ($action === 'publish-all' && $method === 'POST') {
     $count = DB::fetch(
-        'SELECT COUNT(*) as n FROM posts WHERE user_id=? AND published=0 AND seo_score>0 AND (generated_title IS NOT NULL AND generated_title != "")',
+        'SELECT COUNT(*) as n FROM posts WHERE user_id=? AND published=0 AND seo_score>0 AND LEFT(COALESCE(platform_post_id,\'\'),11) <> \'lia_social_\' AND (generated_title IS NOT NULL AND generated_title != "")',
         [$userId]
     )['n'] ?? 0;
     DB::execute(
-        'UPDATE posts SET published=1, published_at=COALESCE(published_at, NOW()) WHERE user_id=? AND published=0 AND seo_score>0 AND (generated_title IS NOT NULL AND generated_title != "")',
+        'UPDATE posts SET published=1, published_at=COALESCE(published_at, NOW()) WHERE user_id=? AND published=0 AND seo_score>0 AND LEFT(COALESCE(platform_post_id,\'\'),11) <> \'lia_social_\' AND (generated_title IS NOT NULL AND generated_title != "")',
         [$userId]
     );
     json(['ok' => true, 'published' => (int)$count]);
@@ -1615,11 +1615,15 @@ if ($action === 'post-create' && $method === 'POST') {
     
     if ($title === '') jsonError('Titolo mancante');
     if (mb_strlen($title) > 240) jsonError('Il titolo deve contenere al massimo 240 caratteri.',422);
+    $isSocialDraft = ($b['content_type'] ?? '') === 'social';
+    $socialPlatform = $b['platform'] ?? '';
+    if ($isSocialDraft && (!is_string($socialPlatform) || !in_array($socialPlatform, ['instagram','facebook','linkedin','tiktok','x'], true))) jsonError('Canale social non valido.',422);
     $mediaUrl = trim((string)($b['media_url'] ?? ''));
     if ($mediaUrl !== '' && !preg_match('~^https?://~i', $mediaUrl) && !str_starts_with($mediaUrl,'/public/media/')) jsonError('Indirizzo immagine non valido',422);
     $mediaType = strtoupper((string)($b['media_type'] ?? 'IMAGE')) === 'VIDEO' ? 'VIDEO' : 'IMAGE';
     $alignment = in_array($b['media_alignment'] ?? '', ['left','center','right'],true) ? $b['media_alignment'] : 'center';
     $tags = json_encode(array_values(array_map(fn($tag)=>trim(strip_tags((string)$tag)), (array)($b['tags'] ?? []))), JSON_UNESCAPED_UNICODE);
+    if ($isSocialDraft) $tags = json_encode(array_merge(json_decode($tags, true), ['lia-social:'.$socialPlatform]), JSON_UNESCAPED_UNICODE);
     
     $draftSlug = slugify($title . '-' . bin2hex(random_bytes(3)));
     $metaDescription = function_exists('mb_substr') ? mb_substr(strip_tags($body), 0, 155, 'UTF-8') : substr(strip_tags($body), 0, 155);
@@ -1628,7 +1632,7 @@ if ($action === 'post-create' && $method === 'POST') {
     $postId = DB::insert(
         'INSERT INTO posts (user_id, platform, platform_post_id, raw_content, generated_title, generated_body, generated_excerpt, tags, meta_description, slug, published_at, imported_at, content_hash, seo_score, processing_status, published, edited_title, edited_body, edited_excerpt, media_url, media_type, media_display_width, media_alignment, noindex)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW(), ?, 10, \'done\', 0, ?, ?, ?, ?, ?, ?, ?, ?)',
-        [$userId, 'manual', 'manual_'.bin2hex(random_bytes(5)), (string)($b['raw_content'] ?? ''), '', '', '', $tags, $metaDescription, $draftSlug, $contentHash, $title, $body, (string)($b['edited_excerpt'] ?? ''), $mediaUrl, $mediaUrl === '' ? '' : $mediaType, max(30,min(100,(int)($b['media_display_width'] ?? 100))), $alignment, !empty($b['noindex']) ? 1 : 0]
+        [$userId, 'manual', ($isSocialDraft ? 'lia_social_'.$socialPlatform.'_' : 'manual_').bin2hex(random_bytes(5)), (string)($b['raw_content'] ?? ''), '', '', '', $tags, $metaDescription, $draftSlug, $contentHash, $title, $body, (string)($b['edited_excerpt'] ?? ''), $mediaUrl, $mediaUrl === '' ? '' : $mediaType, max(30,min(100,(int)($b['media_display_width'] ?? 100))), $alignment, $isSocialDraft || !empty($b['noindex']) ? 1 : 0]
     );
     
     json(['ok' => true, 'id' => $postId]);
@@ -2188,10 +2192,8 @@ if ($action === 'lia-assistant' && $method === 'POST') {
         $liaFacts = $liaData['facts'];
         $liaFacts['channels']=LiaAssistant::channelContext((int)$userId);
         if (in_array($liaInput['intent'],['seo','geo','visibility','briefing'],true)) $liaFacts['search_queries']=LiaAssistant::searchContext((int)$userId);
-        if ($liaInput['intent']==='briefing') {
-            require_once __DIR__ . '/services/lia_agenda.php';
-            $liaFacts['agenda']=LiaAgenda::read((int)$userId);
-        }
+        require_once __DIR__ . '/services/lia_agenda.php';
+        $liaFacts['agenda']=LiaAgenda::read((int)$userId);
         $liaFacts['visibility_available'] = false;
         try {
             $liaVisibility = VisibilityAnalytics::userSummary((int)$userId);

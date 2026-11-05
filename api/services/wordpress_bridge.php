@@ -108,7 +108,7 @@ final class WordPressBridge {
 
     public static function feed(int $userId, int $cursor, array $input = []): array {
         $filters = self::filters($input);
-        $sql = 'SELECT * FROM posts WHERE user_id=? AND id>?';
+        $sql = "SELECT * FROM posts WHERE user_id=? AND id>? AND LEFT(COALESCE(platform_post_id,''),11) <> 'lia_social_'";
         $params = [$userId, max(0, $cursor)];
         if ($filters['scope'] === 'published') $sql .= ' AND published=1';
         if ($filters['scope'] === 'drafts') $sql .= ' AND published=0';
@@ -124,6 +124,8 @@ final class WordPressBridge {
         $posts = [];
         foreach ($rows as $row) {
             $cursor = (int)$row['id'];
+            // Captions prepared for social channels are never website articles.
+            if (str_starts_with((string)($row['platform_post_id'] ?? ''), 'lia_social_')) continue;
             $transcript = trim((string)($row['transcript'] ?? ''));
             $raw = VideoSource::speech($transcript) ?: (json_decode($transcript, true) === null ? $transcript : '');
             $raw = $raw ?: trim((string)($row['raw_content'] ?? ''));
