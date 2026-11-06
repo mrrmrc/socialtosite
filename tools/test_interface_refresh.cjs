@@ -84,6 +84,7 @@ const base = 'http://127.0.0.1:5178';
         await app.getByRole('navigation', { name: 'Sezioni della piattaforma' }).getByRole('button', { name: 'Home', exact: true }).click();
         assert.equal(await app.locator('.lw-work-area').evaluate(el => getComputedStyle(el).display), 'grid', 'Shared theme is loaded by the real entry point');
         await app.getByRole('button', { name: 'Piano delle attività', exact: true }).click();
+        await app.locator('.lia-extra-tools > summary').filter({ hasText: 'Altre competenze di LIA' }).click();
         const task = app.getByRole('button', { name: /Caporedattrice/ });
         await task.click();
         await app.getByText('Ecco tre idee concrete per il tuo progetto.', { exact: true }).waitFor();

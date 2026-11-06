@@ -26,6 +26,7 @@ const base = 'http://127.0.0.1:5178';
       let data = {};
       if (action === 'me' || action === 'current_plan') data = { user };
       if (action === 'site') data = fixture;
+      if (action === 'lia-reading') data = { reading: { sources: [], samples: [], sample_count: 0, limited: true, mode: 'stored_sample', warnings: [] } };
       if (action === 'drafts' || action === 'pending-posts') data = [];
       if (action === 'lia-assistant') {
         if (payload.intent === 'briefing') {

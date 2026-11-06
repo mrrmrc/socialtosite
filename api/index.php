@@ -2164,14 +2164,25 @@ if ($action === 'interview-chat' && $method === 'POST') {
         jsonError('Intervista fallita: ' . $e->getMessage(), 502);
     }
 }
+if ($action === 'lia-reading' && $method === 'GET') {
+    require_once __DIR__ . '/services/lia_assistant.php';
+    try { json(['reading'=>LiaAssistant::reading((int)$userId)]); }
+    catch(Throwable $e) { error_log('[lia-reading] '.$e->getMessage()); jsonError('Non riesco a verificare i contenuti disponibili. Riprova prima di preparare il piano.',502); }
+}
+
 if ($action === 'lia-agenda' && in_array($method,['GET','POST'],true)) {
     require_once __DIR__ . '/services/lia_agenda.php';
     try {
         if ($method==='GET') json(['agenda'=>LiaAgenda::read((int)$userId)]);
         $input=body();
-        if (!in_array($input['operation'] ?? 'generate',['generate','update'],true)) throw new InvalidArgumentException('Operazione del piano non valida.');
+        if (!in_array($input['operation'] ?? 'generate',['generate','update','approve_strategy','revise_task'],true)) throw new InvalidArgumentException('Operazione del piano non valida.');
         if (isset($input['goal']) && !is_string($input['goal'])) throw new InvalidArgumentException('Scrivi un obiettivo valido.');
         if (($input['operation'] ?? 'generate')==='update') json(['agenda'=>LiaAgenda::update((int)$userId,(string)($input['plan_id'] ?? ''),(string)($input['task_id'] ?? ''),(string)($input['status'] ?? ''))]);
+        if (($input['operation'] ?? '')==='approve_strategy') json(['agenda'=>LiaAgenda::approveStrategy((int)$userId,(string)($input['plan_id'] ?? ''))]);
+        if (($input['operation'] ?? '')==='revise_task') {
+            if (!is_array($input['changes'] ?? null)) throw new InvalidArgumentException('Scheda attività non valida.');
+            json(['agenda'=>LiaAgenda::reviseTask((int)$userId,(string)($input['plan_id'] ?? ''),(string)($input['task_id'] ?? ''),$input['changes'])]);
+        }
         require_once __DIR__ . '/services/ai.php';
         AIHealth::assertRuntime();
         $metrics=[];
@@ -2194,6 +2205,10 @@ if ($action === 'lia-assistant' && $method === 'POST') {
         if (in_array($liaInput['intent'],['seo','geo','visibility','briefing'],true)) $liaFacts['search_queries']=LiaAssistant::searchContext((int)$userId);
         require_once __DIR__ . '/services/lia_agenda.php';
         $liaFacts['agenda']=LiaAgenda::read((int)$userId);
+        if($liaInput['context_task_id']!==null) {
+            LiaAgenda::taskContext((int)$userId,$liaInput['context_plan_id'],$liaInput['context_task_id']);
+            $liaFacts['selected_task_id']=$liaInput['context_task_id'];
+        }
         $liaFacts['visibility_available'] = false;
         try {
             $liaVisibility = VisibilityAnalytics::userSummary((int)$userId);

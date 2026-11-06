@@ -25,6 +25,7 @@ const fs = require('node:fs');
         if(action==='site')data={site:newcomer?{}:{title:'Studio Maria',bio:'Formazione per le famiglie.'},sources:[],posts:newcomer?[]:[{id:321,edited_title:'Guida per le famiglie',edited_body:'<p>Informazioni per le famiglie.</p>',published:0,seo_score:80}],visibility:{}};
         if(['drafts','pending-posts'].includes(action))data=[];
         if(action==='lia-agenda')data={agenda:{tasks:[]}};
+        if(action==='lia-reading')data={reading:{sources:newcomer?[]:[{id:1,platform:'website',name:'Sito dello studio',status:'imported',sample_count:1}],samples:newcomer?[]:[{id:321,platform:'manual',title:'Guida per le famiglie',text:'Informazioni per le famiglie.'}],sample_count:newcomer?0:1,mode:'stored_sample',limited:true,warnings:[]}};
         if(action==='lia-assistant') {
           if(payload.intent==='briefing') {
             if(fail)return route.fulfill({status:502,json:{error:'Non riesco a preparare il consiglio. Riprova tra poco.'}});
@@ -55,6 +56,8 @@ const fs = require('node:fs');
       assert.equal(await page.locator('.lw-statistics-panel').isVisible(),false,'Statistics open in their own panel');
       assert.equal(await page.getByRole('button',{name:/Caporedattrice/}).count(),0,'Technical roles are absent from the accessible entry screen');
       const start=page.getByRole('button',{name:'Facciamolo insieme',exact:true});
+      const primary=page.getByRole('button',{name:newcomer?'Collega sito e social':'Leggi sito e social',exact:true});
+      await primary.waitFor();
       const menu=page.getByRole('complementary',{name:'Menu del tuo spazio'});
       const menuBounds=await menu.boundingBox(),workBounds=await page.locator('.lia-guided-home').boundingBox();
       assert.ok(menuBounds.x+menuBounds.width<=workBounds.x,'Menu is in the left column, with the guided work to its right');
@@ -68,8 +71,10 @@ const fs = require('node:fs');
       assert.equal(calls.filter(call=>call.payload?.intent==='briefing').length,newcomer?2:1,'Switching panels preserves the existing AI recommendation');
       fs.mkdirSync('artifacts',{recursive:true});
       await page.screenshot({path:`artifacts/lia-guided-home-${newcomer?'new':'existing'}-desktop.png`,fullPage:true});
-      const bounds=await start.boundingBox();assert.ok(bounds.height>=56,'Primary action is large enough to click easily: '+JSON.stringify({bounds,styles:await start.evaluate(button=>({height:getComputedStyle(button).minHeight,font:getComputedStyle(button).fontSize}))}));
+      await page.evaluate(()=>window.scrollTo(0,0));
+      const bounds=await primary.boundingBox();assert.ok(bounds.height>=56,'Reading is the primary action and is large enough to click easily: '+JSON.stringify({bounds,styles:await primary.evaluate(button=>({height:getComputedStyle(button).minHeight,font:getComputedStyle(button).fontSize}))}));
       assert.ok(bounds.y+bounds.height<1000,'The main action is available without scrolling on desktop');
+      assert.equal(calls.some(call=>call.action==='sync'),false,'Opening home checks readable content without silently scanning sources');
       for(const width of [390,360]) {
         await page.setViewportSize({width,height:844});
         const toggle=page.getByRole('button',{name:'Menu e strumenti',exact:true});
@@ -81,7 +86,9 @@ const fs = require('node:fs');
         await page.getByRole('navigation',{name:'Sezioni della piattaforma'}).getByRole('button',{name:'Home',exact:true}).click();
         await start.waitFor();
         assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'Simple home fits narrow screens');
-        assert.ok(await start.evaluate(button=>parseFloat(getComputedStyle(button).fontSize)>=18),'Primary label remains readable on mobile');
+        await page.evaluate(()=>window.scrollTo(0,0));
+        assert.ok(await primary.evaluate(button=>parseFloat(getComputedStyle(button).fontSize)>=18),'Reading action label remains readable on mobile');
+        const primaryBounds=await primary.boundingBox();assert.ok(primaryBounds.y+primaryBounds.height<844,'Reading or connecting is available without scrolling on mobile');
         await page.screenshot({path:`artifacts/lia-guided-home-${newcomer?'new':'existing'}-${width}.png`,fullPage:true});
       }
       await start.click();

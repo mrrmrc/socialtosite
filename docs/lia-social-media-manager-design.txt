@@ -1,0 +1,109 @@
+LIA — Social Media Manager AI
+Specifica operativa e confini di esecuzione
+
+OBIETTIVO
+LIA progetta e coordina la presenza di un'attività su sito e social partendo
+dal bisogno del pubblico e dall'obiettivo del titolare. I social sono anche
+destinazioni editoriali; importare post non è necessario per iniziare.
+Notorietà, reputazione, relazioni, contatti e vendite sono obiettivi diversi.
+Un numero di contenuti, visite o interazioni non dimostra vendite.
+
+PROCESSO
+1. Raccogliere informazioni. Il profilo e l'intervista esistenti descrivono
+   offerta, pubblico, valori, tono e obiettivi. LIA usa i dati confermati e
+   le correzioni del titolare; distingue ipotesi e informazioni mancanti.
+   Concorrenti, budget, risorse e materiali non noti vanno dichiarati mancanti,
+   senza simulare ricerche o analisi che non sono state eseguite.
+   La home offre Leggi sito e social: acquisizione esplicita dei canali collegati
+   tramite il motore esistente, senza avviare generazioni o pubblicazioni.
+   LIA riceve poi estratti testuali reali bilanciati per piattaforma, non soltanto
+   titoli. Il dettaglio mostra i campioni, le date di acquisizione, i tentativi
+   di scansione e gli errori. La lettura è parziale, archiviata, non completa
+   né continua. Non è possibile attribuire con certezza campioni a uno specifico
+   account se più fonti condividono la stessa piattaforma: il limite è dichiarato.
+   I video senza parlato trascritto non sono utilizzati come testo analizzato.
+2. Proporre strategia. Riepilogo, pubblico, posizionamento, tono, rubriche,
+   canali, frequenza, risorse, obiettivi e indicatori. Ogni proposta distingue
+   evidenze, ipotesi e domande aperte. La strategia inizia come proposed.
+3. Approvare strategia. Soltanto un'azione autenticata del titolare registra
+   approved, identità e data. Il modello non può approvare. Il calendario può
+   essere esaminato come proposta, ma l'avvio delle attività richiede approval.
+   Rigenerare restituisce una nuova proposta che richiede nuova approvazione.
+4. Organizzare. Calendario di 4-7 attività sostenibili nei prossimi sette giorni,
+   con campagna, data/orario Europe/Rome e responsabilità. Revisione manuale
+   di materiali, testo e data prima dell'esecuzione. Nessun orario è presentato
+   come migliore senza misure. Le date non sono job di pubblicazione.
+   Vista settimana e mese con navigazione, Oggi/Torna al piano, filtri canale
+   e stato. Ogni evento apre la scheda corrispondente; giorni vuoti espliciti.
+   Mobile: settimana in sequenza, mese compatto con dettaglio del giorno scelto.
+   Competenze specialistiche e schede estese sono chiuse finché necessarie.
+5. Preparare. Scheda con pubblico, obiettivo, canale, formato, testo o copione,
+   indicazioni visive, materiali, responsabile, motivazione, evidenze e lacune.
+   Le attività non editoriali hanno kind=activity; i contenuti kind=content.
+6. Rivedere e approvare. Stati todo, in_progress, in_review, approved, done.
+   Per i nuovi piani approved richiede in_review. I contenuti richiedono
+   pubblico, obiettivo, canale, formato, testo e data prima dell'approvazione.
+   Modificare una scheda revoca l'approvazione precedente; done richiede approved.
+   Lo stato done non certifica una pubblicazione o un risultato commerciale.
+7. Pubblicare. La condivisione social resta manuale dal dispositivo. I percorsi
+   WordPress disponibili hanno propri requisiti e controlli. L'approvazione
+   editoriale non invia nulla e non autorizza implicitamente spese o risposte.
+8. Analizzare. Leggere statistiche realmente disponibili indicando periodo e
+   fonte. In mancanza di dati proporre una rilevazione manuale esplicita.
+   Le schede permettono note dei risultati con fonte e periodo, marcate come
+   dichiarazioni del titolare; annotarle conserva l'approvazione editoriale.
+9. Migliorare. Considerare lavori aperti/completati e dati disponibili per una
+   nuova proposta motivata. Test di messaggio, formato e argomento devono avere
+   un criterio verificabile; nessuna crescita viene promessa.
+
+COPERTURA DELLE COMPETENZE
+Strategia/analisi pubblico: profilo, intervista e proposta strategica LIA.
+Scrittura/storytelling: idee, articoli, caption, copioni e inviti pertinenti.
+Piattaforme: canale e formato espliciti, adattamenti; nessun accesso dedotto
+dal semplice collegamento di una fonte di lettura.
+Visual/video: brief e materiali richiesti; un copione non è un video prodotto.
+Produzione: responsabile, materiali, revisione e approvazione per scheda.
+Community: bozze di risposta da messaggi anonimizzati forniti dal titolare,
+distinzione assistenza/commerciale/critica e indicazioni di inoltro.
+Reputazione: classificazione e proposta di escalation al responsabile per casi
+sensibili; nessuna moderazione, rimborso o risposta automatica eseguita.
+Advertising: proposta pubblico, messaggi, test, budget da confermare. Attivazione
+e spesa richiedono una persona e strumenti dedicati; nessun Ads Manager integrato.
+Analisi: obiettivi e indicatori distinti da risultati, confronto verificabile.
+Organizzazione: calendario, schede, responsabilità e stati salvati per account.
+Verifica: evidenze, fatti mancanti, ipotesi separate e correzioni del titolare.
+Normativa: segnalare diritti, consensi e trasparenza da verificare; LIA non
+certifica liceità, titolarità delle immagini o correttezza giuridica.
+AI critica: output revisionabile, nessuna statistica, servizio o offerta inventata.
+
+CHI ESEGUE
+ai: LIA prepara analisi e proposte, testi, script e brief nel percorso guidato.
+connected_tool: l'attività richiede uno strumento collegato con capacità
+verificata; l'etichetta non dimostra che sia connesso o che l'azione sia avvenuta.
+human: titolare o responsabile raccoglie materiali, verifica, approva, condivide,
+risponde, gestisce escalation o attiva pubblicità.
+Queste modalità descrivono responsabilità: cambiare il campo non invoca strumenti.
+Non esiste una inbox live o un ascolto social continuo in questa implementazione.
+
+DATI E GARANZIE
+Strategia e schede sono JSON nel setting esistente lia_agenda_<userId>.
+Nessuna nuova tabella o migrazione. Contenuti salvati da LIA restano bozze.
+Le caption sono marcate nelle colonne esistenti e non passano al feed WordPress.
+Ogni lettura/scrittura usa l'account autenticato. Aggiornamenti concorrenti
+usano confronto della versione precedente per non sovrascrivere altri cambiamenti.
+La chat riceve il piano autentico dal server e la task selezionata per ID;
+un ID di altro account o di un vecchio piano viene rifiutato.
+Un errore AI o una proposta incompleta conserva il piano già salvato.
+I vecchi piani restano utilizzabili con il loro contratto precedente.
+
+PASSI SUCCESSIVI DISTINTI DALLE CAPACITÀ CONSEGNATE
+Storico versionato delle strategie e piani; materiali binari e libreria diritti;
+collegamento persistente task/articolo/varianti; inbox e ricevute di pubblicazione;
+scheduler reale con connettori, OAuth, retry e annullamento; integrazioni ads;
+baseline e attribuzione campagne. Questi richiedono integrazioni specifiche e,
+se necessario, migrazioni testate. Non sono simulati tramite gli stati dell'agenda.
+
+RILASCIO
+Solo staging, secondo l'ultima istruzione del titolare. La produzione richiede
+una nuova richiesta esplicita. Il risultato dei test e del workflow va riportato
+separatamente, senza confondere modifiche locali con funzionalità pubblicate.

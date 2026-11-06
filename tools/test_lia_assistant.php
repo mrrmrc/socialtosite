@@ -10,6 +10,10 @@ function liaRejects(callable $call, string $message): void {
 class DB {
     public static array $reads = [];
     public static int $writes = 0;
+    public static array $readingSources=[];
+    public static array $readingPosts=[];
+    public static array $readingUnavailable=[];
+    public static bool $sourceFallback=false;
     public static function fetch(string $sql, array $parameters): ?array {
         self::$reads[] = [$sql, $parameters];
         if (str_contains($sql, 'FROM sites')) return ['title' => 'Studio proprietario ' . $parameters[0], 'bio' => 'Consulenza locale', 'secret_token' => 'never-share'];
@@ -20,7 +24,21 @@ class DB {
         }
         return ['acquired' => 8, 'ready' => 7, 'published' => 5, 'pending' => 1, 'processing' => 0];
     }
-    public static function fetchAll(string $sql, array $parameters): array { self::$reads[] = [$sql, $parameters]; if(str_contains($sql,'seo_search_details'))return [['query_text'=>'Formazione famiglie','impressions'=>40,'clicks'=>3,'latest_date'=>'2026-10-29']];if(str_contains($sql,'SELECT platform,label'))return [['platform'=>'instagram','label'=>'Profilo del titolare']];return [['title' => 'Titolo account ' . $parameters[0]]]; }
+    public static function fetchAll(string $sql, array $parameters): array {
+        self::$reads[] = [$sql, $parameters];
+        if(str_contains($sql,'SELECT * FROM social_sources') || str_contains($sql,'SELECT id,platform,label,url FROM social_sources')) {
+            if(self::$sourceFallback && str_contains($sql,'SELECT *'))throw new RuntimeException('Optional source details unavailable');
+            return array_values(array_filter(self::$readingSources,fn($row)=>$row['user_id']===$parameters[0]));
+        }
+        if(str_contains($sql,'SELECT DISTINCT platform'))return array_map(fn($platform)=>['platform'=>$platform],array_values(array_unique(array_column(array_filter(self::$readingPosts,fn($row)=>$row['user_id']===$parameters[0]),'platform'))));
+        if(str_contains($sql,'platform_post_id,media_type,transcript,raw_content')) {
+            if(in_array($parameters[1],self::$readingUnavailable,true))throw new RuntimeException('Archive unavailable');
+            return array_values(array_filter(self::$readingPosts,fn($row)=>$row['user_id']===$parameters[0] && $row['platform']===$parameters[1]));
+        }
+        if(str_contains($sql,'seo_search_details'))return [['query_text'=>'Formazione famiglie','impressions'=>40,'clicks'=>3,'latest_date'=>'2026-10-29']];
+        if(str_contains($sql,'SELECT platform,label'))return [['platform'=>'instagram','label'=>'Profilo del titolare']];
+        return [['title' => 'Titolo account ' . $parameters[0]]];
+    }
     public static function execute(string $sql, array $parameters): int { self::$writes++; throw new LogicException('Conversation cannot write'); }
 }
 class AI {
@@ -43,7 +61,7 @@ liaCheck(strlen($workInput['work']['article']['title']) === 240 && strlen($workI
 liaCheck(array_keys($workInput['work']) === ['article'] && array_keys($workInput['work']['article']) === ['title', 'content'] && !str_contains($workInput['work']['article']['content'], '<p>'), 'Working copy is plain text without IDs, tools or publication flags');
 foreach ([['work' => 'text'], ['work' => ['article' => ['content' => []]]], ['work' => ['article' => ['content' => '   ']]]] as $badWork) liaRejects(fn() => LiaAssistant::input(['messages' => [['role' => 'user', 'text' => 'Rivedila']]] + $badWork), 'Malformed work context accepted');
 $loaded = LiaAssistant::load(42);
-liaCheck(count(DB::$reads) === 4, 'Conversation reads bounded account context');
+liaCheck(count(DB::$reads) === 6, 'Conversation reads bounded account context and archived reading coverage');
 foreach (DB::$reads as [$sql, $parameters]) liaCheck(str_contains($sql, 'user_id=?') && $parameters === [42], 'Every context query belongs to the authenticated account');
 $selectedInput=LiaAssistant::input(['messages'=>[['role'=>'user','text'=>'Migliora il mio articolo']],'context_post_id'=>99]);
 $selected=LiaAssistant::load(42,$selectedInput['context_post_id']);
@@ -133,10 +151,60 @@ AI::$response='{"reply":"Non so cosa fare","actions":[]}';
 liaRejects(fn()=>LiaAssistant::reply([],[],[],$briefingInput),'A generic reply without a concrete next step must remain retryable rather than pretending to be useful guidance');
 liaRejects(fn()=>LiaAssistant::normalize('{"reply":"Ti aiuto","next_step":{"title":"Un passo","prompt":"Procedi"}}'),'Incomplete guide is rejected');
 liaRejects(fn()=>LiaAssistant::normalize('{"reply":"Ti aiuto","next_step":{"title":"Un passo","reason":"Serve","prompt":"Procedi","context_post_id":-1}}'),'Invalid guide content ID is rejected');
+DB::$readingSources=[
+    ['id'=>1,'user_id'=>42,'platform'=>'instagram','label'=>'Foto del titolare','url'=>'https://user:password@example.com/profilo?token=private#secret','last_scan_at'=>'2026-11-05 08:00:00','last_scan_note'=>'Scansione non riuscita: https://example.com/api?token=private'],
+    ['id'=>2,'user_id'=>42,'platform'=>'linkedin','label'=>'Profilo professionale','url'=>'https://linkedin.com/in/titolare'],
+    ['id'=>3,'user_id'=>42,'platform'=>'tiktok','label'=>'Video titolare','url'=>'https://tiktok.com/@titolare'],
+    ['id'=>4,'user_id'=>42,'platform'=>'facebook','label'=>'Pagina non disponibile','last_scan_at'=>'2026-11-05 09:00:00'],
+    ['id'=>5,'user_id'=>42,'platform'=>'x','label'=>'Mai letta','last_scan_at'=>'2026-11-05 09:00:00'],
+    ['id'=>6,'user_id'=>43,'platform'=>'instagram','label'=>'Altro titolare segreto'],
+];
+DB::$readingPosts=[['id'=>800,'user_id'=>42,'platform'=>'instagram','platform_post_id'=>'lia_social_instagram_generated','raw_content'=>'Bozza AI da escludere']];
+for($i=0;$i<36;$i++)DB::$readingPosts[]=['id'=>700-$i,'user_id'=>42,'platform'=>'instagram','raw_content'=>'<p>Testo originale Instagram '.$i.'</p>','generated_body'=>'Versione generata da non usare','source_url'=>'https://instagram.com/p/reale?access_token=private','imported_at'=>'2026-11-04 10:00:00'];
+DB::$readingPosts[]=['id'=>600,'user_id'=>42,'platform'=>'linkedin','raw_content'=>'Esperienza concreta raccontata dal titolare','generated_body'=>'Riscrittura da non usare'];
+DB::$readingPosts[]=['id'=>599,'user_id'=>42,'platform'=>'tiktok','media_type'=>'video','raw_content'=>'Didascalia non prova il parlato','generated_body'=>'Testo AI non prova il parlato'];
+DB::$readingPosts[]=['id'=>598,'user_id'=>42,'platform'=>'tiktok','media_type'=>'video','transcript'=>json_encode(['format'=>'spoken-source-v1','speech'=>'Parlato reale trascritto dal video']),'raw_content'=>'Caption alternativa da non usare'];
+DB::$readingPosts[]=['id'=>597,'user_id'=>42,'platform'=>'manual','edited_body'=>'<h2>Pagina del sito rivista dal titolare</h2>','generated_body'=>'Prima versione','raw_content'=>'Appunto originale'];
+DB::$readingPosts[]=['id'=>596,'user_id'=>42,'platform'=>'website','raw_content'=>'Testo originale del sito esterno','edited_body'=>'Riscrittura modificata del sito esterno','generated_body'=>'Riscrittura AI del sito esterno','source_url'=>'https://example.com/articolo?api_key=private'];
+DB::$readingPosts[]=['id'=>594,'user_id'=>42,'platform'=>'website','generated_body'=>'Solo riscrittura archiviata, originale mancante'];
+DB::$readingPosts[]=['id'=>595,'user_id'=>43,'platform'=>'linkedin','raw_content'=>'Contenuto privato di un altro account'];
+DB::$readingUnavailable=['facebook'];
+$readingStart=count(DB::$reads);
+$reading=LiaAssistant::reading(42);
+$sampleText=implode(' ',array_column($reading['samples'],'text'));
+$readingCounts=array_count_values(array_column($reading['samples'],'platform'));
+liaCheck($reading['mode']==='stored_sample' && $reading['limited']===true && $reading['sample_count']<=12 && $readingCounts['instagram']===3 && $readingCounts['linkedin']===1,'Balanced partial reading includes quiet channels despite a high-volume Instagram archive');
+liaCheck(str_contains($sampleText,'Testo originale Instagram') && str_contains($sampleText,'Esperienza concreta') && str_contains($sampleText,'Pagina del sito rivista') && !str_contains($sampleText,'Versione generata') && !str_contains($sampleText,'Bozza AI'),'Reading uses original social text and edited site articles, excluding generated social drafts');
+liaCheck(str_contains($sampleText,'Parlato reale trascritto') && !str_contains($sampleText,'Didascalia') && !str_contains($sampleText,'Caption alternativa') && !str_contains($sampleText,'Testo AI non prova'),'Video reading requires stored spoken transcript and never substitutes captions or generated prose');
+$coverage=array_column($reading['sources'],null,'platform');
+liaCheck($coverage['instagram']['status']==='error' && $coverage['facebook']['status']==='error' && $coverage['x']['status']==='never_verified' && $coverage['linkedin']['status']==='imported','Coverage distinguishes failed source attempts, missing verification and actual stored excerpts');
+liaCheck($coverage['instagram']['sample_scope']==='platform' && $coverage['instagram']['last_scan_at']==='2026-11-05 08:00:00' && $coverage['instagram']['url']==='https://example.com/profilo','Coverage reports platform sampling scope and attempt date without exposing URL credentials');
+$encodedReading=json_encode($reading);
+liaCheck(!str_contains($encodedReading,'private') && !str_contains($encodedReading,'password') && !str_contains($encodedReading,'Altro titolare') && !str_contains($sampleText,'Contenuto privato'),'Reading excludes other accounts and strips URL credentials, queries and fragments');
+$kinds=array_column($reading['samples'],'kind','platform');
+liaCheck($kinds['manual']==='app_site' && $kinds['website']==='external_website' && count($reading['warnings'])>=2,'Reading distinguishes external websites from app-site articles and discloses unavailable archives and untranscribed videos');
+$websiteSamples=array_column(array_filter($reading['samples'],fn($sample)=>$sample['platform']==='website'),null,'id');
+liaCheck($websiteSamples[596]['text']==='Testo originale del sito esterno' && $websiteSamples[596]['content_origin']==='external_website_text' && $websiteSamples[594]['text']==='Solo riscrittura archiviata, originale mancante' && $websiteSamples[594]['content_origin']==='stored_site_rewrite','External website reading prefers original text and explicitly marks fallback rewrites rather than treating them as originals');
+foreach(array_slice(DB::$reads,$readingStart) as [$sql,$parameters])liaCheck(str_contains($sql,'user_id=?') && $parameters[0]===42,'Each reading query remains scoped to the authenticated owner');
+$withReading=LiaAssistant::load(42);
+liaCheck($withReading['facts']['reading']['sample_count']===$reading['sample_count'] && LiaAssistant::context([],[],$withReading['facts'])['reading']['samples']===$reading['samples'],'Assistant loader and model context include the actual stored reading excerpts');
+$readingPrompt=LiaAssistant::prompt(LiaAssistant::context([],[],$withReading['facts']),[['role'=>'user','text'=>'Proponi una rubrica']],'social');
+liaCheck(str_contains($readingPrompt,'LETTURA PRIMA DELLE PROPOSTE') && str_contains($readingPrompt,'Esperienza concreta') && str_contains($readingPrompt,'MAI scansione live'),'Proposals must use real sample text and disclose that reading is partial rather than live');
+DB::$sourceFallback=true;
+liaCheck(LiaAssistant::reading(42)['sample_count']===$reading['sample_count'],'Missing optional source details can fall back without database migrations');
+DB::$sourceFallback=false;DB::$readingSources=[];DB::$readingPosts=[];DB::$readingUnavailable=[];
 AI::$failure = new RuntimeException('Gemini (402): provider details never returned');
 try { LiaAssistant::reply([], [], [], $input); throw new LogicException('Provider failure was hidden'); }
 catch (RuntimeException $error) { liaCheck(AIHealth::failure($error)['code'] === 'provider_credit_exhausted', 'Provider quota/credit failures remain explicit'); }
 liaCheck(DB::$writes === 0, 'Neither conversation nor proposals write account data');
 $router = file_get_contents(__DIR__ . '/../api/index.php');
+$selectedInput=LiaAssistant::input(['messages'=>[['role'=>'user','text'=>'Sviluppa questa scheda']],'intent'=>'community','context_plan_id'=>'0123456789abcdef','context_task_id'=>'fedcba9876543210']);
+liaCheck($selectedInput['context_task_id']==='fedcba9876543210', 'Task context accepts bounded identifiers and community intent');
+liaRejects(fn()=>LiaAssistant::input(['messages'=>[['role'=>'user','text'=>'Procedi']],'context_task_id'=>'foreign-task']), 'Incomplete task context cannot bypass owner validation');
+$taskFacts=['agenda'=>['strategy'=>['status'=>'proposed','summary'=>'Proposta da rivedere','assumptions'=>['Tempo da confermare']],'tasks'=>[['id'=>'fedcba9876543210','title'=>'Bozza','copy'=>str_repeat('testo ',400),'visual_brief'=>'Foto del titolare da verificare','execution_mode'=>'human']]],'selected_task_id'=>'fedcba9876543210'];
+$taskContext=LiaAssistant::context([],[],$taskFacts);
+liaCheck($taskContext['agenda']['tasks'][0]['selected'] && strlen($taskContext['agenda']['tasks'][0]['copy'])>2000 && $taskContext['agenda']['strategy']['status']==='proposed', 'Server task context preserves copy, selection and strategy approval state');
+$professionalPrompt=LiaAssistant::prompt($taskContext,[['role'=>'user','text'=>'Rispondi a un reclamo']],'reputation');
+liaCheck(str_contains($professionalPrompt,'COMMUNITY:') && str_contains($professionalPrompt,'PUBBLICITA:') && str_contains($professionalPrompt,'REPORT:') && str_contains($professionalPrompt,'approvazione umana'), 'Professional paths distinguish human approval, community escalation, ads and measured reporting');
 liaCheck(strpos($router, "if (\$action === 'lia-assistant'") > strpos($router, '$me = JWT::require()'), 'Assistant endpoint remains behind authentication');
 echo "LIA assistant: owner context, bounded conversation, single question, validated actions, article/profile proposals, no autonomous writes and explicit provider failures passed.\n";

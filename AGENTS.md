@@ -2,9 +2,9 @@
 
 These rules apply to every coding agent working in this repository.
 
-## Default delivery includes production deployment
+## Default delivery is staging only
 
-The user has authorized automatic production deployment after completing and verifying requested code changes. Do not require the user to repeat `deployvps`: use the same canonical main + GitHub Actions + FTP/FTPS pipeline, include `[deployvps]` in the production commit, and verify the workflow before reporting success. Respect an explicit request to keep work local. The schema migration confirmation requirements below still apply.
+The user's latest instruction requires all new changes to be delivered only to staging. Do not push main, include `[deployvps]`, or trigger production without a new explicit production request. Implement and verify changes, push only staging through its existing GitHub pipeline, and verify that release. Respect an explicit request to keep work local. The schema migration confirmation requirements below still apply when production is explicitly requested.
 
 The user also reviews the staging dashboard at `http://45.138.202.132:8088/dashboard`. Publishing `main` does not update that URL. When delivering changes being reviewed there, synchronize the intended changes to `staging` through its existing GitHub pipeline and verify that dashboard's build as well. Do not replace the production FTP pipeline with staging infrastructure commands.
 
